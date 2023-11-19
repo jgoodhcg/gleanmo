@@ -40,14 +40,12 @@
 (defn page [ctx & body]
   (base
    ctx
-   [:.flex-grow]
-   [:.p-3.mx-auto.max-w-screen-sm.w-full
+   [:.p-2.w-full
     (when (bound? #'csrf/*anti-forgery-token*)
       {:hx-headers (cheshire/generate-string
                     {:x-csrf-token csrf/*anti-forgery-token*})})
     body]
-   [:.flex-grow]
-   [:.flex-grow]))
+   ))
 
 (defn on-error [{:keys [status ex] :as ctx}]
   {:status status
