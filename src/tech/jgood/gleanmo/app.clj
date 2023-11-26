@@ -74,44 +74,62 @@
 
      [:.h-6])))
 
-(defn habit-create-form []
-  [:div.m-2.w-full.md:w-96.space-y-8
+(defn header [{:keys [email]}]
+  [:div.space-x-8
+   [:span email]
+   [:a.link {:href "/app/habits"} "habits"]
+   [:a.link {:href "/app/habit/logs"} "habit logs"]
    (biff/form
-    {:hx-post   "/app/habit/add"
-     :hx-swap   "outerHTML"
-     :hx-select "#add-habit-form"
-     :id        "add-habit-form"}
+    {:action "/auth/signout"
+     :class  "inline"}
+    [:button.text-blue-500.hover:text-blue-800 {:type "submit"}
+     "Sign out"])])
 
-    [:div
-     [:h2.text-base.font-semibold.leading-7.text-gray-900 "Add Habit"]
-     [:p.mt-1.text-sm.leading-6.text-gray-600 "Add a new habit to your list."]]
+(defn habit-create-page [{:keys [session biff/db]}]
+  (let [user-id              (:uid session)
+        {:user/keys [email]} (xt/entity db user-id)]
+    (ui/page
+     {}
+     (header (pot/map-of email))
+     [:div.m-2.w-full.md:w-96.space-y-8
+      (biff/form
+       {:hx-post   "/app/habit/create"
+        :hx-swap   "outerHTML"
+        :hx-select "#create-habit-form"
+        :id        "create-habit-form"}
 
-    [:div.grid.grid-cols-1.gap-y-6
+       [:div
+        [:h2.text-base.font-semibold.leading-7.text-gray-900 "Create Habit"]
+        [:p.mt-1.text-sm.leading-6.text-gray-600 "Create a new habit to your list."]]
 
-     ;; Habit Name
-     [:div
-      [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "habit-name"} "Habit Name"]
-      [:div.mt-2
-       [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-        {:type "text" :name "habit-name" :autocomplete "off"}]]]
+       [:div.grid.grid-cols-1.gap-y-6
 
-     ;; Is Sensitive?
-     [:div.flex.items-center
-      [:input.rounded.shadow-sm.mr-2.text-indigo-600.focus:ring-blue-500.focus:border-indigo-500
-       {:type "checkbox" :name "sensitive" :autocomplete "off"}]
-      [:label.text-sm.font-medium.leading-6.text-gray-900 {:for "sensitive"} "Is Sensitive?"]]
+        ;; Habit Name
+        [:div
+         [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "habit-name"} "Habit Name"]
+         [:div.mt-2
+          [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+           {:type "text" :name "habit-name" :autocomplete "off"}]]]
 
-     ;; Notes
-     [:div
-      [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "notes"} "Notes"]
-      [:div.mt-2
-       [:textarea.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-        {:name "notes" :autocomplete "off"}]]]
+        ;; Is Sensitive?
+        [:div.flex.items-center
+         [:input.rounded.shadow-sm.mr-2.text-indigo-600.focus:ring-blue-500.focus:border-indigo-500
+          {:type "checkbox" :name "sensitive" :autocomplete "off"}]
+         [:label.text-sm.font-medium.leading-6.text-gray-900 {:for "sensitive"} "Is Sensitive?"]]
 
-     ;; Submit button
-     [:div.mt-2.w-full
-      [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
-       {:type "submit"} "Add Habit"]]])])
+        ;; Notes
+        [:div
+         [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "notes"} "Notes"]
+         [:div.mt-2
+          [:textarea.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+           {:name "notes" :autocomplete "off"}]]]
+
+        ;; Submit button
+        [:div.mt-2.w-full
+         [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
+          {:type "submit"} "Create Habit"]]]
+
+       )])))
 
 (defn habit-create! [{:keys [params session] :as ctx}]
   (biff/submit-tx ctx
@@ -121,7 +139,7 @@
                     :habit/sensitive (boolean (:sensitive params))
                     :habit/notes     (:notes params)}])
   {:status  303
-   :headers {"location" "/app"}})
+   :headers {"location" "/app/habit/create"}})
 
 (defn habit-log-create-form [{:keys [habits time-zone]}]
   [:div.w-full.md:w-96.space-y-8
@@ -201,17 +219,6 @@
   {:status  303
    :headers {"location" "/app"}})
 
-(defn header [{:keys [email]}]
-  [:div.space-x-8
-   [:span email]
-   [:a.link {:href "/app/habits"} "habits"]
-   [:a.link {:href "/app/habit/logs"} "habit logs"]
-   (biff/form
-    {:action "/auth/signout"
-     :class  "inline"}
-    [:button.text-blue-500.hover:text-blue-800 {:type "submit"}
-     "Sign out"])])
-
 (defn app [{:keys [session biff/db]}]
   (let [user-id              (:uid session)
         {:user/keys [email]} (xt/entity db user-id)]
@@ -220,7 +227,6 @@
      [:div
       (header (pot/map-of email))
       [:div.flex.flex-col.md:flex-row.justify-center
-       (habit-create-form)
        (let [habits    (q db '{:find  (pull ?habit [*])
                                :where [[?habit :habit/name]
                                        [?habit :user/id user-id]]
@@ -358,8 +364,10 @@
      {}
      [:div
       (header (pot/map-of email))
-      [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full.md:w-96.mt-6
-       "Add habit"]
+      [:div.my-4
+       [:a.text-blue-500.hover:underline.outline.outline-blue-500.outline-2.font-bold.py-2.px-4.rounded.w-full.md:w-96.mt-6
+        {:href "/app/habit/create"}
+        "Create habit"]]
       (habit-search-component {:sensitive sensitive :search search})
       [:div {:id "habits-list"}
        (->> habits
@@ -454,7 +462,7 @@
      [:div
       (header (pot/map-of email))
       [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full.md:w-96.mt-6
-       "Add Habit Log"]
+       "Create Habit Log"]
       [:div {:id "habit-logs-list"}
        (->> habit-logs
             (map (fn [z] (habit-log-list-item (-> z (assoc :edit-id edit-id))))))]])))
@@ -467,7 +475,8 @@
             ["/habits" {:get  habits-page
                         :post habits-page}]
             ["/habit/logs" {:get habit-logs-page}]
-            ["/habit/add" {:post habit-create!}]
+            ["/habit/create" {:post habit-create!
+                              :get  habit-create-page}]
             ["/habit/log" {:post habit-log-create!}]
             ["/habit/edit" {:post habit-edit!}]]})
 
