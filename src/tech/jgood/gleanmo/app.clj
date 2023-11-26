@@ -7,6 +7,7 @@
    [tech.jgood.gleanmo.middleware :as mid]
    [tech.jgood.gleanmo.settings :as settings]
    [tech.jgood.gleanmo.ui :as ui]
+   [tech.jgood.gleanmo.schema :as schema]
    [tick.core :as t]
    [xtdb.api :as xt])
   (:import
@@ -133,8 +134,9 @@
 
 (defn habit-create! [{:keys [params session] :as ctx}]
   (biff/submit-tx ctx
-                  [{:db/doc-type        :habit
-                    :user/id            (:uid session)
+                  [{:db/doc-type     :habit
+                    ::schema/type    :habit
+                    :user/id         (:uid session)
                     :habit/name      (:habit-name params)
                     :habit/sensitive (boolean (:sensitive params))
                     :habit/notes     (:notes params)}])
@@ -208,6 +210,7 @@
 
     (biff/submit-tx ctx
                     [{:db/doc-type         :habit-log
+                      ::schema/type        :habit-log
                       :user/id             user-id
                       :habit-log/timestamp timestamp
                       :habit-log/habit-ids habit-ids}
@@ -228,7 +231,7 @@
       (header (pot/map-of email))
       [:div.flex.flex-col.md:flex-row.justify-center
        (let [habits    (q db '{:find  (pull ?habit [*])
-                               :where [[?habit :habit/name]
+                               :where [[?habit :schema/type :habit]
                                        [?habit :user/id user-id]]
                                :in    [user-id]} user-id)
              time-zone (first (first (q db '{:find  [?tz]
@@ -243,10 +246,10 @@
   (biff/form
    {:hx-post   "/app/habit/edit"
     :hx-swap   "outerHTML"
-    :hx-select (str "#habit-list-item-" id)
-    :id        (str "habit-list-item-" id)}
+    :hx-select "#habit-edit-form"
+    :id        "habit-edit-form"}
 
-   [:div.w-full.md:w-96.ring-4.ring-blue-500.rounded.p-2
+   [:div.w-full.md:w-96.p-2
     [:input {:type "hidden" :name "id" :value (:xt/id habit)}]
 
     [:div.grid.grid-cols-1.gap-y-6
@@ -275,6 +278,8 @@
      [:div.mt-2.w-full
       [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
        {:type "submit"
+        ;; maybe bring this back when inline editing is re-enabled
+        #_#_
         :script "on click setURLParameter('edit', '')"}
        "Update Habit"]]]]))
 
@@ -285,18 +290,22 @@
   (let [url (str "/app/habits?edit=" id (when sensitive "&sensitive=true"))]
     (if (= edit-id id)
       (habit-edit-form habit)
-      [:div.hover:bg-gray-100.transition.duration-150.p-4.border-b.border-gray-200.cursor-pointer.w-full.md:w-96
-       {:id          (str "habit-list-item-" id)
-        :hx-get      url
-        :hx-swap     "outerHTML"
-        :script      (str "on click setURLParameter('edit', '" id
-                          "') then setURLParameter('sensitive', '" sensitive "')")
-        :hx-trigger  "click"
-        :hx-select   (str "#habit-list-item-" id)}
-       [:div.flex.justify-between
-        [:h2.text-md.font-bold name]]
-       (when sensitive [:span.text-red-500.mr-2 "🙈"])
-       [:p.text-sm.text-gray-600 notes]])))
+      ;; remove this link if bringing back inline editing
+      [:a {:href (str "/app/habit/edit/" id)}
+       [:div.hover:bg-gray-100.transition.duration-150.p-4.border-b.border-gray-200.cursor-pointer.w-full.md:w-96
+        ;; Disabling inline editing for now in favor of full page refresh
+        ;; Maybe bring this back later
+        #_{:id          (str "habit-list-item-" id)
+           :hx-get      url
+           :hx-swap     "outerHTML"
+           :script      (str "on click setURLParameter('edit', '" id
+                             "') then setURLParameter('sensitive', '" sensitive "')")
+           :hx-trigger  "click"
+           :hx-select   (str "#habit-list-item-" id)}
+        [:div.flex.justify-between
+         [:h2.text-md.font-bold name]]
+        (when sensitive [:span.text-red-500.mr-2 "🙈"])
+        [:p.text-sm.text-gray-600 notes]]])))
 
 (defn habit-search-component [{:keys [sensitive search]}]
   [:div.my-2
@@ -337,9 +346,16 @@
 
 (defn habits-query [{:keys [db user-id]}]
   (q db '{:find  (pull ?habit [*])
-          :where [[?habit :habit/name]
+          :where [[?habit ::schema/type :habit]
                   [?habit :user/id user-id]]
           :in    [user-id]} user-id))
+
+(defn habit-query [{:keys [db user-id habit-id]}]
+  (q db '{:find  (pull ?habit [*])
+           :where [[?habit ::schema/type :habit]
+                   [?habit :user/id user-id]
+                   [?habit :xt/id habit-id]]
+           :in    [user-id habit-id]} user-id habit-id))
 
 (defn checkbox-true? [v]
   (or (= v "on") (= v "true")))
@@ -359,7 +375,6 @@
         search                         (or (some-> params :search search-str-xform)
                                            (some-> query-params :search search-str-xform)
                                            "")]
-    (pprint (pot/map-of :habits-page params query-params sensitive search))
     (ui/page
      {}
      [:div
@@ -395,8 +410,9 @@
                       :habit/name      name
                       :habit/notes     notes
                       :habit/sensitive sensitive}])
+
     {:status  303
-     :headers {"location" (str "/app/habits" (when sensitive "?sensitive=true"))}}))
+     :headers {"location" (str "/app/habit/edit/" id)}}))
 
 (defn habit-logs-query [{:keys [db user-id]}]
   (let [raw-results (q db '{:find  [(pull ?habit-log [*]) ?habit-id ?habit-name ?tz]
@@ -467,6 +483,21 @@
        (->> habit-logs
             (map (fn [z] (habit-log-list-item (-> z (assoc :edit-id edit-id))))))]])))
 
+(defn habit-edit-page [{:keys [path-params
+                               session
+                               biff/db]
+                        :as   ctx}]
+  (let [habit-id            (-> path-params :id java.util.UUID/fromString)
+        user-id             (:uid session)
+        {email :user/email} (xt/entity db user-id)
+        habit               (habit-query (pot/map-of db habit-id user-id))]
+    (pprint (pot/map-of habit-id habit user-id email))
+    (ui/page
+     {}
+     [:div
+      (header (pot/map-of email))
+      (habit-edit-form habit)])))
+
 (def plugin
   {:static {"/about/" about-page}
    :routes ["/app" {:middleware [mid/wrap-signed-in]}
@@ -478,6 +509,7 @@
             ["/habit/create" {:post habit-create!
                               :get  habit-create-page}]
             ["/habit/log" {:post habit-log-create!}]
+            ["/habit/edit/:id" {:get habit-edit-page}]
             ["/habit/edit" {:post habit-edit!}]]})
 
 (comment

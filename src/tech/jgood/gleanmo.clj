@@ -16,7 +16,13 @@
 
 (def plugins
   [app/plugin
-   (biff/authentication-plugin {})
+   (biff/authentication-plugin
+    {:biff.auth/new-user-tx
+     (fn [ctx email]
+       [{:db/doc-type    :user
+         ::schema/type   :user
+         :db.op/upsert   {:user/email email}
+         :user/joined-at :db/now}])})
    home/plugin
    schema/plugin
    worker/plugin])
@@ -55,8 +61,7 @@
    :biff/malli-opts #'malli-opts
    :biff.beholder/on-save #'on-save
    :biff.middleware/on-error #'ui/on-error
-   :biff.xtdb/tx-fns biff/tx-fns
-   :tech.jgood.gleanmo/chat-clients (atom #{})})
+   :biff.xtdb/tx-fns biff/tx-fns})
 
 (defonce system (atom {}))
 
