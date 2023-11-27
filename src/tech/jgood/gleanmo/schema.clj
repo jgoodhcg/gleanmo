@@ -11,12 +11,13 @@
                   [:user/joined-at                  inst?]]
    :habit/id     :uuid
    :habit        [:map {:closed true}
-                  [:xt/id                        :habit/id]
-                  [::type                        :keyword]
-                  [:user/id                      :user/id]
-                  [:habit/name                   :string]
-                  [:habit/sensitive              boolean?]
-                  [:habit/notes {:optional true} :string]]
+                  [:xt/id                           :habit/id]
+                  [::type                           :keyword]
+                  [:user/id                         :user/id]
+                  [:habit/name                      :string]
+                  [:habit/sensitive                 boolean?]
+                  [:habit/notes {:optional true}    :string]
+                  [:habit/archived {:optional true} boolean?]]
    :habit-log/id :uuid
    :habit-log    [:map {:closed true}
                   [:xt/id                            :habit-log/id]

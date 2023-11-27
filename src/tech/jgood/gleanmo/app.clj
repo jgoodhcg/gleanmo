@@ -268,6 +268,11 @@
        {:type "checkbox" :name "sensitive" :checked (:habit/sensitive habit)}]
       [:label.text-sm.font-medium.leading-6.text-gray-900 {:for "sensitive"} "Is Sensitive?"]]
 
+     [:div.flex.items-center
+      [:input.rounded.shadow-sm.mr-2.text-indigo-600.focus:ring-blue-500.focus:border-indigo-500
+       {:type "checkbox" :name "archived" :checked (:habit/archived habit)}]
+      [:label.text-sm.font-medium.leading-6.text-gray-900 {:for "archived"} "Is Archived?"]]
+
      ;; Notes
      [:div
       [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "notes"} "Notes"]
@@ -286,7 +291,7 @@
         :script "on click setURLParameter('edit', '')"}
        "Update Habit"]]]]))
 
-(defn habit-list-item [{:habit/keys [sensitive name notes]
+(defn habit-list-item [{:habit/keys [sensitive name notes archived]
                         edit-id     :edit-id
                         id          :xt/id
                         :as         habit}]
@@ -295,7 +300,7 @@
       (habit-edit-form habit)
       ;; remove this link if bringing back inline editing
       [:a {:href (str "/app/habit/edit/" id)}
-       [:div.hover:bg-gray-100.transition.duration-150.p-4.border-b.border-gray-200.cursor-pointer.w-full.md:w-96
+       [:div.relative.hover:bg-gray-100.transition.duration-150.p-4.border-b.border-gray-200.cursor-pointer.w-full.md:w-96
         ;; Disabling inline editing for now in favor of full page refresh
         ;; Maybe bring this back later
         #_{:id          (str "habit-list-item-" id)
@@ -307,10 +312,12 @@
            :hx-select   (str "#habit-list-item-" id)}
         [:div.flex.justify-between
          [:h2.text-md.font-bold name]]
-        (when sensitive [:span.text-red-500.mr-2 "🙈"])
+        [:div.absolute.top-2.right-2
+         (when sensitive [:span.text-red-500.mr-2 "🔒"])
+         (when archived  [:span.text-red-500.mr-2 "📦"])]
         [:p.text-sm.text-gray-600 notes]]])))
 
-(defn habit-search-component [{:keys [sensitive search]}]
+(defn habit-search-component [{:keys [sensitive search archived]}]
   [:div.my-2
    (biff/form
     {:id         "habit-search"
@@ -338,14 +345,13 @@
         :script       "on change setURLParameter(me.name, me.checked) then htmx.trigger('#habit-search', 'search', {})"
         :autocomplete "off"
         :checked      sensitive}]
-      [:label.mx-4.text-gray-500.line-through {:for "archived"} "Archived"]
+      [:label.mx-4 {:for "archived"} "Archived"]
       [:input.rounded.mr-2
        {:type         "checkbox"
         :name         "archived"
         :script       "on change setURLParameter(me.name, me.checked) then htmx.trigger('#habit-search', 'search', {})"
         :autocomplete "off"
-        :disabled     true
-        :checked      false}]]])])
+        :checked      archived}]]])])
 
 (defn habits-query [{:keys [db user-id]}]
   (q db '{:find  (pull ?habit [*])
@@ -370,15 +376,18 @@
 (defn habits-page
   "Accepts GET and POST. POST is for search form as body."
   [{:keys [session biff/db params query-params]}]
-  (let [user-id                        (:uid session)
-        {:user/keys [email time-zone]} (xt/entity db user-id)
-        habits                         (habits-query (pot/map-of db user-id))
-        edit-id                        (some-> params :edit (java.util.UUID/fromString))
-        sensitive                      (or (some-> params :sensitive checkbox-true?)
-                                           (some-> query-params :sensitive checkbox-true?))
-        search                         (or (some-> params :search search-str-xform)
-                                           (some-> query-params :search search-str-xform)
-                                           "")]
+  (let [user-id             (:uid session)
+        {:user/keys
+         [email time-zone]} (xt/entity db user-id)
+        habits              (habits-query (pot/map-of db user-id))
+        edit-id             (some-> params :edit (java.util.UUID/fromString))
+        sensitive           (or (some-> params :sensitive checkbox-true?)
+                                (some-> query-params :sensitive checkbox-true?))
+        archived            (or (some-> params :archived checkbox-true?)
+                                (some-> query-params :archived checkbox-true?))
+        search              (or (some-> params :search search-str-xform)
+                                (some-> query-params :search search-str-xform)
+                                "")]
     (ui/page
      {}
      [:div
@@ -387,15 +396,18 @@
        [:a.text-blue-500.hover:underline.outline.outline-blue-500.outline-2.font-bold.py-2.px-4.rounded.w-full.md:w-96.mt-6
         {:href "/app/habit/create"}
         "Create habit"]]
-      (habit-search-component {:sensitive sensitive :search search})
+      (habit-search-component (pot/map-of sensitive search archived))
       [:div {:id "habits-list"}
        (->> habits
-            (filter (fn [{:habit/keys [name notes]
-                          this-habit-is-sensitive :habit/sensitive
-                          id          :xt/id}]
+            (filter (fn [{:habit/keys             [name notes]
+                         this-habit-is-sensitive :habit/sensitive
+                         this-habit-is-archived  :habit/archived
+                         id                      :xt/id}]
                       (let [matches-name  (str/includes? (str/lower-case name) search)
                             matches-notes (str/includes? (str/lower-case notes) search)]
-                        (and (or sensitive
+                        (and (or archived
+                                 (not this-habit-is-archived))
+                             (or sensitive
                                  (-> id (= edit-id))
                                  (not this-habit-is-sensitive))
                              (or matches-name
@@ -406,14 +418,16 @@
   (let [id        (-> params :id java.util.UUID/fromString)
         name      (:name params)
         notes     (-> params :notes str)
-        sensitive (-> params :sensitive boolean)]
+        sensitive (-> params :sensitive boolean)
+        archived  (-> params :archived boolean)]
     (biff/submit-tx ctx
                     [{:db/op           :update
                       :db/doc-type     :habit
                       :xt/id           id
                       :habit/name      name
                       :habit/notes     notes
-                      :habit/sensitive sensitive}])
+                      :habit/sensitive sensitive
+                      :habit/archived  archived}])
 
     {:status  303
      :headers {"location" (str "/app/habit/edit/" id)}}))

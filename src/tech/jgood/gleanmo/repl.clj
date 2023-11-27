@@ -2,7 +2,8 @@
   (:require [tech.jgood.gleanmo :as main]
             [com.biffweb :as biff :refer [q]]
             [clojure.edn :as edn]
-            [clojure.java.io :as io]))
+            [clojure.java.io :as io]
+            [xtdb.api :as xt]))
 
 ;; This function should only be used from the REPL. Regular application code
 ;; should receive the system map from the parent Biff component. For example,
@@ -83,9 +84,10 @@
   ;; get latest transaction time for an entity
   (let [{:keys [biff/db] :as ctx} (get-context)
         habit-id                   #uuid "7f41decc-8a3d-4062-9ea4-3c953d30c0f3"
-        history                   (xt/entity-history db habit-id)
+        history                   (xt/entity-history db habit-id :desc)
+        tx-time                   (-> history first :xtdb.api/tx-time)
         ]
-    history)
+    tx-time)
 
   ;; Check the terminal for output.
   (biff/submit-job (get-context) :echo {:foo "bar"})
