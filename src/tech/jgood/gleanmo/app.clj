@@ -240,9 +240,10 @@
                                              :in    [user-id]} user-id)))]
          (habit-log-create-form (pot/map-of habits time-zone)))]])))
 
-(defn habit-edit-form [{id :xt/id
-                        sensitive :habit/sensitive
-                        :as habit}]
+(defn habit-edit-form [{id             :xt/id
+                        sensitive      :habit/sensitive
+                        latest-tx-time :latest-tx-time
+                        :as            habit}]
   (biff/form
    {:hx-post   "/app/habit/edit"
     :hx-swap   "outerHTML"
@@ -274,10 +275,12 @@
        [:textarea.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
         {:name "notes"} (:habit/notes habit)]]]
 
+     [:span.text-gray-500 (str "last updated: " latest-tx-time)]
+
      ;; Submit button
      [:div.mt-2.w-full
       [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
-       {:type "submit"
+       {:type   "submit"
         ;; maybe bring this back when inline editing is re-enabled
         #_#_
         :script "on click setURLParameter('edit', '')"}
@@ -351,11 +354,12 @@
           :in    [user-id]} user-id))
 
 (defn habit-query [{:keys [db user-id habit-id]}]
-  (q db '{:find  (pull ?habit [*])
+  (first
+   (q db '{:find  (pull ?habit [*])
            :where [[?habit ::schema/type :habit]
                    [?habit :user/id user-id]
                    [?habit :xt/id habit-id]]
-           :in    [user-id habit-id]} user-id habit-id))
+           :in    [user-id habit-id]} user-id habit-id)))
 
 (defn checkbox-true? [v]
   (or (= v "on") (= v "true")))
@@ -483,6 +487,10 @@
        (->> habit-logs
             (map (fn [z] (habit-log-list-item (-> z (assoc :edit-id edit-id))))))]])))
 
+(defn get-last-tx-time [{:keys [db id]}]
+  (let [history          (xt/entity-history db id :desc)]
+    (-> history first :xtdb.api/tx-time)))
+
 (defn habit-edit-page [{:keys [path-params
                                session
                                biff/db]
@@ -490,13 +498,14 @@
   (let [habit-id            (-> path-params :id java.util.UUID/fromString)
         user-id             (:uid session)
         {email :user/email} (xt/entity db user-id)
-        habit               (habit-query (pot/map-of db habit-id user-id))]
-    (pprint (pot/map-of habit-id habit user-id email))
+        habit               (habit-query (pot/map-of db habit-id user-id))
+        latest-tx-time      (get-last-tx-time {:db db :id habit-id})]
+    (pprint (pot/map-of habit latest-tx-time))
     (ui/page
      {}
      [:div
       (header (pot/map-of email))
-      (habit-edit-form habit)])))
+      (habit-edit-form (merge habit (pot/map-of latest-tx-time)))])))
 
 (def plugin
   {:static {"/about/" about-page}

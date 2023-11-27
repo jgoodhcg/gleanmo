@@ -80,6 +80,13 @@
          (into [])))
 
 
+  ;; get latest transaction time for an entity
+  (let [{:keys [biff/db] :as ctx} (get-context)
+        habit-id                   #uuid "7f41decc-8a3d-4062-9ea4-3c953d30c0f3"
+        history                   (xt/entity-history db habit-id)
+        ]
+    history)
+
   ;; Check the terminal for output.
   (biff/submit-job (get-context) :echo {:foo "bar"})
   (deref (biff/submit-job-for-result (get-context) :echo {:foo "bar"})))
