@@ -75,9 +75,10 @@
 
      [:.h-6])))
 
-(defn header [{:keys [email]}]
+(defn nav-bar [{:keys [email]}]
   [:div.space-x-8
    [:span email]
+   [:a.link {:href "/app"} "home"]
    [:a.link {:href "/app/habits"} "habits"]
    [:a.link {:href "/app/habit/logs"} "habit logs"]
    (biff/form
@@ -91,7 +92,7 @@
         {:user/keys [email]} (xt/entity db user-id)]
     (ui/page
      {}
-     (header (pot/map-of email))
+     (nav-bar (pot/map-of email))
      [:div.m-2.w-full.md:w-96.space-y-8
       (biff/form
        {:hx-post   "/app/habit/create"
@@ -128,9 +129,7 @@
         ;; Submit button
         [:div.mt-2.w-full
          [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
-          {:type "submit"} "Create Habit"]]]
-
-       )])))
+          {:type "submit"} "Create Habit"]]])])))
 
 (defn habit-create! [{:keys [params session] :as ctx}]
   (biff/submit-tx ctx
@@ -143,52 +142,68 @@
   {:status  303
    :headers {"location" "/app/habit/create"}})
 
-(defn habit-log-create-form [{:keys [habits time-zone]}]
-  [:div.w-full.md:w-96.space-y-8
-   (biff/form
-    {:hx-post   "/app/habit/log"
-     :hx-swap   "outerHTML"
-     :hx-select "#log-habit-form"
-     :id        "log-habit-form"}
+(defn habit-log-create-form [{:keys [habits time-zone]}])
 
-    [:div
-     [:h2.text-base.font-semibold.leading-7.text-gray-900 "Log Habit"]
-     [:p.mt-1.text-sm.leading-6.text-gray-600 "Log the habit with your desired settings."]]
-
-    [:div.grid.grid-cols-1.gap-y-6
-     ;; Timestamp input
+(defn habit-log-create-page [{:keys [session biff/db]}]
+  (let [user-id              (:uid session)
+        {:user/keys [email]} (xt/entity db user-id)
+        habits               (q db '{:find  (pull ?habit [*])
+                                     :where [[?habit ::schema/type :habit]
+                                             [?habit :user/id user-id]]
+                                     :in    [user-id]} user-id)
+        time-zone            (first (first (q db '{:find  [?tz]
+                                                   :where [[?user :xt/id user-id]
+                                                           [?user :user/time-zone ?tz]]
+                                                   :in    [user-id]} user-id)))]
+    (ui/page
+     {}
      [:div
-      [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "timestamp"} "Timestamp"]
-      [:div.mt-2
-       [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-        {:type "datetime-local" :name "timestamp" :required true}]]]
+      (nav-bar (pot/map-of email))
+      [:div.w-full.md:w-96.space-y-8
+       (biff/form
+        {:hx-post   "/app/habit/log/create"
+         :hx-swap   "outerHTML"
+         :hx-select "#log-habit-form"
+         :id        "log-habit-form"}
 
-     ;; Habits selection
-     [:div
-      [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "habit-refs"} "Habits"]
-      [:div.mt-2
-       [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-        {:name "habit-refs" :multiple true :required true :autocomplete "off"}
-        (map (fn [habit]
-               [:option {:value (:xt/id habit)}
-                (:habit/name habit)])
-             habits)]]]
+        [:div
+         [:h2.text-base.font-semibold.leading-7.text-gray-900 "Log Habit"]
+         [:p.mt-1.text-sm.leading-6.text-gray-600 "Log the habit with your desired settings."]]
 
-     ;; Time Zone selection
-     [:div
-      [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "time-zone"} "Time Zone"]
-      [:div.mt-2
-       [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-        {:name "time-zone" :required true :autocomplete "on"}
-        (->> (java.time.ZoneId/getAvailableZoneIds)
-             sort
-             (map (fn [zoneId]
-                    [:option {:value    zoneId
-                              :selected (= zoneId time-zone)} zoneId])))]]]
-     ;; Submit button
-     [:div.mt-2.w-full
-      [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
-       {:type "submit"} "Log Habit"]]])])
+        [:div.grid.grid-cols-1.gap-y-6
+           ;; Timestamp input
+         [:div
+          [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "timestamp"} "Timestamp"]
+          [:div.mt-2
+           [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+            {:type "datetime-local" :name "timestamp" :required true}]]]
+
+           ;; Habits selection
+         [:div
+          [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "habit-refs"} "Habits"]
+          [:div.mt-2
+           [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+            {:name "habit-refs" :multiple true :required true :autocomplete "off"}
+            (map (fn [habit]
+                   [:option {:value (:xt/id habit)}
+                    (:habit/name habit)])
+                 habits)]]]
+
+           ;; Time Zone selection
+         [:div
+          [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "time-zone"} "Time Zone"]
+          [:div.mt-2
+           [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+            {:name "time-zone" :required true :autocomplete "on"}
+            (->> (java.time.ZoneId/getAvailableZoneIds)
+                 sort
+                 (map (fn [zoneId]
+                        [:option {:value    zoneId
+                                  :selected (= zoneId time-zone)} zoneId])))]]]
+           ;; Submit button
+         [:div.mt-2.w-full
+          [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
+           {:type "submit"} "Log Habit"]]])]])))
 
 (defn ensure-vector [item]
   (if (vector? item)
@@ -220,7 +235,7 @@
                       :user/time-zone tz}]))
 
   {:status  303
-   :headers {"location" "/app"}})
+   :headers {"location" "/app/habit/log/create"}})
 
 (defn app [{:keys [session biff/db]}]
   (let [user-id              (:uid session)
@@ -228,17 +243,9 @@
     (ui/page
      {}
      [:div
-      (header (pot/map-of email))
+      (nav-bar (pot/map-of email))
       [:div.flex.flex-col.md:flex-row.justify-center
-       (let [habits    (q db '{:find  (pull ?habit [*])
-                               :where [[?habit :schema/type :habit]
-                                       [?habit :user/id user-id]]
-                               :in    [user-id]} user-id)
-             time-zone (first (first (q db '{:find  [?tz]
-                                             :where [[?user :xt/id user-id]
-                                                     [?user :user/time-zone ?tz]]
-                                             :in    [user-id]} user-id)))]
-         (habit-log-create-form (pot/map-of habits time-zone)))]])))
+       [:h1.text-3xl.font-bold "Home page"]]])))
 
 (defn habit-edit-form [{id             :xt/id
                         sensitive      :habit/sensitive
@@ -287,8 +294,7 @@
       [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
        {:type   "submit"
         ;; maybe bring this back when inline editing is re-enabled
-        #_#_
-        :script "on click setURLParameter('edit', '')"}
+        #_#_:script "on click setURLParameter('edit', '')"}
        "Update Habit"]]]]))
 
 (defn habit-list-item [{:habit/keys [sensitive name notes archived]
@@ -373,6 +379,10 @@
 (defn search-str-xform [s]
   (some-> s str/lower-case str/trim))
 
+(defn link-button [{:keys [href label]}]
+  [:a.text-blue-500.hover:underline.outline.outline-blue-500.outline-2.font-bold.py-2.px-4.rounded.w-full.md:w-96.mt-6
+   {:href href} label])
+
 (defn habits-page
   "Accepts GET and POST. POST is for search form as body."
   [{:keys [session biff/db params query-params]}]
@@ -391,18 +401,17 @@
     (ui/page
      {}
      [:div
-      (header (pot/map-of email))
+      (nav-bar (pot/map-of email))
       [:div.my-4
-       [:a.text-blue-500.hover:underline.outline.outline-blue-500.outline-2.font-bold.py-2.px-4.rounded.w-full.md:w-96.mt-6
-        {:href "/app/habit/create"}
-        "Create habit"]]
+       (link-button {:href "/app/habit/create"
+                     :label "Create Habit"})]
       (habit-search-component (pot/map-of sensitive search archived))
       [:div {:id "habits-list"}
        (->> habits
             (filter (fn [{:habit/keys             [name notes]
-                         this-habit-is-sensitive :habit/sensitive
-                         this-habit-is-archived  :habit/archived
-                         id                      :xt/id}]
+                          this-habit-is-sensitive :habit/sensitive
+                          this-habit-is-archived  :habit/archived
+                          id                      :xt/id}]
                       (let [matches-name  (str/includes? (str/lower-case name) search)
                             matches-notes (str/includes? (str/lower-case notes) search)]
                         (and (or archived
@@ -494,9 +503,10 @@
     (ui/page
      {}
      [:div
-      (header (pot/map-of email))
-      [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full.md:w-96.mt-6
-       "Create Habit Log"]
+      (nav-bar (pot/map-of email))
+      [:div.my-4
+       (link-button {:href "/app/habit/log/create"
+                     :label "Create Habit Log"})]
       [:div {:id "habit-logs-list"}
        (->> habit-logs
             (map (fn [z] (habit-log-list-item (-> z (assoc :edit-id edit-id))))))]])))
@@ -518,24 +528,17 @@
     (ui/page
      {}
      [:div
-      (header (pot/map-of email))
+      (nav-bar (pot/map-of email))
       (habit-edit-form (merge habit (pot/map-of latest-tx-time)))])))
 
 (def plugin
   {:static {"/about/" about-page}
    :routes ["/app" {:middleware [mid/wrap-signed-in]}
-            ["" {:get app}]
-            ["/db" {:get db-viz}]
-            ["/habits" {:get  habits-page
-                        :post habits-page}]
-            ["/habit/logs" {:get habit-logs-page}]
-            ["/habit/create" {:post habit-create!
-                              :get  habit-create-page}]
-            ["/habit/log" {:post habit-log-create!}]
-            ["/habit/edit/:id" {:get habit-edit-page}]
-            ["/habit/edit" {:post habit-edit!}]]})
-
-(comment
-
-  (t/now)
-  (java.time.ZoneId/getAvailableZoneIds))
+            [""                  {:get app}]
+            ["/db"               {:get db-viz}]
+            ["/habits"           {:get habits-page :post habits-page}]
+            ["/habit/create"     {:get habit-create-page :post habit-create!}]
+            ["/habit/edit/:id"   {:get habit-edit-page}]
+            ["/habit/edit"       {:post habit-edit!}]
+            ["/habit/logs"       {:get habit-logs-page}]
+            ["/habit/log/create" {:get habit-log-create-page :post habit-log-create!}]]})
