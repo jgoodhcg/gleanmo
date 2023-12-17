@@ -27,54 +27,6 @@
    :headers {"content-type" "application/json"}
    :body params})
 
-(defn db-viz [{:keys [session biff/db]}]
-  (let [{:user/keys [email]} (xt/entity db (:uid session))
-        query-result
-        (->> (q db
-                '{:find  [(pull ?entity [*])]
-                  :where [[?entity :xt/id]]}))
-        all-entities
-        (->> query-result
-             (map first)
-             (filter #(uuid? (:xt/id %)))
-             (map #(into (sorted-map) %)))
-        all-attributes
-        (->> all-entities
-             (mapcat keys)
-             distinct
-             sort)
-        table-rows
-        (map (fn [entity]
-               (map (fn [attr]
-                      (get entity attr "_"))  ; Replace "N/A" with your preferred placeholder for missing values
-                    all-attributes))
-             all-entities)]
-    (ui/page
-     {}
-     [:div "Signed in as " email ". "
-      (biff/form
-       {:action "/auth/signout"
-        :class  "inline"}
-       [:button.text-blue-500.hover:text-blue-800 {:type "submit"}
-        "Sign out"])
-      "."]
-     [:.h-6]
-     ;; a table of all-entities in db
-     [:table.w-full.rounded-lg.overflow-hidden.bg-white.shadow-md
-      [:thead.bg-gray-100
-       [:tr
-        (for [attr all-attributes]
-          [:th.py-2.px-4.text-left.text-gray-600.border-b
-           (str attr)])]]
-      [:tbody
-       (for [row table-rows]
-         [:tr.hover:bg-gray-50
-          (for [attr-val row]
-            [:td.py-2.px-4.border-b.text-gray-900
-             (str attr-val)])])]]
-
-     [:.h-6])))
-
 (defn nav-bar [{:keys [email]}]
   [:div.space-x-8
    [:span email]
@@ -86,6 +38,53 @@
      :class  "inline"}
     [:button.text-blue-500.hover:text-blue-800 {:type "submit"}
      "Sign out"])])
+
+(defn db-viz [{:keys [session biff/db]}]
+  (let [{:user/keys [email]} (xt/entity db (:uid session))
+        query-result
+        (->> (q db
+                '{:find  [(pull ?entity [*])]
+                  :where [[?entity :xt/id]]}))
+        all-entities
+        (->> query-result
+             (map first)
+             (filter #(uuid? (:xt/id %)))
+             (map #(into (sorted-map) %))
+             (group-by ::schema/type))]
+
+    (ui/page
+     {}
+     (nav-bar (pot/map-of email))
+     ;; a table for each entity type
+     (for [[t entities] all-entities]
+       (let [#_#_entities (->> entities (map #(dissoc % ::schema/type)))
+             all-attributes
+             (->> entities
+                  (mapcat keys)
+                  distinct
+                  sort)
+             table-rows
+             (map (fn [entity]
+                    (map (fn [attr]
+                           (get entity attr "_"))  ; Replace "N/A" with your preferred placeholder for missing values
+                         all-attributes))
+                  entities)]
+         [:div.my-4
+          [:h2.text-lg.font-bold.mb-2 t]
+          [:table.w-full.rounded-lg.overflow-hidden.bg-white.shadow-md
+           [:thead.bg-gray-100
+            [:tr
+             (for [attr all-attributes]
+               [:th.py-2.px-4.text-left.text-gray-600.border-b
+                (str attr)])]]
+           [:tbody
+            (for [row table-rows]
+              [:tr.hover:bg-gray-50
+               (for [attr-val row]
+                 [:td.py-2.px-4.border-b.text-gray-900
+                  (str attr-val)])])]]]))
+
+     [:.h-6])))
 
 (defn habit-create-page [{:keys [session biff/db]}]
   (let [user-id              (:uid session)
@@ -545,7 +544,5 @@
             ["/habit/edit"         {:post habit-edit!}]
             ["/habit-logs"         {:get habit-logs-page}]
             ["/habit-log/create"   {:get habit-log-create-page :post habit-log-create!}]
-            #_#_
-            ["/habit-log/edit/:id" {:get habit-log-edit-page}]
-            ["/habit-log/edit"     {:post habit-log-edit!}]
-            ]})
+            #_#_["/habit-log/edit/:id" {:get habit-log-edit-page}]
+              ["/habit-log/edit"     {:post habit-log-edit!}]]})
