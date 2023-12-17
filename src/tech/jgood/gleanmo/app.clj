@@ -142,6 +142,10 @@
   {:status  303
    :headers {"location" "/app/habit/create"}})
 
+(defn format-date-time-local [instant zone-id]
+  (->> (t/in instant zone-id)
+       (t/format (t/formatter "yyyy-MM-dd'T'HH:mm"))))
+
 (defn habit-log-create-page [{:keys [session biff/db]}]
   (let [user-id              (:uid session)
         {:user/keys [email]} (xt/entity db user-id)
@@ -152,7 +156,8 @@
         time-zone            (first (first (q db '{:find  [?tz]
                                                    :where [[?user :xt/id user-id]
                                                            [?user :user/time-zone ?tz]]
-                                                   :in    [user-id]} user-id)))]
+                                                   :in    [user-id]} user-id)))
+        current-time         (format-date-time-local (t/now) time-zone)]
     (ui/page
      {}
      [:div
@@ -174,7 +179,7 @@
           [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "timestamp"} "Timestamp"]
           [:div.mt-2
            [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-            {:type "datetime-local" :name "timestamp" :required true}]]]
+            {:type "datetime-local" :name "timestamp" :required true :value current-time}]]]
 
            ;; Habits selection
          [:div
