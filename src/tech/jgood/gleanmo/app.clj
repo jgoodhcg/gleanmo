@@ -80,7 +80,7 @@
    [:span email]
    [:a.link {:href "/app"} "home"]
    [:a.link {:href "/app/habits"} "habits"]
-   [:a.link {:href "/app/habit/logs"} "habit logs"]
+   [:a.link {:href "/app/habit-logs"} "habit logs"]
    (biff/form
     {:action "/auth/signout"
      :class  "inline"}
@@ -142,8 +142,6 @@
   {:status  303
    :headers {"location" "/app/habit/create"}})
 
-(defn habit-log-create-form [{:keys [habits time-zone]}])
-
 (defn habit-log-create-page [{:keys [session biff/db]}]
   (let [user-id              (:uid session)
         {:user/keys [email]} (xt/entity db user-id)
@@ -161,7 +159,7 @@
       (nav-bar (pot/map-of email))
       [:div.w-full.md:w-96.space-y-8
        (biff/form
-        {:hx-post   "/app/habit/log/create"
+        {:hx-post   "/app/habit-log/create"
          :hx-swap   "outerHTML"
          :hx-select "#log-habit-form"
          :id        "log-habit-form"}
@@ -235,7 +233,7 @@
                       :user/time-zone tz}]))
 
   {:status  303
-   :headers {"location" "/app/habit/log/create"}})
+   :headers {"location" "/app/habit-log/create"}})
 
 (defn app [{:keys [session biff/db]}]
   (let [user-id              (:uid session)
@@ -505,7 +503,7 @@
      [:div
       (nav-bar (pot/map-of email))
       [:div.my-4
-       (link-button {:href "/app/habit/log/create"
+       (link-button {:href "/app/habit-log/create"
                      :label "Create Habit Log"})]
       [:div {:id "habit-logs-list"}
        (->> habit-logs
@@ -534,11 +532,15 @@
 (def plugin
   {:static {"/about/" about-page}
    :routes ["/app" {:middleware [mid/wrap-signed-in]}
-            [""                  {:get app}]
-            ["/db"               {:get db-viz}]
-            ["/habits"           {:get habits-page :post habits-page}]
-            ["/habit/create"     {:get habit-create-page :post habit-create!}]
-            ["/habit/edit/:id"   {:get habit-edit-page}]
-            ["/habit/edit"       {:post habit-edit!}]
-            ["/habit/logs"       {:get habit-logs-page}]
-            ["/habit/log/create" {:get habit-log-create-page :post habit-log-create!}]]})
+            [""                    {:get app}]
+            ["/db"                 {:get db-viz}]
+            ["/habits"             {:get habits-page :post habits-page}]
+            ["/habit/create"       {:get habit-create-page :post habit-create!}]
+            ["/habit/edit/:id"     {:get habit-edit-page}]
+            ["/habit/edit"         {:post habit-edit!}]
+            ["/habit-logs"         {:get habit-logs-page}]
+            ["/habit-log/create"   {:get habit-log-create-page :post habit-log-create!}]
+            #_#_
+            ["/habit-log/edit/:id" {:get habit-log-edit-page}]
+            ["/habit-log/edit"     {:post habit-log-edit!}]
+            ]})
