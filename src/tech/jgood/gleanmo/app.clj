@@ -173,25 +173,7 @@
          [:p.mt-1.text-sm.leading-6.text-gray-600 "Log the habit with your desired settings."]]
 
         [:div.grid.grid-cols-1.gap-y-6
-           ;; Timestamp input
-         [:div
-          [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "timestamp"} "Timestamp"]
-          [:div.mt-2
-           [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-            {:type "datetime-local" :name "timestamp" :required true :value current-time}]]]
-
-           ;; Habits selection
-         [:div
-          [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "habit-refs"} "Habits"]
-          [:div.mt-2
-           [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-            {:name "habit-refs" :multiple true :required true :autocomplete "off"}
-            (map (fn [habit]
-                   [:option {:value (:xt/id habit)}
-                    (:habit/name habit)])
-                 habits)]]]
-
-           ;; Time Zone selection
+         ;; Time Zone selection
          [:div
           [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "time-zone"} "Time Zone"]
           [:div.mt-2
@@ -202,7 +184,33 @@
                  (map (fn [zoneId]
                         [:option {:value    zoneId
                                   :selected (= zoneId time-zone)} zoneId])))]]]
-           ;; Submit button
+
+         ;; Notes input
+         [:div
+          [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "notes"} "Notes"]
+          [:div.mt-2
+           [:textarea.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+            {:name "notes" :rows 3 :placeholder "Any additional notes..."}]]]
+
+         ;; Timestamp input
+         [:div
+          [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "timestamp"} "Timestamp"]
+          [:div.mt-2
+           [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+            {:type "datetime-local" :name "timestamp" :required true :value current-time}]]]
+
+         ;; Habits selection
+         [:div
+          [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "habit-refs"} "Habits"]
+          [:div.mt-2
+           [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+            {:name "habit-refs" :multiple true :required true :autocomplete "off"}
+            (map (fn [habit]
+                   [:option {:value (:xt/id habit)}
+                    (:habit/name habit)])
+                 habits)]]]
+
+         ;; Submit button
          [:div.mt-2.w-full
           [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
            {:type "submit"} "Log Habit"]]])]])))
@@ -212,10 +220,11 @@
     item
     [item]))
 
-(defn habit-log-create! [{:keys [session params] :as ctx}]
+(defn habit-log-create! [{:keys [session params biff/db] :as ctx}]
   (let [id-strs        (-> params :habit-refs ensure-vector)
         tz             (-> params :time-zone)
         timestamp-str  (-> params :timestamp)
+        notes          (-> params :notes)
         local-datetime (java.time.LocalDateTime/parse timestamp-str)
         zone-id        (java.time.ZoneId/of tz)
         zdt            (java.time.ZonedDateTime/of local-datetime zone-id)
@@ -223,18 +232,26 @@
         habit-ids      (->> id-strs
                             (map #(some-> % java.util.UUID/fromString))
                             set)
-        user-id        (:uid session)]
+        user-id        (:uid session)
+        {:user/keys
+         [time-zone]}  (xt/entity db user-id)
+        new-tz         (not= time-zone tz)]
 
     (biff/submit-tx ctx
-                    [{:db/doc-type         :habit-log
-                      ::schema/type        :habit-log
-                      :user/id             user-id
-                      :habit-log/timestamp timestamp
-                      :habit-log/habit-ids habit-ids}
-                     {:db/op          :update
-                      :db/doc-type    :user
-                      :xt/id          user-id
-                      :user/time-zone tz}]))
+                    (vec (remove nil?
+                                 [(merge
+                                   {:db/doc-type         :habit-log
+                                    ::schema/type        :habit-log
+                                    :user/id             user-id
+                                    :habit-log/timestamp timestamp
+                                    :habit-log/habit-ids habit-ids}
+                                   (when (not (str/blank? notes))
+                                     {:habit-log/notes notes}))
+                                  (when new-tz
+                                    {:db/op          :update
+                                     :db/doc-type    :user
+                                     :xt/id          user-id
+                                     :user/time-zone tz})]))))
 
   {:status  303
    :headers {"location" "/app/habit-log/create"}})
