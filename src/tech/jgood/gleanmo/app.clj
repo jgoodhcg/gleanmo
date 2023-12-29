@@ -283,7 +283,8 @@
 
      ;; Habit Name
      [:div
-      [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "habit-name"} "Habit Name"]
+      [:label.block.text-sm.font-medium.leading-6.text-gray-900
+       {:for "habit-name"} "Habit Name"]
       [:div.mt-2
        [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
         {:type "text" :name "name" :value (:habit/name habit)}]]]

@@ -11,3 +11,7 @@
 .clj-kondo/
 .lsp/
 .portal/
+
+.clerk/
+
+src/user.clj
