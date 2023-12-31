@@ -15,3 +15,5 @@
 .clerk/
 
 src/user.clj
+
+notebook_data/
