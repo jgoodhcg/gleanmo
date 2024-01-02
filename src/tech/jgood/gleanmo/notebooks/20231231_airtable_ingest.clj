@@ -14,7 +14,9 @@
             [potpuri.core :as pot]
             [clojure-csv.core :as csv]
             [clojure.string :as str]
-            [tick.core :as t]))
+            [clj-uuid :as uuid]
+            [tick.core :as t]
+            [clj-commons.digest :as digest]))
 
 ;; ## Read in data from files
 {::clerk/visibility {:code :fold :result :show}}
@@ -67,6 +69,16 @@
   (.close xtdb-node))
 {::clerk/visibility {:code :fold :result :show}}
 
+;; ### Deterministic UUIDs
+;; I want all of the ported items to have a consistent xt/id type -- UUID.
+;; However, I will be iterating on processing and might not delete the entire xtdb each run.
+;; I want to be able to run the porting __deterministically__ and not duplicate information.
+;; So the UUID id needs to be deterministically derived from the airtable record.
+(def namespace-uuid #uuid "ba5589b9-e2a2-47b9-9273-86206538c0e2")
+
+(defn generate-deterministic-uuid [seed]
+  (uuid/v5 namespace-uuid seed))
+
 ;; ### Exercises
 (defn xform-exercise [{:keys [id createdTime fields]}]
   (let [{:keys [name
@@ -77,10 +89,11 @@
                 source
                 log-count
                 latest-done]} fields
-        new-uuid              (java.util.UUID/randomUUID)]
+        new-uuid              (generate-deterministic-uuid id)
+        valid-time            (t/instant createdTime)]
     (->>
      {:xt/id                  new-uuid
-      :xt/valid-time          (t/instant createdTime)
+      :xt/valid-time          valid-time
       :gleanmo/type           :exercise
       :exercise/label         name
       :exercise/notes         notes
@@ -108,11 +121,17 @@
                                (->> (pot/map-keys keyword))
                                (update :fields #(pot/map-keys keyword %))
                                xform-exercise)]
-                       (xt/submit-tx xtdb-node [[::xt/put item]])))))))))
+                       [::xt/put item]))))
+         vec
+         (->> (xt/submit-tx xtdb-node))))))
 
 {::clerk/visibility {:code :show :result :show}}
-(xt/q (xt/db xtdb-node) `{:find [e]
-                          :where [[e :gleanmo/type :exercise]]})
+(xt/q (xt/db xtdb-node)
+      '{:find [?label ?id]
+        :where [[?e :gleanmo/type :exercise]
+                [?e :exercise/label ?label]
+                [?e :xt/id ?id]]})
+
 ;; ### Sessions
 ;; ### Logs
 ;; ### Sets
