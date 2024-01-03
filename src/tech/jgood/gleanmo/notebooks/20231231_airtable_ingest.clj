@@ -19,7 +19,6 @@
             [clj-commons.digest :as digest]))
 
 ;; ## Read in data from files
-{::clerk/visibility {:code :fold :result :show}}
 (def exercise-file "notebook_data/2023-12-31__17_31_50_247708_exercises.edn")
 (def exercise-log-file "notebook_data/2023-12-31__14_07_28_274238_exercise_log.edn")
 
@@ -54,7 +53,6 @@
 ;; ## Writing to XTDB
 ;;
 ;; ### XTDB Setup
-{::clerk/visibility {:code :fold :result :hide}}
 (defn start-xtdb! []
   (letfn [(kv-store [dir]
             {:kv-store {:xtdb/module 'xtdb.rocksdb/->kv-store
@@ -73,10 +71,8 @@
 ;; However, I will be iterating on processing and might not delete the entire xtdb each run.
 ;; I want to be able to run the porting __deterministically__ and not duplicate information.
 ;; So the UUID id needs to be deterministically derived from the airtable record.
-{::clerk/visibility {:code :fold :result :show}}
 (def namespace-uuid #uuid "ba5589b9-e2a2-47b9-9273-86206538c0e2")
 
-{::clerk/visibility {:code :fold :result :hide}}
 (defn generate-deterministic-uuid [seed]
   (uuid/v5 namespace-uuid seed))
 
@@ -111,29 +107,33 @@
      ;; effectively dissoc's anything with a nil value
      (sp/setval [sp/MAP-VALS nil?] sp/NONE))))
 
-(with-open [rdr (io/reader exercise-file)]
-  (let [lines (line-seq rdr)]
-    (doall
-     (-> lines
-         (->> (map (fn [line]
-                     (let [item
-                           (-> line
-                               edn/read-string
-                               (->> (pot/map-keys keyword))
-                               (update :fields #(pot/map-keys keyword %))
-                               xform-exercise)]
-                       [::xt/put item]))))
-         vec
-         (->> (xt/submit-tx xtdb-node))))))
+;; Write exercises to xtdb
+(comment
+  (with-open [rdr (io/reader exercise-file)]
+    (let [lines (line-seq rdr)]
+      (doall
+       (-> lines
+           (->> (map (fn [line]
+                       (let [item
+                             (-> line
+                                 edn/read-string
+                                 (->> (pot/map-keys keyword))
+                                 (update :fields #(pot/map-keys keyword %))
+                                 xform-exercise)]
+                         [::xt/put item]))))
+           vec
+           (->> (xt/submit-tx xtdb-node))))))
+  ;;
+  )
 
-{::clerk/visibility {:code :fold :result :show}}
 (xt/q (xt/db xtdb-node)
       '{:find [(pull ?e [*])]
-        :where [[?e :gleanmo/type :exercise]]})
+        :where [[?e :gleanmo/type :exercise]]
+        :limit 10})
 
 ;; ### Logs & Sets
 ;; Every airtable log is effectively a gleanmo log with one set.
-;; When tracking is done in gleanmo logs will have more than one set.
+;; When tracking in gleanmo logs will have more than one set.
 (defn get-exercise-id [airtable-id]
   (-> (xt/q (xt/db xtdb-node)
             '{:find  [?id]
@@ -147,47 +147,86 @@
 
 (get-exercise-id "rec61KbEbx5uAVtAW")
 
-{::clerk/visibility {:code :show :result :show}}
 (defn xform-exercise-log [{:keys [id createdTime fields]}]
   (let [{:keys [timestamp duration exercise]}
         fields
         exrcs-at-id (-> exercise first)]
-
     (if (and (-> timestamp str/blank? not)
-             (-> exrcs-at-id str/blank? not)
-             (-> duration integer?))
+             (-> exrcs-at-id str/blank? not))
       (let [log-id      (generate-deterministic-uuid id)
             set-id      (generate-deterministic-uuid (str id "-set"))
             exercise-id (get-exercise-id exrcs-at-id)
             beg         (t/instant timestamp)
-            end         (-> beg (t/>> (t/new-duration duration :seconds)))]
-        {:exercise-log {:xt/id                           log-id
-                        :gleanmo/type                    :exercise-log
-                        :exercise/id                     exercise-id
-                        :exercise-log.interval/beginning beg
-                        :exercise-log.interval/end       end
-                        :exercise-log/exercise-set-ids   #{set-id}}
-         :exercise-set {:xt/id set-id}})
+            end         (when (integer? duration)
+                          (-> beg (t/>> (t/new-duration duration :seconds))))
+            distance    (-> fields :distance)
+            angle       (-> fields :angle)
+            notes       (-> fields :notes)
+            btn         (get fields (keyword "better than normal"))
+            wtn         (get fields (keyword "worse than normal"))
+            relativity  (if (some? btn) :better
+                            (if (some? wtn) :worse
+                                nil))
+            reps        (-> fields :reps)
+            weight      (-> fields :weight)]
+        {:exercise-log (merge {:xt/id                           log-id
+                               :gleanmo/type                    :exercise-log
+                               :exercise/id                     exercise-id
+                               :exercise-log.interval/beginning beg
+                               :exercise-log.interval/end       end
+                               :exercise-log/exercise-set-ids   #{set-id}
+                               :airtable/exercise-id            exrcs-at-id
+                               :airtable/ported                 true}
+                              (when (some? distance)
+                                {:exercise-log/distance      distance
+                                 :exercise-log/distance-unit :miles})
+                              (when (some? angle)
+                                {:exercise-log/inversion-angle angle})
+                              (when (some? notes)
+                                {:exercise-log/notes notes})
+                              (when (some? relativity)
+                                {:exercise-log/relativety-score relativity}))
+         :exercise-set (merge {:xt/id                  set-id
+                               :gleanmo/type           :exercise-set
+                               :exercise-log/id        log-id
+                               :exercise-set/beginning beg
+                               :exercise-set/end       end
+                               :airtable/ported        true}
+                              (when (some? reps)
+                                {:exercise-set/reps reps})
+                              (when (some? weight)
+                                {:exercise-set/weight-amount weight
+                                 :exercise-set/weight-unit   :lb}))})
       nil)))
 
-(with-open [rdr (io/reader exercise-log-file)]
-  (let [lines (line-seq rdr)]
-    (doall
-     (-> lines
-         (->> (map (fn [line]
-                     (let [item
-                           (-> line
-                               edn/read-string
-                               (->> (pot/map-keys keyword))
-                               (update :fields #(pot/map-keys keyword %))
-                               xform-exercise-log)]
-                       (if (some? item)
-                         [::xt/put item]
-                         nil)))))
-         (->> (remove nil?))
-         shuffle
-         (->> (take 2))
-         #_#_vec
+;; Write exercise-logs and sets to xtdb
+(comment
+  (with-open [rdr (io/reader exercise-log-file)]
+    (let [lines (line-seq rdr)]
+      (doall
+       (-> lines
+           (->> (map (fn [line]
+                       (let [{:keys [exercise-log
+                                     exercise-set]
+                              :as result}
+                             (-> line
+                                 edn/read-string
+                                 (->> (pot/map-keys keyword))
+                                 (update :fields #(pot/map-keys keyword %))
+                                 xform-exercise-log)]
+                         (if (some? result)
+                           [exercise-log exercise-set]
+                           nil)))))
+           flatten
+           (->> (remove nil?))
+           (->> (map (fn [item] [::xt/put item])))
+           vec
            (->> (xt/submit-tx xtdb-node))))))
+  ;;
+  )
 
+(xt/q (xt/db xtdb-node)
+      '{:find [(pull ?e [*])]
+        :where [[?e :gleanmo/type :exercise-log]]
+        :limit 10})
 ;; ### Sessions
