@@ -186,12 +186,12 @@
                                 {:exercise-log/notes notes})
                               (when (some? relativity)
                                 {:exercise-log/relativety-score relativity}))
-         :exercise-set (merge {:xt/id                  set-id
-                               :gleanmo/type           :exercise-set
-                               :exercise-log/id        log-id
-                               :exercise-set/beginning beg
-                               :exercise-set/end       end
-                               :airtable/ported        true}
+         :exercise-set (merge {:xt/id                           set-id
+                               :gleanmo/type                    :exercise-set
+                               :exercise-log/id                 log-id
+                               :exercise-set.interval/beginning beg
+                               :exercise-set.interval/end       end
+                               :airtable/ported                 true}
                               (when (some? reps)
                                 {:exercise-set/reps reps})
                               (when (some? weight)
@@ -229,4 +229,98 @@
       '{:find [(pull ?e [*])]
         :where [[?e :gleanmo/type :exercise-log]]
         :limit 10})
+
+(xt/q (xt/db xtdb-node)
+      '{:find  [(pull ?el [:exercise-log.interval/beginning])
+                (pull ?e  [:exercise/label])
+                (pull ?es [:exercise-set/reps :exercise-set/weight-amount])]
+        :where [[?e  :gleanmo/type    :exercise]
+
+                [?es :gleanmo/type    :exercise-set]
+                [?es :exercise-log/id ?el]
+
+                [?el :gleanmo/type    :exercise-log]
+                [?el :exercise/id     ?e]]
+        :limit 5})
+
+;; ### Filling in with average durations
+(defn fetch-exercise-logs-with-duration [xtdb-node]
+  (xt/q (xt/db xtdb-node)
+        '{:find  [?label
+                  ?exercise-id
+                  (avg (t/seconds ?duration))]
+          :where [[?log-id :exercise/id ?exercise-id]
+                  [?log-id :exercise-log.interval/beginning ?beginning]
+                  [?log-id :exercise-log.interval/end ?end]
+                  [?exercise-id :exercise/label ?label]
+                  [(some? ?beginning)]
+                  [(some? ?end)]
+                  [(t/between ?beginning ?end) ?duration]]}))
+
+(fetch-exercise-logs-with-duration xtdb-node)
+
+(defn fetch-exercise-logs-without-end
+  ([xtdb-node]
+   (xt/q (xt/db xtdb-node)
+         '{:find  [?log-id ?exercise-id ?beginning ?set-id]
+           :where [[?log-id :exercise/id ?exercise-id]
+                   [?log-id :exercise-log.interval/beginning ?beginning]
+                   [?log-id :exercise-log.interval/end ?end]
+                   [?set-id :exercise-log/id ?log-id]
+                   [(nil? ?end)]]}))
+  ([xtdb-node exercise-id]
+   (xt/q (xt/db xtdb-node)
+         '{:find  [?log-id exercise-id ?beginning ?set-id]
+           :where [[?log-id :exercise/id exercise-id]
+                   [?log-id :exercise-log.interval/beginning ?beginning]
+                   [?log-id :exercise-log.interval/end ?end]
+                   [?set-id :exercise-log/id ?log-id]
+                   [(nil? ?end)]]
+           :in [exercise-id]}
+         exercise-id)))
+
+(fetch-exercise-logs-without-end xtdb-node)
+
+(comment
+  (xt/submit-tx
+   xtdb-node
+   [[::xt/put
+     {:xt/id :update-end
+      :xt/fn '(fn [ctx {:keys [log-id avg beg-key end-key]}]
+                (let [db     (xtdb.api/db ctx)
+                      entity (xtdb.api/entity db log-id)]
+                  [[::xt/put (update entity
+                                     end-key
+                                     #(t/>> (get entity beg-key)
+                                            (t/new-duration avg :seconds)))]]))}]])
+
+  (count
+   (doall
+    (->> (fetch-exercise-logs-with-duration xtdb-node)
+         (map (fn [[_ e-id avg]]
+                (let [logs (fetch-exercise-logs-without-end
+                            xtdb-node
+                            e-id)]
+                  (when (seq logs)
+                    (doall
+                     (->> logs
+                          (map (fn [[log-id _ _ set-id]]
+                                 [[::xt/fn :update-end
+                                   log-id
+                                   avg
+                                   :exercise-log.interval/beginning
+                                   :exercise-log.interval/end]
+                                  [::xt/fn :update-end
+                                   set-id
+                                   avg
+                                   :exercise-set.interval/beginning
+                                   :exercise-set.interval/end]]))
+                          (mapcat identity)))))))
+         (remove nil?)
+         (mapcat identity)
+         )
+    )
+   )
+;;
+  )
 ;; ### Sessions
