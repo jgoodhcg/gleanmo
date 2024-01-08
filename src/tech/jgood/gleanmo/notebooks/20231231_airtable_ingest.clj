@@ -9,6 +9,8 @@
             [semantic-csv.core :as sc]
             [clojure.java.io :as io]
             [com.rpl.specter :as sp]
+            [clojure.set :refer [difference]]
+            [clojure.data :refer [diff]]
             [clojure.edn :as edn]
             [xtdb.api :as xt]
             [potpuri.core :as pot]
@@ -21,6 +23,18 @@
 ;; ## Read in data from files
 (def exercise-file "notebook_data/2023-12-31__17_31_50_247708_exercises.edn")
 (def exercise-log-file "notebook_data/2023-12-31__14_07_28_274238_exercise_log.edn")
+
+;; ### Exercises
+(with-open [rdr (io/reader exercise-file)]
+  (let [lines (line-seq rdr)]
+    (-> lines
+        (->> (map (fn [line]
+                    (-> line
+                        edn/read-string
+                        (->> (pot/map-keys keyword))
+                        (update :fields #(pot/map-keys keyword %))))))
+        shuffle
+        (->> (take 2)))))
 
 ;; ### Exercise-logs
 (with-open [rdr (io/reader exercise-log-file)]
@@ -38,20 +52,7 @@
         shuffle
         (->> (take 2)))))
 
-;; ### Exercises
-(with-open [rdr (io/reader exercise-file)]
-  (let [lines (line-seq rdr)]
-    (-> lines
-        (->> (map (fn [line]
-                    (-> line
-                        edn/read-string
-                        (->> (pot/map-keys keyword))
-                        (update :fields #(pot/map-keys keyword %))))))
-        shuffle
-        (->> (take 2)))))
-
 ;; ## Writing to XTDB
-;;
 ;; ### XTDB Setup
 (defn start-xtdb! []
   (letfn [(kv-store [dir]
@@ -108,7 +109,7 @@
      (sp/setval [sp/MAP-VALS nil?] sp/NONE))))
 
 ;; Write exercises to xtdb
-(comment
+(defn write-exercises-to-xtdb! []
   (with-open [rdr (io/reader exercise-file)]
     (let [lines (line-seq rdr)]
       (doall
@@ -120,16 +121,18 @@
                                  (->> (pot/map-keys keyword))
                                  (update :fields #(pot/map-keys keyword %))
                                  xform-exercise)]
-                         [::xt/put item]))))
+                         (when (not (str/blank? (:exercise/label item)))
+                           [::xt/put item])))))
+           (->> (remove nil?))
            vec
            (->> (xt/submit-tx xtdb-node))))))
   ;;
   )
 
-(xt/q (xt/db xtdb-node)
-      '{:find [(pull ?e [*])]
-        :where [[?e :gleanmo/type :exercise]]
-        :limit 10})
+(defn q-exercises []
+  (xt/q (xt/db xtdb-node)
+        '{:find [(pull ?e [*])]
+          :where [[?e :gleanmo/type :exercise]]}))
 
 ;; ### Logs & Sets
 ;; Every airtable log is effectively a gleanmo log with one set.
@@ -145,8 +148,6 @@
       first
       first))
 
-(get-exercise-id "rec61KbEbx5uAVtAW")
-
 (defn xform-exercise-log [{:keys [id createdTime fields]}]
   (let [{:keys [timestamp duration exercise]}
         fields
@@ -157,7 +158,7 @@
             set-id      (generate-deterministic-uuid (str id "-set"))
             exercise-id (get-exercise-id exrcs-at-id)
             beg         (t/instant timestamp)
-            end         (when (integer? duration)
+            end         (when (number? duration)
                           (-> beg (t/>> (t/new-duration duration :seconds))))
             distance    (-> fields :distance)
             angle       (-> fields :angle)
@@ -177,11 +178,6 @@
                                :exercise-log/exercise-set-ids   #{set-id}
                                :airtable/exercise-id            exrcs-at-id
                                :airtable/ported                 true}
-                              (when (some? distance)
-                                {:exercise-log/distance      distance
-                                 :exercise-log/distance-unit :miles})
-                              (when (some? angle)
-                                {:exercise-log/inversion-angle angle})
                               (when (some? notes)
                                 {:exercise-log/notes notes})
                               (when (some? relativity)
@@ -192,6 +188,11 @@
                                :exercise-set.interval/beginning beg
                                :exercise-set.interval/end       end
                                :airtable/ported                 true}
+                              (when (some? distance)
+                                {:exercise-set/distance      distance
+                                 :exercise-set/distance-unit :miles})
+                              (when (some? angle)
+                                {:exercise-set/inversion-angle angle})
                               (when (some? reps)
                                 {:exercise-set/reps reps})
                               (when (some? weight)
@@ -200,7 +201,7 @@
       nil)))
 
 ;; Write exercise-logs and sets to xtdb
-(comment
+(defn write-exercise-logs-to-xtdb! []
   (with-open [rdr (io/reader exercise-log-file)]
     (let [lines (line-seq rdr)]
       (doall
@@ -225,26 +226,27 @@
   ;;
   )
 
-(xt/q (xt/db xtdb-node)
-      '{:find [(pull ?e [*])]
-        :where [[?e :gleanmo/type :exercise-log]]
-        :limit 10})
+(defn q-exercise-logs []
+  (xt/q (xt/db xtdb-node)
+        '{:find [(pull ?e [*])]
+          :where [[?e :gleanmo/type :exercise-log]]}))
 
-(xt/q (xt/db xtdb-node)
-      '{:find  [(pull ?el [:exercise-log.interval/beginning])
-                (pull ?e  [:exercise/label])
-                (pull ?es [:exercise-set/reps :exercise-set/weight-amount])]
-        :where [[?e  :gleanmo/type    :exercise]
+(defn q-exercise-log-with-data []
+  (xt/q (xt/db xtdb-node)
+        '{:find  [(pull ?el [:exercise-log.interval/beginning])
+                  (pull ?e  [:exercise/label])
+                  (pull ?es [:exercise-set/reps :exercise-set/weight-amount])]
+          :where [[?e  :gleanmo/type    :exercise]
 
-                [?es :gleanmo/type    :exercise-set]
-                [?es :exercise-log/id ?el]
+                  [?es :gleanmo/type    :exercise-set]
+                  [?es :exercise-log/id ?el]
 
-                [?el :gleanmo/type    :exercise-log]
-                [?el :exercise/id     ?e]]
-        :limit 5})
+                  [?el :gleanmo/type    :exercise-log]
+                  [?el :exercise/id     ?e]]
+          :limit 1}))
 
 ;; ### Filling in with average durations
-(defn fetch-exercise-logs-with-duration [xtdb-node]
+(defn fetch-exercises-with-duration []
   (xt/q (xt/db xtdb-node)
         '{:find  [?label
                   ?exercise-id
@@ -257,70 +259,188 @@
                   [(some? ?end)]
                   [(t/between ?beginning ?end) ?duration]]}))
 
-(fetch-exercise-logs-with-duration xtdb-node)
-
 (defn fetch-exercise-logs-without-end
-  ([xtdb-node]
+  ([]
    (xt/q (xt/db xtdb-node)
-         '{:find  [?log-id ?exercise-id ?beginning ?set-id]
+         '{:find  [?log-id ?exercise-id ?set-id]
            :where [[?log-id :exercise/id ?exercise-id]
-                   [?log-id :exercise-log.interval/beginning ?beginning]
                    [?log-id :exercise-log.interval/end ?end]
                    [?set-id :exercise-log/id ?log-id]
                    [(nil? ?end)]]}))
-  ([xtdb-node exercise-id]
+  ([exercise-id]
    (xt/q (xt/db xtdb-node)
-         '{:find  [?log-id exercise-id ?beginning ?set-id]
+         '{:find  [?log-id exercise-id ?set-id]
            :where [[?log-id :exercise/id exercise-id]
-                   [?log-id :exercise-log.interval/beginning ?beginning]
                    [?log-id :exercise-log.interval/end ?end]
                    [?set-id :exercise-log/id ?log-id]
                    [(nil? ?end)]]
            :in [exercise-id]}
          exercise-id)))
 
-(fetch-exercise-logs-without-end xtdb-node)
+(defn stats-on-missing-end []
+  (let [logs (first (first (xt/q (xt/db xtdb-node)
+                                 '{:find [(count ?el)]
+                                   :where [[?el :gleanmo/type :exercise-log]]})))
+        sets (first (first (xt/q (xt/db xtdb-node)
+                                 '{:find [(count ?el)]
+                                   :where [[?el :gleanmo/type :exercise-set]]})))
+        missing-logs (first (first (xt/q (xt/db xtdb-node)
+                                         '{:find [(count ?el)]
+                                           :where [[?el :gleanmo/type :exercise-log]
+                                                   [?el :exercise-log.interval/end ?end]
+                                                   [(nil? ?end)]]})))
+        missing-sets (first (first (xt/q (xt/db xtdb-node)
+                                         '{:find [(count ?el)]
+                                           :where [[?el :gleanmo/type :exercise-set]
+                                                   [?el :exercise-set.interval/end ?end]
+                                                   [(nil? ?end)]]})))
+        exercises-missing-logs (xt/q (xt/db xtdb-node)
+                                     '{:find [?label (count ?set)]
+                                       :where [[?el :gleanmo/type :exercise-log]
+                                               [?el :exercise/id ?e]
+                                               [?el :exercise-log/exercise-set-ids ?set]
+                                               [?e :gleanmo/type :exercise]
+                                               [?e :exercise/label ?label]
+                                               [?el :exercise-log.interval/end ?end]
+                                               [(nil? ?end)]]})]
+    (pot/map-of logs sets missing-logs missing-sets
+                exercises-missing-logs)))
 
-(comment
-  (xt/submit-tx
-   xtdb-node
-   [[::xt/put
-     {:xt/id :update-end
-      :xt/fn '(fn [ctx {:keys [log-id avg beg-key end-key]}]
-                (let [db     (xtdb.api/db ctx)
-                      entity (xtdb.api/entity db log-id)]
-                  [[::xt/put (update entity
-                                     end-key
-                                     #(t/>> (get entity beg-key)
-                                            (t/new-duration avg :seconds)))]]))}]])
+(defn generate-puts-for-missing-ends []
+  (doall
+   (->> (fetch-exercises-with-duration)
+        ;; for each exercise
+        (map (fn [[_ e-id avg]]
+               (let [logs (fetch-exercise-logs-without-end e-id)]
+                 ;; find all the logs without an end
+                 (when (seq logs)
+                   (doall
+                    (->> logs
+                         (map (fn [[log-id _ set-id]]
+                                (let [log (xt/entity (xt/db xtdb-node) log-id)
+                                      set (xt/entity (xt/db xtdb-node) set-id)
+                                      beg-l (-> log :exercise-log.interval/beginning)
+                                      beg-s (-> set :exercise-set.interval/beginning)
+                                      end-l (t/>> beg-l (t/new-duration avg :seconds))
+                                      end-s (t/>> beg-s (t/new-duration avg :seconds))]
+                                  ;; create a put operation for the log and set
+                                  ;; all airtable logs have just one set
+                                  [[::xt/put
+                                    (-> log
+                                        (assoc
+                                         :exercise-log.interval/end
+                                         end-l
+                                         :airtable/missing-duration
+                                         true
+                                         :exercise-log.interval/averaged-end
+                                         true))]
+                                   [::xt/put
+                                    (-> set
+                                        (assoc
+                                         :exercise-set.interval/end
+                                         end-l
+                                         :airtable/missing-duration
+                                         true
+                                         :exercise-set.interval/averaged-end
+                                         true))]])))
+                         ;; flatten out to one list of operations
+                         (mapcat identity)))))))
+        ;; remove the lists of exercises with no missing log end timestamps
+        (remove nil?)
+        ;; flatten out the exercise lists into a single list of operations
+        (mapcat identity))))
 
-  (count
-   (doall
-    (->> (fetch-exercise-logs-with-duration xtdb-node)
-         (map (fn [[_ e-id avg]]
-                (let [logs (fetch-exercise-logs-without-end
-                            xtdb-node
-                            e-id)]
-                  (when (seq logs)
-                    (doall
-                     (->> logs
-                          (map (fn [[log-id _ _ set-id]]
-                                 [[::xt/fn :update-end
-                                   log-id
-                                   avg
-                                   :exercise-log.interval/beginning
-                                   :exercise-log.interval/end]
-                                  [::xt/fn :update-end
-                                   set-id
-                                   avg
-                                   :exercise-set.interval/beginning
-                                   :exercise-set.interval/end]]))
-                          (mapcat identity)))))))
-         (remove nil?)
+(defn determine-median-interval-seconds []
+  (->>
+   (xt/q (xt/db xtdb-node)
+         '{:find  [(median (t/seconds ?duration))]
+           :where [[?log-id :exercise-log.interval/beginning ?beginning]
+                   [?log-id :exercise-log.interval/end ?end]
+                   [(some? ?beginning)]
+                   [(some? ?end)]
+                   [(t/between ?beginning ?end) ?duration]]})
+   first
+   first))
+
+(defn exercises-with-only-nil-ends []
+  (let [exercises-with-ends
+        (set (map first (xt/q (xt/db xtdb-node)
+                              '{:find  [?e]
+                                :where [[?l :exercise/id ?e]
+                                        [?l :exercise-log.interval/end ?end]
+                                        [(some? ?end)]]})))
+        all-exercises
+        (set (map first (xt/q (xt/db xtdb-node)
+                              '{:find  [?e]
+                                :where [[?e :gleanmo/type :exercise]]})))
+        exercises-with-only-nil-ends-exclusively
+        (difference all-exercises exercises-with-ends)]
+    exercises-with-only-nil-ends-exclusively))
+
+(defn generate-puts-for-exercises-with-only-nil-ends []
+  (let [median-interval-seconds (determine-median-interval-seconds)
+        med-dur                 (t/new-duration median-interval-seconds :seconds)
+        exercises               (exercises-with-only-nil-ends)
+        puts                    (for [exercise-id exercises]
+                                  (let [logs (xt/q (xt/db xtdb-node)
+                                                   '{:find  [(pull ?log-id [*])]
+                                                     :where [[?log-id :exercise/id exercise-id]
+                                                             [?log-id :exercise-log.interval/beginning ?beginning]
+                                                             [?log-id :exercise-log.interval/end ?end]
+                                                             [(nil? ?end)]]
+                                                     :in [exercise-id]}
+                                                   exercise-id)
+                                        sets (xt/q (xt/db xtdb-node)
+                                                   '{:find  [(pull ?set-id [*])]
+                                                     :where [[?log-id :exercise/id exercise-id]
+                                                             [?log-id :exercise-log/exercise-set-ids ?set-id]
+                                                             [?set-id :exercise-set.interval/beginning ?beginning]
+                                                             [?set-id :exercise-set.interval/end ?end]
+                                                             [(nil? ?end)]]
+                                                     :in [exercise-id]}
+                                                   exercise-id)]
+                                    (concat
+                                     (->> logs
+                                          (mapcat identity)
+                                          (map (fn [{:exercise-log.interval/keys [beginning]
+                                                    :as                         log}]
+                                                 (let [end (t/>> beginning med-dur)]
+                                                   [::xt/put (-> log
+                                                                (assoc :exercise-log.interval/end end)
+                                                                (assoc :airtable/missing-duration true)
+                                                                (assoc :exercise-log.interval/global-median-end true))]))))
+                                     (->> sets
+                                          (mapcat identity)
+                                          (map (fn [{:exercise-set.interval/keys [beginning]
+                                                    :as                         set}]
+                                                 (let [end (t/>> beginning med-dur)]
+                                                   [::xt/put (-> set
+                                                                (assoc :exercise-set.interval/end end)
+                                                                (assoc :airtable/missing-duration true)
+                                                                (assoc :exercise-set.interval/global-median-end true))])))))))]
+
+    (->> puts
          (mapcat identity)
-         )
-    )
-   )
+         vec)))
+
+;; ## Actually reading and writing to xtdb
+;; This was problematic to have so many side effects in the notebook because of dynamic loading
+;; Pulled it out to work with it at the repl
+(comment
+  (write-exercises-to-xtdb!)
+  (write-exercise-logs-to-xtdb!)
+  (q-exercise-log-with-data)
+  (xt/submit-tx xtdb-node (generate-puts-for-missing-ends))
+  (xt/submit-tx xtdb-node (generate-puts-for-exercises-with-only-nil-ends))
+  (fetch-exercise-logs-without-end)
+  (stats-on-missing-end)
+  (count (q-exercises))
+  (count (fetch-exercise-logs-without-end))
+  (count (fetch-exercise-logs-without-end))
+  ;; some exercises don't have logs
+  (count (fetch-exercises-with-duration))
+
 ;;
   )
+
 ;; ### Sessions
