@@ -279,29 +279,41 @@
                                  '{:find [(count ?el)]
                                    :where [[?el :gleanmo/type :exercise-log]]})))
         sets (first (first (xt/q (xt/db xtdb-node)
-                                 '{:find [(count ?el)]
-                                   :where [[?el :gleanmo/type :exercise-set]]})))
+                                 '{:find [(count ?es)]
+                                   :where [[?es :gleanmo/type :exercise-set]]})))
+        all-exercises (-> (xt/q (xt/db xtdb-node)
+                                '{:find [?e]
+                                  :where [[?e :gleanmo/type :exercise]]})
+                          vec
+                          flatten
+                          set)
+        all-exercises-count (count all-exercises)
+        exercises-with-sets (-> (xt/q (xt/db xtdb-node)
+                                      '{:find [?e]
+                                        :where [[?es :gleanmo/type :exercise-set]
+                                                [?es :exercise/id ?e]]})
+                                vec
+                                flatten
+                                set)
+        exercises-with-sets-count (count exercises-with-sets)
         missing-logs (first (first (xt/q (xt/db xtdb-node)
                                          '{:find [(count ?el)]
                                            :where [[?el :gleanmo/type :exercise-log]
                                                    [?el :exercise-log.interval/end ?end]
                                                    [(nil? ?end)]]})))
         missing-sets (first (first (xt/q (xt/db xtdb-node)
-                                         '{:find [(count ?el)]
-                                           :where [[?el :gleanmo/type :exercise-set]
-                                                   [?el :exercise-set.interval/end ?end]
+                                         '{:find [(count ?es)]
+                                           :where [[?es :gleanmo/type :exercise-set]
+                                                   [?es :exercise-set.interval/end ?end]
                                                    [(nil? ?end)]]})))
-        exercises-missing-logs (xt/q (xt/db xtdb-node)
-                                     '{:find [?label (count ?set)]
-                                       :where [[?el :gleanmo/type :exercise-log]
-                                               [?el :exercise/id ?e]
-                                               [?el :exercise-log/exercise-set-ids ?set]
-                                               [?e :gleanmo/type :exercise]
-                                               [?e :exercise/label ?label]
-                                               [?el :exercise-log.interval/end ?end]
-                                               [(nil? ?end)]]})]
-    (pot/map-of logs sets missing-logs missing-sets
-                exercises-missing-logs)))
+        exercises-missing-log-set-entries (count (difference all-exercises exercises-with-sets))]
+    (pot/map-of logs
+                sets
+                missing-logs
+                missing-sets
+                exercises-missing-log-set-entries
+                exercises-with-sets-count
+                all-exercises-count)))
 
 (defn generate-puts-for-missing-ends []
   (doall
@@ -400,7 +412,7 @@
                                      (->> logs
                                           (mapcat identity)
                                           (map (fn [{:exercise-log.interval/keys [beginning]
-                                                    :as                         log}]
+                                                     :as                         log}]
                                                  (let [end (t/>> beginning med-dur)]
                                                    [::xt/put (-> log
                                                                  (assoc :exercise-log.interval/end end)
@@ -409,7 +421,7 @@
                                      (->> sets
                                           (mapcat identity)
                                           (map (fn [{:exercise-set.interval/keys [beginning]
-                                                    :as                         set}]
+                                                     :as                         set}]
                                                  (let [end (t/>> beginning med-dur)]
                                                    [::xt/put (-> set
                                                                  (assoc :exercise-set.interval/end end)
@@ -420,27 +432,67 @@
          (mapcat identity)
          vec)))
 
-;; ## Actually reading and writing to xtdb
-;; This was problematic to have so many side effects in the notebook because of dynamic loading
-;; Pulled it out to work with it at the repl
-(comment
-  ;; Write all the valid exercises, logs, and sets to xtdb
-  (write-exercises-to-xtdb!)
-  ;; This includes sets
-  (write-exercise-logs-to-xtdb!)
-  (q-exercise-log-with-data)
-  ;; Clean up all missing durations
-  (xt/submit-tx xtdb-node (generate-puts-for-missing-ends))
-  (xt/submit-tx xtdb-node (generate-puts-for-exercises-with-only-nil-ends))
-  ;; The below should show no log or set is missing duration now
-  (fetch-exercise-logs-and-sets-without-end)
-  (count (fetch-exercise-logs-and-sets-without-end))
-  (count (fetch-exercise-logs-and-sets-without-end))
-  (stats-on-missing-end)
-  ;; Total amount of exercises
-  (count (q-exercises))
-  ;; some exercises don't have logs so this number will be less than the above
-  (count (fetch-exercises-with-duration))
-;;
-  )
+;; ## Actually transacting
+;; Write all the valid exercises, logs, and sets to xtdb
+(write-exercises-to-xtdb!)
+;; This includes sets
+(write-exercise-logs-to-xtdb!)
+(q-exercise-log-with-data)
+;; Clean up all missing durations
+(xt/submit-tx xtdb-node (generate-puts-for-missing-ends))
+(xt/submit-tx xtdb-node (generate-puts-for-exercises-with-only-nil-ends))
+;; The below should show no log or set is missing duration now
+(fetch-exercise-logs-and-sets-without-end)
+(count (fetch-exercise-logs-and-sets-without-end))
+(count (fetch-exercise-logs-and-sets-without-end))
+(stats-on-missing-end)
+;; Total amount of exercises
+(count (q-exercises))
+;; some exercises don't have logs so this number will be less than the above
+(count (fetch-exercises-with-duration))
 
+;; # Visualizing
+;; Now let's answer some questions and start visualizing
+;; ## Basic heatmaps of activity
+;; ### Consolidating data
+(def rwd-heatmap-data
+  (->>
+   (xt/q (xt/db xtdb-node)
+         '{:find  [(pull ?es [*])]
+           :where [[?es :gleanmo/type :exercise-set]]})
+   vec
+   flatten
+   (group-by (fn [{beg :exercise-set.interval/beginning}] (t/date beg)))
+   (pot/map-vals (fn [sets]
+                   (let [reps             (->> sets
+                                               (mapv :exercise-set/reps)
+                                               (remove nil?)
+                                               (reduce +))
+                         weight           (->> sets
+                                               (mapv :exercise-set/weight-amount)
+                                               (remove nil?)
+                                               (reduce +))
+                         duration-seconds (->> sets
+                                               (mapv (fn [{beg :exercise-set.interval/beginning
+                                                          end :exercise-set.interval/end}]
+                                                       (t/seconds (t/between beg end))))
+                                               (reduce +))]
+                     (pot/map-of reps weight duration-seconds))))
+   (mapv (fn [[d vals]]
+           (merge {:date d
+                   :day-of-week (t/day-of-week d)
+                   ;; TODO kind of left off here stuck on generating week-of-year and figuring out how to visualize more than one year
+                   :week-year (str (t/year d) "-" )} vals)))))
+
+;; ### Visualizing data
+(defn generate-vega-lite-spec [data]
+  (let [base           {:data     {:values data}
+                        :mark     "rect"
+                        :encoding {:y {:field "day-of-week" :type "ordinal" :axis {:title "Day of Week"}}
+                                   :x {:field "week-of-year" :type "ordinal" :axis {:title "Week of Year"}}}}
+        reps-layer     (assoc-in base [:encoding :color] {:field "reps" :type "quantitative" :legend {:title "Reps"}})
+        weight-layer   (assoc-in base [:encoding :color] {:field "weight" :type "quantitative" :legend {:title "Weight"}})
+        duration-layer (assoc-in base [:encoding :color] {:field "duration-seconds" :type "quantitative" :legend {:title "Duration (s)"}})]
+    {:layer [reps-layer weight-layer duration-layer]}))
+
+(clerk/vl (generate-vega-lite-spec rwd-heatmap-data))
