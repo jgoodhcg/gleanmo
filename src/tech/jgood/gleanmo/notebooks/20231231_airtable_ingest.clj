@@ -172,11 +172,8 @@
             weight      (-> fields :weight)]
         {:exercise-log (merge {:xt/id                           log-id
                                :gleanmo/type                    :exercise-log
-                               :exercise/id                     exercise-id
                                :exercise-log.interval/beginning beg
                                :exercise-log.interval/end       end
-                               :exercise-log/exercise-set-ids   #{set-id}
-                               :airtable/exercise-id            exrcs-at-id
                                :airtable/ported                 true}
                               (when (some? notes)
                                 {:exercise-log/notes notes})
@@ -185,6 +182,8 @@
          :exercise-set (merge {:xt/id                           set-id
                                :gleanmo/type                    :exercise-set
                                :exercise-log/id                 log-id
+                               :exercise/id                     exercise-id
+                               :airtable/exercise-id            exrcs-at-id
                                :exercise-set.interval/beginning beg
                                :exercise-set.interval/end       end
                                :airtable/ported                 true}
@@ -222,9 +221,7 @@
            (->> (remove nil?))
            (->> (map (fn [item] [::xt/put item])))
            vec
-           (->> (xt/submit-tx xtdb-node))))))
-  ;;
-  )
+           (->> (xt/submit-tx xtdb-node)))))))
 
 (defn q-exercise-logs []
   (xt/q (xt/db xtdb-node)
@@ -240,9 +237,9 @@
 
                   [?es :gleanmo/type    :exercise-set]
                   [?es :exercise-log/id ?el]
+                  [?es :exercise/id     ?e]
 
-                  [?el :gleanmo/type    :exercise-log]
-                  [?el :exercise/id     ?e]]
+                  [?el :gleanmo/type    :exercise-log]]
           :limit 1}))
 
 ;; ### Filling in with average durations
@@ -251,15 +248,15 @@
         '{:find  [?label
                   ?exercise-id
                   (avg (t/seconds ?duration))]
-          :where [[?log-id :exercise/id ?exercise-id]
-                  [?log-id :exercise-log.interval/beginning ?beginning]
-                  [?log-id :exercise-log.interval/end ?end]
+          :where [[?set-id :exercise/id ?exercise-id]
+                  [?set-id :exercise-set.interval/beginning ?beginning]
+                  [?set-id :exercise-set.interval/end ?end]
                   [?exercise-id :exercise/label ?label]
                   [(some? ?beginning)]
                   [(some? ?end)]
                   [(t/between ?beginning ?end) ?duration]]}))
 
-(defn fetch-exercise-logs-without-end
+(defn fetch-exercise-logs-and-sets-without-end
   ([]
    (xt/q (xt/db xtdb-node)
          '{:find  [?log-id ?exercise-id ?set-id]
@@ -311,7 +308,7 @@
    (->> (fetch-exercises-with-duration)
         ;; for each exercise
         (map (fn [[_ e-id avg]]
-               (let [logs (fetch-exercise-logs-without-end e-id)]
+               (let [logs (fetch-exercise-logs-and-sets-without-end e-id)]
                  ;; find all the logs without an end
                  (when (seq logs)
                    (doall
@@ -384,20 +381,20 @@
         puts                    (for [exercise-id exercises]
                                   (let [logs (xt/q (xt/db xtdb-node)
                                                    '{:find  [(pull ?log-id [*])]
-                                                     :where [[?log-id :exercise/id exercise-id]
+                                                     :where [[?set-id :exercise/id exercise-id]
+                                                             [?set-id :exercise-log/id ?log-id]
                                                              [?log-id :exercise-log.interval/beginning ?beginning]
                                                              [?log-id :exercise-log.interval/end ?end]
                                                              [(nil? ?end)]]
-                                                     :in [exercise-id]}
+                                                     :in    [exercise-id]}
                                                    exercise-id)
                                         sets (xt/q (xt/db xtdb-node)
                                                    '{:find  [(pull ?set-id [*])]
-                                                     :where [[?log-id :exercise/id exercise-id]
-                                                             [?log-id :exercise-log/exercise-set-ids ?set-id]
+                                                     :where [[?set-id :exercise/id exercise-id]
                                                              [?set-id :exercise-set.interval/beginning ?beginning]
                                                              [?set-id :exercise-set.interval/end ?end]
                                                              [(nil? ?end)]]
-                                                     :in [exercise-id]}
+                                                     :in    [exercise-id]}
                                                    exercise-id)]
                                     (concat
                                      (->> logs
@@ -406,18 +403,18 @@
                                                     :as                         log}]
                                                  (let [end (t/>> beginning med-dur)]
                                                    [::xt/put (-> log
-                                                                (assoc :exercise-log.interval/end end)
-                                                                (assoc :airtable/missing-duration true)
-                                                                (assoc :exercise-log.interval/global-median-end true))]))))
+                                                                 (assoc :exercise-log.interval/end end)
+                                                                 (assoc :airtable/missing-duration true)
+                                                                 (assoc :exercise-log.interval/global-median-end true))]))))
                                      (->> sets
                                           (mapcat identity)
                                           (map (fn [{:exercise-set.interval/keys [beginning]
                                                     :as                         set}]
                                                  (let [end (t/>> beginning med-dur)]
                                                    [::xt/put (-> set
-                                                                (assoc :exercise-set.interval/end end)
-                                                                (assoc :airtable/missing-duration true)
-                                                                (assoc :exercise-set.interval/global-median-end true))])))))))]
+                                                                 (assoc :exercise-set.interval/end end)
+                                                                 (assoc :airtable/missing-duration true)
+                                                                 (assoc :exercise-set.interval/global-median-end true))])))))))]
 
     (->> puts
          (mapcat identity)
@@ -427,20 +424,23 @@
 ;; This was problematic to have so many side effects in the notebook because of dynamic loading
 ;; Pulled it out to work with it at the repl
 (comment
+  ;; Write all the valid exercises, logs, and sets to xtdb
   (write-exercises-to-xtdb!)
+  ;; This includes sets
   (write-exercise-logs-to-xtdb!)
   (q-exercise-log-with-data)
+  ;; Clean up all missing durations
   (xt/submit-tx xtdb-node (generate-puts-for-missing-ends))
   (xt/submit-tx xtdb-node (generate-puts-for-exercises-with-only-nil-ends))
-  (fetch-exercise-logs-without-end)
+  ;; The below should show no log or set is missing duration now
+  (fetch-exercise-logs-and-sets-without-end)
+  (count (fetch-exercise-logs-and-sets-without-end))
+  (count (fetch-exercise-logs-and-sets-without-end))
   (stats-on-missing-end)
+  ;; Total amount of exercises
   (count (q-exercises))
-  (count (fetch-exercise-logs-without-end))
-  (count (fetch-exercise-logs-without-end))
-  ;; some exercises don't have logs
+  ;; some exercises don't have logs so this number will be less than the above
   (count (fetch-exercises-with-duration))
-
 ;;
   )
 
-;; ### Sessions
