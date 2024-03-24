@@ -18,12 +18,16 @@
             [clojure.string :as str]
             [clj-uuid :as uuid]
             [tick.core :as t]
+            [tick.alpha.interval :as t.i]
             [clj-commons.digest :as digest]))
 
 ;; ## Read in data from files
-(def exercise-file "notebook_data/2023-12-31__17_31_50_247708_exercises.edn")
-(def exercise-log-file "notebook_data/2023-12-31__14_07_28_274238_exercise_log.edn")
+#_#_(def exercise-file "notebook_data/2023-12-31__17_31_50_247708_exercises.edn")
+  (def exercise-log-file "notebook_data/2023-12-31__14_07_28_274238_exercise_log.edn")
+(def exercise-file "notebook_data/2024-02-29__09_37_08_386115_exercises.edn")
+(def exercise-log-file "notebook_data/2024-02-29__09_38_03_404207_exercise_log.edn")
 
+#_#_
 ;; ### Exercises
 (with-open [rdr (io/reader exercise-file)]
   (let [lines (line-seq rdr)]
@@ -347,7 +351,7 @@
                                     (-> set
                                         (assoc
                                          :exercise-set.interval/end
-                                         end-l
+                                         end-s
                                          :airtable/missing-duration
                                          true
                                          :exercise-set.interval/averaged-end
@@ -432,30 +436,128 @@
          (mapcat identity)
          vec)))
 
-;; ## Actually transacting
-;; Write all the valid exercises, logs, and sets to xtdb
-(write-exercises-to-xtdb!)
-;; This includes sets
-(write-exercise-logs-to-xtdb!)
-(q-exercise-log-with-data)
-;; Clean up all missing durations
-(xt/submit-tx xtdb-node (generate-puts-for-missing-ends))
-(xt/submit-tx xtdb-node (generate-puts-for-exercises-with-only-nil-ends))
-;; The below should show no log or set is missing duration now
-(fetch-exercise-logs-and-sets-without-end)
-(count (fetch-exercise-logs-and-sets-without-end))
-(count (fetch-exercise-logs-and-sets-without-end))
-(stats-on-missing-end)
-;; Total amount of exercises
-(count (q-exercises))
-;; some exercises don't have logs so this number will be less than the above
-(count (fetch-exercises-with-duration))
+;; ### Grouping logs into sessions
+(defn query-all-logs []
+  (xt/q (xt/db xtdb-node)
+        '{:find  [(pull ?e [*])]
+          :where [[?e :gleanmo/type :exercise-log]]}))
 
-;; # Visualizing
+(defn group-logs [log-groups log]
+  ;; Handle the first iteration
+  (if (empty? log-groups)
+    ;; And just start the first group
+    (conj log-groups [log])
+    ;; Then start comparing the last log in the last group with the next log
+    (let [last-lg  (last log-groups)
+          last-log (last last-lg)
+          ll-end   (:exercise-log.interval/end last-log)
+          ll-bound (-> ll-end (t/>> (t/new-duration 10 :minutes)))
+          log-beg  (:exercise-log.interval/beginning log)]
+      (if (-> log-beg (t/< ll-bound))
+        ;; Add the log to the last group
+        (conj (vec (butlast log-groups)) (conj last-lg log))
+        ;; Make a new group
+        (conj log-groups [log])))))
+
+(defn generate-session-puts []
+  (->> (query-all-logs)
+       vec
+       flatten
+       vec
+       (sort-by :exercise-log.interval/beginning)
+       (reduce group-logs [])
+       (mapcat (fn [logs]
+                 (let [log-ids    (->> logs
+                                       (map :xt/id))
+                       session-id (generate-deterministic-uuid
+                                   (str log-ids))
+                       beg        (->> logs
+                                       (sort-by :exercise-log.interval/beginning)
+                                       first
+                                       :exercise-log.interval/beginning)
+                       end        (->> logs
+                                       (sort-by :exercise-log.interval/end)
+                                       reverse
+                                       first
+                                       :exercise-log.interval/end)]
+                   (conj
+                    (->> logs
+                         (mapv (fn [l]
+                                 [::xt/put (-> l
+                                               (assoc
+                                                :exercise-session/id
+                                                session-id))])))
+                    [::xt/put {:xt/id                      session-id
+                               :gleanmo/type               :exercise-session
+                               :exercise-session/beginning beg
+                               :exercise-session/end       end}]))))))
+
+;; ### Actually transacting
+;; This is put in a comment so that clerk reloading doesn't mess with anything
+(comment
+  ;; Write all the valid exercises, logs, and sets to xtdb
+  (write-exercises-to-xtdb!)
+  ;; This includes sets
+  (write-exercise-logs-to-xtdb!)
+  (q-exercise-log-with-data)
+  ;; Clean up all missing durations
+  (xt/submit-tx xtdb-node
+                (generate-puts-for-missing-ends))
+  (xt/submit-tx xtdb-node
+                (generate-puts-for-exercises-with-only-nil-ends))
+  ;; The below should show no log or set is missing duration now
+  (fetch-exercise-logs-and-sets-without-end)
+  (count (fetch-exercise-logs-and-sets-without-end))
+  (count (fetch-exercise-logs-and-sets-without-end))
+  (stats-on-missing-end)
+  ;; Total amount of exercises
+  (count (q-exercises))
+  ;; some exercises don't have logs so this number will be less than the above
+  (count (fetch-exercises-with-duration))
+  ;; sessions
+  (xt/submit-tx xtdb-node (generate-session-puts))
+;;
+  )
+
 ;; Now let's answer some questions and start visualizing
-;; ## Basic heatmaps of activity
+;; ## Heatmaps of relative score
 ;; ### Consolidating data
-(def rwd-heatmap-data
+(defn days-until-next-week [date]
+  (->> date
+       t/day-of-week
+       t/int
+       (- 8)))
+
+(defn week-number-of-month [date]
+  (let [year-month (t/year-month date)
+        month      (t/int (t/month date))
+        day        (t/day-of-month date)]
+    (loop [d (t/date (str year-month "-" "01"))
+           w 1]
+      (let [start-of-next-week (t/>> d (t/new-period (days-until-next-week d) :days))]
+        (if (and (= (t/int (t/month start-of-next-week)) month)
+                 (-> start-of-next-week (t/day-of-month) (< day)))
+          (recur start-of-next-week (inc w))
+          w)))))
+
+(defn week-number-of-year [date]
+  (let [year (t/year date)]
+    (loop [d (t/date (str year "-01-01"))
+           w 1]
+      (let [start-of-next-week (t/>> d (t/new-period (days-until-next-week d) :days))]
+        (if (and (= (t/year start-of-next-week) year)
+                 (-> start-of-next-week
+                     (t.i/relation date)
+                     ((fn [r] (some #{:precedes :meets :equals} [r])))))
+          (recur start-of-next-week (inc w))
+          w)))))
+
+(def calendar
+  (->> (t/range (t/date "2021-01-01") (t/date (t/now))
+                (t/new-period 1 :days))
+       (mapv (fn [d] {:date d}))))
+
+(def rwd-by-day-data-proto
   (->>
    (xt/q (xt/db xtdb-node)
          '{:find  [(pull ?es [*])]
@@ -474,25 +576,128 @@
                                                (reduce +))
                          duration-seconds (->> sets
                                                (mapv (fn [{beg :exercise-set.interval/beginning
-                                                          end :exercise-set.interval/end}]
+                                                           end :exercise-set.interval/end}]
                                                        (t/seconds (t/between beg end))))
                                                (reduce +))]
                      (pot/map-of reps weight duration-seconds))))
    (mapv (fn [[d vals]]
-           (merge {:date d
-                   :day-of-week (t/day-of-week d)
-                   ;; TODO kind of left off here stuck on generating week-of-year and figuring out how to visualize more than one year
-                   :week-year (str (t/year d) "-" )} vals)))))
+           (merge {:date         d
+                   :date-str     (str d)
+                   :day-of-week  (str (t/day-of-week d))
+                   :week-of-year (week-number-of-year d)} vals)))))
 
-;; ### Visualizing data
-(defn generate-vega-lite-spec [data]
-  (let [base           {:data     {:values data}
-                        :mark     "rect"
-                        :encoding {:y {:field "day-of-week" :type "ordinal" :axis {:title "Day of Week"}}
-                                   :x {:field "week-of-year" :type "ordinal" :axis {:title "Week of Year"}}}}
-        reps-layer     (assoc-in base [:encoding :color] {:field "reps" :type "quantitative" :legend {:title "Reps"}})
-        weight-layer   (assoc-in base [:encoding :color] {:field "weight" :type "quantitative" :legend {:title "Weight"}})
-        duration-layer (assoc-in base [:encoding :color] {:field "duration-seconds" :type "quantitative" :legend {:title "Duration (s)"}})]
-    {:layer [reps-layer weight-layer duration-layer]}))
+(defn merge-data [calendar rwd-by-day-data-proto]
+  (let [calendar-map (into {} (map (fn [{:keys [date]}]
+                                     [date {:date             date
+                                            :reps             0
+                                            :weight           0
+                                            :duration-seconds 0
+                                            :date-str         (str date)
+                                            :day-of-week      (str (t/day-of-week date))
+                                            :week-of-year     (week-number-of-year date)}]) calendar))
+        rwd-map      (into {} (map (fn [{:keys [date] :as entry}] [date entry]) rwd-by-day-data-proto))]
+    (vec (map (fn [[date cal-entry]]
+                (if-let [rwd-entry (get rwd-map date)]
+                  (merge cal-entry rwd-entry)
+                  cal-entry))
+              calendar-map))))
 
-(clerk/vl (generate-vega-lite-spec rwd-heatmap-data))
+(def rwd-by-day-data-proto-2 (merge-data calendar rwd-by-day-data-proto))
+
+;; Highest duration
+(def max-duration
+  (->> rwd-by-day-data-proto-2
+       (map :duration-seconds)
+       (reduce max)))
+
+;; Highest reps
+(def max-reps
+  (->> rwd-by-day-data-proto-2
+       (map :reps)
+       (reduce max)))
+
+;; Highest weight
+(def max-weight
+  (->> rwd-by-day-data-proto-2
+       (map :weight)
+       (reduce max)))
+
+(defn safe-division [n d]
+  (if (-> n (> 0))
+    (-> n (/ d) float)
+    0))
+
+(def rwd-by-day-data
+  (->> rwd-by-day-data-proto-2
+       (mapv (fn [{r   :reps
+                  d   :duration-seconds
+                  w   :weight
+                  :as entry}]
+               (let [relative-duration (safe-division d max-duration)
+                     relative-reps     (safe-division r max-reps)
+                     relative-weight   (safe-division w max-weight)
+                     relative-total    (-> (+ relative-duration relative-reps relative-weight)
+                                           (safe-division 3))]
+                 (merge entry (pot/map-of relative-duration
+                                          relative-reps
+                                          relative-weight
+                                          relative-total)))))))
+
+;; ### Visuals
+;; #### RWD Relative
+(def rwd-rel-heatmap-config
+  {:data   {:values []}
+   :mark   "rect"
+   :config {:view {:stroke-width 0
+                   :step         15}}
+   :width  650
+   :encoding
+   {:x     {:field    "date-str"
+            :type     "temporal"
+            :timeUnit "week"
+            :axis     {:labelExpr  "monthAbbrevFormat(month(datum.value))"
+                       :labelAlign "middle"
+                       :title      nil}}
+    :y     {:field "day-of-week"
+            :type  "ordinal"
+            :sort  ["MONDAY" "TUESDAY" "WEDNESDAY" "THURSDAY" "FRIDAY" "SATURDAY"]
+            :axis  {:title nil}}
+    :color {:field     "relative-total"
+            :type      "quantitative"
+            :legend    {:title nil}}}})
+;; 2024
+(clerk/vl (merge rwd-rel-heatmap-config
+                 {:data {:values (->> rwd-by-day-data
+                                      (filter (fn [{d :date}] (= (t/year d) (t/year 2024)))))}}))
+;; 2023
+(clerk/vl (merge rwd-rel-heatmap-config
+                 {:data {:values (->> rwd-by-day-data
+                                      (filter (fn [{d :date}] (= (t/year d) (t/year 2023)))))}}))
+;; 2022
+(clerk/vl (merge rwd-rel-heatmap-config
+                 {:data {:values (->> rwd-by-day-data
+                                      (filter (fn [{d :date}] (= (t/year d) (t/year 2022)))))}}))
+;; 2021
+(clerk/vl (merge rwd-rel-heatmap-config
+                 {:data {:values (->> rwd-by-day-data
+                                      (filter (fn [{d :date}] (= (t/year d) (t/year 2021)))))}}))
+
+;; #### Sessions
+
+(defn query-types-with-attributes []
+  (let [types #{:exercise-log :exercise-set :exercise-session :exercise}
+        type-to-attributes (atom {})]
+    (doseq [type types]
+      (let [results (xt/q (xt/db xtdb-node)
+                          '{:find  [(pull ?e [*])]
+                            :where [[?e :gleanmo/type type]]
+                            :in [type]}
+                          type)
+            attributes-set (reduce (fn [acc record]
+                                     (into acc (keys record)))
+                                   #{}
+                                   (map first results))]
+        (swap! type-to-attributes assoc type attributes-set)))
+    @type-to-attributes))
+
+;; (query-types-with-attributes)
