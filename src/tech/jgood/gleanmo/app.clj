@@ -240,7 +240,7 @@
           [:div.mt-2
            [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
             {:name "time-zone" :required true :autocomplete "on"}
-            (->> (java.time.ZoneId/getAvailableZoneIds)
+            (->> (ZoneId/getAvailableZoneIds)
                  sort
                  (map (fn [zoneId]
                         [:option {:value    zoneId
@@ -295,12 +295,12 @@
         time-zone      (-> params :time-zone)
         timestamp-str  (-> params :timestamp)
         notes          (-> params :notes)
-        local-datetime (java.time.LocalDateTime/parse timestamp-str)
-        zone-id        (java.time.ZoneId/of time-zone)
-        zdt            (java.time.ZonedDateTime/of local-datetime zone-id)
+        local-datetime (LocalDateTime/parse timestamp-str)
+        zone-id        (ZoneId/of time-zone)
+        zdt            (ZonedDateTime/of local-datetime zone-id)
         timestamp      (-> zdt (t/inst)) ;; save as utc
         habit-ids      (->> id-strs
-                            (map #(some-> % java.util.UUID/fromString))
+                            (map #(some-> % UUID/fromString))
                             set)
         user-id        (:uid session)
         user-time-zone (get-user-time-zone ctx)
@@ -482,7 +482,7 @@
         {:user/keys
          [email time-zone]} (xt/entity db user-id)
         habits              (habits-query (pot/map-of db user-id))
-        edit-id             (some-> params :edit (java.util.UUID/fromString))
+        edit-id             (some-> params :edit (UUID/fromString))
         sensitive           (or (some-> params :sensitive checkbox-true?)
                                 (some-> query-params :sensitive checkbox-true?))
         archived            (or (some-> params :archived checkbox-true?)
@@ -516,7 +516,7 @@
             (map (fn [z] (habit-list-item (-> z (assoc :edit-id edit-id))))))]])))
 
 (defn habit-edit! [{:keys [session params] :as ctx}]
-  (let [id        (-> params :id java.util.UUID/fromString)
+  (let [id        (-> params :id UUID/fromString)
         name      (:name params)
         notes     (-> params :notes str)
         sensitive (-> params :sensitive boolean)
@@ -539,7 +539,7 @@
   (let [user-id                        (:uid session)
         {:user/keys [email time-zone]} (xt/entity db user-id)
         habit-logs                     (habit-logs-query (pot/map-of db user-id))
-        edit-id                        (some-> params :edit (java.util.UUID/fromString))
+        edit-id                        (some-> params :edit (UUID/fromString))
         sensitive                      (or (some-> params :sensitive checkbox-true?)
                                            (some-> query-params :sensitive checkbox-true?))
         search                         (or (some-> params :search search-str-xform)
@@ -564,7 +564,7 @@
                                session
                                biff/db]
                         :as   ctx}]
-  (let [habit-id            (-> path-params :id java.util.UUID/fromString)
+  (let [habit-id            (-> path-params :id UUID/fromString)
         user-id             (:uid session)
         {email :user/email} (xt/entity db user-id)
         time-zone           (get-user-time-zone ctx)
@@ -583,7 +583,7 @@
                                    session
                                    biff/db]
                             :as   ctx}]
-  (let [log-id               (-> path-params :id java.util.UUID/fromString)
+  (let [log-id               (-> path-params :id UUID/fromString)
         user-id              (:uid session)
         {:user/keys [email]} (xt/entity db user-id)
         habit-log            (first (q db '{:find  (pull ?log [*])
@@ -626,7 +626,7 @@
          [:div.mt-2
           [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
            {:name "time-zone" :required true :autocomplete "on"}
-           (->> (java.time.ZoneId/getAvailableZoneIds)
+           (->> (ZoneId/getAvailableZoneIds)
                 sort
                 (map (fn [zoneId]
                        [:option {:value    zoneId
@@ -674,14 +674,14 @@
         time-zone      (-> params :time-zone)
         timestamp-str  (-> params :timestamp)
         notes          (-> params :notes)
-        local-datetime (java.time.LocalDateTime/parse timestamp-str)
-        zone-id        (java.time.ZoneId/of time-zone)
-        zdt            (java.time.ZonedDateTime/of local-datetime zone-id)
+        local-datetime (LocalDateTime/parse timestamp-str)
+        zone-id        (ZoneId/of time-zone)
+        zdt            (ZonedDateTime/of local-datetime zone-id)
         timestamp      (-> zdt (t/inst))
         habit-ids      (->> id-strs
-                            (map #(some-> % java.util.UUID/fromString))
+                            (map #(some-> % UUID/fromString))
                             set)
-        log-id         (-> params :id java.util.UUID/fromString)
+        log-id         (-> params :id UUID/fromString)
         user-id        (:uid session)
         user-time-zone (get-user-time-zone ctx)
         new-tz         (not= user-time-zone time-zone)]
