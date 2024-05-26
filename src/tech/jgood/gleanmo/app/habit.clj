@@ -191,6 +191,7 @@
                   [?habit :user/id user-id]]
           :in    [user-id]} user-id))
 
+;; TODO change params to be fully namespaced keys
 (defn single-for-user-query [{:keys [db user-id habit-id]}]
   (first
    (q db '{:find  (pull ?habit [*])
