@@ -12,7 +12,9 @@
    :user                [:map {:closed true}
                          [:xt/id                           :user/id]
                          [::type                          [:enum :user]]
+                         ;; TODO validate email
                          [:user/email                      :string]
+                         ;; TODO validate time zone id
                          [:user/time-zone {:optional true} :string]
                          [:user/joined-at                  :inst]]
    :habit               [:map {:closed true}

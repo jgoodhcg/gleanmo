@@ -3,11 +3,14 @@
    [clojure.string :as str]
    [com.biffweb :as biff :refer [q]]
    [tick.core :as t]
-   [xtdb.api :as xt]))
+   [xtdb.api :as xt])
+  (:import
+   [java.time ZoneId])
+  )
 
 (defn nav-bar [{:keys [email]}]
   [:div.space-x-8
-   [:span email]
+   [:a.link {:href "/app/user/edit"} email]
    [:a.link {:href "/app"} "home"]
    [:a.link {:href "/app/habits"} "habits"]
    [:a.link {:href "/app/habit-logs"} "habit logs"]
@@ -50,3 +53,15 @@
 (defn get-last-tx-time [{:keys [biff/db xt/id]}]
   (let [history          (xt/entity-history db id :desc)]
     (-> history first :xtdb.api/tx-time)))
+
+(defn time-zone-select [time-zone]
+  [:div
+   [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "time-zone"} "Time Zone"]
+          [:div.mt-2
+           [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+            {:name "time-zone" :required true :autocomplete "off"}
+            (->> (ZoneId/getAvailableZoneIds)
+                 sort
+                 (map (fn [zoneId]
+                        [:option {:value    zoneId
+                                  :selected (= zoneId time-zone)} zoneId])))]]])

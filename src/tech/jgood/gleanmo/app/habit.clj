@@ -70,9 +70,9 @@
    :headers {"location" "/app/habit/create"}})
 
 (defn edit-form [{id             :xt/id
-                        sensitive      :habit/sensitive
-                        latest-tx-time :latest-tx-time
-                        :as            habit}]
+                  sensitive      :habit/sensitive
+                  latest-tx-time :latest-tx-time
+                  :as            habit}]
   (biff/form
    {:hx-post   "/app/habit/edit"
     :hx-swap   "outerHTML"
@@ -119,13 +119,12 @@
        "Update Habit"]]
 
      [:div.mt-4
-      [:span.text-gray-500 (str "last updated: " latest-tx-time)]]
- ]]))
+      [:span.text-gray-500 (str "last updated: " latest-tx-time)]]]]))
 
 (defn list-item [{:habit/keys [sensitive name notes archived]
-                        edit-id     :edit-id
-                        id          :xt/id
-                        :as         habit}]
+                  edit-id     :edit-id
+                  id          :xt/id
+                  :as         habit}]
   (let [url (str "/app/habits?edit=" id (when sensitive "&sensitive=true"))]
     (if (= edit-id id)
       (edit-form habit)
@@ -258,9 +257,9 @@
      :headers {"location" (str "/app/habit/edit/" id)}}))
 
 (defn edit-page [{:keys [path-params
-                               session
-                               biff/db]
-                        :as   ctx}]
+                         session
+                         biff/db]
+                  :as   ctx}]
   (let [habit-id            (-> path-params :id UUID/fromString)
         user-id             (:uid session)
         {email :user/email} (xt/entity db user-id)

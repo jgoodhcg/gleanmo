@@ -6,7 +6,7 @@
    [tech.jgood.gleanmo.app.shared :refer [checkbox-true? ensure-vector
                                           format-date-time-local get-last-tx-time
                                           get-user-time-zone link-button local-date-time-fmt nav-bar search-str-xform
-                                          zoned-date-time-fmt]]
+                                          time-zone-select zoned-date-time-fmt]]
    [tech.jgood.gleanmo.schema :as schema]
    [tech.jgood.gleanmo.ui :as ui]
    [tick.core :as t]
@@ -96,16 +96,7 @@
         [:div.grid.grid-cols-1.gap-y-6
          ;; Time Zone selection
          ;; TODO add search
-         [:div
-          [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "time-zone"} "Time Zone"]
-          [:div.mt-2
-           [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-            {:name "time-zone" :required true :autocomplete "on"}
-            (->> (ZoneId/getAvailableZoneIds)
-                 sort
-                 (map (fn [zoneId]
-                        [:option {:value    zoneId
-                                  :selected (= zoneId time-zone)} zoneId])))]]]
+         (time-zone-select time-zone)
 
          ;; Notes input
          [:div

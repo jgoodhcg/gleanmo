@@ -4,11 +4,14 @@
    [potpuri.core :as pot]
    [tech.jgood.gleanmo.app.habit :as habit]
    [tech.jgood.gleanmo.app.habit-log :as habit-log]
-   [tech.jgood.gleanmo.app.shared :refer [nav-bar]]
+   [tech.jgood.gleanmo.app.user :as user]
+   [tech.jgood.gleanmo.app.shared :refer [get-last-tx-time nav-bar
+                                          time-zone-select zoned-date-time-fmt]]
    [tech.jgood.gleanmo.middleware :as mid]
    [tech.jgood.gleanmo.schema :as schema]
    [tech.jgood.gleanmo.settings :as settings]
    [tech.jgood.gleanmo.ui :as ui]
+   [tick.core :as t]
    [xtdb.api :as xt]))
 
 (def about-page
@@ -80,13 +83,15 @@
             [""                    {:get app}]
             ["/db"                 {:get db-viz}]
 
+            ["/user/edit"          {:get user/edit-page :post user/edit!}]
+
             ["/habits"             {:get habit/list-page :post habit/list-page}]
             ["/habit/create"       {:get habit/create-page :post habit/create!}]
             ["/habit/edit/:id"     {:get habit/edit-page}]
             ["/habit/edit"         {:post habit/edit!}]
 
             ["/habit-logs"         {:get habit-log/list-page}]
-            ["/habit-log/create"   {:get habit-log/create-page
+            ["/habit-log/create"   {:get  habit-log/create-page
                                     :post habit-log/create!}]
             ["/habit-log/edit/:id" {:get habit-log/edit-page}]
             ["/habit-log/edit"     {:post habit-log/edit!}]]})
