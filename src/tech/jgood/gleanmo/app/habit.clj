@@ -184,29 +184,28 @@
         :autocomplete "off"
         :checked      archived}]]])])
 
-;; TODO change params to be fully namespaced keys
-(defn all-for-user-query [{:keys [db user-id]}]
+(defn all-for-user-query [{:keys [biff/db session]}]
   (q db '{:find  (pull ?habit [*])
           :where [[?habit ::schema/type :habit]
                   [?habit :user/id user-id]]
-          :in    [user-id]} user-id))
+          :in    [user-id]} (:uid session)))
 
-;; TODO change params to be fully namespaced keys
-(defn single-for-user-query [{:keys [db user-id habit-id]}]
+(defn single-for-user-query [{:keys [biff/db session xt/id]}]
   (first
    (q db '{:find  (pull ?habit [*])
            :where [[?habit ::schema/type :habit]
                    [?habit :user/id user-id]
                    [?habit :xt/id habit-id]]
-           :in    [user-id habit-id]} user-id habit-id)))
+           :in    [user-id habit-id]} (:uid session) id)))
 
 (defn list-page
   "Accepts GET and POST. POST is for search form as body."
-  [{:keys [session biff/db params query-params]}]
+  [{:keys [session biff/db params query-params]
+    :as ctx}]
   (let [user-id             (:uid session)
         {:user/keys
          [email time-zone]} (xt/entity db user-id)
-        habits              (all-for-user-query (pot/map-of db user-id))
+        habits              (all-for-user-query ctx)
         edit-id             (some-> params :edit (UUID/fromString))
         sensitive           (or (some-> params :sensitive checkbox-true?)
                                 (some-> query-params :sensitive checkbox-true?))
@@ -266,7 +265,7 @@
         user-id             (:uid session)
         {email :user/email} (xt/entity db user-id)
         time-zone           (get-user-time-zone ctx)
-        habit               (single-for-user-query (pot/map-of db habit-id user-id))
+        habit               (single-for-user-query (merge ctx {:xt/id habit-id}))
         latest-tx-time      (-> (get-last-tx-time (merge ctx {:xt/id habit-id}))
                                 (t/in (t/zone time-zone))
                                 (->> (t/format (t/formatter zoned-date-time-fmt))))]

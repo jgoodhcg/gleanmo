@@ -17,8 +17,7 @@
    [java.time ZonedDateTime]
    [java.util UUID]))
 
-;; TODO fully namespaced keys
-(defn all-for-user-query [{:keys [db user-id]}]
+(defn all-for-user-query [{:keys [biff/db session]}]
   (let [raw-results (q db '{:find  [(pull ?habit-log [*]) ?habit-id ?habit-name ?tz]
                             :where [[?habit-log :habit-log/timestamp]
                                     [?habit-log :user/id user-id]
@@ -27,7 +26,7 @@
                                     [?habit :habit/name ?habit-name]
                                     [?user :xt/id user-id]
                                     [?user :user/time-zone ?tz]]
-                            :in    [user-id]} user-id)]
+                            :in    [user-id]} (:uid session))]
     (->> raw-results
          (group-by (fn [[habit-log _ _]] (:xt/id habit-log))) ; Group by habit-log id
          (map (fn [[log-id grouped-tuples]]
@@ -74,7 +73,7 @@
                                      :where [[?habit ::schema/type :habit]
                                              [?habit :user/id user-id]]
                                      :in    [user-id]} user-id)
-        recent-logs          (->> (all-for-user-query (pot/map-of db user-id))
+        recent-logs          (->> (all-for-user-query ctx)
                                   (take 3))
         time-zone            (get-user-time-zone ctx)
         time-zone            (if (some? time-zone) time-zone "US/Eastern")
@@ -185,10 +184,11 @@
 
 (defn list-page
   "Accepts GET and POST. POST is for search form as body."
-  [{:keys [session biff/db params query-params]}]
+  [{:keys [session biff/db params query-params]
+    :as ctx}]
   (let [user-id                        (:uid session)
         {:user/keys [email time-zone]} (xt/entity db user-id)
-        habit-logs                     (all-for-user-query (pot/map-of db user-id))
+        habit-logs                     (all-for-user-query ctx)
         edit-id                        (some-> params :edit (UUID/fromString))
         sensitive                      (or (some-> params :sensitive checkbox-true?)
                                            (some-> query-params :sensitive checkbox-true?))
