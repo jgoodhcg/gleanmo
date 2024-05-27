@@ -268,7 +268,6 @@
         latest-tx-time      (-> (get-last-tx-time (merge ctx {:xt/id habit-id}))
                                 (t/in (t/zone time-zone))
                                 (->> (t/format (t/formatter zoned-date-time-fmt))))]
-    (pprint (pot/map-of habit latest-tx-time))
     (ui/page
      {}
      [:div
