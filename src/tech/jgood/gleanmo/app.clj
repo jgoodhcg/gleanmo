@@ -84,30 +84,20 @@
             [""    {:get app}]
             ["/db" {:get db-viz}]
 
-            ;; Specific route for the current user
-
             ;; User-related routes
-            ["/my-user" {:get user/me}]
-            ["/users"   {:middleware [mid/wrap-user-authz]
-                         :post       user/post!}
-             ["/:id"      {:get    user/view
-                           :put    user/put!
-                           :patch  user/patch!
-                           :delete user/delete!}]
-             ["/:id/edit" {:middleware [mid/wrap-user-authz]
-                           :get        user/edit-form}]]
+            ["/my-user"        {:get user/me}]
+            ["/users"          {:middleware [mid/wrap-user-authz]
+                                :post       user/create!}]
+            ["/users/:id"      {:middleware [mid/wrap-user-authz]
+                                :get        user/view :post user/edit!}]
+            ["/users/:id/edit" {:middleware [mid/wrap-user-authz]
+                                :get        user/edit-form}]
 
-            #_#_#_#_
             ;; Habit-related routes
-            ["/habits"          {:get habit/list :post habit/post!}]
-            ["/habits/new"      {:get habit/new-form}]
-            ["/habits/:id"      {:get habit/view :put habit/put! :patch habit/patch! :delete habit/delete!}]
+            ["/new-habit"       {:get habit/new-form}]
+            ["/search-habits"   {:post habit/list-page}]
+            ["/habits"          {:get habit/list-page :post habit/create!}]
+            ["/habits/:id"      {:get habit/view :post habit/edit!}]
             ["/habits/:id/edit" {:get habit/edit-form}]
 
-            #_#_#_#_
-            ;; Habit log-related routes
-            ["/habit-logs"          {:get habit-log/list :post habit-log/post!}]
-            ["/habit-logs/new"      {:get habit-log/new-form}]
-            ["/habit-logs/:id"      {:get   habit-log/view   :put    habit-log/put!
-                                     :patch habit-log/patch! :delete habit-log/delete!}]
-            ["/habit-logs/:id/edit" {:get habit-log/edit-form}]]})
+            ]})

@@ -10,7 +10,7 @@
 
 (defn nav-bar [{:keys [email]}]
   [:div.space-x-8
-   [:a.link {:href "/app/user/edit"} email]
+   [:a.link {:href "/app/my-user"} email]
    [:a.link {:href "/app"} "home"]
    [:a.link {:href "/app/habits"} "habits"]
    [:a.link {:href "/app/habit-logs"} "habit logs"]

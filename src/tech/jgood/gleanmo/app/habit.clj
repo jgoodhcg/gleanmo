@@ -14,7 +14,7 @@
   (:import
    [java.util UUID]))
 
-(defn create-page [{:keys [session biff/db]}]
+(defn new-form [{:keys [session biff/db]}]
   (let [user-id              (:uid session)
         {:user/keys [email]} (xt/entity db user-id)]
     (ui/page
@@ -22,7 +22,7 @@
      (nav-bar (pot/map-of email))
      [:div.m-2.w-full.md:w-96.space-y-8
       (biff/form
-       {:hx-post   "/app/habit/create"
+       {:hx-post   "/app/habits"
         :hx-swap   "outerHTML"
         :hx-select "#create-habit-form"
         :id        "create-habit-form"}
@@ -67,14 +67,14 @@
                     :habit/sensitive (boolean (:sensitive params))
                     :habit/notes     (:notes params)}])
   {:status  303
-   :headers {"location" "/app/habit/create"}})
+   :headers {"location" "/app/new-habit" }})
 
-(defn edit-form [{id             :xt/id
-                  sensitive      :habit/sensitive
-                  latest-tx-time :latest-tx-time
-                  :as            habit}]
+(defn edit-form-component [{id             :xt/id
+                            sensitive      :habit/sensitive
+                            latest-tx-time :latest-tx-time
+                            :as            habit}]
   (biff/form
-   {:hx-post   "/app/habit/edit"
+   {:hx-post   (str "/app/habits/"id)
     :hx-swap   "outerHTML"
     :hx-select "#habit-edit-form"
     :id        "habit-edit-form"}
@@ -113,7 +113,7 @@
      ;; Submit button
      [:div.mt-2.w-full
       [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
-       {:type   "submit"
+       {:type       "submit"
         ;; maybe bring this back when inline editing is re-enabled
         #_#_:script "on click setURLParameter('edit', '')"}
        "Update Habit"]]
@@ -127,9 +127,9 @@
                   :as         habit}]
   (let [url (str "/app/habits?edit=" id (when sensitive "&sensitive=true"))]
     (if (= edit-id id)
-      (edit-form habit)
+      (edit-form-component habit)
       ;; remove this link if bringing back inline editing
-      [:a {:href (str "/app/habit/edit/" id)}
+      [:a {:href (str "/app/habits/"id"/edit")}
        [:div.relative.hover:bg-gray-100.transition.duration-150.p-4.border-b.border-gray-200.cursor-pointer.w-full.md:w-96
         ;; Disabling inline editing for now in favor of full page refresh
         ;; Maybe bring this back later
@@ -151,7 +151,7 @@
   [:div.my-2
    (biff/form
     {:id         "habit-search"
-     :hx-post    "/app/habits"
+     :hx-post    "/app/search-habits"
      :hx-swap    "outerHTML"
      :hx-trigger "search"
      :hx-select  "#habits-list"
@@ -218,7 +218,7 @@
      [:div
       (nav-bar (pot/map-of email))
       [:div.my-4
-       (link-button {:href "/app/habit/create"
+       (link-button {:href "/app/new-habit"
                      :label "Create Habit"})]
       (search-component (pot/map-of sensitive search archived))
       [:div {:id "habits-list"}
@@ -238,25 +238,31 @@
                                  matches-notes)))))
             (map (fn [z] (list-item (-> z (assoc :edit-id edit-id))))))]])))
 
-(defn edit! [{:keys [session params] :as ctx}]
+(defn edit! [{:keys [params] :as ctx}]
+  (println "dafuq")
   (let [id        (-> params :id UUID/fromString)
+        habit     (single-for-user-query (merge ctx {:xt/id id}))
         name      (:name params)
         notes     (-> params :notes str)
         sensitive (-> params :sensitive boolean)
         archived  (-> params :archived boolean)]
-    (biff/submit-tx ctx
-                    [{:db/op           :update
-                      :db/doc-type     :habit
-                      :xt/id           id
-                      :habit/name      name
-                      :habit/notes     notes
-                      :habit/sensitive sensitive
-                      :habit/archived  archived}])
+    ;; Authz is that the user owns the habit
+    (if (some? habit)
+      (do
+        (biff/submit-tx ctx
+                        [{:db/op           :update
+                          :db/doc-type     :habit
+                          :xt/id           id
+                          :habit/name      name
+                          :habit/notes     notes
+                          :habit/sensitive sensitive
+                          :habit/archived  archived}])
+        {:status  303
+         :headers {"location" (str "/app/habits/"id"/edit")}})
+      {:status 403
+       :body "Not authorized to edit that habit"})))
 
-    {:status  303
-     :headers {"location" (str "/app/habit/edit/" id)}}))
-
-(defn edit-page [{:keys [path-params
+(defn edit-form [{:keys [path-params
                          session
                          biff/db]
                   :as   ctx}]
@@ -272,4 +278,18 @@
      {}
      [:div
       (nav-bar (pot/map-of email))
-      (edit-form (merge habit (pot/map-of latest-tx-time)))])))
+      (edit-form-component (merge habit (pot/map-of latest-tx-time)))])))
+
+(defn view [{:keys [path-params
+                    session
+                    biff/db]
+             :as   ctx}]
+  (let [habit-id            (-> path-params :id UUID/fromString)
+        user-id             (:uid session)
+        {email :user/email} (xt/entity db user-id)
+        habit               (single-for-user-query (merge ctx {:xt/id habit-id}))]
+    (ui/page
+     {}
+     [:div
+      (nav-bar (pot/map-of email))
+      (list-item habit)])))

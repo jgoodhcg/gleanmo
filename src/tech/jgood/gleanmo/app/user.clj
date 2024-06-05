@@ -18,14 +18,15 @@
      [:div
       [:h2 "User Details"]
       [:p (str "Email: " email)]
-      [:p (str "Time Zone: " time-zone)]])))
+      [:p (str "Time Zone: " time-zone)]
+      [:a.link {:href (str "/app/users/" id "/edit")} "edit"]])))
 
-(defn post! [_]
+(defn create! [_]
   {:status 501
    :headers {"content-type" "text/plain"}
    :body "Not Implemented"})
 
-(defn put! [{:keys [params authorized.user/id] :as ctx}]
+(defn edit! [{:keys [params authorized.user/id] :as ctx}]
   (let [email        (:email params)
         time-zone    (:time-zone params)]
     (biff/submit-tx ctx
@@ -36,16 +37,6 @@
                       :user/time-zone time-zone}])
     {:status  303
      :headers {"location" (str "/app/users/" id "/edit")}}))
-
-(defn patch! [_]
-  {:status 501
-   :headers {"content-type" "text/plain"}
-   :body "Not Implemented"})
-
-(defn delete! [_]
-  {:status 501
-   :headers {"content-type" "text/plain"}
-   :body "Not Implemented"})
 
 (defn edit-form [{:keys [biff/db authorized.user/id] :as ctx}]
   (let [{:user/keys [email time-zone]
@@ -58,7 +49,7 @@
       {}
       (nav-bar (pot/map-of email))
       (biff/form
-       {:hx-post   "/app/users"
+       {:hx-post   (str "/app/users/" id)
         :hx-swap   "outerHTML"
         :hx-target "#user-edit-form-page" ;; Need to udpate nav bar as well for email changes
         :hx-select "#user-edit-form-page"
@@ -85,7 +76,7 @@
         [:div.mt-4
          [:span.text-gray-500 (str "last updated: " latest-tx-time)]]]))]))
 
-(defn me [{:keys [session]}]
+(defn my-user [{:keys [session]}]
   (let [id (:uid session)]
     {:status 303
      :headers {"location" (str "/app/users/" id)}}))
