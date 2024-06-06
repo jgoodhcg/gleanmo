@@ -18,7 +18,7 @@
    [java.util UUID]))
 
 (defn all-for-user-query [{:keys [biff/db session]}]
-  (let [raw-results (q db '{:find  [(pull ?habit-log [*]) ?habit-id ?habit-name ?tz]
+  (let [raw-results (q db '{:find  [(pull ?habit-log [*]) (pull ?habit [*]) ?tz]
                             :where [[?habit-log :habit-log/timestamp]
                                     [?habit-log :user/id user-id]
                                     [?habit-log :habit-log/habit-ids ?habit-id]
@@ -37,35 +37,46 @@
                          :user/time-zone tz
                          :habit-log/habits
                          (->> grouped-tuples
-                              (map (fn [[_ ?habit-id ?habit-name]] ; Construct habit maps
-                                     {:habit/id   ?habit-id
-                                      :habit/name ?habit-name})))))))
+                              (map (fn [[_ habit _]]
+                                     habit)))))))
          (into [])
          (sort-by :habit-log/timestamp)
          (reverse))))
 
+(defn single-for-user-query [{:keys [biff/db session :xt/id]}]
+  (let [user-id (:uid session)]
+    (first (q db '{:find  (pull ?log [*])
+                   :where [[?log ::schema/type :habit-log]
+                           [?log :user/id user-id]
+                           [?log :xt/id log-id]]
+                   :in    [user-id log-id]} user-id id))))
+
 (defn list-item [{:habit-log/keys [timestamp habits notes time-zone]
-                  user-id         :user/id
                   user-time-zone  :user/time-zone
-                  id              :xt/id
-                  :as             habit-log}]
-  (let [url                 (str "/app/habit-logs?view=" id)
-        formatted-timestamp (when timestamp
+                  id              :xt/id}]
+  (let [formatted-timestamp (when timestamp
                               (-> timestamp
                                   (t/instant)
                                   (t/in (t/zone (or time-zone user-time-zone)))
                                   (->> (t/format (t/formatter zoned-date-time-fmt)))))]
-    [:a {:href (str "/app/habit-log/edit/" id)}
+    [:a {:href (str "/app/habit-logs/"id"/edit")}
      [:div.hover:bg-gray-100.transition.duration-150.p-4.border-b.border-gray-200.cursor-pointer.w-full.md:w-96
       {:id (str "habit-log-list-item-" id)}
       [:span formatted-timestamp]
       (when notes [:p.text-sm.text-gray-600 notes])
       [:div.flex.flex-col.mt-2
-       (for [{habit-id   :habit/id
-              habit-name :habit/name} habits]
+       (for [{habit-name :habit/name} habits]
          [:span habit-name])]]]))
 
-(defn create-page [{:keys [session biff/db]
+(defn any-sensitive? [habits]
+  (->> habits
+       (some (fn [{:keys [habit/sensitive]}] sensitive))))
+
+(defn any-archived? [habits]
+  (->> habits
+       (some (fn [{:keys [habit/archived]}] archived))))
+
+(defn new-form [{:keys [session biff/db]
                     :as ctx}]
   (let [user-id              (:uid session)
         {:user/keys [email]} (xt/entity db user-id)
@@ -74,6 +85,9 @@
                                              [?habit :user/id user-id]]
                                      :in    [user-id]} user-id)
         recent-logs          (->> (all-for-user-query ctx)
+                                  (remove (fn [{:keys [habit-log/habits]}]
+                                            (or (any-sensitive? habits)
+                                                (any-archived? habits))))
                                   (take 3))
         time-zone            (get-user-time-zone ctx)
         time-zone            (if (some? time-zone) time-zone "US/Eastern")
@@ -84,7 +98,7 @@
       (nav-bar (pot/map-of email))
       [:div.w-full.md:w-96.space-y-8
        (biff/form
-        {:hx-post   "/app/habit-log/create"
+        {:hx-post   "/app/habit-logs"
          :hx-swap   "outerHTML"
          :hx-select "#log-habit-form"
          :id        "log-habit-form"}
@@ -115,6 +129,8 @@
            [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
             {:type "datetime-local" :name "timestamp" :required true :value current-time}]]]
 
+         ;; TODO add search and filters
+         ;; Consider something better than a select list, maybe icons?
          ;; Habits selection
          [:div
           [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "habit-refs"} "Habits"]
@@ -151,17 +167,19 @@
                             set)
         user-id        (:uid session)
         user-time-zone (get-user-time-zone ctx)
-        new-tz         (not= user-time-zone time-zone)]
+        new-tz         (not= user-time-zone time-zone)
+        now            (t/inst)]
 
     (biff/submit-tx ctx
                     (vec (remove nil?
                                  [(merge
-                                   {:db/doc-type         :habit-log
-                                    ::schema/type        :habit-log
-                                    :user/id             user-id
-                                    :habit-log/timestamp timestamp
-                                    :habit-log/time-zone time-zone
-                                    :habit-log/habit-ids habit-ids}
+                                   {:db/doc-type          :habit-log
+                                    ::schema/type         :habit-log
+                                    :user/id              user-id
+                                    :habit-log/timestamp  timestamp
+                                    :habit-log/time-zone  time-zone
+                                    :habit-log/habit-ids  habit-ids
+                                    :habit-log/created-at now}
                                    (when (not (str/blank? notes))
                                      {:habit-log/notes notes}))
                                   (when new-tz
@@ -171,18 +189,19 @@
                                      :user/time-zone time-zone})]))))
 
   {:status  303
-   :headers {"location" "/app/habit-log/create"}})
+   :headers {"location" "/app/new/habit-log"}})
 
 (defn list-page
   "Accepts GET and POST. POST is for search form as body."
   [{:keys [session biff/db params query-params]
-    :as ctx}]
+    :as   ctx}]
   (let [user-id                        (:uid session)
         {:user/keys [email time-zone]} (xt/entity db user-id)
         habit-logs                     (all-for-user-query ctx)
-        edit-id                        (some-> params :edit (UUID/fromString))
         sensitive                      (or (some-> params :sensitive checkbox-true?)
                                            (some-> query-params :sensitive checkbox-true?))
+        archived                       (or (some-> params :archived checkbox-true?)
+                                           (some-> query-params :archived checkbox-true?))
         search                         (or (some-> params :search search-str-xform)
                                            (some-> query-params :search search-str-xform)
                                            "")]
@@ -191,24 +210,25 @@
      [:div
       (nav-bar (pot/map-of email))
       [:div.my-4
-       (link-button {:href "/app/habit-log/create"
+       (link-button {:href  "/app/new/habit-log"
                      :label "Create Habit Log"})]
+      ;; TODO add filter options and search
       [:div {:id "habit-logs-list"}
-       (->> habit-logs
-            (map (fn [z] (list-item (-> z (assoc :edit-id edit-id))))))]])))
+       (cond->> habit-logs
+         (not sensitive) (remove (fn [{:keys [habit-log/habits]}]
+                                   (any-sensitive? habits)))
+         (not archived)  (remove (fn [{:keys [habit-log/habits]}]
+                                   (any-archived? habits)))
+         :always         (map (fn [log] (list-item log))))]])))
 
-(defn edit-page [{:keys [path-params
+(defn edit-form [{:keys [path-params
                          session
                          biff/db]
                   :as   ctx}]
   (let [log-id               (-> path-params :id UUID/fromString)
         user-id              (:uid session)
         {:user/keys [email]} (xt/entity db user-id)
-        habit-log            (first (q db '{:find  (pull ?log [*])
-                                            :where [[?log ::schema/type :habit-log]
-                                                    [?log :user/id user-id]
-                                                    [?log :xt/id log-id]]
-                                            :in    [user-id log-id]} user-id log-id))
+        habit-log            (single-for-user-query (merge ctx {:xt/id log-id}))
         habits               (q db '{:find  (pull ?habit [*])
                                      :where [[?habit ::schema/type :habit]
                                              [?habit :user/id user-id]]
@@ -220,6 +240,10 @@
                                  (->> (t/format (t/formatter local-date-time-fmt))))
         latest-tx-time       (-> (get-last-tx-time (merge ctx {:xt/id log-id}))
                                  (t/in (t/zone time-zone))
+                                 (->> (t/format (t/formatter zoned-date-time-fmt))))
+        formatted-created-at (-> habit-log
+                                 :habit-log/created-at
+                                 (t/in (t/zone time-zone))
                                  (->> (t/format (t/formatter zoned-date-time-fmt))))]
     (ui/page
      {}
@@ -227,7 +251,7 @@
       (nav-bar (pot/map-of email))
       [:div.w-full.md:w-96.space-y-8
        (biff/form
-        {:hx-post   "/app/habit-log/edit"
+        {:hx-post   (str "/app/habit-logs/" log-id "/edit")
          :hx-swap   "outerHTML"
          :hx-select "#edit-habit-log-form"
          :id        "edit-habit-log-form"}
@@ -284,8 +308,9 @@
          [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
           {:type "submit"} "Update Habit Log"]]
 
-        [:div.mt-4
-         [:span.text-gray-500 (str "last updated: " latest-tx-time)]])]])))
+        [:div.mt-4.flex.flex-col
+         [:span.text-gray-500 (str "last updated: " latest-tx-time)]
+         [:span.text-gray-500 (str "created at: " formatted-created-at)]])]])))
 
 (defn edit! [{:keys [session params] :as ctx}]
   (let [id-strs        (-> params :habit-refs ensure-vector)
@@ -320,4 +345,16 @@
                         :xt/id          user-id
                         :user/time-zone time-zone})])
     {:status  303
-     :headers {"location" (str "/app/habit-log/edit/" log-id)}}))
+     :headers {"location" (str "/app/habit-logs/" log-id "/edit")}}))
+
+(defn view [{:keys [path-params session biff/db] :as ctx}]
+  (let [log-id               (-> path-params :id UUID/fromString)
+        user-id              (:uid session)
+        {:user/keys [email]} (xt/entity db user-id)
+        habit-log            (single-for-user-query (merge ctx {:xt/id log-id}))]
+    (ui/page
+     {}
+     (nav-bar (pot/map-of email))
+     [:div
+
+      (list-item habit-log)])))

@@ -14,9 +14,31 @@
   (:import
    [java.util UUID]))
 
-(defn new-form [{:keys [session biff/db]}]
+(defn list-item [{:habit/keys [sensitive name notes archived]
+                  id          :xt/id}]
+  [:a {:href (str "/app/habits/" id "/edit")}
+   [:div.relative.hover:bg-gray-100.transition.duration-150.p-4.border-b.border-gray-200.cursor-pointer.w-full.md:w-96
+    [:div.flex.justify-between
+     [:h2.text-md.font-bold name]]
+    [:div.absolute.top-2.right-2
+     (when sensitive [:span.text-red-500.mr-2 "🔒"])
+     (when archived  [:span.text-red-500.mr-2 "📦"])]
+    [:p.text-sm.text-gray-600 notes]]])
+
+(defn all-for-user-query [{:keys [biff/db session]}]
+  (->> (q db '{:find  (pull ?habit [*])
+               :where [[?habit ::schema/type :habit]
+                       [?habit :user/id user-id]]
+               :in    [user-id]} (:uid session))
+       (sort-by :habit/created-at)))
+
+(defn new-form [{:keys [session biff/db] :as ctx}]
   (let [user-id              (:uid session)
-        {:user/keys [email]} (xt/entity db user-id)]
+        {:user/keys [email]} (xt/entity db user-id)
+        recent-habits        (->> (all-for-user-query ctx)
+                                  (sort-by :habit/created-at)
+                                  (reverse)
+                                  (take 3))]
     (ui/page
      {}
      (nav-bar (pot/map-of email))
@@ -56,96 +78,24 @@
         ;; Submit button
         [:div.mt-2.w-full
          [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
-          {:type "submit"} "Create Habit"]]])])))
+          {:type "submit"} "Create Habit"]]]
+
+       [:div.my-4 [:span "Recents"]]
+       (->> recent-habits
+            (map list-item)))])))
 
 (defn create! [{:keys [params session] :as ctx}]
-  (biff/submit-tx ctx
-                  [{:db/doc-type     :habit
-                    ::schema/type    :habit
-                    :user/id         (:uid session)
-                    :habit/name      (:habit-name params)
-                    :habit/sensitive (boolean (:sensitive params))
-                    :habit/notes     (:notes params)}])
+  (let [now (t/inst)]
+    (biff/submit-tx ctx
+                    [{:db/doc-type      :habit
+                      ::schema/type     :habit
+                      :user/id          (:uid session)
+                      :habit/name       (:habit-name params)
+                      :habit/sensitive  (boolean (:sensitive params))
+                      :habit/notes      (:notes params)
+                      :habit/created-at now}]))
   {:status  303
-   :headers {"location" "/app/new-habit" }})
-
-(defn edit-form-component [{id             :xt/id
-                            sensitive      :habit/sensitive
-                            latest-tx-time :latest-tx-time
-                            :as            habit}]
-  (biff/form
-   {:hx-post   (str "/app/habits/"id)
-    :hx-swap   "outerHTML"
-    :hx-select "#habit-edit-form"
-    :id        "habit-edit-form"}
-
-   [:div.w-full.md:w-96.p-2
-    [:input {:type "hidden" :name "id" :value id}]
-
-    [:div.grid.grid-cols-1.gap-y-6
-
-     ;; Habit Name
-     [:div
-      [:label.block.text-sm.font-medium.leading-6.text-gray-900
-       {:for "habit-name"} "Habit Name"]
-      [:div.mt-2
-       [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-        {:type "text" :name "name" :value (:habit/name habit)}]]]
-
-     ;; Is Sensitive?
-     [:div.flex.items-center
-      [:input.rounded.shadow-sm.mr-2.text-indigo-600.focus:ring-blue-500.focus:border-indigo-500
-       {:type "checkbox" :name "sensitive" :checked (:habit/sensitive habit)}]
-      [:label.text-sm.font-medium.leading-6.text-gray-900 {:for "sensitive"} "Is Sensitive?"]]
-
-     [:div.flex.items-center
-      [:input.rounded.shadow-sm.mr-2.text-indigo-600.focus:ring-blue-500.focus:border-indigo-500
-       {:type "checkbox" :name "archived" :checked (:habit/archived habit)}]
-      [:label.text-sm.font-medium.leading-6.text-gray-900 {:for "archived"} "Is Archived?"]]
-
-     ;; Notes
-     [:div
-      [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "notes"} "Notes"]
-      [:div.mt-2
-       [:textarea.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-        {:name "notes"} (:habit/notes habit)]]]
-
-     ;; Submit button
-     [:div.mt-2.w-full
-      [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
-       {:type       "submit"
-        ;; maybe bring this back when inline editing is re-enabled
-        #_#_:script "on click setURLParameter('edit', '')"}
-       "Update Habit"]]
-
-     [:div.mt-4
-      [:span.text-gray-500 (str "last updated: " latest-tx-time)]]]]))
-
-(defn list-item [{:habit/keys [sensitive name notes archived]
-                  edit-id     :edit-id
-                  id          :xt/id
-                  :as         habit}]
-  (let [url (str "/app/habits?edit=" id (when sensitive "&sensitive=true"))]
-    (if (= edit-id id)
-      (edit-form-component habit)
-      ;; remove this link if bringing back inline editing
-      [:a {:href (str "/app/habits/"id"/edit")}
-       [:div.relative.hover:bg-gray-100.transition.duration-150.p-4.border-b.border-gray-200.cursor-pointer.w-full.md:w-96
-        ;; Disabling inline editing for now in favor of full page refresh
-        ;; Maybe bring this back later
-        #_{:id          (str "habit-list-item-" id)
-           :hx-get      url
-           :hx-swap     "outerHTML"
-           :script      (str "on click setURLParameter('edit', '" id
-                             "') then setURLParameter('sensitive', '" sensitive "')")
-           :hx-trigger  "click"
-           :hx-select   (str "#habit-list-item-" id)}
-        [:div.flex.justify-between
-         [:h2.text-md.font-bold name]]
-        [:div.absolute.top-2.right-2
-         (when sensitive [:span.text-red-500.mr-2 "🔒"])
-         (when archived  [:span.text-red-500.mr-2 "📦"])]
-        [:p.text-sm.text-gray-600 notes]]])))
+   :headers {"location" "/app/new/habit"}})
 
 (defn search-component [{:keys [sensitive search archived]}]
   [:div.my-2
@@ -183,12 +133,6 @@
         :autocomplete "off"
         :checked      archived}]]])])
 
-(defn all-for-user-query [{:keys [biff/db session]}]
-  (q db '{:find  (pull ?habit [*])
-          :where [[?habit ::schema/type :habit]
-                  [?habit :user/id user-id]]
-          :in    [user-id]} (:uid session)))
-
 (defn single-for-user-query [{:keys [biff/db session xt/id]}]
   (first
    (q db '{:find  (pull ?habit [*])
@@ -218,7 +162,7 @@
      [:div
       (nav-bar (pot/map-of email))
       [:div.my-4
-       (link-button {:href "/app/new-habit"
+       (link-button {:href "/app/new/habit"
                      :label "Create Habit"})]
       (search-component (pot/map-of sensitive search archived))
       [:div {:id "habits-list"}
@@ -258,7 +202,7 @@
                           :habit/sensitive sensitive
                           :habit/archived  archived}])
         {:status  303
-         :headers {"location" (str "/app/habits/"id"/edit")}})
+         :headers {"location" (str "/app/habits/" id "/edit")}})
       {:status 403
        :body "Not authorized to edit that habit"})))
 
@@ -266,19 +210,70 @@
                          session
                          biff/db]
                   :as   ctx}]
-  (let [habit-id            (-> path-params :id UUID/fromString)
-        user-id             (:uid session)
-        {email :user/email} (xt/entity db user-id)
-        time-zone           (get-user-time-zone ctx)
-        habit               (single-for-user-query (merge ctx {:xt/id habit-id}))
-        latest-tx-time      (-> (get-last-tx-time (merge ctx {:xt/id habit-id}))
-                                (t/in (t/zone time-zone))
-                                (->> (t/format (t/formatter zoned-date-time-fmt))))]
+  (let [habit-id             (-> path-params :id UUID/fromString)
+        user-id              (:uid session)
+        {email :user/email}  (xt/entity db user-id)
+        time-zone            (get-user-time-zone ctx)
+        habit                (single-for-user-query (merge ctx {:xt/id habit-id}))
+        latest-tx-time       (-> (get-last-tx-time (merge ctx {:xt/id habit-id}))
+                                 (t/in (t/zone time-zone))
+                                 (->> (t/format (t/formatter zoned-date-time-fmt))))
+        formatted-created-at (-> habit
+                                 :habit/created-at
+                                 (t/in (t/zone time-zone))
+                                 (->> (t/format (t/formatter zoned-date-time-fmt))))]
     (ui/page
      {}
      [:div
       (nav-bar (pot/map-of email))
-      (edit-form-component (merge habit (pot/map-of latest-tx-time)))])))
+      (biff/form
+       {:hx-post   (str "/app/habits/" habit-id)
+        :hx-swap   "outerHTML"
+        :hx-select "#habit-edit-form"
+        :id        "habit-edit-form"}
+
+       [:div.w-full.md:w-96.p-2
+        [:input {:type "hidden" :name "id" :value habit-id}]
+
+        [:div.grid.grid-cols-1.gap-y-6
+
+     ;; Habit Name
+         [:div
+          [:label.block.text-sm.font-medium.leading-6.text-gray-900
+           {:for "habit-name"} "Habit Name"]
+          [:div.mt-2
+           [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+            {:type "text" :name "name" :value (:habit/name habit)}]]]
+
+     ;; Is Sensitive?
+         [:div.flex.items-center
+          [:input.rounded.shadow-sm.mr-2.text-indigo-600.focus:ring-blue-500.focus:border-indigo-500
+           {:type "checkbox" :name "sensitive" :checked (:habit/sensitive habit)}]
+          [:label.text-sm.font-medium.leading-6.text-gray-900 {:for "sensitive"} "Is Sensitive?"]]
+
+         [:div.flex.items-center
+          [:input.rounded.shadow-sm.mr-2.text-indigo-600.focus:ring-blue-500.focus:border-indigo-500
+           {:type "checkbox" :name "archived" :checked (:habit/archived habit)}]
+          [:label.text-sm.font-medium.leading-6.text-gray-900 {:for "archived"} "Is Archived?"]]
+
+     ;; Notes
+         [:div
+          [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "notes"} "Notes"]
+          [:div.mt-2
+           [:textarea.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+            {:name "notes"} (:habit/notes habit)]]]
+
+     ;; Submit button
+         [:div.mt-2.w-full
+          [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
+           {:type       "submit"
+            ;; maybe bring this back when inline editing is re-enabled
+            #_#_:script "on click setURLParameter('edit', '')"}
+           "Update Habit"]]
+
+         [:div.mt-4.flex.flex-col
+          [:span.text-gray-500 (str "last updated: " latest-tx-time)]
+          [:span.text-gray-500 (str "created at: " (or formatted-created-at (:habit/created-at habit)))]]]])])))
 
 (defn view [{:keys [path-params
                     session

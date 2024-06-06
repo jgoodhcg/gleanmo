@@ -67,7 +67,7 @@
 
      [:.h-6])))
 
-(defn app [{:keys [session biff/db]}]
+(defn home [{:keys [session biff/db]}]
   (let [user-id              (:uid session)
         {:user/keys [email]} (xt/entity db user-id)]
     (ui/page
@@ -81,11 +81,11 @@
   {:static {"/about/" about-page}
    :routes ["/app" {:middleware [mid/wrap-signed-in]}
             ;; Main app and DB visualization
-            [""    {:get app}]
+            [""    {:get home}]
             ["/db" {:get db-viz}]
 
-            ;; User-related routes
-            ["/my-user"        {:get user/me}]
+            ;; user
+            ["/my-user"        {:get user/my-user}]
             ["/users"          {:middleware [mid/wrap-user-authz]
                                 :post       user/create!}]
             ["/users/:id"      {:middleware [mid/wrap-user-authz]
@@ -93,11 +93,16 @@
             ["/users/:id/edit" {:middleware [mid/wrap-user-authz]
                                 :get        user/edit-form}]
 
-            ;; Habit-related routes
-            ["/new-habit"       {:get habit/new-form}]
+            ;; habit
+            ["/new/habit"       {:get habit/new-form}]
             ["/search-habits"   {:post habit/list-page}]
             ["/habits"          {:get habit/list-page :post habit/create!}]
             ["/habits/:id"      {:get habit/view :post habit/edit!}]
             ["/habits/:id/edit" {:get habit/edit-form}]
 
+            ;; habit-log
+            ["/new/habit-log"       {:get habit-log/new-form}]
+            ["/habit-logs"          {:get habit-log/list-page :post habit-log/create!}]
+            ["/habit-logs/:id"      {:get habit-log/view :post habit-log/edit!}]
+            ["/habit-logs/:id/edit" {:get habit-log/edit-form}]
             ]})

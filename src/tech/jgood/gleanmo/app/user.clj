@@ -41,6 +41,7 @@
 (defn edit-form [{:keys [biff/db authorized.user/id] :as ctx}]
   (let [{:user/keys [email time-zone]
          :as        user} (xt/entity db id)
+        time-zone         (or time-zone (t/zone "UTC"))
         latest-tx-time    (-> (get-last-tx-time (merge ctx {:xt/id id}))
                               (t/in (t/zone time-zone))
                               (->> (t/format (t/formatter zoned-date-time-fmt))))]

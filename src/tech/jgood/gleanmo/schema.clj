@@ -27,7 +27,8 @@
                          [:habit/name                      :string]
                          [:habit/sensitive                 :boolean]
                          [:habit/notes {:optional true}    :string]
-                         [:habit/archived {:optional true} :boolean]]
+                         [:habit/archived {:optional true} :boolean]
+                         [:habit/created-at                :inst]]
 
    :habit-log           [:map {:closed true}
                          [:xt/id                            :habit-log/id]
@@ -37,8 +38,10 @@
                          [:habit-log/timestamp              :inst]
                          [:habit-log/time-zone              :string]
                          [:habit-log/habit-ids             [:set :habit/id]]
-                         [:habit-log/notes {:optional true} :string]]
+                         [:habit-log/notes {:optional true} :string]
+                         [:habit-log/created-at             :inst]]
 
+   ;; TODO sort attributes and at created-at
    :exercise            [:map {:closed true}
                          [:xt/id :exercise/id]
                          [::type                                 [:enum :habit-log]]

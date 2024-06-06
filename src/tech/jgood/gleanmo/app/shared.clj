@@ -30,10 +30,11 @@
 
 (defn get-user-time-zone [{:keys [biff/db session]}]
   (let [user-id (:uid session)]
-    (first (first (q db '{:find  [?tz]
-                          :where [[?user :xt/id user-id]
-                                  [?user :user/time-zone ?tz]]
-                          :in    [user-id]} user-id)))))
+    (or (first (first (q db '{:find  [?tz]
+                              :where [[?user :xt/id user-id]
+                                      [?user :user/time-zone ?tz]]
+                              :in    [user-id]} user-id)))
+        (t/zone "UTC"))))
 
 (defn ensure-vector [item]
   (if (vector? item)
