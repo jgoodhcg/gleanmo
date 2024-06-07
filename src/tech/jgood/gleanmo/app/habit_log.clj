@@ -179,7 +179,7 @@
                                     :habit-log/timestamp  timestamp
                                     :habit-log/time-zone  time-zone
                                     :habit-log/habit-ids  habit-ids
-                                    :habit-log/created-at now}
+                                    ::schema/created-at now}
                                    (when (not (str/blank? notes))
                                      {:habit-log/notes notes}))
                                   (when new-tz
@@ -242,7 +242,7 @@
                                  (t/in (t/zone time-zone))
                                  (->> (t/format (t/formatter zoned-date-time-fmt))))
         formatted-created-at (-> habit-log
-                                 :habit-log/created-at
+                                 ::schema/created-at
                                  (t/in (t/zone time-zone))
                                  (->> (t/format (t/formatter zoned-date-time-fmt))))]
     (ui/page

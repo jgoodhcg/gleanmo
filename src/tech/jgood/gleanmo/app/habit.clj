@@ -30,13 +30,13 @@
                :where [[?habit ::schema/type :habit]
                        [?habit :user/id user-id]]
                :in    [user-id]} (:uid session))
-       (sort-by :habit/created-at)))
+       (sort-by ::schema/created-at)))
 
 (defn new-form [{:keys [session biff/db] :as ctx}]
   (let [user-id              (:uid session)
         {:user/keys [email]} (xt/entity db user-id)
         recent-habits        (->> (all-for-user-query ctx)
-                                  (sort-by :habit/created-at)
+                                  (sort-by ::schema/created-at)
                                   (reverse)
                                   (take 3))]
     (ui/page
@@ -87,13 +87,13 @@
 (defn create! [{:keys [params session] :as ctx}]
   (let [now (t/inst)]
     (biff/submit-tx ctx
-                    [{:db/doc-type      :habit
-                      ::schema/type     :habit
-                      :user/id          (:uid session)
-                      :habit/name       (:habit-name params)
-                      :habit/sensitive  (boolean (:sensitive params))
-                      :habit/notes      (:notes params)
-                      :habit/created-at now}]))
+                    [{:db/doc-type        :habit
+                      ::schema/type       :habit
+                      :user/id            (:uid session)
+                      :habit/name         (:habit-name params)
+                      :habit/sensitive    (boolean (:sensitive params))
+                      :habit/notes        (:notes params)
+                      ::schema/created-at now}]))
   {:status  303
    :headers {"location" "/app/new/habit"}})
 
@@ -219,7 +219,7 @@
                                  (t/in (t/zone time-zone))
                                  (->> (t/format (t/formatter zoned-date-time-fmt))))
         formatted-created-at (-> habit
-                                 :habit/created-at
+                                 ::schema/created-at
                                  (t/in (t/zone time-zone))
                                  (->> (t/format (t/formatter zoned-date-time-fmt))))]
     (ui/page
@@ -273,7 +273,7 @@
 
          [:div.mt-4.flex.flex-col
           [:span.text-gray-500 (str "last updated: " latest-tx-time)]
-          [:span.text-gray-500 (str "created at: " (or formatted-created-at (:habit/created-at habit)))]]]])])))
+          [:span.text-gray-500 (str "created at: " (or formatted-created-at (::schema/created-at habit)))]]]])])))
 
 (defn view [{:keys [path-params
                     session
