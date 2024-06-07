@@ -41,7 +41,9 @@
     item
     [item]))
 
-(defn checkbox-true? [v]
+(defn param-true?
+  "For form checkboxes and query params"
+  [v]
   (or (= v "on") (= v "true")))
 
 (defn search-str-xform [s]

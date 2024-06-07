@@ -4,7 +4,7 @@
    [clojure.string :as str]
    [com.biffweb :as biff :refer [q]]
    [potpuri.core :as pot]
-   [tech.jgood.gleanmo.app.shared :refer [checkbox-true? get-last-tx-time
+   [tech.jgood.gleanmo.app.shared :refer [param-true? get-last-tx-time
                                           get-user-time-zone link-button nav-bar
                                           search-str-xform zoned-date-time-fmt]]
    [tech.jgood.gleanmo.schema :as schema]
@@ -25,12 +25,15 @@
      (when archived  [:span.text-red-500.mr-2 "📦"])]
     [:p.text-sm.text-gray-600 notes]]])
 
-(defn all-for-user-query [{:keys [biff/db session]}]
-  (->> (q db '{:find  (pull ?habit [*])
+(defn all-for-user-query [{:keys [biff/db session sensitive archived]}]
+  (pprint (pot/map-of sensitive archived))
+  (cond->>  (q db '{:find  (pull ?habit [*])
                :where [[?habit ::schema/type :habit]
                        [?habit :user/id user-id]]
                :in    [user-id]} (:uid session))
-       (sort-by ::schema/created-at)))
+    (not sensitive) (remove :habit/sensitive)
+    (not archived)  (remove :habit/archived)
+    :always         (sort-by ::schema/created-at)))
 
 (defn new-form [{:keys [session biff/db] :as ctx}]
   (let [user-id              (:uid session)
@@ -143,19 +146,17 @@
 
 (defn list-page
   "Accepts GET and POST. POST is for search form as body."
-  [{:keys [session biff/db params query-params]
+  [{:keys [session biff/db params]
     :as ctx}]
   (let [user-id             (:uid session)
         {:user/keys
          [email time-zone]} (xt/entity db user-id)
-        habits              (all-for-user-query ctx)
+        habits              (all-for-user-query (merge ctx {:sensitive true
+                                                            :archived true}))
         edit-id             (some-> params :edit (UUID/fromString))
-        sensitive           (or (some-> params :sensitive checkbox-true?)
-                                (some-> query-params :sensitive checkbox-true?))
-        archived            (or (some-> params :archived checkbox-true?)
-                                (some-> query-params :archived checkbox-true?))
+        sensitive           (some-> params :sensitive param-true?)
+        archived            (some-> params :archived param-true?)
         search              (or (some-> params :search search-str-xform)
-                                (some-> query-params :search search-str-xform)
                                 "")]
     (ui/page
      {}
@@ -237,7 +238,7 @@
 
         [:div.grid.grid-cols-1.gap-y-6
 
-     ;; Habit Name
+         ;; Habit Name
          [:div
           [:label.block.text-sm.font-medium.leading-6.text-gray-900
            {:for "habit-name"} "Habit Name"]
@@ -245,25 +246,27 @@
            [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
             {:type "text" :name "name" :value (:habit/name habit)}]]]
 
-     ;; Is Sensitive?
-         [:div.flex.items-center
-          [:input.rounded.shadow-sm.mr-2.text-indigo-600.focus:ring-blue-500.focus:border-indigo-500
-           {:type "checkbox" :name "sensitive" :checked (:habit/sensitive habit)}]
-          [:label.text-sm.font-medium.leading-6.text-gray-900 {:for "sensitive"} "Is Sensitive?"]]
+         ;; Is Sensitive?
+         [:div.flex.flex-col
+          [:div.flex.items-center
+           [:input.rounded.shadow-sm.mr-2.text-indigo-600.focus:ring-blue-500.focus:border-indigo-500
+            {:type "checkbox" :name "sensitive" :checked (:habit/sensitive habit)}]
+           [:label.text-sm.font-medium.leading-6.text-gray-900 {:for "sensitive"} "Is Sensitive?"]]
+          [:span "Exclude from entry and reports unless explicilty included."]]
 
          [:div.flex.items-center
           [:input.rounded.shadow-sm.mr-2.text-indigo-600.focus:ring-blue-500.focus:border-indigo-500
            {:type "checkbox" :name "archived" :checked (:habit/archived habit)}]
           [:label.text-sm.font-medium.leading-6.text-gray-900 {:for "archived"} "Is Archived?"]]
 
-     ;; Notes
+         ;; Notes
          [:div
           [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "notes"} "Notes"]
           [:div.mt-2
            [:textarea.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
             {:name "notes"} (:habit/notes habit)]]]
 
-     ;; Submit button
+         ;; Submit button
          [:div.mt-2.w-full
           [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
            {:type       "submit"

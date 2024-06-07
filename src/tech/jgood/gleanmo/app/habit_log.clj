@@ -1,16 +1,18 @@
 (ns tech.jgood.gleanmo.app.habit-log
   (:require
    [clojure.string :as str]
+   [clojure.pprint :refer [pprint]]
    [com.biffweb :as biff :refer [q]]
    [potpuri.core :as pot]
-   [tech.jgood.gleanmo.app.shared :refer [checkbox-true? ensure-vector
+   [tech.jgood.gleanmo.app.shared :refer [param-true? ensure-vector
                                           format-date-time-local get-last-tx-time
                                           get-user-time-zone link-button local-date-time-fmt nav-bar search-str-xform
                                           time-zone-select zoned-date-time-fmt]]
    [tech.jgood.gleanmo.schema :as schema]
    [tech.jgood.gleanmo.ui :as ui]
    [tick.core :as t]
-   [xtdb.api :as xt])
+   [xtdb.api :as xt]
+   [tech.jgood.gleanmo.app.habit :as habit])
   (:import
    [java.time ZoneId]
    [java.time LocalDateTime]
@@ -76,18 +78,20 @@
   (->> habits
        (some (fn [{:keys [habit/archived]}] archived))))
 
-(defn new-form [{:keys [session biff/db]
-                    :as ctx}]
-  (let [user-id              (:uid session)
+(defn new-form [{:keys [session biff/db params]
+                 :as   ctx}]
+  (let [sensitive            (some-> params :sensitive param-true?)
+        archived             (some-> params :archived param-true?)
+        persist-query-params (or sensitive archived)
+        user-id              (:uid session)
         {:user/keys [email]} (xt/entity db user-id)
-        habits               (q db '{:find  (pull ?habit [*])
-                                     :where [[?habit ::schema/type :habit]
-                                             [?habit :user/id user-id]]
-                                     :in    [user-id]} user-id)
+        habits               (habit/all-for-user-query (merge ctx (pot/map-of sensitive archived)))
         recent-logs          (->> (all-for-user-query ctx)
                                   (remove (fn [{:keys [habit-log/habits]}]
-                                            (or (any-sensitive? habits)
-                                                (any-archived? habits))))
+                                            (or (when (not sensitive)
+                                                  (any-sensitive? habits))
+                                                (when (not archived)
+                                                  (any-archived? habits)))))
                                   (take 3))
         time-zone            (get-user-time-zone ctx)
         time-zone            (if (some? time-zone) time-zone "US/Eastern")
@@ -98,7 +102,10 @@
       (nav-bar (pot/map-of email))
       [:div.w-full.md:w-96.space-y-8
        (biff/form
-        {:hx-post   "/app/habit-logs"
+        {:hx-post   (str "/app/habit-logs"
+                         (when persist-query-params "?")
+                         (when sensitive "sensitive=true")
+                         (when archived  "&archived=true"))
          :hx-swap   "outerHTML"
          :hx-select "#log-habit-form"
          :id        "log-habit-form"}
@@ -154,56 +161,60 @@
                (map (fn [z] (list-item z))))]])]])))
 
 (defn create! [{:keys [session params biff/db] :as ctx}]
-  (let [id-strs        (-> params :habit-refs ensure-vector)
-        time-zone      (-> params :time-zone)
-        timestamp-str  (-> params :timestamp)
-        notes          (-> params :notes)
-        local-datetime (LocalDateTime/parse timestamp-str)
-        zone-id        (ZoneId/of time-zone)
-        zdt            (ZonedDateTime/of local-datetime zone-id)
-        timestamp      (-> zdt (t/inst)) ;; save as utc
-        habit-ids      (->> id-strs
-                            (map #(some-> % UUID/fromString))
-                            set)
-        user-id        (:uid session)
-        user-time-zone (get-user-time-zone ctx)
-        new-tz         (not= user-time-zone time-zone)
-        now            (t/inst)]
+  (let [sensitive            (some-> params :sensitive param-true?)
+        archived             (some-> params :archived param-true?)
+        persist-query-params (or sensitive archived)
+        id-strs              (-> params :habit-refs ensure-vector)
+        time-zone            (-> params :time-zone)
+        timestamp-str        (-> params :timestamp)
+        notes                (-> params :notes)
+        local-datetime       (LocalDateTime/parse timestamp-str)
+        zone-id              (ZoneId/of time-zone)
+        zdt                  (ZonedDateTime/of local-datetime zone-id)
+        timestamp            (-> zdt (t/inst)) ;; save as utc
+        habit-ids            (->> id-strs
+                                  (map #(some-> % UUID/fromString))
+                                  set)
+        user-id              (:uid session)
+        user-time-zone       (get-user-time-zone ctx)
+        new-tz               (not= user-time-zone time-zone)
+        now                  (t/inst)]
 
     (biff/submit-tx ctx
                     (vec (remove nil?
                                  [(merge
-                                   {:db/doc-type          :habit-log
-                                    ::schema/type         :habit-log
-                                    :user/id              user-id
-                                    :habit-log/timestamp  timestamp
-                                    :habit-log/time-zone  time-zone
-                                    :habit-log/habit-ids  habit-ids
-                                    ::schema/created-at now}
+                                   {:db/doc-type :habit-log
+                                       ::schema/type :habit-log
+                                       :user/id user-id
+                                       :habit-log/timestamp timestamp
+                                       :habit-log/time-zone time-zone
+                                       :habit-log/habit-ids habit-ids
+                                       ::schema/created-at now}
                                    (when (not (str/blank? notes))
-                                     {:habit-log/notes notes}))
-                                  (when new-tz
-                                    {:db/op          :update
-                                     :db/doc-type    :user
-                                     :xt/id          user-id
-                                     :user/time-zone time-zone})]))))
+                                        {:habit-log/notes notes}))
+                                   (when new-tz
+                                       {:db/op :update
+                                        :db/doc-type :user
+                                        :xt/id user-id
+                                        :user/time-zone time-zone})])))
 
-  {:status  303
-   :headers {"location" "/app/new/habit-log"}})
+    {:status  303
+     :headers {"location"
+               (str "/app/new/habit-log"
+                    (when persist-query-params "?")
+                    (when sensitive "sensitive=true")
+                    (when archived  "&archived=true"))}}))
 
 (defn list-page
   "Accepts GET and POST. POST is for search form as body."
-  [{:keys [session biff/db params query-params]
+  [{:keys [session biff/db params]
     :as   ctx}]
   (let [user-id                        (:uid session)
         {:user/keys [email time-zone]} (xt/entity db user-id)
         habit-logs                     (all-for-user-query ctx)
-        sensitive                      (or (some-> params :sensitive checkbox-true?)
-                                           (some-> query-params :sensitive checkbox-true?))
-        archived                       (or (some-> params :archived checkbox-true?)
-                                           (some-> query-params :archived checkbox-true?))
+        sensitive                      (some-> params :sensitive param-true?)
+        archived                       (some-> params :archived param-true?)
         search                         (or (some-> params :search search-str-xform)
-                                           (some-> query-params :search search-str-xform)
                                            "")]
     (ui/page
      {}
@@ -222,17 +233,17 @@
          :always         (map (fn [log] (list-item log))))]])))
 
 (defn edit-form [{:keys [path-params
+                         query-params
                          session
                          biff/db]
                   :as   ctx}]
   (let [log-id               (-> path-params :id UUID/fromString)
+        sensitive            (some-> query-params :sensitive param-true?)
+        archived             (some-> query-params :archived param-true?)
         user-id              (:uid session)
         {:user/keys [email]} (xt/entity db user-id)
         habit-log            (single-for-user-query (merge ctx {:xt/id log-id}))
-        habits               (q db '{:find  (pull ?habit [*])
-                                     :where [[?habit ::schema/type :habit]
-                                             [?habit :user/id user-id]]
-                                     :in    [user-id]} user-id)
+        habits               (habit/all-for-user-query (merge ctx (pot/map-of sensitive archived)))
         time-zone            (or (get-in habit-log [:habit-log/time-zone])
                                  (get-user-time-zone ctx))
         formatted-timestamp  (-> (get-in habit-log [:habit-log/timestamp])
