@@ -99,10 +99,12 @@
             ["/habits"          {:get habit/list-page :post habit/create!}]
             ["/habits/:id"      {:get habit/view :post habit/edit!}]
             ["/habits/:id/edit" {:get habit/edit-form}]
+            ["/habits/:id/delete" {:post habit/soft-delete!}]
 
             ;; habit-log
             ["/new/habit-log"       {:get habit-log/new-form}]
             ["/habit-logs"          {:get habit-log/list-page :post habit-log/create!}]
             ["/habit-logs/:id"      {:get habit-log/view :post habit-log/edit!}]
             ["/habit-logs/:id/edit" {:get habit-log/edit-form}]
+            ["/habit-logs/:id/delete" {:post habit-log/soft-delete!}]
             ]})

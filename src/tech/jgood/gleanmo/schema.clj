@@ -1,8 +1,9 @@
-(ns tech.jgood.gleanmo.schema)
+(ns tech.jgood.gleanmo.schema
+  (:require [tick.core :as t]))
 
 ;; all glenamo/type attributes are the schema key
 (def schema
-  {:inst                inst?
+  {:instant             [:fn t/instant?]
    :user/id             :uuid
    :habit/id            :uuid
    :habit-log/id        :uuid
@@ -16,12 +17,12 @@
                          [:user/email                      :string]
                          ;; TODO validate time zone id
                          [:user/time-zone {:optional true} :string]
-                         [:user/joined-at                  :inst]]
+                         [:user/joined-at                  :instant]]
    :habit               [:map {:closed true}
                          [:xt/id                             :habit/id]
                          [::type                             [:enum :habit]]
-                         [::deleted-at {:optional true}      :inst]
-                         [::created-at                       :inst]
+                         [::deleted-at {:optional true}      :instant]
+                         [::created-at                       :instant]
                          [:user/id                           :user/id]
                          [:habit/name                        :string]
                          [:habit/sensitive                   :boolean]
@@ -31,10 +32,10 @@
    :habit-log           [:map {:closed true}
                          [:xt/id                            :habit-log/id]
                          [::type                            [:enum :habit-log]]
-                         [::deleted-at {:optional true}     :inst]
-                         [::created-at                      :inst]
+                         [::deleted-at {:optional true}     :instant]
+                         [::created-at                      :instant]
                          [:user/id                          :user/id]
-                         [:habit-log/timestamp              :inst]
+                         [:habit-log/timestamp              :instant]
                          [:habit-log/time-zone              :string]
                          [:habit-log/habit-ids              [:set :habit/id]]
                          [:habit-log/notes {:optional true} :string]
@@ -43,31 +44,31 @@
    :exercise            [:map {:closed true}
                          [:xt/id :exercise/id]
                          [::type                                  [:enum :habit-log]]
-                         [::deleted-at {:optional true}           :inst]
-                         [::created-at                       :inst]
+                         [::deleted-at {:optional true}           :instant]
+                         [::created-at                       :instant]
                          [:exercise/label                         :string]
-                         [:airtable/log-count {:optional true}    :inst]
+                         [:airtable/log-count {:optional true}    :instant]
                          [:airtable/id {:optional true}           :string]
                          [:airtable/ported {:optional true}       :boolean]
                          [:exercise/source {:optional true}       :string]
                          [:airtable/exercise-log {:optional true} :string]
                          [:exercise/notes  {:optional true}       :string]
-                         [:airtable/created-time {:optional true} :inst]]
+                         [:airtable/created-time {:optional true} :instant]]
    ;;
    :exercise-session    [:map {:closed true}
                          [:xt/id                      :exercise-session/id]
                          [::type                     [:enum :exercise-session]]
-                         [::deleted-at {:optional true}  :inst]
-                         [::created-at                       :inst]
-                         [:exercise-session/beginning :inst]
-                         [:exercise-session/end       :inst]]
+                         [::deleted-at {:optional true}  :instant]
+                         [::created-at                       :instant]
+                         [:exercise-session/beginning :instant]
+                         [:exercise-session/end       :instant]]
    :exercise-log        [:map {:closed true}
                          [:xt/id                                   :uuid]
                          [::type                                  [:enum :exercise-log]]
                          [::deleted-at {:optional true}               :boolean]
                          [:exercise-session/id                     :exercise-session/id]
-                         [:exercise-log.interval/beginning         :inst]
-                         [:exercise-log.interval/end               :inst]
+                         [:exercise-log.interval/beginning         :instant]
+                         [:exercise-log.interval/end               :instant]
                          [:exercise-log.interval/global-median-end :boolean]
                          [:exercise-log/notes                      :string]
                          [:airtable/ported                         :boolean]
@@ -78,8 +79,8 @@
                          [::deleted-at                                {:optional true} :boolean]
                          [:exercise/id                                              :exercise/id]
                          [:exercise-log/id                                          :exercise-log/id]
-                         [:exercise-set.interval/beginning                          :inst]
-                         [:exercise-set.interval/end                                :inst]
+                         [:exercise-set.interval/beginning                          :instant]
+                         [:exercise-set.interval/end                                :instant]
                          [:exercise-set/distance                                    :number]
                          [:exercise-set/distance-unit                               :string]
                          [:exercise-set/weight-unit                                 :string]

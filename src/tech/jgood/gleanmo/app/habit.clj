@@ -26,11 +26,11 @@
     [:p.text-sm.text-gray-600 notes]]])
 
 (defn all-for-user-query [{:keys [biff/db session sensitive archived]}]
-  (pprint (pot/map-of sensitive archived))
   (cond->>  (q db '{:find  (pull ?habit [*])
-               :where [[?habit ::schema/type :habit]
-                       [?habit :user/id user-id]]
-               :in    [user-id]} (:uid session))
+                    :where [[?habit ::schema/type :habit]
+                            [?habit :user/id user-id]
+                            (not [?habit ::schema/deleted-at])]
+                    :in    [user-id]} (:uid session))
     (not sensitive) (remove :habit/sensitive)
     (not archived)  (remove :habit/archived)
     :always         (sort-by ::schema/created-at)))
@@ -66,6 +66,7 @@
            {:type "text" :name "habit-name" :autocomplete "off"}]]]
 
         ;; Is Sensitive?
+        ;; TODO explain sensitive
         [:div.flex.items-center
          [:input.rounded.shadow-sm.mr-2.text-indigo-600.focus:ring-blue-500.focus:border-indigo-500
           {:type "checkbox" :name "sensitive" :autocomplete "off"}]
@@ -88,7 +89,7 @@
             (map list-item)))])))
 
 (defn create! [{:keys [params session] :as ctx}]
-  (let [now (t/inst)]
+  (let [now (t/now)]
     (biff/submit-tx ctx
                     [{:db/doc-type        :habit
                       ::schema/type       :habit
@@ -141,7 +142,8 @@
    (q db '{:find  (pull ?habit [*])
            :where [[?habit ::schema/type :habit]
                    [?habit :user/id user-id]
-                   [?habit :xt/id habit-id]]
+                   [?habit :xt/id habit-id]
+                   (not [?habit ::schema/deleted-at])]
            :in    [user-id habit-id]} (:uid session) id)))
 
 (defn list-page
@@ -225,8 +227,14 @@
                                  (->> (t/format (t/formatter zoned-date-time-fmt))))]
     (ui/page
      {}
-     [:div
+     [:div {:id "habit-edit-page"}
       (nav-bar (pot/map-of email))
+      (biff/form
+       {:action (str "/app/habits/" habit-id "/delete") :method "post"}
+       [:div.m-4.flex.flex-end
+        [:input.text-center.bg-red-100.hover:bg-red-500.hover:text-white.text-black.font-bold.py-2.px-4.rounded.w-full
+         {:type "submit" :value "Delete"}]])
+
       (biff/form
        {:hx-post   (str "/app/habits/" habit-id)
         :hx-swap   "outerHTML"
@@ -246,7 +254,7 @@
            [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
             {:type "text" :name "name" :value (:habit/name habit)}]]]
 
-         ;; Is Sensitive?
+         ;; TODO explain sensitive and archived
          [:div.flex.flex-col
           [:div.flex.items-center
            [:input.rounded.shadow-sm.mr-2.text-indigo-600.focus:ring-blue-500.focus:border-indigo-500
@@ -291,3 +299,21 @@
      [:div
       (nav-bar (pot/map-of email))
       (list-item habit)])))
+
+(defn soft-delete! [{:keys [path-params params]
+                     :as   ctx}]
+  (pprint (pot/map-of path-params params))
+  (let [habit-id            (-> path-params :id UUID/fromString)
+        habit               (single-for-user-query (merge ctx {:xt/id habit-id}))
+        now                 (t/now)]
+    (if (some? habit)
+      (do
+        (biff/submit-tx ctx
+                        [{:db/op              :update
+                          :db/doc-type        :habit
+                          :xt/id              habit-id
+                          ::schema/deleted-at now}])
+        {:status  303
+         :headers {"location" "/app/habits"}})
+      {:status 403
+       :body   "Not authorized to edit that habit"})))

@@ -19,6 +19,7 @@
    [java.time ZonedDateTime]
    [java.util UUID]))
 
+;; TODO add sensitive and archived
 (defn all-for-user-query [{:keys [biff/db session]}]
   (let [raw-results (q db '{:find  [(pull ?habit-log [*]) (pull ?habit [*]) ?tz]
                             :where [[?habit-log :habit-log/timestamp]
@@ -171,14 +172,14 @@
         local-datetime       (LocalDateTime/parse timestamp-str)
         zone-id              (ZoneId/of time-zone)
         zdt                  (ZonedDateTime/of local-datetime zone-id)
-        timestamp            (-> zdt (t/inst)) ;; save as utc
+        timestamp            (-> zdt (t/instant))
         habit-ids            (->> id-strs
                                   (map #(some-> % UUID/fromString))
                                   set)
         user-id              (:uid session)
         user-time-zone       (get-user-time-zone ctx)
         new-tz               (not= user-time-zone time-zone)
-        now                  (t/inst)]
+        now                  (t/now)]
 
     (biff/submit-tx ctx
                     (vec (remove nil?
@@ -369,3 +370,5 @@
      [:div
 
       (list-item habit-log)])))
+
+(defn soft-delete! [ctx])

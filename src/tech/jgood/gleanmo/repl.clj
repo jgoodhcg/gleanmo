@@ -1,5 +1,6 @@
 (ns tech.jgood.gleanmo.repl
   (:require [tech.jgood.gleanmo :as main]
+            [tech.jgood.gleanmo.schema :as schema]
             [com.biffweb :as biff :refer [q]]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
@@ -88,6 +89,13 @@
         tx-time                   (-> history first :xtdb.api/tx-time)
         ]
     tx-time)
+
+  ;; get all habits that aren't deleted
+  (let [{:keys [biff/db] :as ctx} (get-context)]
+    (q db
+       '{:find (pull habit [:habit/name])
+         :where [[habit ::schema/type :habit]
+                 (not [habit ::schema/deleted-at])]}))
 
   ;; Check the terminal for output.
   (biff/submit-job (get-context) :echo {:foo "bar"})

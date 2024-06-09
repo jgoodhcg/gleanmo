@@ -1,28 +1,31 @@
 (ns tech.jgood.gleanmo
-  (:require [com.biffweb :as biff]
-            [tech.jgood.gleanmo.email :as email]
-            [tech.jgood.gleanmo.app :as app]
-            [tech.jgood.gleanmo.home :as home]
-            [tech.jgood.gleanmo.middleware :as mid]
-            [tech.jgood.gleanmo.ui :as ui]
-            [tech.jgood.gleanmo.worker :as worker]
-            [tech.jgood.gleanmo.schema :as schema]
-            [clojure.test :as test]
-            [clojure.tools.logging :as log]
-            [clojure.tools.namespace.repl :as tn-repl]
-            [malli.core :as malc]
-            [malli.registry :as malr]
-            [nrepl.cmdline :as nrepl-cmd]))
+  (:require
+   [clojure.test :as test]
+   [clojure.tools.logging :as log]
+   [clojure.tools.namespace.repl :as tn-repl]
+   [com.biffweb :as biff]
+   [malli.core :as malc]
+   [malli.registry :as malr]
+   [nrepl.cmdline :as nrepl-cmd]
+   [tech.jgood.gleanmo.app :as app]
+   [tech.jgood.gleanmo.email :as email]
+   [tech.jgood.gleanmo.home :as home]
+   [tech.jgood.gleanmo.middleware :as mid]
+   [tech.jgood.gleanmo.schema :as schema]
+   [tech.jgood.gleanmo.ui :as ui]
+   [tech.jgood.gleanmo.worker :as worker]
+   [tick.core :as t]))
 
 (def plugins
   [app/plugin
    (biff/authentication-plugin
     {:biff.auth/new-user-tx
      (fn [ctx email]
-       [{:db/doc-type    :user
-         ::schema/type   :user
-         :db.op/upsert   {:user/email email}
-         :user/joined-at :db/now}])})
+       (let [now (t/now)]
+         [{:db/doc-type    :user
+           ::schema/type   :user
+           :db.op/upsert   {:user/email email}
+           :user/joined-at now}]))})
    home/plugin
    schema/plugin
    worker/plugin])
