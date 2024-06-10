@@ -19,8 +19,7 @@
    [java.time ZonedDateTime]
    [java.util UUID]))
 
-;; TODO add sensitive and archived
-(defn all-for-user-query [{:keys [biff/db session]}]
+(defn all-for-user-query [{:keys [biff/db session sensitive archived]}]
   (let [raw-results (q db '{:find  [(pull ?habit-log [*]) (pull ?habit [*]) ?tz]
                             :where [[?habit-log :habit-log/timestamp]
                                     [?habit-log :user/id user-id]
@@ -28,30 +27,36 @@
                                     [?habit :xt/id ?habit-id]
                                     [?habit :habit/name ?habit-name]
                                     [?user :xt/id user-id]
-                                    [?user :user/time-zone ?tz]]
+                                    [?user :user/time-zone ?tz]
+                                    (not [?habit ::schema/deleted-at])
+                                    (not [?habit-log ::schema/deleted-at])]
                             :in    [user-id]} (:uid session))]
-    (->> raw-results
-         (group-by (fn [[habit-log _ _]] (:xt/id habit-log))) ; Group by habit-log id
-         (map (fn [[log-id grouped-tuples]]
-                ;; Extract the habit-log map from the first tuple and tz from last
-                (let [habit-log-map (-> grouped-tuples first first)
-                      tz            (-> grouped-tuples first last)]
-                  (assoc habit-log-map
-                         :user/time-zone tz
-                         :habit-log/habits
-                         (->> grouped-tuples
-                              (map (fn [[_ habit _]]
-                                     habit)))))))
-         (into [])
-         (sort-by :habit-log/timestamp)
-         (reverse))))
+    (cond->> raw-results
+      :always         (group-by (fn [[habit-log _ _]] (:xt/id habit-log))) ; Group by habit-log id
+      :always         (map (fn [[log-id grouped-tuples]]
+                             ;; Extract the habit-log map from the first tuple and tz from last
+                             (let [habit-log-map (-> grouped-tuples first first)
+                                   tz            (-> grouped-tuples first last)]
+                               (assoc habit-log-map
+                                      :user/time-zone tz
+                                      :habit-log/habits
+                                      (->> grouped-tuples
+                                           (map (fn [[_ habit _]]
+                                                  habit)))))))
+      :always         (into [])
+      :always         (sort-by :habit-log/timestamp)
+      :always         (reverse)
+      (not sensitive) (remove :habit/sensitive)
+      (not archived)  (remove :habit/archived))))
 
 (defn single-for-user-query [{:keys [biff/db session :xt/id]}]
   (let [user-id (:uid session)]
     (first (q db '{:find  (pull ?log [*])
                    :where [[?log ::schema/type :habit-log]
                            [?log :user/id user-id]
-                           [?log :xt/id log-id]]
+                           [?log :xt/id log-id]
+                           (not [?habit ::schema/deleted-at])
+                           (not [?habit-log ::schema/deleted-at])]
                    :in    [user-id log-id]} user-id id))))
 
 (defn list-item [{:habit-log/keys [timestamp habits notes time-zone]
@@ -261,6 +266,12 @@
      {}
      [:div
       (nav-bar (pot/map-of email))
+      ;; delete form
+      (biff/form
+       {:action (str "/app/habit-logs/" log-id "/delete") :method "post"}
+       [:div.m-4.flex.flex-end
+        [:input.text-center.bg-red-100.hover:bg-red-500.hover:text-white.text-black.font-bold.py-2.px-4.rounded.w-full
+         {:type "submit" :value "Delete"}]])
       [:div.w-full.md:w-96.space-y-8
        (biff/form
         {:hx-post   (str "/app/habit-logs/" log-id "/edit")
@@ -371,4 +382,19 @@
 
       (list-item habit-log)])))
 
-(defn soft-delete! [ctx])
+(defn soft-delete! [{:keys [path-params params]
+                     :as   ctx}]
+  (let [log-id (-> path-params :id UUID/fromString)
+        log    (single-for-user-query (merge ctx {:xt/id log-id}))
+        now    (t/now)]
+    (if (some? log)
+      (do
+        (biff/submit-tx ctx
+                        [{:db/op              :update
+                          :db/doc-type        :habit-log
+                          :xt/id              log-id
+                          ::schema/deleted-at now}])
+        {:status  303
+         :headers {"location" "/app/habit-logs"}})
+      {:status 403
+       :body   "Not authorized to edit that habit log"})))

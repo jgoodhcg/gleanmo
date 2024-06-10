@@ -14,6 +14,25 @@
   (:import
    [java.util UUID]))
 
+(defn all-for-user-query [{:keys [biff/db session sensitive archived]}]
+  (cond->>  (q db '{:find  (pull ?habit [*])
+                    :where [[?habit ::schema/type :habit]
+                            [?habit :user/id user-id]
+                            (not [?habit ::schema/deleted-at])]
+                    :in    [user-id]} (:uid session))
+    (not sensitive) (remove :habit/sensitive)
+    (not archived)  (remove :habit/archived)
+    :always         (sort-by ::schema/created-at)))
+
+(defn single-for-user-query [{:keys [biff/db session xt/id]}]
+  (first
+   (q db '{:find  (pull ?habit [*])
+           :where [[?habit ::schema/type :habit]
+                   [?habit :user/id user-id]
+                   [?habit :xt/id habit-id]
+                   (not [?habit ::schema/deleted-at])]
+           :in    [user-id habit-id]} (:uid session) id)))
+
 (defn list-item [{:habit/keys [sensitive name notes archived]
                   id          :xt/id}]
   [:a {:href (str "/app/habits/" id "/edit")}
@@ -24,16 +43,6 @@
      (when sensitive [:span.text-red-500.mr-2 "🔒"])
      (when archived  [:span.text-red-500.mr-2 "📦"])]
     [:p.text-sm.text-gray-600 notes]]])
-
-(defn all-for-user-query [{:keys [biff/db session sensitive archived]}]
-  (cond->>  (q db '{:find  (pull ?habit [*])
-                    :where [[?habit ::schema/type :habit]
-                            [?habit :user/id user-id]
-                            (not [?habit ::schema/deleted-at])]
-                    :in    [user-id]} (:uid session))
-    (not sensitive) (remove :habit/sensitive)
-    (not archived)  (remove :habit/archived)
-    :always         (sort-by ::schema/created-at)))
 
 (defn new-form [{:keys [session biff/db] :as ctx}]
   (let [user-id              (:uid session)
@@ -136,15 +145,6 @@
         :script       "on change setURLParameter(me.name, me.checked) then htmx.trigger('#habit-search', 'search', {})"
         :autocomplete "off"
         :checked      archived}]]])])
-
-(defn single-for-user-query [{:keys [biff/db session xt/id]}]
-  (first
-   (q db '{:find  (pull ?habit [*])
-           :where [[?habit ::schema/type :habit]
-                   [?habit :user/id user-id]
-                   [?habit :xt/id habit-id]
-                   (not [?habit ::schema/deleted-at])]
-           :in    [user-id habit-id]} (:uid session) id)))
 
 (defn list-page
   "Accepts GET and POST. POST is for search form as body."
@@ -302,7 +302,6 @@
 
 (defn soft-delete! [{:keys [path-params params]
                      :as   ctx}]
-  (pprint (pot/map-of path-params params))
   (let [habit-id            (-> path-params :id UUID/fromString)
         habit               (single-for-user-query (merge ctx {:xt/id habit-id}))
         now                 (t/now)]
