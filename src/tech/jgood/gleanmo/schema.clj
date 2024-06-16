@@ -11,13 +11,14 @@
    :exercise-log/id     :uuid
    :exercise-session/id :uuid
    :user                [:map {:closed true}
-                         [:xt/id                           :user/id]
-                         [::type                          [:enum :user]]
+                         [:xt/id                             :user/id]
+                         [:authz/super-user {:optional true} :boolean]
+                         [::type                             [:enum :user]]
                          ;; TODO validate email
-                         [:user/email                      :string]
+                         [:user/email                        :string]
                          ;; TODO validate time zone id
-                         [:user/time-zone {:optional true} :string]
-                         [:user/joined-at                  :instant]]
+                         [:user/time-zone {:optional true}   :string]
+                         [:user/joined-at                    :instant]]
    :habit               [:map {:closed true}
                          [:xt/id                             :habit/id]
                          [::type                             [:enum :habit]]

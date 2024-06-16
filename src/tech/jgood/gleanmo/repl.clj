@@ -97,6 +97,15 @@
          :where [[habit ::schema/type :habit]
                  (not [habit ::schema/deleted-at])]}))
 
+  ;; set super user for email
+  (let [{:keys [biff/db] :as ctx} (get-context)
+        user-id (biff/lookup-id db :user/email "justin@jgood.online")]
+    (biff/submit-tx ctx
+      [{:db/doc-type :user
+        :xt/id user-id
+        :db/op :update
+        :authz/super-user true}]))
+
   ;; Check the terminal for output.
   (biff/submit-job (get-context) :echo {:foo "bar"})
   (deref (biff/submit-job-for-result (get-context) :echo {:foo "bar"})))

@@ -229,12 +229,14 @@
      {}
      [:div {:id "habit-edit-page"}
       (nav-bar (pot/map-of email))
+      ;; delete form
       (biff/form
        {:action (str "/app/habits/" habit-id "/delete") :method "post"}
        [:div.m-4.flex.flex-end
         [:input.text-center.bg-red-100.hover:bg-red-500.hover:text-white.text-black.font-bold.py-2.px-4.rounded.w-full
          {:type "submit" :value "Delete"}]])
 
+      ;; edit-form
       (biff/form
        {:hx-post   (str "/app/habits/" habit-id)
         :hx-swap   "outerHTML"
