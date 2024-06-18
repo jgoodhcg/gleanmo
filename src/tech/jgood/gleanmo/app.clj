@@ -102,7 +102,7 @@
      [:div
       (nav-bar (pot/map-of email))
       [:div.flex.flex-col.md:flex-row.justify-center
-       [:h1.text-3xl.font-bold "App Root Page"]]])))
+       [:h1.text-3xl.font-bold "App Root Page!"]]])))
 
 (def module
   {:static {"/about/" about-page}

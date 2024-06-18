@@ -116,7 +116,7 @@
         ;; Add keys for any other secrets you've added to resources/config.edn
         secret-keys [:biff.middleware/cookie-secret
                      :biff/jwt-secret
-                     :postmark/api-key
+                     :mailersend/api-key
                      :recaptcha/secret-key
                      ; ...
                      ]
