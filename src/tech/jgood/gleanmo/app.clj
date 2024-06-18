@@ -94,7 +94,7 @@
                      (str attr-val)])])]]])
          [:div.my-4 [:span "Unsupported type, must be one of: " (str db-viz-supported-types)]]))))
 
-(defn home [{:keys [session biff/db]}]
+(defn root [{:keys [session biff/db]}]
   (let [user-id              (:uid session)
         {:user/keys [email]} (xt/entity db user-id)]
     (ui/page
@@ -102,13 +102,13 @@
      [:div
       (nav-bar (pot/map-of email))
       [:div.flex.flex-col.md:flex-row.justify-center
-       [:h1.text-3xl.font-bold "Home page"]]])))
+       [:h1.text-3xl.font-bold "App Root Page"]]])))
 
 (def module
   {:static {"/about/" about-page}
    :routes ["/app" {:middleware [mid/wrap-signed-in]}
             ;; Main app and DB visualization
-            [""    {:get home}]
+            [""    {:get root}]
             ["/db/:type" {:get db-viz}]
 
             ;; user

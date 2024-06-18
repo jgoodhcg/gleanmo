@@ -75,6 +75,7 @@
    biff/use-xt
    biff/use-queues
    biff/use-tx-listener
+   biff/use-htmx-refresh
    biff/use-jetty
    biff/use-chime
    biff/use-beholder])
