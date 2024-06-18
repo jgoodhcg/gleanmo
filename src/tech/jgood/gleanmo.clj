@@ -69,8 +69,7 @@
 (defonce system (atom {}))
 
 (def components
-  [biff/use-config
-   biff/use-secrets
+  [biff/use-aero-config
    biff/use-xt
    biff/use-queues
    biff/use-tx-listener
