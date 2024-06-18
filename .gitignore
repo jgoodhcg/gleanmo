@@ -17,3 +17,5 @@
 src/user.clj
 
 notebook_data/
+
+config.env

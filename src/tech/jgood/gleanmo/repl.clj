@@ -109,3 +109,28 @@
   ;; Check the terminal for output.
   (biff/submit-job (get-context) :echo {:foo "bar"})
   (deref (biff/submit-job-for-result (get-context) :echo {:foo "bar"})))
+
+(defn check-config []
+  (let [prod-config (biff/use-aero-config {:biff.config/profile "prod"})
+        dev-config  (biff/use-aero-config {:biff.config/profile "dev"})
+        ;; Add keys for any other secrets you've added to resources/config.edn
+        secret-keys [:biff.middleware/cookie-secret
+                     :biff/jwt-secret
+                     :postmark/api-key
+                     :recaptcha/secret-key
+                     ; ...
+                     ]
+        get-secrets (fn [{:keys [biff/secret] :as config}]
+                      (into {}
+                            (map (fn [k]
+                                   [k (secret k)]))
+                            secret-keys))]
+    {:prod-config prod-config
+     :dev-config dev-config
+     :prod-secrets (get-secrets prod-config)
+     :dev-secrets (get-secrets dev-config)}))
+
+(comment
+  (check-config)
+  ;;
+  )
