@@ -2,7 +2,7 @@
 set -x
 set -e
 
-BIFF_ENV=${1:-prod}
+BIFF_PROFILE=${1:-prod}
 CLJ_VERSION=1.11.1.1165
 TRENCH_VERSION=0.4.0
 TRENCH_FILE=trenchman_${TRENCH_VERSION}_linux_amd64.tar.gz
@@ -20,7 +20,7 @@ bash < <(curl -s https://download.clojure.org/install/linux-install-$CLJ_VERSION
 bash < <(curl -s https://raw.githubusercontent.com/babashka/babashka/master/install)
 wget https://github.com/athos/trenchman/releases/download/v$TRENCH_VERSION/$TRENCH_FILE
 mkdir .trench_tmp
-tar -xf $TRENCH_FILE --directroy .trench_tmp
+tar -xf $TRENCH_FILE --directory .trench_tmp
 mv .trench_tmp/trench /usr/local/bin/
 rm -rf $TRENCH_FILE .trench_tmp
 
@@ -30,7 +30,7 @@ mkdir -m 700 -p /home/app/.ssh
 cp /root/.ssh/authorized_keys /home/app/.ssh
 chown -R app:app /home/app/.ssh
 
-# Git deploys
+# Git deploys - only used if you don't have rsync on your machine
 set_up_app () {
   cd
   mkdir repo.git
@@ -55,9 +55,9 @@ StartLimitBurst=5
 User=app
 Restart=on-failure
 RestartSec=5s
-Environment="BIFF_ENV=$BIFF_ENV"
+Environment="BIFF_PROFILE=$BIFF_PROFILE"
 WorkingDirectory=/home/app
-ExecStart=/bin/sh -c '\$\$(bb run-cmd)'
+ExecStart=/bin/sh -c "mkdir -p target/resources; clj -M:prod"
 
 [Install]
 WantedBy=multi-user.target
@@ -78,7 +78,7 @@ chmod 440 /etc/sudoers.d/restart-app
 
 # Firewall
 ufw allow OpenSSH
-ufw enable
+ufw --force enable
 
 # Web dependencies
 apt-get -y install nginx
