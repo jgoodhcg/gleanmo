@@ -1,4 +1,4 @@
-{:paths ["src" "resources" "target/resources" "notebook_data"]
+{:paths ["src" "resources" "target/resources"]
  :deps  {com.biffweb/biff                    {:git/url "https://github.com/jacobobryant/biff"
                                               :git/tag "v1.8.0"
                                               :git/sha "3b2fa14"}
@@ -20,7 +20,7 @@
                                         :git/tag "v1.8.0"
                                         :git/sha "3b2fa14"
                                         :deps/root "libs/tasks"}}
-        :extra-paths ["dev"]
+        :extra-paths ["dev" "notebook_data" "test"]
         :jvm-opts ["-XX:-OmitStackTraceInFastThrow"
                    "-XX:+CrashOnOutOfMemoryError"
                    "-Dbiff.env.BIFF_PROFILE=dev"]

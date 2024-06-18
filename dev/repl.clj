@@ -1,4 +1,4 @@
-(ns tech.jgood.gleanmo.repl
+(ns repl
   (:require [tech.jgood.gleanmo :as main]
             [tech.jgood.gleanmo.schema :as schema]
             [com.biffweb :as biff :refer [q]]

@@ -92,5 +92,5 @@
                          [:airtable/exercise-id                                     :string]
                          [:airtable/missing-duration                                :number]]})
 
-(def plugin
+(def module
   {:schema schema})

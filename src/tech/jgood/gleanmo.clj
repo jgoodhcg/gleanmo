@@ -14,11 +14,12 @@
    [tech.jgood.gleanmo.schema :as schema]
    [tech.jgood.gleanmo.ui :as ui]
    [tech.jgood.gleanmo.worker :as worker]
-   [tick.core :as t]))
+   [tick.core :as t])
+  (:gen-class))
 
-(def plugins
-  [app/plugin
-   (biff/authentication-plugin
+(def modules
+  [app/module
+   (biff/authentication-module
     {:biff.auth/new-user-tx
      (fn [ctx email]
        (let [now (t/now)]
@@ -26,19 +27,19 @@
            ::schema/type   :user
            :db.op/upsert   {:user/email email}
            :user/joined-at now}]))})
-   home/plugin
-   schema/plugin
-   worker/plugin])
+   home/module
+   schema/module
+   worker/module])
 
 (def routes [["" {:middleware [mid/wrap-site-defaults]}
-              (keep :routes plugins)]
+              (keep :routes modules)]
              ["" {:middleware [mid/wrap-api-defaults]}
-              (keep :api-routes plugins)]])
+              (keep :api-routes modules)]])
 
 (def handler (-> (biff/reitit-handler {:routes routes})
                  mid/wrap-base-defaults))
 
-(def static-pages (apply biff/safe-merge (map :static plugins)))
+(def static-pages (apply biff/safe-merge (map :static modules)))
 
 (defn generate-assets! [ctx]
   (biff/export-rum static-pages "target/resources/public")
@@ -49,16 +50,17 @@
   (biff/add-libs)
   (biff/eval-files! ctx)
   (generate-assets! ctx)
+  (biff/catchall (require 'tech.jgood.gleanmo.test))
   (test/run-all-tests #"tech.jgood.gleanmo.test.*"))
 
 (def malli-opts
   {:registry (malr/composite-registry
               malc/default-registry
               (apply biff/safe-merge
-                     (keep :schema plugins)))})
+                     (keep :schema modules)))})
 
 (def initial-system
-  {:biff/plugins #'plugins
+  {:biff/modules #'modules
    :biff/send-email #'email/send-email
    :biff/handler #'handler
    :biff/malli-opts #'malli-opts

@@ -2,7 +2,7 @@
 ;; I'm trying to accomplish two goals with this notebook.
 ;; - Set data driven goals to improve my exercise habits
 ;; - Draft transformation of data from airtable to something that works for xtdb/gleanmo
-(ns tech.jgood.gleanmo.notebooks.20231231-airtable-ingest
+(ns notebooks.20231231-airtable-ingest
   {:nextjournal.clerk/toc                   true
    :nextjournal.clerk/error-on-missing-vars :off}
   (:require [nextjournal.clerk :as clerk]

@@ -104,7 +104,7 @@
       [:div.flex.flex-col.md:flex-row.justify-center
        [:h1.text-3xl.font-bold "Home page"]]])))
 
-(def plugin
+(def module
   {:static {"/about/" about-page}
    :routes ["/app" {:middleware [mid/wrap-signed-in]}
             ;; Main app and DB visualization
