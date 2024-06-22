@@ -1,3 +1,3 @@
 (ns tech.jgood.gleanmo.settings)
 
-(def app-name "My Application")
+(def app-name "Gleanmo")
