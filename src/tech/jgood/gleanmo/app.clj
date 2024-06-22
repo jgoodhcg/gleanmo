@@ -12,7 +12,8 @@
    [tech.jgood.gleanmo.settings :as settings]
    [tech.jgood.gleanmo.ui :as ui]
    [tick.core :as t]
-   [xtdb.api :as xt]))
+   [xtdb.api :as xt]
+   [clojure.string :as str]))
 
 (def about-page
   (ui/page
@@ -32,7 +33,30 @@
                                      0)
         limit                      (if (some? (-> params :limit))
                                      (-> params :limit Integer/parseInt)
-                                     default-limit)]
+                                     default-limit)
+        filter-email               (-> params :email)
+        all-query                  '{:find  [(pull ?entity [*])]
+                                     :where [[?entity :xt/id ?id]
+                                             [?entity ::schema/type type]]
+                                     :in    [[type email]]}
+        email-query                '{:find  [(pull ?entity [*])]
+                                     :where [[?entity :xt/id ?id]
+                                             [?entity ::schema/type type]
+                                             [?user   :user/email email]
+                                             [?entity :user/id ?user]]
+                                     :in    [[type email]]}
+        email-query-user           '{:find  [(pull ?entity [*])]
+                                     :where [[?entity :xt/id ?id]
+                                             [?entity ::schema/type type]
+                                             [?entity :user/email email]]
+                                     :in    [[type email]]}
+        query                      (cond
+                                     (and (= type :user) (not (str/blank? filter-email)))
+                                     email-query-user
+
+                                     (some? filter-email) email-query
+
+                                     :else all-query)]
 
     (when (not (true? super-user))
       (throw (Exception. "User not authorized for db-viz")))
@@ -40,25 +64,24 @@
     (ui/page
      {}
        (nav-bar (pot/map-of email))
+       ;; supported types
        [:div.my-4
         (for [t (-> db-viz-supported-types sort)]
           [:a.link.mr-2 {:href (str "/app/db/" (name t) "?offset=0&limit=" limit)}
            t])]
-       [:div.mt-4.mb-2
-        [:a.link.mr-4 {:href (str "/app/db/" (name type) "?offset=" (max 0 (- offset limit))
-                                  "&limit=" limit)}
-         "<-"]
-        [:a.link {:href (str "/app/db/" (name type) "?offset=" (+ offset limit)
-                             "&limit=" limit)}
-         "->"]]
+       (when (some? type)
+         ;; pagination
+         [:div.mt-4.mb-2
+          [:a.link.mr-4 {:href (str "/app/db/" (name type) "?offset=" (max 0 (- offset limit))
+                                    "&limit=" limit)}
+           "<-"]
+          [:a.link {:href (str "/app/db/" (name type) "?offset=" (+ offset limit)
+                               "&limit=" limit)}
+           "->"]])
+       ;; items
        (if (some? type)
          (let [query-result
-               (->> (q db
-                       '{:find  [(pull ?entity [*])]
-                         :where [[?entity :xt/id ?id]
-                                 [?entity ::schema/type type]]
-                         :in    [type]}
-                       type))
+               (->> (q db query [type filter-email]))
                all-entities
                (->> query-result
                     (map first)
@@ -109,6 +132,8 @@
    :routes ["/app" {:middleware [mid/wrap-signed-in]}
             ;; Main app and DB visualization
             [""    {:get root}]
+
+            ["/db"       {:get db-viz}]
             ["/db/:type" {:get db-viz}]
 
             ;; user

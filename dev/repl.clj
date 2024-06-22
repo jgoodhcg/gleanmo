@@ -14,9 +14,9 @@
 
 (defn add-fixtures []
   (biff/submit-tx (get-context)
-    (-> (io/resource "fixtures.edn")
-        slurp
-        edn/read-string)))
+                  (-> (io/resource "fixtures.edn")
+                      slurp
+                      edn/read-string)))
 
 (comment
   ;; Call this function if you make a change to main/initial-system,
@@ -40,10 +40,10 @@
   (let [{:keys [biff/db] :as ctx} (get-context)
         user-id (biff/lookup-id db :user/email "hello@example.com")]
     (biff/submit-tx ctx
-      [{:db/doc-type :user
-        :xt/id user-id
-        :db/op :update
-        :user/email "new.address@example.com"}]))
+                    [{:db/doc-type :user
+                      :xt/id user-id
+                      :db/op :update
+                      :user/email "new.address@example.com"}]))
 
   (sort (keys (get-context)))
 
@@ -53,11 +53,11 @@
                                           :where [[?habit-log :habit-log/timestamp]]})]
     (->> habit-logs
          (mapv (fn [{ids :habit-log/habit-ids
-                    :as habit-log}]
-                (merge habit-log
-                       {:habit-log/habit-ids (set ids)
-                        :db/doc-type         :habit-log
-                        :db/op               :update})))
+                     :as habit-log}]
+                 (merge habit-log
+                        {:habit-log/habit-ids (set ids)
+                         :db/doc-type         :habit-log
+                         :db/op               :update})))
          (biff/submit-tx ctx)))
 
   ;; query habit-logs with habit names from refs in :habit-log/habit-ids
@@ -70,7 +70,7 @@
                                                   [?habit :xt/id ?habit-id]
                                                   [?habit :habit/name ?habit-name]]
                                           :in    [user-id]} user-id)]
-   (->> raw-results
+    (->> raw-results
          (group-by (fn [[habit-log _ _]] (:xt/id habit-log))) ; Group by habit-log id
          (map (fn [[log-id grouped-tuples]]
                 (let [habit-log-map (first (first grouped-tuples))] ; Extract the habit-log map from the first tuple
@@ -81,13 +81,11 @@
                               grouped-tuples)))))
          (into [])))
 
-
-  ;; get latest transaction time for an entity
+;; get latest transaction time for an entity
   (let [{:keys [biff/db] :as ctx} (get-context)
         habit-id                   #uuid "7f41decc-8a3d-4062-9ea4-3c953d30c0f3"
         history                   (xt/entity-history db habit-id :desc)
-        tx-time                   (-> history first :xtdb.api/tx-time)
-        ]
+        tx-time                   (-> history first :xtdb.api/tx-time)]
     tx-time)
 
   ;; get all habits that aren't deleted
@@ -99,12 +97,14 @@
 
   ;; set super user for email
   (let [{:keys [biff/db] :as ctx} (get-context)
-        user-id (biff/lookup-id db :user/email "justin@jgood.online")]
+        user-id (biff/lookup-id db :user/email
+                                "justin@jgood.online")]
+    user-id
     (biff/submit-tx ctx
-      [{:db/doc-type :user
-        :xt/id user-id
-        :db/op :update
-        :authz/super-user true}]))
+                    [{:db/doc-type :user
+                      :xt/id user-id
+                      :db/op :update
+                      :authz/super-user true}]))
 
   ;; Check the terminal for output.
   (biff/submit-job (get-context) :echo {:foo "bar"})
@@ -132,5 +132,29 @@
 
 (comment
   (check-config)
+  ;;
+  )
+
+;; connect to production db
+(comment
+  ;; secrets are wrapped as functions so that they don't show up when serializing the maps
+  (def prod-node (let [jdbc-url ((-> (check-config) :prod-config :biff.xtdb.jdbc/jdbcUrl))]
+                   (biff/start-node {:topology  :jdbc
+                                     :jdbc-spec {:jdbcUrl jdbc-url}
+                                     :dir       "prod-storage/"})))
+
+  (def email "example@example.com")
+
+  ;; set a super user in production
+  (let [ctx (-> @main/system
+                (merge {:biff.xtdb/node prod-node})
+                biff/assoc-db)
+        prod-db (:biff/db ctx)
+        user-id (biff/lookup-id prod-db :user/email email)]
+    (biff/submit-tx ctx
+                    [{:db/doc-type :user
+                      :xt/id user-id
+                      :db/op :update
+                      :authz/super-user true}]))
   ;;
   )

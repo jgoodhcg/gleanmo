@@ -1,12 +1,12 @@
 ;; See https://github.com/juxt/aero and https://biffweb.com/docs/api/utilities/#use-aero-config.
 ;; #biff/env and #biff/secret will load values from the environment and from config.env.
 {:biff/base-url #profile {:prod #join ["https://" #biff/env DOMAIN] :default "http://localhost:8080"}
- :biff/host     #profile {:dev "0.0.0.0"
+ :biff/host     #profile {:dev     "0.0.0.0"
                           :default "localhost"}
  :biff/port     8080
 
  :biff.xtdb/dir          "storage/xtdb"
- :biff.xtdb/topology     #keyword #or [#profile {:prod #biff/env "PROD_XTDB_TOPOLOGY"
+ :biff.xtdb/topology     #keyword #or [#profile {:prod    #biff/env "PROD_XTDB_TOPOLOGY"
                                                  :default #biff/env "XTDB_TOPOLOGY"}
                                        "standalone"]
  :biff.xtdb.jdbc/jdbcUrl #biff/secret "XTDB_JDBC_URL"
@@ -17,7 +17,9 @@
  :biff/jwt-secret               #biff/secret JWT_SECRET
  :biff.refresh/enabled          #profile {:dev true :default false}
 
- :mailersend/api-key  #biff/secret MAILERSEND_API_KEY
+ :mailersend/api-key  #profile {:prod    #biff/secret MAILERSEND_API_KEY
+                                :dev     nil
+                                :default nil}
  :mailersend/from     #biff/env MAILERSEND_FROM
  :mailersend/reply-to #biff/env MAILERSEND_REPLY_TO
 

@@ -18,7 +18,6 @@
 
 (deftest habit-create-test
   (with-open [node (test-xtdb-node [])]
-    (println "testing")
     (let [user-uuid  (UUID/randomUUID)
           ctx        (assoc (get-context node) :session {:uid user-uuid})
           habit-name "name"
