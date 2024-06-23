@@ -135,7 +135,8 @@
   ;;
   )
 
-;; connect to production db
+;; connect to production db from dev repl
+;; realized this is uneccesary if I just used `clj -M:dev prod-repl`
 (comment
   ;; secrets are wrapped as functions so that they don't show up when serializing the maps
   (def prod-node (let [jdbc-url ((-> (check-config) :prod-config :biff.xtdb.jdbc/jdbcUrl))]

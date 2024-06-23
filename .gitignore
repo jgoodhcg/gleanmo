@@ -21,3 +21,5 @@ notebook_data/
 config.env
 
 prod-storage/
+
+airtable_data/
