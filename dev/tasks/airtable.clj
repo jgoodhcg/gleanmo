@@ -4,7 +4,11 @@
    [clj-http.client :as client]
    [clojure.java.io :as io]
    [clojure.string :as str]
-   [clojure.tools.cli :refer [parse-opts]]))
+   [clojure.tools.cli :refer [parse-opts]]
+   [potpuri.core :as pot]))
+
+(def table-ids {:activity     "tbleuZF29AmzFiWUw"
+                :activity-log "tblmfUTKwMIGQnNLC"})
 
 (defn get-page [url api-key]
   (-> (client/get
@@ -39,17 +43,26 @@
 (defn download-all-records
   "Downloads all records from specified table"
   [& args]
-  (let [opts (parse-opts
-              args
-              [["-k" "--api-key API-KEY" "API Key" :required true]
-               ["-b" "--base-id BASE-ID" "Base ID" :required true]
-               ["-t" "--table-id TABLE-ID" "Table ID" :required true]])
-        options (opts :options)
-        file-name (str "airtable_data/"
-                       (-> (options :table-id) (str/replace "-" "_"))
-                       "_"
-                       (timestamp)
-                       ".edn")]
+  (let [opts       (parse-opts
+                    args
+                    [["-k" "--api-key API-KEY" "API Key" :required true]
+                     ["-b" "--base-id BASE-ID" "Base ID" :required true]
+                     ["-t" "--table-id TABLE-ID" "Table ID"]
+                     ["-n" "--table-name TABLE-NAME" "Table Name"]])
+        options    (opts :options)
+        table-name (-> options :table-name)
+        table-id   (-> options :table-id)
+        table      (or table-id
+                       table-name)
+        table-id   (or table-id
+                       (-> table-name keyword (get table-ids)))
+        file-name  (str "airtable_data/"
+                        (-> table (str/replace "-" "_"))
+                        "_"
+                        (timestamp)
+                        ".edn")
+        options    (merge options (pot/map-of table-id))]
+    (println (pot/map-of table table-id table-name))
     (with-open [writer (io/writer file-name)]
       #_(.write writer "[\n")
       (get-all-records options writer)

@@ -19,6 +19,16 @@
    [java.time ZonedDateTime]
    [java.util UUID]))
 
+(defn some-sensitive-habits [{habits :habit-log/habits}]
+  (->> habits
+       (map :habit/sensitive)
+       (some true?)))
+
+(defn some-archived-habits [{habits :habit-log/habits}]
+  (->> habits
+       (map :habit/archived)
+       (some true?)))
+
 (defn all-for-user-query [{:keys [biff/db session sensitive archived]}]
   (let [raw-results (q db '{:find  [(pull ?habit-log [*]) (pull ?habit [*]) ?tz]
                             :where [[?habit-log :habit-log/timestamp]
@@ -46,8 +56,8 @@
       :always         (into [])
       :always         (sort-by :habit-log/timestamp)
       :always         (reverse)
-      (not sensitive) (remove :habit/sensitive)
-      (not archived)  (remove :habit/archived))))
+      (not sensitive) (remove some-sensitive-habits)
+      (not archived)  (remove some-archived-habits))))
 
 (defn single-for-user-query [{:keys [biff/db session :xt/id]}]
   (let [user-id (:uid session)]
@@ -91,13 +101,9 @@
         persist-query-params (or sensitive archived)
         user-id              (:uid session)
         {:user/keys [email]} (xt/entity db user-id)
-        habits               (habit/all-for-user-query (merge ctx (pot/map-of sensitive archived)))
-        recent-logs          (->> (all-for-user-query ctx)
-                                  (remove (fn [{:keys [habit-log/habits]}]
-                                            (or (when (not sensitive)
-                                                  (any-sensitive? habits))
-                                                (when (not archived)
-                                                  (any-archived? habits)))))
+        ctx*                 (merge ctx (pot/map-of sensitive archived))
+        habits               (habit/all-for-user-query ctx*)
+        recent-logs          (->> (all-for-user-query ctx*)
                                   (take 3))
         time-zone            (get-user-time-zone ctx)
         time-zone            (if (some? time-zone) time-zone "US/Eastern")
@@ -106,6 +112,10 @@
      {}
      [:div
       (nav-bar (pot/map-of email))
+      [:div.my-4
+       (if sensitive
+         [:a.link {:href "/app/new/habit-log"} "hide sensitive"]
+         [:a.link {:href "/app/new/habit-log?sensitive=true"} "sensitive"])]
       [:div.w-full.md:w-96.space-y-8
        (biff/form
         {:hx-post   (str "/app/habit-logs"
@@ -117,8 +127,7 @@
          :id        "log-habit-form"}
 
         [:div
-         [:h2.text-base.font-semibold.leading-7.text-gray-900 "Log Habit"]
-         [:p.mt-1.text-sm.leading-6.text-gray-600 "Log the habit with your desired settings."]]
+         [:h2.text-base.font-semibold.leading-7.text-gray-900 "Log Habit"]]
 
         [:div.grid.grid-cols-1.gap-y-6
          ;; Time Zone selection
@@ -217,9 +226,11 @@
     :as   ctx}]
   (let [user-id                        (:uid session)
         {:user/keys [email time-zone]} (xt/entity db user-id)
-        habit-logs                     (all-for-user-query ctx)
         sensitive                      (some-> params :sensitive param-true?)
         archived                       (some-> params :archived param-true?)
+        habit-logs                     (->> (merge ctx (pot/map-of sensitive archived))
+                                            (all-for-user-query)
+                                            (take 15))
         search                         (or (some-> params :search search-str-xform)
                                            "")]
     (ui/page
@@ -229,14 +240,14 @@
       [:div.my-4
        (link-button {:href  "/app/new/habit-log"
                      :label "Create Habit Log"})]
+      [:div.my-4
+       (if sensitive
+         [:a.link {:href "/app/habit-logs"} "hide sensitive"]
+         [:a.link {:href "/app/habit-logs?sensitive=true"} "sensitive"])]
       ;; TODO add filter options and search
       [:div {:id "habit-logs-list"}
        (cond->> habit-logs
-         (not sensitive) (remove (fn [{:keys [habit-log/habits]}]
-                                   (any-sensitive? habits)))
-         (not archived)  (remove (fn [{:keys [habit-log/habits]}]
-                                   (any-archived? habits)))
-         :always         (map (fn [log] (list-item log))))]])))
+         :always (map (fn [log] (list-item log))))]])))
 
 (defn edit-form [{:keys [path-params
                          query-params
@@ -266,12 +277,7 @@
      {}
      [:div
       (nav-bar (pot/map-of email))
-      ;; delete form
-      (biff/form
-       {:action (str "/app/habit-logs/" log-id "/delete") :method "post"}
-       [:div.m-4.flex.flex-end
-        [:input.text-center.bg-red-100.hover:bg-red-500.hover:text-white.text-black.font-bold.py-2.px-4.rounded.w-full
-         {:type "submit" :value "Delete"}]])
+
       [:div.w-full.md:w-96.space-y-8
        (biff/form
         {:hx-post   (str "/app/habit-logs/" log-id "/edit")
@@ -333,7 +339,14 @@
 
         [:div.mt-4.flex.flex-col
          [:span.text-gray-500 (str "last updated: " latest-tx-time)]
-         [:span.text-gray-500 (str "created at: " formatted-created-at)]])]])))
+         [:span.text-gray-500 (str "created at: " formatted-created-at)]])
+
+       ;; delete form
+      (biff/form
+       {:action (str "/app/habit-logs/" log-id "/delete") :method "post"}
+       [:div.w-full.md:w-96.p-2.my-4
+        [:input.text-center.bg-red-100.hover:bg-red-500.hover:text-white.text-black.font-bold.py-2.px-4.rounded.w-full
+         {:type "submit" :value "Delete"}]])]])))
 
 (defn edit! [{:keys [session params] :as ctx}]
   (let [id-strs        (-> params :habit-refs ensure-vector)

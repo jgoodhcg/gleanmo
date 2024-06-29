@@ -98,15 +98,17 @@
             (map list-item)))])))
 
 (defn create! [{:keys [params session] :as ctx}]
-  (let [now (t/now)]
+  (let [now       (t/now)
+        sensitive (boolean (:sensitive params))]
     (biff/submit-tx ctx
-                    [{:db/doc-type        :habit
-                      ::schema/type       :habit
-                      :user/id            (:uid session)
-                      :habit/name         (:habit-name params)
-                      :habit/sensitive    (boolean (:sensitive params))
-                      :habit/notes        (:notes params)
-                      ::schema/created-at now}]))
+                    [(merge {:db/doc-type        :habit
+                             ::schema/type       :habit
+                             :user/id            (:uid session)
+                             :habit/name         (:habit-name params)
+                             :habit/notes        (:notes params)
+                             ::schema/created-at now}
+                            (when sensitive
+                              {:habit/sensitive sensitive}))]))
   {:status  303
    :headers {"location" "/app/new/habit"}})
 
@@ -174,8 +176,8 @@
                           this-habit-is-sensitive :habit/sensitive
                           this-habit-is-archived  :habit/archived
                           id                      :xt/id}]
-                      (let [matches-name  (str/includes? (str/lower-case name) search)
-                            matches-notes (str/includes? (str/lower-case notes) search)]
+                      (let [matches-name  (str/includes? (str/lower-case (str name)) search)
+                            matches-notes (str/includes? (str/lower-case (str notes)) search)]
                         (and (or archived
                                  (not this-habit-is-archived))
                              (or sensitive
@@ -229,12 +231,6 @@
      {}
      [:div {:id "habit-edit-page"}
       (nav-bar (pot/map-of email))
-      ;; delete form
-      (biff/form
-       {:action (str "/app/habits/" habit-id "/delete") :method "post"}
-       [:div.m-4.flex.flex-end
-        [:input.text-center.bg-red-100.hover:bg-red-500.hover:text-white.text-black.font-bold.py-2.px-4.rounded.w-full
-         {:type "submit" :value "Delete"}]])
 
       ;; edit-form
       (biff/form
@@ -262,12 +258,14 @@
            [:input.rounded.shadow-sm.mr-2.text-indigo-600.focus:ring-blue-500.focus:border-indigo-500
             {:type "checkbox" :name "sensitive" :checked (:habit/sensitive habit)}]
            [:label.text-sm.font-medium.leading-6.text-gray-900 {:for "sensitive"} "Is Sensitive?"]]
-          [:span "Exclude from entry and reports unless explicilty included."]]
+          [:span.text-gray-500 "Exclude from entry and reports unless explicilty included."]]
 
-         [:div.flex.items-center
-          [:input.rounded.shadow-sm.mr-2.text-indigo-600.focus:ring-blue-500.focus:border-indigo-500
-           {:type "checkbox" :name "archived" :checked (:habit/archived habit)}]
-          [:label.text-sm.font-medium.leading-6.text-gray-900 {:for "archived"} "Is Archived?"]]
+         [:div.flex.flex-col
+          [:div.flex.items-center
+           [:input.rounded.shadow-sm.mr-2.text-indigo-600.focus:ring-blue-500.focus:border-indigo-500
+            {:type "checkbox" :name "archived" :checked (:habit/archived habit)}]
+           [:label.text-sm.font-medium.leading-6.text-gray-900 {:for "archived"} "Is Archived?"]]
+          [:span.text-gray-500 "Exclude from entry and reports indefinitely"]]
 
          ;; Notes
          [:div
@@ -286,7 +284,14 @@
 
          [:div.mt-4.flex.flex-col
           [:span.text-gray-500 (str "last updated: " latest-tx-time)]
-          [:span.text-gray-500 (str "created at: " (or formatted-created-at (::schema/created-at habit)))]]]])])))
+          [:span.text-gray-500 (str "created at: " (or formatted-created-at (::schema/created-at habit)))]]]])
+
+      ;; delete form
+      (biff/form
+       {:action (str "/app/habits/" habit-id "/delete") :method "post"}
+       [:div.w-full.md:w-96.p-2.my-4
+        [:input.text-center.bg-red-100.hover:bg-red-500.hover:text-white.text-black.font-bold.py-2.px-4.rounded.w-full
+         {:type "submit" :value "Delete"}]])])))
 
 (defn view [{:keys [path-params
                     session
