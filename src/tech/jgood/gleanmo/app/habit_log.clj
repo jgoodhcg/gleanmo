@@ -77,7 +77,7 @@
                                   (t/instant)
                                   (t/in (t/zone (or time-zone user-time-zone)))
                                   (->> (t/format (t/formatter zoned-date-time-fmt)))))]
-    [:a {:href (str "/app/habit-logs/"id"/edit")}
+    [:a {:href (str "/app/habit-logs/" id "/edit")}
      [:div.hover:bg-gray-100.transition.duration-150.p-4.border-b.border-gray-200.cursor-pointer.w-full.md:w-96
       {:id (str "habit-log-list-item-" id)}
       [:span formatted-timestamp]
@@ -199,19 +199,19 @@
                     (vec (remove nil?
                                  [(merge
                                    {:db/doc-type :habit-log
-                                       ::schema/type :habit-log
-                                       :user/id user-id
-                                       :habit-log/timestamp timestamp
-                                       :habit-log/time-zone time-zone
-                                       :habit-log/habit-ids habit-ids
-                                       ::schema/created-at now}
+                                    ::schema/type :habit-log
+                                    :user/id user-id
+                                    :habit-log/timestamp timestamp
+                                    :habit-log/time-zone time-zone
+                                    :habit-log/habit-ids habit-ids
+                                    ::schema/created-at now}
                                    (when (not (str/blank? notes))
-                                        {:habit-log/notes notes}))
-                                   (when new-tz
-                                       {:db/op :update
-                                        :db/doc-type :user
-                                        :xt/id user-id
-                                        :user/time-zone time-zone})])))
+                                     {:habit-log/notes notes}))
+                                  (when new-tz
+                                    {:db/op :update
+                                     :db/doc-type :user
+                                     :xt/id user-id
+                                     :user/time-zone time-zone})])))
 
     {:status  303
      :headers {"location"
@@ -250,13 +250,13 @@
          :always (map (fn [log] (list-item log))))]])))
 
 (defn edit-form [{:keys [path-params
-                         query-params
+                         params
                          session
                          biff/db]
                   :as   ctx}]
   (let [log-id               (-> path-params :id UUID/fromString)
-        sensitive            (some-> query-params :sensitive param-true?)
-        archived             (some-> query-params :archived param-true?)
+        sensitive            (some-> params :sensitive param-true?)
+        archived             (some-> params :archived param-true?)
         user-id              (:uid session)
         {:user/keys [email]} (xt/entity db user-id)
         habit-log            (single-for-user-query (merge ctx {:xt/id log-id}))
@@ -277,10 +277,13 @@
      {}
      [:div
       (nav-bar (pot/map-of email))
-
+      [:div.my-4
+       (if sensitive
+         [:a.link {:href (str "/app/habit-logs/" log-id "/edit")} "hide sensitive"]
+         [:a.link {:href (str "/app/habit-logs/" log-id "/edit?sensitive=true")} "sensitive"])]
       [:div.w-full.md:w-96.space-y-8
        (biff/form
-        {:hx-post   (str "/app/habit-logs/" log-id "/edit")
+        {:hx-post   (str "/app/habit-logs/" log-id)
          :hx-swap   "outerHTML"
          :hx-select "#edit-habit-log-form"
          :id        "edit-habit-log-form"}
@@ -342,11 +345,11 @@
          [:span.text-gray-500 (str "created at: " formatted-created-at)]])
 
        ;; delete form
-      (biff/form
-       {:action (str "/app/habit-logs/" log-id "/delete") :method "post"}
-       [:div.w-full.md:w-96.p-2.my-4
-        [:input.text-center.bg-red-100.hover:bg-red-500.hover:text-white.text-black.font-bold.py-2.px-4.rounded.w-full
-         {:type "submit" :value "Delete"}]])]])))
+       (biff/form
+        {:action (str "/app/habit-logs/" log-id "/delete") :method "post"}
+        [:div.w-full.md:w-96.p-2.my-4
+         [:input.text-center.bg-red-100.hover:bg-red-500.hover:text-white.text-black.font-bold.py-2.px-4.rounded.w-full
+          {:type "submit" :value "Delete"}]])]])))
 
 (defn edit! [{:keys [session params] :as ctx}]
   (let [id-strs        (-> params :habit-refs ensure-vector)
@@ -356,30 +359,32 @@
         local-datetime (LocalDateTime/parse timestamp-str)
         zone-id        (ZoneId/of time-zone)
         zdt            (ZonedDateTime/of local-datetime zone-id)
-        timestamp      (-> zdt (t/inst))
+        timestamp      (-> zdt (t/instant))
         habit-ids      (->> id-strs
                             (map #(some-> % UUID/fromString))
                             set)
         log-id         (-> params :id UUID/fromString)
         user-id        (:uid session)
         user-time-zone (get-user-time-zone ctx)
-        new-tz         (not= user-time-zone time-zone)]
+        new-tz         (not= user-time-zone time-zone)
+        ops            (->> [(merge {:db/op               :update
+                                     :db/doc-type         :habit-log
+                                     ::schema/type        :habit-log
+                                     :xt/id               log-id
+                                     :habit-log/timestamp timestamp
+                                     :habit-log/time-zone time-zone
+                                     :habit-log/habit-ids habit-ids}
+                                    (when (not (str/blank? notes))
+                                      {:habit-log/notes notes}))
+                             (when new-tz
+                               {:db/op          :update
+                                :db/doc-type    :user
+                                :xt/id          user-id
+                                :user/time-zone time-zone})]
+                            (remove nil?))]
 
-    (biff/submit-tx ctx
-                    [(merge {:db/op               :update
-                             :db/doc-type         :habit-log
-                             ::schema/type        :habit-log
-                             :xt/id               log-id
-                             :habit-log/timestamp timestamp
-                             :habit-log/time-zone time-zone
-                             :habit-log/habit-ids habit-ids}
-                            (when (not (str/blank? notes))
-                              {:habit-log/notes notes}))
-                     (when new-tz
-                       {:db/op          :update
-                        :db/doc-type    :user
-                        :xt/id          user-id
-                        :user/time-zone time-zone})])
+    (biff/submit-tx ctx ops)
+
     {:status  303
      :headers {"location" (str "/app/habit-logs/" log-id "/edit")}}))
 
