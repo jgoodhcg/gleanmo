@@ -8,25 +8,27 @@
    [clojure.java.io :as io]
    [tick.core :as t]
    [clojure.pprint :refer [pprint]]
-   [repl :refer [get-context]]
+   [repl :refer [get-context prod-node-start get-prod-db-context]]
    [com.biffweb :as biff :refer [q]]))
 
 (def activity-file-name
-  "/Users/justingood/projects/gleanmo/airtable_data/activity_2024_06_25_08_53_52_288616.edn")
+  "/Users/justingood/projects/gleanmo/airtable_data/activity_2024_07_04_15_27_20_679013.edn")
 (def log-file-name
-  "/Users/justingood/projects/gleanmo/airtable_data/activity_log_2024_06_25_08_55_08_082302.edn")
+  "/Users/justingood/projects/gleanmo/airtable_data/activity_log_2024_07_04_15_27_37_542631.edn")
+
+;; NOTE Do not change these!
 (def ns-uuid-activity
   #uuid "d542f8dc-96d1-495d-afa6-738750c08510")
 (def ns-uuid-activity-log
   #uuid "f4ab292b-5e61-4c71-9a3a-bc75da0525e3")
+
 (def email
   "justin@jgood.online")
 (def tz-str
   "America/Detroit") ;; use (t/zone) to check if it's a real timezone string identifier
 
-(defn port-habits []
-  (let [{:keys [biff/db] :as ctx} (get-context)
-        user-id                   (biff/lookup-id db :user/email email)]
+(defn port-habits [{:keys [biff/db] :as ctx}]
+  (let [user-id                   (biff/lookup-id db :user/email email)]
     (with-open [rdr (io/reader activity-file-name)]
       (doseq [line (->> rdr line-seq)]
         (let [edn-data   (edn/read-string line)
@@ -53,9 +55,8 @@
 
               (biff/submit-tx ctx [habit]))))))))
 
-(defn port-habit-logs []
-  (let [{:keys [biff/db] :as ctx} (get-context)
-        user-id                   (biff/lookup-id db :user/email email)]
+(defn port-habit-logs [{:keys [biff/db] :as ctx}]
+  (let [user-id (biff/lookup-id db :user/email email)]
     (with-open [rdr (io/reader log-file-name)]
       (doseq [line (->> rdr line-seq)]
         (let [edn-data   (edn/read-string line)
@@ -85,10 +86,13 @@
               (biff/submit-tx ctx [habit-log]))))))))
 
 (comment
-  ;; habits
-  (port-habits)
+  ;; local dev
+  (port-habits (get-context))
+  (port-habit-logs (get-context))
 
-  ;; habit-logs
-  (port-habit-logs)
+  ;; prod db
+  (def prod-node (prod-node-start)) ;; only call once in a repl instance
+  (port-habits (get-prod-db-context prod-node))
+  (port-habit-logs (get-prod-db-context prod-node))
   ;;
   )

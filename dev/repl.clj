@@ -159,3 +159,16 @@
                       :authz/super-user true}]))
   ;;
   )
+
+(defn prod-node-start
+  "Only call this once"
+  []
+  (let [jdbc-url ((-> (check-config) :prod-config :biff.xtdb.jdbc/jdbcUrl))]
+    (biff/start-node {:topology  :jdbc
+                      :jdbc-spec {:jdbcUrl jdbc-url}
+                      :dir       "prod-storage/"})))
+
+(defn get-prod-db-context [prod-node-ref]
+  (-> @main/system
+      (merge {:biff.xtdb/node prod-node-ref})
+      biff/assoc-db))

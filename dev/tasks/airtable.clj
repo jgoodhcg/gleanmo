@@ -55,14 +55,13 @@
         table      (or table-id
                        table-name)
         table-id   (or table-id
-                       (-> table-name keyword (get table-ids)))
+                       (->> table-name keyword (get table-ids)))
         file-name  (str "airtable_data/"
                         (-> table (str/replace "-" "_"))
                         "_"
                         (timestamp)
                         ".edn")
         options    (merge options (pot/map-of table-id))]
-    (println (pot/map-of table table-id table-name))
     (with-open [writer (io/writer file-name)]
       #_(.write writer "[\n")
       (get-all-records options writer)
