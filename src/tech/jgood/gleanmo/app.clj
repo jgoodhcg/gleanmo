@@ -5,6 +5,7 @@
    [tech.jgood.gleanmo.app.habit :as habit]
    [tech.jgood.gleanmo.app.habit-log :as habit-log]
    [tech.jgood.gleanmo.app.user :as user]
+   [tech.jgood.gleanmo.app.location :as location]
    [tech.jgood.gleanmo.app.shared :refer [get-last-tx-time nav-bar
                                           time-zone-select zoned-date-time-fmt]]
    [tech.jgood.gleanmo.middleware :as mid]
@@ -158,4 +159,34 @@
             ["/habit-logs"          {:get habit-log/list-page :post habit-log/create!}]
             ["/habit-logs/:id"      {:get habit-log/view :post habit-log/edit!}]
             ["/habit-logs/:id/edit" {:get habit-log/edit-form}]
-            ["/habit-logs/:id/delete" {:post habit-log/soft-delete!}]]})
+            ["/habit-logs/:id/delete" {:post habit-log/soft-delete!}]
+
+            ;; location
+            ["/new/location"       {:get location/new-form}]
+            ["/locations"          {:get location/list-page :post location/create!}]
+            ["/locations/:id"      {:get location/view :post location/edit!}]
+            ["/locations/:id/edit" {:get location/edit-form}]
+            ["/locations/:id/delete" {:post location/soft-delete!}]
+
+            ;;
+            ;; mbsr
+            ;;
+
+            #_#_#_#_#_#_#_#_#_#_
+            ;; meditation-type
+            ["/new/meditation-type"       {:get meditation-type/new-form}]
+            ["/meditation-types"          {:get meditation-type/list-page :post meditation-type/create!}]
+            ["/meditation-types/:id"      {:get meditation-type/view :post meditation-type/edit!}]
+            ["/meditation-types/:id/edit" {:get meditation-type/edit-form}]
+            ["/meditation-types/:id/delete" {:post meditation-type/soft-delete!}]
+
+            ;; meditation-log
+            ["/new/meditation-log"       {:get meditation-log/new-form}]
+            ["/meditation-logs"          {:get meditation-log/list-page :post meditation-log/create!}]
+            ["/meditation-logs/:id"      {:get meditation-log/view :post meditation-log/edit!}]
+            ["/meditation-logs/:id/edit" {:get meditation-log/edit-form}]
+            ["/meditation-logs/:id/delete" {:post meditation-log/soft-delete!}]
+
+
+            ;;
+            ]})

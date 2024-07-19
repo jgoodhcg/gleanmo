@@ -10,6 +10,9 @@
    :exercise/id         :uuid
    :exercise-log/id     :uuid
    :exercise-session/id :uuid
+   :location/id         :uuid
+   :meditation-type/id  :uuid
+   :meditation-log/id   :uuid
    :user                [:map {:closed true}
                          [:xt/id                             :user/id]
                          [:authz/super-user {:optional true} :boolean]
@@ -40,8 +43,35 @@
                          [:habit-log/timestamp              :instant]
                          [:habit-log/time-zone              :string]
                          [:habit-log/habit-ids              [:set :habit/id]]
-                         [:habit-log/notes {:optional true} :string]
-                         ]
+                         [:habit-log/notes {:optional true} :string]]
+   :location            [:map {:closed true}
+                         [:xt/id                           :location/id]
+                         [::type                           [:enum :location]]
+                         [::deleted-at {:optional true}    :instant]
+                         [::created-at                     :instant]
+                         [:user/id                         :user/id]
+                         [:location/name                   :string]
+                         [:location/notes {:optional true} :string]]
+   :meditation-type     [:map {:closed true}
+                         [:xt/id                        :meditation-type/id]
+                         [::type                        [:enum :meditation-type]]
+                         [::deleted-at {:optional true} :instant]
+                         [::created-at                  :instant]
+                         [:user/id                      :user/id]
+                         [:type/name                    :string]]
+   :meditation-log      [:map {:closed true}
+                         [:xt/id                              :meditation-log/id]
+                         [::type                              [:enum :meditation-log]]
+                         [::deleted-at {:optional true}       :instant]
+                         [::created-at                        :instant]
+                         [:user/id                            :user/id]
+                         [:meditation-log/location-id         :location/id]
+                         [:meditation-log/beginning           :instant]
+                         [:meditation-log/end                 :instant]
+                         [:meditation-log/position            [:enum :sitting :lying-down :walking :standing]]
+                         [:meditation-log/guided              :boolean]
+                         [:meditation-log/type-id             :meditation-type/id]
+                         [:meditation-log/interrupted         :boolean]]
    ;; TODO sort attributes and at created-at
    :exercise            [:map {:closed true}
                          [:xt/id :exercise/id]

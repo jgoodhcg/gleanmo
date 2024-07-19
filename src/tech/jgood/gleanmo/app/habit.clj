@@ -63,7 +63,7 @@
 
        [:div
         [:h2.text-base.font-semibold.leading-7.text-gray-900 "Create Habit"]
-        [:p.mt-1.text-sm.leading-6.text-gray-600 "Create a new habit to your list."]]
+        [:p.mt-1.text-sm.leading-6.text-gray-600 "Create a new habit."]]
 
        [:div.grid.grid-cols-1.gap-y-6
 
@@ -188,7 +188,6 @@
             (map (fn [z] (list-item (-> z (assoc :edit-id edit-id))))))]])))
 
 (defn edit! [{:keys [params] :as ctx}]
-  (println "dafuq")
   (let [id        (-> params :id UUID/fromString)
         habit     (single-for-user-query (merge ctx {:xt/id id}))
         name      (:name params)

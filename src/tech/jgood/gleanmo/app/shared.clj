@@ -14,6 +14,7 @@
    [:a.link {:href "/app"} "home"]
    [:a.link {:href "/app/habits"} "habits"]
    [:a.link {:href "/app/habit-logs"} "habit logs"]
+   [:a.link {:href "/app/locations"} "locations"]
    (biff/form
     {:action "/auth/signout"
      :class  "inline"}
