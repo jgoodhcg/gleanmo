@@ -6,6 +6,7 @@
    [tech.jgood.gleanmo.app.habit-log :as habit-log]
    [tech.jgood.gleanmo.app.user :as user]
    [tech.jgood.gleanmo.app.location :as location]
+   [tech.jgood.gleanmo.app.meditation-type :as meditation-type]
    [tech.jgood.gleanmo.app.shared :refer [get-last-tx-time nav-bar
                                           time-zone-select zoned-date-time-fmt]]
    [tech.jgood.gleanmo.middleware :as mid]
@@ -172,7 +173,6 @@
             ;; mbsr
             ;;
 
-            #_#_#_#_#_#_#_#_#_#_
             ;; meditation-type
             ["/new/meditation-type"       {:get meditation-type/new-form}]
             ["/meditation-types"          {:get meditation-type/list-page :post meditation-type/create!}]
@@ -180,6 +180,7 @@
             ["/meditation-types/:id/edit" {:get meditation-type/edit-form}]
             ["/meditation-types/:id/delete" {:post meditation-type/soft-delete!}]
 
+            #_#_#_#_#_
             ;; meditation-log
             ["/new/meditation-log"       {:get meditation-log/new-form}]
             ["/meditation-logs"          {:get meditation-log/list-page :post meditation-log/create!}]

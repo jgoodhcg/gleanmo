@@ -86,17 +86,14 @@
             (map list-item)))])))
 
 (defn create! [{:keys [params session] :as ctx}]
-  (let [now       (t/now)
-        sensitive (boolean (:sensitive params))]
+  (let [now       (t/now)]
     (biff/submit-tx ctx
                     [(merge {:db/doc-type        :location
                              ::schema/type       :location
                              :user/id            (:uid session)
                              :location/name      (:location-name params)
                              :location/notes     (:notes params)
-                             ::schema/created-at now}
-                            (when sensitive
-                              {:location/sensitive sensitive}))]))
+                             ::schema/created-at now})]))
   {:status  303
    :headers {"location" "/app/new/location"}})
 
@@ -127,8 +124,7 @@
   (let [user-id             (:uid session)
         {:user/keys
          [email time-zone]} (xt/entity db user-id)
-        locations           (all-for-user-query (merge ctx {:sensitive true
-                                                            :archived  true}))
+        locations           (all-for-user-query (merge ctx {:archived  true}))
         edit-id             (some-> params :edit (UUID/fromString))
         search-str          (or (some-> params :search search-str-xform)
                                 "")]

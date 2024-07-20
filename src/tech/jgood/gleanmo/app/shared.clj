@@ -15,6 +15,7 @@
    [:a.link {:href "/app/habits"} "habits"]
    [:a.link {:href "/app/habit-logs"} "habit logs"]
    [:a.link {:href "/app/locations"} "locations"]
+   [:a.link {:href "/app/meditation-types"} "meditation types"]
    (biff/form
     {:action "/auth/signout"
      :class  "inline"}
