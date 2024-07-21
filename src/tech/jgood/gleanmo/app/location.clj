@@ -25,9 +25,9 @@
 (defn single-for-user-query [{:keys [biff/db session xt/id]}]
   (first
    (q db '{:find  (pull ?location [*])
-           :where [[?location ::schema/type :location]
+           :where [[?location :xt/id location-id]
+                   [?location ::schema/type :location]
                    [?location :user/id user-id]
-                   [?location :xt/id location-id]
                    (not [?location ::schema/deleted-at])]
            :in    [user-id location-id]} (:uid session) id)))
 

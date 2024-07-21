@@ -5,17 +5,19 @@
    [tick.core :as t]
    [xtdb.api :as xt])
   (:import
-   [java.time ZoneId])
-  )
+   [java.time ZoneId]
+   [java.time LocalDateTime]
+   [java.time ZonedDateTime]))
 
 (defn nav-bar [{:keys [email]}]
   [:div.space-x-8
    [:a.link {:href "/app/my-user"} email]
    [:a.link {:href "/app"} "home"]
    [:a.link {:href "/app/habits"} "habits"]
-   [:a.link {:href "/app/habit-logs"} "habit logs"]
+   [:a.link {:href "/app/habit-logs"} "habit-logs"]
    [:a.link {:href "/app/locations"} "locations"]
-   [:a.link {:href "/app/meditation-types"} "meditation types"]
+   [:a.link {:href "/app/meditation-types"} "meditation-types"]
+   [:a.link {:href "/app/meditation-logs"} "meditation-logs"]
    (biff/form
     {:action "/auth/signout"
      :class  "inline"}
@@ -70,3 +72,12 @@
                  (map (fn [zoneId]
                         [:option {:value    zoneId
                                   :selected (= zoneId time-zone)} zoneId])))]]])
+
+(defn str->instant
+  "Return nil if string is empty or invalid format"
+  [date-time-str zone-id]
+  (when (not (str/blank? date-time-str))
+    (some-> date-time-str
+            (LocalDateTime/parse)
+            (ZonedDateTime/of zone-id)
+            (t/instant))))

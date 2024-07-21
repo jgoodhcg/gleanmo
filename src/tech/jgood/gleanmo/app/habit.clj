@@ -27,9 +27,9 @@
 (defn single-for-user-query [{:keys [biff/db session xt/id]}]
   (first
    (q db '{:find  (pull ?habit [*])
-           :where [[?habit ::schema/type :habit]
+           :where [[?habit :xt/id habit-id]
+                   [?habit ::schema/type :habit]
                    [?habit :user/id user-id]
-                   [?habit :xt/id habit-id]
                    (not [?habit ::schema/deleted-at])]
            :in    [user-id habit-id]} (:uid session) id)))
 

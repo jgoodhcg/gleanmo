@@ -31,8 +31,8 @@
 
 (defn all-for-user-query [{:keys [biff/db session sensitive archived]}]
   (let [raw-results (q db '{:find  [(pull ?habit-log [*]) (pull ?habit [*]) ?tz]
-                            :where [[?habit-log :habit-log/timestamp]
-                                    [?habit-log :user/id user-id]
+                            :where [[?habit-log :user/id user-id]
+                                    [?habit-log :habit-log/timestamp]
                                     [?habit-log :habit-log/habit-ids ?habit-id]
                                     [?habit :xt/id ?habit-id]
                                     [?habit :habit/name ?habit-name]
@@ -62,9 +62,9 @@
 (defn single-for-user-query [{:keys [biff/db session :xt/id]}]
   (let [user-id (:uid session)]
     (first (q db '{:find  (pull ?log [*])
-                   :where [[?log ::schema/type :habit-log]
+                   :where [[?log :xt/id log-id]
+                           [?log ::schema/type :habit-log]
                            [?log :user/id user-id]
-                           [?log :xt/id log-id]
                            (not [?habit ::schema/deleted-at])
                            (not [?habit-log ::schema/deleted-at])]
                    :in    [user-id log-id]} user-id id))))
@@ -175,7 +175,7 @@
           (->> recent-logs
                (map (fn [z] (list-item z))))]])]])))
 
-(defn create! [{:keys [session params biff/db] :as ctx}]
+(defn create! [{:keys [session params] :as ctx}]
   (let [sensitive            (some-> params :sensitive param-true?)
         archived             (some-> params :archived param-true?)
         persist-query-params (or sensitive archived)
@@ -295,16 +295,8 @@
          [:p.mt-1.text-sm.leading-6.text-gray-600 "Edit your habit log entry."]]
 
         ;; Time Zone selection
-        [:div
-         [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "time-zone"} "Time Zone"]
-         [:div.mt-2
-          [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-           {:name "time-zone" :required true :autocomplete "on"}
-           (->> (ZoneId/getAvailableZoneIds)
-                sort
-                (map (fn [zoneId]
-                       [:option {:value    zoneId
-                                 :selected (= zoneId time-zone)} zoneId])))]]]
+        (time-zone-select time-zone)
+
 
         ;; Notes input
         [:div

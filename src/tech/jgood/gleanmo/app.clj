@@ -1,21 +1,20 @@
 (ns tech.jgood.gleanmo.app
   (:require
+   [clojure.string :as str]
    [com.biffweb :as biff :refer [q]]
    [potpuri.core :as pot]
    [tech.jgood.gleanmo.app.habit :as habit]
    [tech.jgood.gleanmo.app.habit-log :as habit-log]
-   [tech.jgood.gleanmo.app.user :as user]
    [tech.jgood.gleanmo.app.location :as location]
+   [tech.jgood.gleanmo.app.meditation-log :as meditation-log]
    [tech.jgood.gleanmo.app.meditation-type :as meditation-type]
-   [tech.jgood.gleanmo.app.shared :refer [get-last-tx-time nav-bar
-                                          time-zone-select zoned-date-time-fmt]]
+   [tech.jgood.gleanmo.app.shared :refer [nav-bar]]
+   [tech.jgood.gleanmo.app.user :as user]
    [tech.jgood.gleanmo.middleware :as mid]
    [tech.jgood.gleanmo.schema :as schema]
    [tech.jgood.gleanmo.settings :as settings]
    [tech.jgood.gleanmo.ui :as ui]
-   [tick.core :as t]
-   [xtdb.api :as xt]
-   [clojure.string :as str]))
+   [xtdb.api :as xt]))
 
 (def about-page
   (ui/page
@@ -23,7 +22,7 @@
    [:p "This app was made with "
     [:a.link {:href "https://biffweb.com"} "Biff"] "."]))
 
-(def db-viz-supported-types #{:user :habit :habit-log})
+(def db-viz-supported-types #{:user :habit :habit-log :meditation-type :meditation-log :location})
 
 (defn db-viz [{:keys [session biff/db path-params params]}]
   (let [{:user/keys  [email]
@@ -180,7 +179,6 @@
             ["/meditation-types/:id/edit" {:get meditation-type/edit-form}]
             ["/meditation-types/:id/delete" {:post meditation-type/soft-delete!}]
 
-            #_#_#_#_#_
             ;; meditation-log
             ["/new/meditation-log"       {:get meditation-log/new-form}]
             ["/meditation-logs"          {:get meditation-log/list-page :post meditation-log/create!}]
