@@ -1,18 +1,17 @@
 (ns tech.jgood.gleanmo.app.habit-log
   (:require
    [clojure.string :as str]
-   [clojure.pprint :refer [pprint]]
    [com.biffweb :as biff :refer [q]]
    [potpuri.core :as pot]
-   [tech.jgood.gleanmo.app.shared :refer [param-true? ensure-vector
-                                          format-date-time-local get-last-tx-time
-                                          get-user-time-zone link-button local-date-time-fmt nav-bar search-str-xform
+   [tech.jgood.gleanmo.app.habit :as habit]
+   [tech.jgood.gleanmo.app.shared :refer [ensure-vector format-date-time-local
+                                          get-last-tx-time get-user-time-zone
+                                          link-button local-date-time-fmt nav-bar param-true? search-str-xform
                                           time-zone-select zoned-date-time-fmt]]
    [tech.jgood.gleanmo.schema :as schema]
    [tech.jgood.gleanmo.ui :as ui]
    [tick.core :as t]
-   [xtdb.api :as xt]
-   [tech.jgood.gleanmo.app.habit :as habit])
+   [xtdb.api :as xt])
   (:import
    [java.time ZoneId]
    [java.time LocalDateTime]

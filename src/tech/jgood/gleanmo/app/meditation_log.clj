@@ -1,27 +1,20 @@
 (ns tech.jgood.gleanmo.app.meditation-log
   (:require
-   [clojure.pprint :refer [pprint]]
    [clojure.string :as str]
-   [com.biffweb :as biff :refer [q lookup]]
+   [com.biffweb :as biff :refer [q]]
    [potpuri.core :as pot]
-   [tech.jgood.gleanmo.app.shared :refer [param-true? get-last-tx-time
-                                          ensure-vector
-                                          str->instant
-                                          get-user-time-zone link-button nav-bar
-                                          search-str-xform zoned-date-time-fmt
-                                          local-date-time-fmt
-                                          format-date-time-local
-                                          time-zone-select]]
-   [tech.jgood.gleanmo.schema :as schema]
-   [tech.jgood.gleanmo.ui :as ui]
    [tech.jgood.gleanmo.app.location :as location]
    [tech.jgood.gleanmo.app.meditation-type :as meditation-type]
+   [tech.jgood.gleanmo.app.shared :refer [format-date-time-local
+                                          get-last-tx-time get-user-time-zone link-button
+                                          local-date-time-fmt nav-bar param-true? str->instant time-zone-select
+                                          zoned-date-time-fmt]]
+   [tech.jgood.gleanmo.schema :as schema]
+   [tech.jgood.gleanmo.ui :as ui]
    [tick.core :as t]
    [xtdb.api :as xt])
   (:import
    [java.time ZoneId]
-   [java.time LocalDateTime]
-   [java.time ZonedDateTime]
    [java.util UUID]))
 
 (defn all-for-user-query [{:keys [biff/db session]}]

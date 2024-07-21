@@ -1,12 +1,11 @@
 (ns tech.jgood.gleanmo.app.meditation-type
   (:require
-   [clojure.pprint :refer [pprint]]
    [clojure.string :as str]
-   [com.biffweb :as biff :refer [q lookup]]
+   [com.biffweb :as biff :refer [q]]
    [potpuri.core :as pot]
-   [tech.jgood.gleanmo.app.shared :refer [param-true? get-last-tx-time
-                                          get-user-time-zone link-button nav-bar
-                                          search-str-xform zoned-date-time-fmt]]
+   [tech.jgood.gleanmo.app.shared :refer [get-last-tx-time get-user-time-zone
+                                          link-button nav-bar search-str-xform
+                                          zoned-date-time-fmt]]
    [tech.jgood.gleanmo.schema :as schema]
    [tech.jgood.gleanmo.ui :as ui]
    [tick.core :as t]
