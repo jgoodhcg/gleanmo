@@ -227,6 +227,7 @@
                                     ::schema/type               :meditation-log
                                     :user/id                    user-id
                                     :meditation-log/location-id location-id
+                                    :meditation-log/time-zone   time-zone
                                     :meditation-log/beginning   beginning
                                     :meditation-log/position    position
                                     :meditation-log/guided      guided
@@ -472,6 +473,6 @@
                           :xt/id              meditation-log-id
                           ::schema/deleted-at now}])
         {:status  303
-         :headers {"meditation-log" "/app/meditation-logs"}})
+         :headers {"location" "/app/meditation-logs"}})
       {:status 403
        :body   "Not authorized to edit that meditation-log"})))

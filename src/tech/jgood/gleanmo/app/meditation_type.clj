@@ -160,7 +160,7 @@
                           :meditation-type/name  name
                           :meditation-type/notes notes}])
         {:status  303
-         :headers {"meditation-type" (str "/app/meditation-types/" id "/edit")}})
+         :headers {"location" (str "/app/meditation-types/" id "/edit")}})
       {:status 403
        :body   "Not authorized to edit that meditation-type"})))
 
@@ -256,6 +256,6 @@
                           :xt/id              meditation-type-id
                           ::schema/deleted-at now}])
         {:status  303
-         :headers {"meditation-type" "/app/meditation-types"}})
+         :headers {"location" "/app/meditation-types"}})
       {:status 403
        :body   "Not authorized to edit that meditation-type"})))
