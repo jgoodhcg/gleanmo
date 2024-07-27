@@ -5,6 +5,7 @@
    [potpuri.core :as pot]
    [tech.jgood.gleanmo.app.habit :as habit]
    [tech.jgood.gleanmo.app.habit-log :as habit-log]
+   [tech.jgood.gleanmo.app.ical-url :as ical-url]
    [tech.jgood.gleanmo.app.location :as location]
    [tech.jgood.gleanmo.app.meditation-log :as meditation-log]
    [tech.jgood.gleanmo.app.meditation-type :as meditation-type]
@@ -22,7 +23,7 @@
    [:p "This app was made with "
     [:a.link {:href "https://biffweb.com"} "Biff"] "."]))
 
-(def db-viz-supported-types #{:user :habit :habit-log :meditation-type :meditation-log :location})
+(def db-viz-supported-types #{:user :habit :habit-log :meditation-type :meditation-log :location :ical-url})
 
 (defn db-viz [{:keys [session biff/db path-params params]}]
   (let [{:user/keys  [email]
@@ -163,6 +164,7 @@
 
             ;; location
             ["/new/location"       {:get location/new-form}]
+            ["/search-locations"      {:post location/list-page}]
             ["/locations"          {:get location/list-page :post location/create!}]
             ["/locations/:id"      {:get location/view :post location/edit!}]
             ["/locations/:id/edit" {:get location/edit-form}]
@@ -174,6 +176,7 @@
 
             ;; meditation-type
             ["/new/meditation-type"       {:get meditation-type/new-form}]
+            ["/search-meditation-types"   {:post meditation-type/list-page}]
             ["/meditation-types"          {:get meditation-type/list-page :post meditation-type/create!}]
             ["/meditation-types/:id"      {:get meditation-type/view :post meditation-type/edit!}]
             ["/meditation-types/:id/edit" {:get meditation-type/edit-form}]
@@ -186,6 +189,17 @@
             ["/meditation-logs/:id/edit" {:get meditation-log/edit-form}]
             ["/meditation-logs/:id/delete" {:post meditation-log/soft-delete!}]
 
+            ;;
+            ;; time tracking
+            ;;
+
+            ;; ical-url
+            ["/new/ical-url"            {:get ical-url/new-form}]
+            ["/search-ical-urls"      {:post ical-url/list-page}]
+            ["/ical-urls"               {:get ical-url/list-page :post ical-url/create!}]
+            ["/ical-urls/:id"           {:get ical-url/view :post ical-url/edit!}]
+            ["/ical-urls/:id/edit"      {:get ical-url/edit-form}]
+            ["/ical-urls/:id/delete"    {:post ical-url/soft-delete!}]
 
             ;;
             ]})

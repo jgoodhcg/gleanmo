@@ -13,17 +13,19 @@
          io.github.nextjournal/clerk         {:mvn/version "0.15.957"}
          org.slf4j/slf4j-simple              {:mvn/version "2.0.0-alpha5"}
          metosin/potpuri                     {:mvn/version "0.5.3"}
-         tick/tick                           {:mvn/version "0.7.5"}}
+         tick/tick                           {:mvn/version "0.7.5"}
+         org.mnode.ical4j/ical4j             {:mvn/version "4.0.2"}
+         clj-http/clj-http                   {:mvn/version "3.13.0"}}
  :aliases
- {:dev {:extra-deps {com.biffweb/tasks {:git/url "https://github.com/jacobobryant/biff"
-                                        :git/tag "v1.8.10", :git/sha "146f2b1"
-                                        :deps/root "libs/tasks"}}
-        :extra-paths ["dev" "notebook_data" "test"]
-        :jvm-opts ["-XX:-OmitStackTraceInFastThrow"
-                   "-XX:+CrashOnOutOfMemoryError"
-                   "-Dbiff.env.BIFF_PROFILE=dev"]
-        :main-opts ["-m" "com.biffweb.task-runner" "tasks/tasks"]}
-  :prod {:jvm-opts ["-XX:-OmitStackTraceInFastThrow"
+ {:dev  {:extra-deps  {com.biffweb/tasks {:git/url   "https://github.com/jacobobryant/biff"
+                                          :git/tag   "v1.8.10", :git/sha "146f2b1"
+                                          :deps/root "libs/tasks"}}
+         :extra-paths ["dev" "notebook_data" "test"]
+         :jvm-opts    ["-XX:-OmitStackTraceInFastThrow"
+                    "-XX:+CrashOnOutOfMemoryError"
+                    "-Dbiff.env.BIFF_PROFILE=dev"]
+         :main-opts   ["-m" "com.biffweb.task-runner" "tasks/tasks"]}
+  :prod {:jvm-opts  ["-XX:-OmitStackTraceInFastThrow"
                     "-XX:+CrashOnOutOfMemoryError"
                     "-Dbiff.env.BIFF_PROFILE=prod"]
          :main-opts ["-m" "tech.jgood.gleanmo"]}}}

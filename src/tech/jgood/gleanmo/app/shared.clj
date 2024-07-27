@@ -18,6 +18,7 @@
    [:a.link {:href "/app/locations"} "locations"]
    [:a.link {:href "/app/meditation-types"} "meditation-types"]
    [:a.link {:href "/app/meditation-logs"} "meditation-logs"]
+   [:a.link {:href "/app/ical-urls"} "ical-urls"]
    (biff/form
     {:action "/auth/signout"
      :class  "inline"}

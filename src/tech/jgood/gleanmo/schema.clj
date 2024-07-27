@@ -13,6 +13,7 @@
    :location/id         :uuid
    :meditation-type/id  :uuid
    :meditation-log/id   :uuid
+   :ical-url/id         :uuid
    :user                [:map {:closed true}
                          [:xt/id                             :user/id]
                          [:authz/super-user {:optional true} :boolean]
@@ -76,7 +77,21 @@
                          [:meditation-log/interrupted            :boolean]
                          [:meditation-log/notes {:optional true} :string]
                          [:meditation-log/time-zone              :string]]
-
+   :ical-url            [:map {:closed true}
+                         [:xt/id                                    :ical-url/id]
+                         [::type                                    [:enum :ical-url]]
+                         [::deleted-at {:optional true}             :instant]
+                         [::created-at                              :instant]
+                         [:ical-url/user-id                         :user/id]
+                         [:ical-url/url                             :string]
+                         [:ical-url/refreshed-at {:optional true}   :instant]
+                         [:ical-url/last-fetched {:optional true}   :instant]
+                         ;; [:ical-url/fetch-interval {:optional true} :duration] ;; duration can be represented in ISO 8601 format
+                         [:ical-url/source {:optional true}         :string]
+                         [:ical-url/active {:optional true}         :boolean]
+                         [:ical-url/name {:optional true}           :string]
+                         [:ical-url/notes {:optional true}          :string]
+                         [:ical-url/visibility {:optional true}     [:enum :public :private]]]
    ;; TODO sort attributes and at created-at
    :exercise            [:map {:closed true}
                          [:xt/id :exercise/id]
