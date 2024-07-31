@@ -178,10 +178,13 @@
           [:div.mt-2
            [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
             {:name "guided" :required true :autocomplete "off"}
-            (map (fn [guided]
-                   [:option {:value guided}
-                    (if guided "Yes" "No")])
-                 [true false])]]]
+            (map (fn [option]
+                  [:option {:value    (str option)
+                            :selected (= option false)}
+                   (case option
+                     true  "Yes"
+                     false "No")])
+                [true false])]]]
 
          ;; Interrupted input
          [:div
@@ -189,10 +192,13 @@
           [:div.mt-2
            [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
             {:name "interrupted" :required true :autocomplete "off"}
-            (map (fn [interrupted]
-                   [:option {:value interrupted}
-                    (if interrupted "Yes" "No")])
-                 [true false])]]]
+            (map (fn [option]
+                  [:option {:value    (str option)
+                            :selected (= option false)}
+                   (case option
+                     true  "Yes"
+                     false "No")])
+                [true false])]]]
 
          ;; Submit button
          [:div.mt-2.w-full
@@ -412,10 +418,12 @@
          [:div.mt-2
           [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
            {:name "guided" :required true :autocomplete "off"}
-           (map (fn [guided]
-                  [:option {:value    (str guided)
-                            :selected (= guided (get-in meditation-log [:meditation-log/guided]))}
-                   (if guided "Yes" "No")])
+           (map (fn [option]
+                  [:option {:value    (str option)
+                            :selected (= option (get-in meditation-log [:meditation-log/guided]))}
+                   (case option
+                     true  "Yes"
+                     false "No")])
                 [true false])]]]
 
         ;; Interrupted input
@@ -424,10 +432,12 @@
          [:div.mt-2
           [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
            {:name "interrupted" :required true :autocomplete "off"}
-           (map (fn [interrupted]
-                  [:option {:value    (str interrupted)
-                            :selected (= interrupted (get-in meditation-log [:meditation-log/interrupted]))}
-                   (if interrupted "Yes" "No")])
+           (map (fn [option]
+                  [:option {:value    (str option)
+                            :selected (= option (get-in meditation-log [:meditation-log/interrupted]))}
+                   (case option
+                     true  "Yes"
+                     false "No")])
                 [true false])]]]
 
         ;; Submit button
