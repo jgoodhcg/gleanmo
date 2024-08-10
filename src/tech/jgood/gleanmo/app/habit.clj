@@ -5,7 +5,7 @@
    [potpuri.core :as pot]
    [tech.jgood.gleanmo.app.shared :refer [get-last-tx-time get-user-time-zone
                                           link-button nav-bar param-true?
-                                          search-str-xform zoned-date-time-fmt]]
+                                          search-str-xform side-bar zoned-date-time-fmt]]
    [tech.jgood.gleanmo.schema :as schema]
    [tech.jgood.gleanmo.ui :as ui]
    [tick.core :as t]
@@ -52,49 +52,49 @@
                                   (take 3))]
     (ui/page
      {}
-     (nav-bar (pot/map-of email))
-     [:div.m-2.w-full.md:w-96.space-y-8
-      (biff/form
-       {:hx-post   "/app/habits"
-        :hx-swap   "outerHTML"
-        :hx-select "#create-habit-form"
-        :id        "create-habit-form"}
+     (side-bar (pot/map-of email)
+               [:div.m-2.w-full.md:w-96.space-y-8
+                (biff/form
+                 {:hx-post   "/app/habits"
+                  :hx-swap   "outerHTML"
+                  :hx-select "#create-habit-form"
+                  :id        "create-habit-form"}
 
-       [:div
-        [:h2.text-base.font-semibold.leading-7.text-gray-900 "Create Habit"]
-        [:p.mt-1.text-sm.leading-6.text-gray-600 "Create a new habit."]]
+                 [:div
+                  [:h2.text-base.font-semibold.leading-7.text-gray-900 "Create Habit"]
+                  [:p.mt-1.text-sm.leading-6.text-gray-600 "Create a new habit."]]
 
-       [:div.grid.grid-cols-1.gap-y-6
+                 [:div.grid.grid-cols-1.gap-y-6
 
-        ;; Habit Name
-        [:div
-         [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "habit-name"} "Habit Name"]
-         [:div.mt-2
-          [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-           {:type "text" :name "habit-name" :autocomplete "off"}]]]
+                  ;; Habit Name
+                  [:div
+                   [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "habit-name"} "Habit Name"]
+                   [:div.mt-2
+                    [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                     {:type "text" :name "habit-name" :autocomplete "off"}]]]
 
-        ;; Is Sensitive?
-        ;; TODO explain sensitive
-        [:div.flex.items-center
-         [:input.rounded.shadow-sm.mr-2.text-indigo-600.focus:ring-blue-500.focus:border-indigo-500
-          {:type "checkbox" :name "sensitive" :autocomplete "off"}]
-         [:label.text-sm.font-medium.leading-6.text-gray-900 {:for "sensitive"} "Is Sensitive?"]]
+                  ;; Is Sensitive?
+                  ;; TODO explain sensitive
+                  [:div.flex.items-center
+                   [:input.rounded.shadow-sm.mr-2.text-indigo-600.focus:ring-blue-500.focus:border-indigo-500
+                    {:type "checkbox" :name "sensitive" :autocomplete "off"}]
+                   [:label.text-sm.font-medium.leading-6.text-gray-900 {:for "sensitive"} "Is Sensitive?"]]
 
-        ;; Notes
-        [:div
-         [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "notes"} "Notes"]
-         [:div.mt-2
-          [:textarea.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-           {:name "notes" :autocomplete "off"}]]]
+                  ;; Notes
+                  [:div
+                   [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "notes"} "Notes"]
+                   [:div.mt-2
+                    [:textarea.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                     {:name "notes" :autocomplete "off"}]]]
 
-        ;; Submit button
-        [:div.mt-2.w-full
-         [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
-          {:type "submit"} "Create Habit"]]]
+                  ;; Submit button
+                  [:div.mt-2.w-full
+                   [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
+                    {:type "submit"} "Create Habit"]]]
 
-       [:div.my-4 [:span "Recents"]]
-       (->> recent-habits
-            (map list-item)))])))
+                 [:div.my-4 [:span "Recents"]]
+                 (->> recent-habits
+                      (map list-item)))]))))
 
 (defn create! [{:keys [params session] :as ctx}]
   (let [now       (t/now)

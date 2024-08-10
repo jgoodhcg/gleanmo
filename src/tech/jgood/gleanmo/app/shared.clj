@@ -25,6 +25,52 @@
     [:button.text-blue-500.hover:text-blue-800 {:type "submit"}
      "Sign out"])])
 
+(defn side-bar [{:keys [email]} & content]
+  [:div.flex.min-h-screen
+   ;; Mobile menu button
+   [:div.block.md:hidden.p-4
+    {:id "menu-btn"}
+    [:button {:type    "button"
+              :class   "text-gray-800 focus:outline-none"
+              ;; TODO move this to js?
+              :onclick "document.getElementById('sidebar').classList.toggle('hidden');
+                        document.getElementById('sidebar').classList.toggle('flex');
+                        document.getElementById('menu-btn').classList.toggle('hidden');"}
+     ;; Menu icon (hamburger)
+     [:svg {:class   "h-6 w-6"
+            :xmlns   "http://www.w3.org/2000/svg"
+            :fill    "none"
+            :viewBox "0 0 24 24"
+            :stroke  "currentColor"}
+      [:path {:stroke-linecap "round" :stroke-linejoin "round" :stroke-width "2"
+              :d              "M4 6h16M4 12h16M4 18h16"}]]]]
+
+   ;; Sidebar
+   [:div#sidebar.hidden.md:flex.flex-col.space-y-4.bg-gray-100.p-4.z-50
+    {:class "md:w-auto"}
+    ;; User email link
+    [:a.link.text-gray-800 {:href "/app/my-user"} email]
+
+    ;; Navigation links
+    [:a.link.text-gray-800 {:href "/app"} "home"]
+    [:a.link.text-gray-800 {:href "/app/habits"} "habits"]
+    [:a.link.text-gray-800 {:href "/app/habit-logs"} "habit-logs"]
+    [:a.link.text-gray-800 {:href "/app/locations"} "locations"]
+    [:a.link.text-gray-800 {:href "/app/meditation-types"} "meditation-types"]
+    [:a.link.text-gray-800 {:href "/app/meditation-logs"} "meditation-logs"]
+    [:a.link.text-gray-800 {:href "/app/ical-urls"} "ical-urls"]
+
+    ;; Subtle Sign out button
+    (biff/form
+     {:action "/auth/signout"
+      :class  "mt-4"}
+     [:button.btn.bg-gray-300.hover:bg-gray-400.text-gray-800 {:type "submit"}
+      "Sign out"])]
+
+   ;; Main content area
+   [:div.flex-grow.bg-white.p-8
+    content]])
+
 (def local-date-time-fmt "yyyy-MM-dd'T'HH:mm:ss")
 
 (def zoned-date-time-fmt "yyyy-MM-dd HH:mm:ss z")
