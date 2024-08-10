@@ -27,20 +27,23 @@
   (apply
    biff/base-html
    (-> ctx
-       (merge #:base{:title settings/app-name
-                     :lang "en-US"
-                     :icon "/img/glider.png"
+       (merge #:base{:title       settings/app-name
+                     :lang        "en-US"
+                     :icon        "/img/glider.png"
                      :description (str settings/app-name " Description")
-                     :image "https://clojure.org/images/clojure-logo-120b.png"})
+                     :image       "https://clojure.org/images/clojure-logo-120b.png"})
        (update :base/head (fn [head]
                             (concat [[:link {:rel "stylesheet" :href (css-path)}]
+                                     [:link {:rel "preconnect" :href "https://fonts.googleapis.com"}]
+                                     [:link {:rel "preconnect" :href "https://fonts.gstatic.com" :crossorigin true}]
+                                     [:link {:href "https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" :rel "stylesheet"}]
                                      [:script {:src (js-path)}]
                                      [:script {:src "https://unpkg.com/htmx.org@1.9.0"}]
                                      [:script {:src "https://unpkg.com/htmx.org/dist/ext/ws.js"}]
                                      [:script {:src "https://unpkg.com/hyperscript.org@0.9.8"}]
                                      [:script {:defer true :data-domain "gleanmo.com" :src "https://plausible.io/js/script.js"}]
                                      (when recaptcha
-                                       [:script {:src "https://www.google.com/recaptcha/api.js"
+                                       [:script {:src   "https://www.google.com/recaptcha/api.js"
                                                  :async "async" :defer "defer"}])]
                                     head))))
    body))
@@ -48,7 +51,7 @@
 (defn page [ctx & body]
   (base
    ctx
-   [:.p-2.w-full
+   [:.min-h-screen.w-full.font-sans.text-primary
     (when (bound? #'csrf/*anti-forgery-token*)
       {:hx-headers (cheshire/generate-string
                     {:x-csrf-token csrf/*anti-forgery-token*})})
