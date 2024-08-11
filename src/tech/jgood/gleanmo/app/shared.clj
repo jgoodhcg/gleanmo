@@ -76,9 +76,9 @@
                :d              "M4 6h16M4 12h16M4 18h16"}]]]
      [:a.link.text-gray-800 {:href "/app/my-user"} email]]]])
 
-(def local-date-time-fmt "yyyy-MM-dd'T'HH:mm:ss")
+(def local-date-time-fmt "yyyy-MM-dd'T'HH:mm")
 
-(def zoned-date-time-fmt "yyyy-MM-dd HH:mm:ss z")
+(def zoned-date-time-fmt "yyyy-MM-dd HH:mm z")
 
 (defn format-date-time-local [instant zone-id]
   (->> (t/in instant zone-id)
