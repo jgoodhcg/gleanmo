@@ -7,7 +7,7 @@
    [tech.jgood.gleanmo.app.meditation-type :as meditation-type]
    [tech.jgood.gleanmo.app.shared :refer [format-date-time-local
                                           get-last-tx-time get-user-time-zone link-button
-                                          local-date-time-fmt nav-bar param-true? str->instant time-zone-select
+                                          local-date-time-fmt param-true? side-bar str->instant time-zone-select
                                           zoned-date-time-fmt]]
    [tech.jgood.gleanmo.schema :as schema]
    [tech.jgood.gleanmo.ui :as ui]
@@ -109,107 +109,107 @@
     (ui/page
      {}
      [:div
-      (nav-bar (pot/map-of email))
-      [:div.w-full.md:w-96.space-y-8
-       (biff/form
-        {:hx-post   "/app/meditation-logs"
-         :hx-swap   "outerHTML"
-         :hx-select "#log-meditation-form"
-         :id        "log-meditation-form"}
+      (side-bar (pot/map-of email)
+                [:div.w-full.md:w-96.space-y-8
+                 (biff/form
+                  {:hx-post   "/app/meditation-logs"
+                   :hx-swap   "outerHTML"
+                   :hx-select "#log-meditation-form"
+                   :id        "log-meditation-form"}
 
-        [:div
-         [:h2.text-base.font-semibold.leading-7.text-gray-900 "Log Meditation"]]
+                  [:div
+                   [:h2.text-base.font-semibold.leading-7.text-gray-900 "Log Meditation"]]
 
-        [:div.grid.grid-cols-1.gap-y-6
-         ;; Time Zone selection
-         (time-zone-select time-zone)
+                  [:div.grid.grid-cols-1.gap-y-6
+                   ;; Time Zone selection
+                   (time-zone-select time-zone)
 
-         ;; Location selection
-         [:div
-          [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "location-id"} "Location"]
-          [:div.mt-2
-           [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-            {:name "location-id" :required true :autocomplete "off"}
-            (map (fn [location]
-                   [:option {:value (:xt/id location)}
-                    (:location/name location)])
-                 locations)]]]
+                   ;; Location selection
+                   [:div
+                    [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "location-id"} "Location"]
+                    [:div.mt-2
+                     [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                      {:name "location-id" :required true :autocomplete "off"}
+                      (map (fn [location]
+                             [:option {:value (:xt/id location)}
+                              (:location/name location)])
+                           locations)]]]
 
-         ;; Meditation Type selection
-         [:div
-          [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "type-id"} "Meditation Type"]
-          [:div.mt-2
-           [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-            {:name "type-id" :required true :autocomplete "off"}
-            (map (fn [meditation-type]
-                   [:option {:value (:xt/id meditation-type)}
-                    (:meditation-type/name meditation-type)])
-                 meditation-types)]]]
+                   ;; Meditation Type selection
+                   [:div
+                    [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "type-id"} "Meditation Type"]
+                    [:div.mt-2
+                     [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                      {:name "type-id" :required true :autocomplete "off"}
+                      (map (fn [meditation-type]
+                             [:option {:value (:xt/id meditation-type)}
+                              (:meditation-type/name meditation-type)])
+                           meditation-types)]]]
 
-         ;; Beginning time input
-         [:div
-          [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "beginning"} "Beginning Time"]
-          [:div.mt-2
-           [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-            {:type "datetime-local" :name "beginning" :required true :value current-time}]]]
+                   ;; Beginning time input
+                   [:div
+                    [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "beginning"} "Beginning Time"]
+                    [:div.mt-2
+                     [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                      {:type "datetime-local" :name "beginning" :required true :value current-time}]]]
 
-         ;; End time input
-         [:div
-          [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "end"} "End Time"]
-          [:div.mt-2
-           [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-            {:type "datetime-local" :name "end" :required false :value nil}]]]
+                   ;; End time input
+                   [:div
+                    [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "end"} "End Time"]
+                    [:div.mt-2
+                     [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                      {:type "datetime-local" :name "end" :required false :value nil}]]]
 
-         ;; Position selection
-         [:div
-          [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "position"} "Position"]
-          [:div.mt-2
-           [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-            {:name "position" :required true :autocomplete "off"}
-            (map (fn [position]
-                   [:option {:value (name position)}
-                    (str/capitalize (name position))])
-                 ;; TODO create one spot for these
-                 [:sitting :lying-down :walking :standing])]]]
+                   ;; Position selection
+                   [:div
+                    [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "position"} "Position"]
+                    [:div.mt-2
+                     [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                      {:name "position" :required true :autocomplete "off"}
+                      (map (fn [position]
+                             [:option {:value (name position)}
+                              (str/capitalize (name position))])
+                           ;; TODO create one spot for these
+                           [:sitting :lying-down :walking :standing])]]]
 
-         ;; Guided input
-         [:div
-          [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "guided"} "Guided"]
-          [:div.mt-2
-           [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-            {:name "guided" :required true :autocomplete "off"}
-            (map (fn [option]
-                  [:option {:value    (str option)
-                            :selected (= option false)}
-                   (case option
-                     true  "Yes"
-                     false "No")])
-                [true false])]]]
+                   ;; Guided input
+                   [:div
+                    [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "guided"} "Guided"]
+                    [:div.mt-2
+                     [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                      {:name "guided" :required true :autocomplete "off"}
+                      (map (fn [option]
+                             [:option {:value    (str option)
+                                       :selected (= option false)}
+                              (case option
+                                true  "Yes"
+                                false "No")])
+                           [true false])]]]
 
-         ;; Interrupted input
-         [:div
-          [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "interrupted"} "Interrupted"]
-          [:div.mt-2
-           [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-            {:name "interrupted" :required true :autocomplete "off"}
-            (map (fn [option]
-                  [:option {:value    (str option)
-                            :selected (= option false)}
-                   (case option
-                     true  "Yes"
-                     false "No")])
-                [true false])]]]
+                   ;; Interrupted input
+                   [:div
+                    [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "interrupted"} "Interrupted"]
+                    [:div.mt-2
+                     [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                      {:name "interrupted" :required true :autocomplete "off"}
+                      (map (fn [option]
+                             [:option {:value    (str option)
+                                       :selected (= option false)}
+                              (case option
+                                true  "Yes"
+                                false "No")])
+                           [true false])]]]
 
-         ;; Submit button
-         [:div.mt-2.w-full
-          [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
-           {:type "submit"} "Log Meditation"]]
+                   ;; Submit button
+                   [:div.mt-2.w-full
+                    [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
+                     {:type "submit"} "Log Meditation"]]
 
-         ;; Recent logs
-         [:div.mt-4
-          [:h2.text-base.font-semibold.leading-7.text-gray-900 "Recent logs"]
-          (->> recent-logs
-               (map (fn [z] (list-item z))))]])]])))
+                   ;; Recent logs
+                   [:div.mt-4
+                    [:h2.text-base.font-semibold.leading-7.text-gray-900 "Recent logs"]
+                    (->> recent-logs
+                         (map (fn [z] (list-item z))))]])])])))
 
 (defn create! [{:keys [session params] :as ctx}]
   (let [location-id    (-> params :location-id UUID/fromString)
@@ -263,13 +263,13 @@
     (ui/page
      {}
      [:div
-      (nav-bar (pot/map-of email))
-      [:div.my-4
-       (link-button {:href  "/app/new/meditation-log"
-                     :label "Create Meditation-Log"})]
-      [:div {:id "meditation-logs-list"}
-       (->> meditation-logs
-            (map (fn [z] (list-item (-> z (assoc :edit-id edit-id))))))]])))
+      (side-bar (pot/map-of email)
+                [:div.my-4
+                 (link-button {:href  "/app/new/meditation-log"
+                               :label "Create Meditation-Log"})]
+                [:div {:id "meditation-logs-list"}
+                 (->> meditation-logs
+                      (map (fn [z] (list-item (-> z (assoc :edit-id edit-id))))))])])))
 
 (defn edit! [{:keys [session params] :as ctx}]
   (let [location-id    (-> params :location-id UUID/fromString)
@@ -344,117 +344,117 @@
     (ui/page
      {}
      [:div
-      (nav-bar (pot/map-of email))
-      [:div.w-full.md:w-96.space-y-8
-       (biff/form
-        {:hx-post   (str "/app/meditation-logs/" log-id)
-         :hx-swap   "outerHTML"
-         :hx-select "#edit-meditation-log-form"
-         :id        "edit-meditation-log-form"}
+      (side-bar (pot/map-of email)
+                [:div.w-full.md:w-96.space-y-8
+                 (biff/form
+                  {:hx-post   (str "/app/meditation-logs/" log-id)
+                   :hx-swap   "outerHTML"
+                   :hx-select "#edit-meditation-log-form"
+                   :id        "edit-meditation-log-form"}
 
-        [:input {:type "hidden" :name "id" :value log-id}]
+                  [:input {:type "hidden" :name "id" :value log-id}]
 
-        [:div
-         [:h2.text-base.font-semibold.leading-7.text-gray-900 "Edit Meditation Log"]
-         [:p.mt-1.text-sm.leading-6.text-gray-600 "Edit your meditation log entry."]]
+                  [:div
+                   [:h2.text-base.font-semibold.leading-7.text-gray-900 "Edit Meditation Log"]
+                   [:p.mt-1.text-sm.leading-6.text-gray-600 "Edit your meditation log entry."]]
 
-        ;; Location selection
-        [:div
-         [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "location-id"} "Location"]
-         [:div.mt-2
-          [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-           {:name "location-id" :required true :autocomplete "off"}
-           (map (fn [location]
-                  [:option {:value    (:xt/id location)
-                            :selected (= (:xt/id location) (get-in meditation-log [:meditation-log/location-id]))}
-                   (:location/name location)])
-                locations)]]]
+                  ;; Location selection
+                  [:div
+                   [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "location-id"} "Location"]
+                   [:div.mt-2
+                    [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                     {:name "location-id" :required true :autocomplete "off"}
+                     (map (fn [location]
+                            [:option {:value    (:xt/id location)
+                                      :selected (= (:xt/id location) (get-in meditation-log [:meditation-log/location-id]))}
+                             (:location/name location)])
+                          locations)]]]
 
-        ;; Meditation Type selection
-        [:div
-         [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "type-id"} "Meditation Type"]
-         [:div.mt-2
-          [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-           {:name "type-id" :required true :autocomplete "off"}
-           (map (fn [meditation-type]
-                  [:option {:value    (:xt/id meditation-type)
-                            :selected (= (:xt/id meditation-type)
-                                         (get-in meditation-log [:meditation-log/type-id]))}
-                   (:meditation-type/name meditation-type)])
-                meditation-types)]]]
+                  ;; Meditation Type selection
+                  [:div
+                   [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "type-id"} "Meditation Type"]
+                   [:div.mt-2
+                    [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                     {:name "type-id" :required true :autocomplete "off"}
+                     (map (fn [meditation-type]
+                            [:option {:value    (:xt/id meditation-type)
+                                      :selected (= (:xt/id meditation-type)
+                                                   (get-in meditation-log [:meditation-log/type-id]))}
+                             (:meditation-type/name meditation-type)])
+                          meditation-types)]]]
 
-        ;; Time zone selection
-        (time-zone-select time-zone)
+                  ;; Time zone selection
+                  (time-zone-select time-zone)
 
-        ;; Beginning time input
-        [:div
-         [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "beginning"} "Beginning Time"]
-         [:div.mt-2
-          [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-           {:type "datetime-local" :name "beginning" :required true :value formatted-beginning}]]]
+                  ;; Beginning time input
+                  [:div
+                   [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "beginning"} "Beginning Time"]
+                   [:div.mt-2
+                    [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                     {:type "datetime-local" :name "beginning" :required true :value formatted-beginning}]]]
 
-        ;; End time input
-        [:div
-         [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "end"} "End Time"]
-         [:div.mt-2
-          [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-           {:type "datetime-local" :name "end" :required false :value formatted-end}]]]
+                  ;; End time input
+                  [:div
+                   [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "end"} "End Time"]
+                   [:div.mt-2
+                    [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                     {:type "datetime-local" :name "end" :required false :value formatted-end}]]]
 
-        ;; Position selection
-        [:div
-         [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "position"} "Position"]
-         [:div.mt-2
-          [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-           {:name "position" :required true :autocomplete "off"}
-           (map (fn [position]
-                  [:option {:value    (name position)
-                            :selected (= position (get-in meditation-log [:meditation-log/position]))}
-                   (str/capitalize (name position))])
-                [:sitting :lying-down :walking :standing])]]]
+                  ;; Position selection
+                  [:div
+                   [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "position"} "Position"]
+                   [:div.mt-2
+                    [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                     {:name "position" :required true :autocomplete "off"}
+                     (map (fn [position]
+                            [:option {:value    (name position)
+                                      :selected (= position (get-in meditation-log [:meditation-log/position]))}
+                             (str/capitalize (name position))])
+                          [:sitting :lying-down :walking :standing])]]]
 
-        ;; Guided input
-        [:div
-         [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "guided"} "Guided"]
-         [:div.mt-2
-          [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-           {:name "guided" :required true :autocomplete "off"}
-           (map (fn [option]
-                  [:option {:value    (str option)
-                            :selected (= option (get-in meditation-log [:meditation-log/guided]))}
-                   (case option
-                     true  "Yes"
-                     false "No")])
-                [true false])]]]
+                  ;; Guided input
+                  [:div
+                   [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "guided"} "Guided"]
+                   [:div.mt-2
+                    [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                     {:name "guided" :required true :autocomplete "off"}
+                     (map (fn [option]
+                            [:option {:value    (str option)
+                                      :selected (= option (get-in meditation-log [:meditation-log/guided]))}
+                             (case option
+                               true  "Yes"
+                               false "No")])
+                          [true false])]]]
 
-        ;; Interrupted input
-        [:div
-         [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "interrupted"} "Interrupted"]
-         [:div.mt-2
-          [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-           {:name "interrupted" :required true :autocomplete "off"}
-           (map (fn [option]
-                  [:option {:value    (str option)
-                            :selected (= option (get-in meditation-log [:meditation-log/interrupted]))}
-                   (case option
-                     true  "Yes"
-                     false "No")])
-                [true false])]]]
+                  ;; Interrupted input
+                  [:div
+                   [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "interrupted"} "Interrupted"]
+                   [:div.mt-2
+                    [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                     {:name "interrupted" :required true :autocomplete "off"}
+                     (map (fn [option]
+                            [:option {:value    (str option)
+                                      :selected (= option (get-in meditation-log [:meditation-log/interrupted]))}
+                             (case option
+                               true  "Yes"
+                               false "No")])
+                          [true false])]]]
 
-        ;; Submit button
-        [:div.mt-2.w-full
-         [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
-          {:type "submit"} "Update Meditation Log"]]
+                  ;; Submit button
+                  [:div.mt-2.w-full
+                   [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
+                    {:type "submit"} "Update Meditation Log"]]
 
-        [:div.mt-4.flex.flex-col
-         [:span.text-gray-500 (str "last updated: " latest-tx-time)]
-         [:span.text-gray-500 (str "created at: " formatted-created-at)]])
+                  [:div.mt-4.flex.flex-col
+                   [:span.text-gray-500 (str "last updated: " latest-tx-time)]
+                   [:span.text-gray-500 (str "created at: " formatted-created-at)]])
 
-       ;; delete form
-       (biff/form
-        {:action (str "/app/meditation-logs/" log-id "/delete") :method "post"}
-        [:div.w-full.md:w-96.p-2.my-4
-         [:input.text-center.bg-red-100.hover:bg-red-500.hover:text-white.text-black.font-bold.py-2.px-4.rounded.w-full
-          {:type "submit" :value "Delete"}]])]])))
+                 ;; delete form
+                 (biff/form
+                  {:action (str "/app/meditation-logs/" log-id "/delete") :method "post"}
+                  [:div.w-full.md:w-96.p-2.my-4
+                   [:input.text-center.bg-red-100.hover:bg-red-500.hover:text-white.text-black.font-bold.py-2.px-4.rounded.w-full
+                    {:type "submit" :value "Delete"}]])])])))
 
 (defn view [{:keys [path-params
                     session
@@ -467,8 +467,8 @@
     (ui/page
      {}
      [:div
-      (nav-bar (pot/map-of email))
-      (list-item meditation-log)])))
+      (side-bar (pot/map-of email)
+                (list-item meditation-log))])))
 
 (defn soft-delete! [{:keys [path-params params]
                      :as   ctx}]

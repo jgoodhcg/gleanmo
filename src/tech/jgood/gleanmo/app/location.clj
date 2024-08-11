@@ -1,12 +1,11 @@
 (ns tech.jgood.gleanmo.app.location
   (:require
-   [clojure.pprint :refer [pprint]]
    [clojure.string :as str]
-   [com.biffweb :as biff :refer [q lookup]]
+   [com.biffweb :as biff :refer [q]]
    [potpuri.core :as pot]
-   [tech.jgood.gleanmo.app.shared :refer [param-true? get-last-tx-time
-                                          get-user-time-zone link-button nav-bar
-                                          search-str-xform zoned-date-time-fmt]]
+   [tech.jgood.gleanmo.app.shared :refer [get-last-tx-time get-user-time-zone
+                                          link-button search-str-xform
+                                          side-bar zoned-date-time-fmt]]
    [tech.jgood.gleanmo.schema :as schema]
    [tech.jgood.gleanmo.ui :as ui]
    [tick.core :as t]
@@ -48,42 +47,42 @@
                                   (take 3))]
     (ui/page
      {}
-     (nav-bar (pot/map-of email))
-     [:div.m-2.w-full.md:w-96.space-y-8
-      (biff/form
-       {:hx-post   "/app/locations"
-        :hx-swap   "outerHTML"
-        :hx-select "#create-location-form"
-        :id        "create-location-form"}
+     (side-bar (pot/map-of email)
+               [:div.m-2.w-full.md:w-96.space-y-8
+                (biff/form
+                 {:hx-post   "/app/locations"
+                  :hx-swap   "outerHTML"
+                  :hx-select "#create-location-form"
+                  :id        "create-location-form"}
 
-       [:div
-        [:h2.text-base.font-semibold.leading-7.text-gray-900 "Create Location"]
-        [:p.mt-1.text-sm.leading-6.text-gray-600 "Create a new location."]]
+                 [:div
+                  [:h2.text-base.font-semibold.leading-7.text-gray-900 "Create Location"]
+                  [:p.mt-1.text-sm.leading-6.text-gray-600 "Create a new location."]]
 
-       [:div.grid.grid-cols-1.gap-y-6
+                 [:div.grid.grid-cols-1.gap-y-6
 
-        ;; Location Name
-        [:div
-         [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "location-name"} "Location Name"]
-         [:div.mt-2
-          [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-           {:type "text" :name "location-name" :autocomplete "off"}]]]
+                  ;; Location Name
+                  [:div
+                   [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "location-name"} "Location Name"]
+                   [:div.mt-2
+                    [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                     {:type "text" :name "location-name" :autocomplete "off"}]]]
 
-        ;; Notes
-        [:div
-         [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "notes"} "Notes"]
-         [:div.mt-2
-          [:textarea.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-           {:name "notes" :autocomplete "off"}]]]
+                  ;; Notes
+                  [:div
+                   [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "notes"} "Notes"]
+                   [:div.mt-2
+                    [:textarea.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                     {:name "notes" :autocomplete "off"}]]]
 
-        ;; Submit button
-        [:div.mt-2.w-full
-         [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
-          {:type "submit"} "Create Location"]]]
+                  ;; Submit button
+                  [:div.mt-2.w-full
+                   [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
+                    {:type "submit"} "Create Location"]]]
 
-       [:div.my-4 [:span "Recents"]]
-       (->> recent-locations
-            (map list-item)))])))
+                 [:div.my-4 [:span "Recents"]]
+                 (->> recent-locations
+                      (map list-item)))]))))
 
 (defn create! [{:keys [params session] :as ctx}]
   (let [now       (t/now)]
@@ -131,20 +130,20 @@
     (ui/page
      {}
      [:div
-      (nav-bar (pot/map-of email))
-      [:div.my-4
-       (link-button {:href  "/app/new/location"
-                     :label "Create Location"})]
-      (search-component (pot/map-of search-str ))
-      [:div {:id "locations-list"}
-       (->> locations
-            (filter (fn [{:location/keys             [name notes]
-                         id                         :xt/id}]
-                      (let [matches-name  (str/includes? (str/lower-case (str name)) search-str)
-                            matches-notes (str/includes? (str/lower-case (str notes)) search-str)]
-                        (or matches-name
-                            matches-notes))))
-            (map (fn [z] (list-item (-> z (assoc :edit-id edit-id))))))]])))
+      (side-bar (pot/map-of email)
+                [:div.my-4
+                 (link-button {:href  "/app/new/location"
+                               :label "Create Location"})]
+                (search-component (pot/map-of search-str ))
+                [:div {:id "locations-list"}
+                 (->> locations
+                      (filter (fn [{:location/keys             [name notes]
+                                   id                         :xt/id}]
+                                (let [matches-name  (str/includes? (str/lower-case (str name)) search-str)
+                                      matches-notes (str/includes? (str/lower-case (str notes)) search-str)]
+                                  (or matches-name
+                                      matches-notes))))
+                      (map (fn [z] (list-item (-> z (assoc :edit-id edit-id))))))])])))
 
 (defn edit! [{:keys [params] :as ctx}]
   (let [id       (-> params :id UUID/fromString)
@@ -184,51 +183,51 @@
     (ui/page
      {}
      [:div {:id "location-edit-page"}
-      (nav-bar (pot/map-of email))
+      (side-bar (pot/map-of email)
 
-      ;; edit-form
-      (biff/form
-       {:hx-post   (str "/app/locations/" location-id)
-        :hx-swap   "outerHTML"
-        :hx-select "#location-edit-form"
-        :id        "location-edit-form"}
+                ;; edit-form
+                (biff/form
+                 {:hx-post   (str "/app/locations/" location-id)
+                  :hx-swap   "outerHTML"
+                  :hx-select "#location-edit-form"
+                  :id        "location-edit-form"}
 
-       [:div.w-full.md:w-96.p-2
-        [:input {:type "hidden" :name "id" :value location-id}]
+                 [:div.w-full.md:w-96.p-2
+                  [:input {:type "hidden" :name "id" :value location-id}]
 
-        [:div.grid.grid-cols-1.gap-y-6
+                  [:div.grid.grid-cols-1.gap-y-6
 
-         ;; Location Name
-         [:div
-          [:label.block.text-sm.font-medium.leading-6.text-gray-900
-           {:for "location-name"} "Location Name"]
-          [:div.mt-2
-           [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-            {:type "text" :name "name" :value (:location/name location)}]]]
+                   ;; Location Name
+                   [:div
+                    [:label.block.text-sm.font-medium.leading-6.text-gray-900
+                     {:for "location-name"} "Location Name"]
+                    [:div.mt-2
+                     [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                      {:type "text" :name "name" :value (:location/name location)}]]]
 
-         ;; Notes
-         [:div
-          [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "notes"} "Notes"]
-          [:div.mt-2
-           [:textarea.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-            {:name "notes"} (:location/notes location)]]]
+                   ;; Notes
+                   [:div
+                    [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "notes"} "Notes"]
+                    [:div.mt-2
+                     [:textarea.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                      {:name "notes"} (:location/notes location)]]]
 
-         ;; Submit button
-         [:div.mt-2.w-full
-          [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
-           {:type       "submit"}
-           "Update Location"]]
+                   ;; Submit button
+                   [:div.mt-2.w-full
+                    [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
+                     {:type       "submit"}
+                     "Update Location"]]
 
-         [:div.mt-4.flex.flex-col
-          [:span.text-gray-500 (str "last updated: " latest-tx-time)]
-          [:span.text-gray-500 (str "created at: " (or formatted-created-at (::schema/created-at location)))]]]])
+                   [:div.mt-4.flex.flex-col
+                    [:span.text-gray-500 (str "last updated: " latest-tx-time)]
+                    [:span.text-gray-500 (str "created at: " (or formatted-created-at (::schema/created-at location)))]]]])
 
-      ;; delete form
-      (biff/form
-       {:action (str "/app/locations/" location-id "/delete") :method "post"}
-       [:div.w-full.md:w-96.p-2.my-4
-        [:input.text-center.bg-red-100.hover:bg-red-500.hover:text-white.text-black.font-bold.py-2.px-4.rounded.w-full
-         {:type "submit" :value "Delete"}]])])))
+                ;; delete form
+                (biff/form
+                 {:action (str "/app/locations/" location-id "/delete") :method "post"}
+                 [:div.w-full.md:w-96.p-2.my-4
+                  [:input.text-center.bg-red-100.hover:bg-red-500.hover:text-white.text-black.font-bold.py-2.px-4.rounded.w-full
+                   {:type "submit" :value "Delete"}]]))])))
 
 (defn view [{:keys [path-params
                     session
@@ -241,8 +240,8 @@
     (ui/page
      {}
      [:div
-      (nav-bar (pot/map-of email))
-      (list-item location)])))
+      (side-bar (pot/map-of email)
+                (list-item location))])))
 
 (defn soft-delete! [{:keys [path-params params]
                      :as   ctx}]

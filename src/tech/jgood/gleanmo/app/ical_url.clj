@@ -4,8 +4,8 @@
    [com.biffweb :as biff :refer [q]]
    [potpuri.core :as pot]
    [tech.jgood.gleanmo.app.shared :refer [get-last-tx-time get-user-time-zone
-                                          link-button nav-bar search-str-xform
-                                          zoned-date-time-fmt]]
+                                          link-button search-str-xform
+                                          side-bar zoned-date-time-fmt]]
    [tech.jgood.gleanmo.schema :as schema]
    [tech.jgood.gleanmo.ui :as ui]
    [tick.core :as t]
@@ -48,49 +48,49 @@
                                   (take 3))]
     (ui/page
      {}
-     (nav-bar (pot/map-of email))
-     [:div.m-2.w-full.md:w-96.space-y-8
-      (biff/form
-       {:hx-post   "/app/ical-urls"
-        :hx-swap   "outerHTML"
-        :hx-select "#create-ical-url-form"
-        :id        "create-ical-url-form"}
+     (side-bar (pot/map-of email)
+               [:div.m-2.w-full.md:w-96.space-y-8
+                (biff/form
+                 {:hx-post   "/app/ical-urls"
+                  :hx-swap   "outerHTML"
+                  :hx-select "#create-ical-url-form"
+                  :id        "create-ical-url-form"}
 
-       [:div
-        [:h2.text-base.font-semibold.leading-7.text-gray-900 "Create iCal URL"]
-        [:p.mt-1.text-sm.leading-6.text-gray-600 "Create a new iCal URL."]]
+                 [:div
+                  [:h2.text-base.font-semibold.leading-7.text-gray-900 "Create iCal URL"]
+                  [:p.mt-1.text-sm.leading-6.text-gray-600 "Create a new iCal URL."]]
 
-       [:div.grid.grid-cols-1.gap-y-6
+                 [:div.grid.grid-cols-1.gap-y-6
 
-        ;; iCal URL Name
-        [:div
-         [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "ical-url-name"} "iCal URL Name"]
-         [:div.mt-2
-          [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-           {:type "text" :name "ical-url-name" :autocomplete "off"}]]]
+                  ;; iCal URL Name
+                  [:div
+                   [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "ical-url-name"} "iCal URL Name"]
+                   [:div.mt-2
+                    [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                     {:type "text" :name "ical-url-name" :autocomplete "off"}]]]
 
-        ;; URL
-        [:div
-         [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "url"} "URL"]
-         [:div.mt-2
-          [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-           {:type "url" :name "url" :autocomplete "off"}]]]
+                  ;; URL
+                  [:div
+                   [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "url"} "URL"]
+                   [:div.mt-2
+                    [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                     {:type "url" :name "url" :autocomplete "off"}]]]
 
-        ;; Notes
-        [:div
-         [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "notes"} "Notes"]
-         [:div.mt-2
-          [:textarea.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-           {:name "notes" :autocomplete "off"}]]]
+                  ;; Notes
+                  [:div
+                   [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "notes"} "Notes"]
+                   [:div.mt-2
+                    [:textarea.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                     {:name "notes" :autocomplete "off"}]]]
 
-        ;; Submit button
-        [:div.mt-2.w-full
-         [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
-          {:type "submit"} "Create iCal URL"]]]
+                  ;; Submit button
+                  [:div.mt-2.w-full
+                   [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
+                    {:type "submit"} "Create iCal URL"]]]
 
-       [:div.my-4 [:span "Recents"]]
-       (->> recent-ical-urls
-            (map list-item)))])))
+                 [:div.my-4 [:span "Recents"]]
+                 (->> recent-ical-urls
+                      (map list-item)))]))))
 
 (defn create! [{:keys [params session] :as ctx}]
   (let [now       (t/now)]
@@ -139,22 +139,22 @@
     (ui/page
      {}
      [:div
-      (nav-bar (pot/map-of email))
-      [:div.my-4
-       (link-button {:href  "/app/new/ical-url"
-                     :label "Create iCal URL"})]
-      (search-component (pot/map-of search-str ))
-      [:div {:id "ical-urls-list"}
-       (->> ical-urls
-            (filter (fn [{:ical-url/keys             [name url notes]
-                         id                         :xt/id}]
-                      (let [matches-name  (str/includes? (str/lower-case (str name)) search-str)
-                            matches-url (str/includes? (str/lower-case (str url)) search-str)
-                            matches-notes (str/includes? (str/lower-case (str notes)) search-str)]
-                        (or matches-name
-                            matches-url
-                            matches-notes))))
-            (map (fn [z] (list-item (-> z (assoc :edit-id edit-id))))))]])))
+      (side-bar (pot/map-of email)
+                [:div.my-4
+                 (link-button {:href  "/app/new/ical-url"
+                               :label "Create iCal URL"})]
+                (search-component (pot/map-of search-str ))
+                [:div {:id "ical-urls-list"}
+                 (->> ical-urls
+                      (filter (fn [{:ical-url/keys             [name url notes]
+                                   id                         :xt/id}]
+                                (let [matches-name  (str/includes? (str/lower-case (str name)) search-str)
+                                      matches-url (str/includes? (str/lower-case (str url)) search-str)
+                                      matches-notes (str/includes? (str/lower-case (str notes)) search-str)]
+                                  (or matches-name
+                                      matches-url
+                                      matches-notes))))
+                      (map (fn [z] (list-item (-> z (assoc :edit-id edit-id))))))])])))
 
 (defn edit! [{:keys [params] :as ctx}]
   (let [id       (-> params :id UUID/fromString)
@@ -196,58 +196,58 @@
     (ui/page
      {}
      [:div {:id "ical-url-edit-page"}
-      (nav-bar (pot/map-of email))
+      (side-bar (pot/map-of email)
 
-      ;; edit-form
-      (biff/form
-       {:hx-post   (str "/app/ical-urls/" ical-url-id)
-        :hx-swap   "outerHTML"
-        :hx-select "#ical-url-edit-form"
-        :id        "ical-url-edit-form"}
+                ;; edit-form
+                (biff/form
+                 {:hx-post   (str "/app/ical-urls/" ical-url-id)
+                  :hx-swap   "outerHTML"
+                  :hx-select "#ical-url-edit-form"
+                  :id        "ical-url-edit-form"}
 
-       [:div.w-full.md:w-96.p-2
-        [:input {:type "hidden" :name "id" :value ical-url-id}]
+                 [:div.w-full.md:w-96.p-2
+                  [:input {:type "hidden" :name "id" :value ical-url-id}]
 
-        [:div.grid.grid-cols-1.gap-y-6
+                  [:div.grid.grid-cols-1.gap-y-6
 
-         ;; iCal URL Name
-         [:div
-          [:label.block.text-sm.font-medium.leading-6.text-gray-900
-           {:for "ical-url-name"} "iCal URL Name"]
-          [:div.mt-2
-           [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-            {:type "text" :name "name" :value (:ical-url/name ical-url)}]]]
+                   ;; iCal URL Name
+                   [:div
+                    [:label.block.text-sm.font-medium.leading-6.text-gray-900
+                     {:for "ical-url-name"} "iCal URL Name"]
+                    [:div.mt-2
+                     [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                      {:type "text" :name "name" :value (:ical-url/name ical-url)}]]]
 
-         ;; URL
-         [:div
-          [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "url"} "URL"]
-          [:div.mt-2
-           [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-            {:type "url" :name "url" :value (:ical-url/url ical-url)}]]]
+                   ;; URL
+                   [:div
+                    [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "url"} "URL"]
+                    [:div.mt-2
+                     [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                      {:type "url" :name "url" :value (:ical-url/url ical-url)}]]]
 
-         ;; Notes
-         [:div
-          [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "notes"} "Notes"]
-          [:div.mt-2
-           [:textarea.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-            {:name "notes"} (:ical-url/notes ical-url)]]]
+                   ;; Notes
+                   [:div
+                    [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "notes"} "Notes"]
+                    [:div.mt-2
+                     [:textarea.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                      {:name "notes"} (:ical-url/notes ical-url)]]]
 
-         ;; Submit button
-         [:div.mt-2.w-full
-          [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
-           {:type       "submit"}
-           "Update iCal URL"]]
+                   ;; Submit button
+                   [:div.mt-2.w-full
+                    [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
+                     {:type       "submit"}
+                     "Update iCal URL"]]
 
-         [:div.mt-4.flex.flex-col
-          [:span.text-gray-500 (str "last updated: " latest-tx-time)]
-          [:span.text-gray-500 (str "created at: " (or formatted-created-at (::schema/created-at ical-url)))]]]])
+                   [:div.mt-4.flex.flex-col
+                    [:span.text-gray-500 (str "last updated: " latest-tx-time)]
+                    [:span.text-gray-500 (str "created at: " (or formatted-created-at (::schema/created-at ical-url)))]]]])
 
-      ;; delete form
-      (biff/form
-       {:action (str "/app/ical-urls/" ical-url-id "/delete") :method "post"}
-       [:div.w-full.md:w-96.p-2.my-4
-        [:input.text-center.bg-red-100.hover:bg-red-500.hover:text-white.text-black.font-bold.py-2.px-4.rounded.w-full
-         {:type "submit" :value "Delete"}]])])))
+                ;; delete form
+                (biff/form
+                 {:action (str "/app/ical-urls/" ical-url-id "/delete") :method "post"}
+                 [:div.w-full.md:w-96.p-2.my-4
+                  [:input.text-center.bg-red-100.hover:bg-red-500.hover:text-white.text-black.font-bold.py-2.px-4.rounded.w-full
+                   {:type "submit" :value "Delete"}]]))])))
 
 (defn view [{:keys [path-params
                     session
@@ -260,8 +260,8 @@
     (ui/page
      {}
      [:div
-      (nav-bar (pot/map-of email))
-      (list-item ical-url)])))
+      (side-bar (pot/map-of email)
+                (list-item ical-url))])))
 
 (defn soft-delete! [{:keys [path-params params]
                      :as   ctx}]

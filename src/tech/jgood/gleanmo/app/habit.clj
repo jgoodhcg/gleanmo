@@ -4,7 +4,7 @@
    [com.biffweb :as biff :refer [q]]
    [potpuri.core :as pot]
    [tech.jgood.gleanmo.app.shared :refer [get-last-tx-time get-user-time-zone
-                                          link-button nav-bar param-true?
+                                          link-button param-true?
                                           search-str-xform side-bar zoned-date-time-fmt]]
    [tech.jgood.gleanmo.schema :as schema]
    [tech.jgood.gleanmo.ui :as ui]
@@ -164,27 +164,27 @@
     (ui/page
      {}
      [:div
-      (nav-bar (pot/map-of email))
-      [:div.my-4
-       (link-button {:href "/app/new/habit"
-                     :label "Create Habit"})]
-      (search-component (pot/map-of sensitive search archived))
-      [:div {:id "habits-list"}
-       (->> habits
-            (filter (fn [{:habit/keys             [name notes]
-                          this-habit-is-sensitive :habit/sensitive
-                          this-habit-is-archived  :habit/archived
-                          id                      :xt/id}]
-                      (let [matches-name  (str/includes? (str/lower-case (str name)) search)
-                            matches-notes (str/includes? (str/lower-case (str notes)) search)]
-                        (and (or archived
-                                 (not this-habit-is-archived))
-                             (or sensitive
-                                 (-> id (= edit-id))
-                                 (not this-habit-is-sensitive))
-                             (or matches-name
-                                 matches-notes)))))
-            (map (fn [z] (list-item (-> z (assoc :edit-id edit-id))))))]])))
+      (side-bar (pot/map-of email)
+                [:div.my-4
+                 (link-button {:href "/app/new/habit"
+                               :label "Create Habit"})]
+                (search-component (pot/map-of sensitive search archived))
+                [:div {:id "habits-list"}
+                 (->> habits
+                      (filter (fn [{:habit/keys             [name notes]
+                                   this-habit-is-sensitive :habit/sensitive
+                                   this-habit-is-archived  :habit/archived
+                                   id                      :xt/id}]
+                                (let [matches-name  (str/includes? (str/lower-case (str name)) search)
+                                      matches-notes (str/includes? (str/lower-case (str notes)) search)]
+                                  (and (or archived
+                                           (not this-habit-is-archived))
+                                       (or sensitive
+                                           (-> id (= edit-id))
+                                           (not this-habit-is-sensitive))
+                                       (or matches-name
+                                           matches-notes)))))
+                      (map (fn [z] (list-item (-> z (assoc :edit-id edit-id))))))])])))
 
 (defn edit! [{:keys [params] :as ctx}]
   (let [id        (-> params :id UUID/fromString)
@@ -228,68 +228,68 @@
     (ui/page
      {}
      [:div {:id "habit-edit-page"}
-      (nav-bar (pot/map-of email))
+      (side-bar (pot/map-of email)
 
-      ;; edit-form
-      (biff/form
-       {:hx-post   (str "/app/habits/" habit-id)
-        :hx-swap   "outerHTML"
-        :hx-select "#habit-edit-form"
-        :id        "habit-edit-form"}
+                ;; edit-form
+                (biff/form
+                 {:hx-post   (str "/app/habits/" habit-id)
+                  :hx-swap   "outerHTML"
+                  :hx-select "#habit-edit-form"
+                  :id        "habit-edit-form"}
 
-       [:div.w-full.md:w-96.p-2
-        [:input {:type "hidden" :name "id" :value habit-id}]
+                 [:div.w-full.md:w-96.p-2
+                  [:input {:type "hidden" :name "id" :value habit-id}]
 
-        [:div.grid.grid-cols-1.gap-y-6
+                  [:div.grid.grid-cols-1.gap-y-6
 
-         ;; Habit Name
-         [:div
-          [:label.block.text-sm.font-medium.leading-6.text-gray-900
-           {:for "habit-name"} "Habit Name"]
-          [:div.mt-2
-           [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-            {:type "text" :name "name" :value (:habit/name habit)}]]]
+                   ;; Habit Name
+                   [:div
+                    [:label.block.text-sm.font-medium.leading-6.text-gray-900
+                     {:for "habit-name"} "Habit Name"]
+                    [:div.mt-2
+                     [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                      {:type "text" :name "name" :value (:habit/name habit)}]]]
 
-         ;; TODO explain sensitive and archived
-         [:div.flex.flex-col
-          [:div.flex.items-center
-           [:input.rounded.shadow-sm.mr-2.text-indigo-600.focus:ring-blue-500.focus:border-indigo-500
-            {:type "checkbox" :name "sensitive" :checked (:habit/sensitive habit)}]
-           [:label.text-sm.font-medium.leading-6.text-gray-900 {:for "sensitive"} "Is Sensitive?"]]
-          [:span.text-gray-500 "Exclude from entry and reports unless explicilty included."]]
+                   ;; TODO explain sensitive and archived
+                   [:div.flex.flex-col
+                    [:div.flex.items-center
+                     [:input.rounded.shadow-sm.mr-2.text-indigo-600.focus:ring-blue-500.focus:border-indigo-500
+                      {:type "checkbox" :name "sensitive" :checked (:habit/sensitive habit)}]
+                     [:label.text-sm.font-medium.leading-6.text-gray-900 {:for "sensitive"} "Is Sensitive?"]]
+                    [:span.text-gray-500 "Exclude from entry and reports unless explicilty included."]]
 
-         [:div.flex.flex-col
-          [:div.flex.items-center
-           [:input.rounded.shadow-sm.mr-2.text-indigo-600.focus:ring-blue-500.focus:border-indigo-500
-            {:type "checkbox" :name "archived" :checked (:habit/archived habit)}]
-           [:label.text-sm.font-medium.leading-6.text-gray-900 {:for "archived"} "Is Archived?"]]
-          [:span.text-gray-500 "Exclude from entry and reports indefinitely"]]
+                   [:div.flex.flex-col
+                    [:div.flex.items-center
+                     [:input.rounded.shadow-sm.mr-2.text-indigo-600.focus:ring-blue-500.focus:border-indigo-500
+                      {:type "checkbox" :name "archived" :checked (:habit/archived habit)}]
+                     [:label.text-sm.font-medium.leading-6.text-gray-900 {:for "archived"} "Is Archived?"]]
+                    [:span.text-gray-500 "Exclude from entry and reports indefinitely"]]
 
-         ;; Notes
-         [:div
-          [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "notes"} "Notes"]
-          [:div.mt-2
-           [:textarea.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-            {:name "notes"} (:habit/notes habit)]]]
+                   ;; Notes
+                   [:div
+                    [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "notes"} "Notes"]
+                    [:div.mt-2
+                     [:textarea.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                      {:name "notes"} (:habit/notes habit)]]]
 
-         ;; Submit button
-         [:div.mt-2.w-full
-          [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
-           {:type       "submit"
-            ;; maybe bring this back when inline editing is re-enabled
-            #_#_:script "on click setURLParameter('edit', '')"}
-           "Update Habit"]]
+                   ;; Submit button
+                   [:div.mt-2.w-full
+                    [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
+                     {:type       "submit"
+                      ;; maybe bring this back when inline editing is re-enabled
+                      #_#_:script "on click setURLParameter('edit', '')"}
+                     "Update Habit"]]
 
-         [:div.mt-4.flex.flex-col
-          [:span.text-gray-500 (str "last updated: " latest-tx-time)]
-          [:span.text-gray-500 (str "created at: " (or formatted-created-at (::schema/created-at habit)))]]]])
+                   [:div.mt-4.flex.flex-col
+                    [:span.text-gray-500 (str "last updated: " latest-tx-time)]
+                    [:span.text-gray-500 (str "created at: " (or formatted-created-at (::schema/created-at habit)))]]]])
 
-      ;; delete form
-      (biff/form
-       {:action (str "/app/habits/" habit-id "/delete") :method "post"}
-       [:div.w-full.md:w-96.p-2.my-4
-        [:input.text-center.bg-red-100.hover:bg-red-500.hover:text-white.text-black.font-bold.py-2.px-4.rounded.w-full
-         {:type "submit" :value "Delete"}]])])))
+                ;; delete form
+                (biff/form
+                 {:action (str "/app/habits/" habit-id "/delete") :method "post"}
+                 [:div.w-full.md:w-96.p-2.my-4
+                  [:input.text-center.bg-red-100.hover:bg-red-500.hover:text-white.text-black.font-bold.py-2.px-4.rounded.w-full
+                   {:type "submit" :value "Delete"}]]))])))
 
 (defn view [{:keys [path-params
                     session
@@ -302,8 +302,8 @@
     (ui/page
      {}
      [:div
-      (nav-bar (pot/map-of email))
-      (list-item habit)])))
+      (side-bar (pot/map-of email)
+                (list-item habit))])))
 
 (defn soft-delete! [{:keys [path-params params]
                      :as   ctx}]

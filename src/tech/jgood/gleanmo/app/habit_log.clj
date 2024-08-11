@@ -6,7 +6,7 @@
    [tech.jgood.gleanmo.app.habit :as habit]
    [tech.jgood.gleanmo.app.shared :refer [ensure-vector format-date-time-local
                                           get-last-tx-time get-user-time-zone
-                                          link-button local-date-time-fmt nav-bar param-true? search-str-xform
+                                          link-button local-date-time-fmt param-true? search-str-xform side-bar
                                           time-zone-select zoned-date-time-fmt]]
    [tech.jgood.gleanmo.schema :as schema]
    [tech.jgood.gleanmo.ui :as ui]
@@ -28,6 +28,11 @@
        (map :habit/archived)
        (some true?)))
 
+(defn consolidate-habit-log [habit-log habits user-tz]
+   (assoc habit-log
+          :user/time-zone user-tz
+          :habit-log/habits habits))
+
 (defn all-for-user-query [{:keys [biff/db session sensitive archived]}]
   (let [raw-results (q db '{:find  [(pull ?habit-log [*]) (pull ?habit [*]) ?tz]
                             :where [[?habit-log :user/id user-id]
@@ -45,13 +50,12 @@
       :always         (map (fn [[log-id grouped-tuples]]
                              ;; Extract the habit-log map from the first tuple and tz from last
                              (let [habit-log-map (-> grouped-tuples first first)
-                                   tz            (-> grouped-tuples first last)]
-                               (assoc habit-log-map
-                                      :user/time-zone tz
-                                      :habit-log/habits
-                                      (->> grouped-tuples
-                                           (map (fn [[_ habit _]]
-                                                  habit)))))))
+                                   tz            (-> grouped-tuples first last)
+                                   habits        (->> grouped-tuples
+                                                      (map second))]
+                               (consolidate-habit-log habit-log-map
+                                                      habits
+                                                      tz))))
       :always         (into [])
       :always         (sort-by :habit-log/timestamp)
       :always         (reverse)
@@ -59,14 +63,20 @@
       (not archived)  (remove some-archived-habits))))
 
 (defn single-for-user-query [{:keys [biff/db session :xt/id]}]
-  (let [user-id (:uid session)]
-    (first (q db '{:find  (pull ?log [*])
-                   :where [[?log :xt/id log-id]
-                           [?log ::schema/type :habit-log]
-                           [?log :user/id user-id]
+  (let [user-id (:uid session)
+        result (q db '{:find  [(pull ?habit-log [*]) (pull ?habit [*])]
+                   :where [[?habit-log :xt/id log-id]
+                           [?habit-log ::schema/type :habit-log]
+                           [?habit-log :user/id user-id]
+                           [?habit-log :habit-log/habit-ids ?habit-id]
+                           [?habit :xt/id ?habit-id]
+                           [?habit :habit/name ?habit-name]
                            (not [?habit ::schema/deleted-at])
                            (not [?habit-log ::schema/deleted-at])]
-                   :in    [user-id log-id]} user-id id))))
+                   :in    [user-id log-id]} user-id id)]
+    (consolidate-habit-log (-> result first first)
+                           (->> result (map second))
+                           (-> result first last))))
 
 (defn list-item [{:habit-log/keys [timestamp habits notes time-zone]
                   user-time-zone  :user/time-zone
@@ -110,69 +120,69 @@
     (ui/page
      {}
      [:div
-      (nav-bar (pot/map-of email))
-      [:div.my-4
-       (if sensitive
-         [:a.link {:href "/app/new/habit-log"} "hide sensitive"]
-         [:a.link {:href "/app/new/habit-log?sensitive=true"} "sensitive"])]
-      [:div.w-full.md:w-96.space-y-8
-       (biff/form
-        {:hx-post   (str "/app/habit-logs"
-                         (when persist-query-params "?")
-                         (when sensitive "sensitive=true")
-                         (when archived  "&archived=true"))
-         :hx-swap   "outerHTML"
-         :hx-select "#log-habit-form"
-         :id        "log-habit-form"}
+      (side-bar (pot/map-of email)
+                [:div.my-4
+                 (if sensitive
+                   [:a.link {:href "/app/new/habit-log"} "hide sensitive"]
+                   [:a.link {:href "/app/new/habit-log?sensitive=true"} "sensitive"])]
+                [:div.w-full.md:w-96.space-y-8
+                 (biff/form
+                  {:hx-post   (str "/app/habit-logs"
+                                   (when persist-query-params "?")
+                                   (when sensitive "sensitive=true")
+                                   (when archived  "&archived=true"))
+                   :hx-swap   "outerHTML"
+                   :hx-select "#log-habit-form"
+                   :id        "log-habit-form"}
 
-        [:div
-         [:h2.text-base.font-semibold.leading-7.text-gray-900 "Log Habit"]]
+                  [:div
+                   [:h2.text-base.font-semibold.leading-7.text-gray-900 "Log Habit"]]
 
-        [:div.grid.grid-cols-1.gap-y-6
-         ;; Time Zone selection
-         ;; TODO add search
-         (time-zone-select time-zone)
+                  [:div.grid.grid-cols-1.gap-y-6
+                   ;; Time Zone selection
+                   ;; TODO add search
+                   (time-zone-select time-zone)
 
-         ;; Notes input
-         [:div
-          [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "notes"} "Notes"]
-          [:div.mt-2
-           [:textarea.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-            {:name         "notes"
-             :rows         3
-             :placeholder  "Any additional notes..."
-             :autocomplete "off"}]]]
+                   ;; Notes input
+                   [:div
+                    [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "notes"} "Notes"]
+                    [:div.mt-2
+                     [:textarea.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                      {:name         "notes"
+                       :rows         3
+                       :placeholder  "Any additional notes..."
+                       :autocomplete "off"}]]]
 
-         ;; Timestamp input
-         [:div
-          [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "timestamp"} "Timestamp"]
-          [:div.mt-2
-           [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-            {:type "datetime-local" :name "timestamp" :required true :value current-time}]]]
+                   ;; Timestamp input
+                   [:div
+                    [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "timestamp"} "Timestamp"]
+                    [:div.mt-2
+                     [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                      {:type "datetime-local" :name "timestamp" :required true :value current-time}]]]
 
-         ;; TODO add search and filters
-         ;; Consider something better than a select list, maybe icons?
-         ;; Habits selection
-         [:div
-          [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "habit-refs"} "Habits"]
-          [:div.mt-2
-           [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-            {:name "habit-refs" :multiple true :required true :autocomplete "off"}
-            (map (fn [habit]
-                   [:option {:value (:xt/id habit)}
-                    (:habit/name habit)])
-                 habits)]]]
+                   ;; TODO add search and filters
+                   ;; Consider something better than a select list, maybe icons?
+                   ;; Habits selection
+                   [:div
+                    [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "habit-refs"} "Habits"]
+                    [:div.mt-2
+                     [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                      {:name "habit-refs" :multiple true :required true :autocomplete "off"}
+                      (map (fn [habit]
+                             [:option {:value (:xt/id habit)}
+                              (:habit/name habit)])
+                           habits)]]]
 
-         ;; Submit button
-         [:div.mt-2.w-full
-          [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
-           {:type "submit"} "Log Habit"]]
+                   ;; Submit button
+                   [:div.mt-2.w-full
+                    [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
+                     {:type "submit"} "Log Habit"]]
 
-         ;; Recent logs
-         [:div.mt-4
-          [:h2.text-base.font-semibold.leading-7.text-gray-900 "Recent logs"]
-          (->> recent-logs
-               (map (fn [z] (list-item z))))]])]])))
+                   ;; Recent logs
+                   [:div.mt-4
+                    [:h2.text-base.font-semibold.leading-7.text-gray-900 "Recent logs"]
+                    (->> recent-logs
+                         (map (fn [z] (list-item z))))]])])])))
 
 (defn create! [{:keys [session params] :as ctx}]
   (let [sensitive            (some-> params :sensitive param-true?)
@@ -235,18 +245,18 @@
     (ui/page
      {}
      [:div
-      (nav-bar (pot/map-of email))
-      [:div.my-4
-       (link-button {:href  "/app/new/habit-log"
-                     :label "Create Habit Log"})]
-      [:div.my-4
-       (if sensitive
-         [:a.link {:href "/app/habit-logs"} "hide sensitive"]
-         [:a.link {:href "/app/habit-logs?sensitive=true"} "sensitive"])]
-      ;; TODO add filter options and search
-      [:div {:id "habit-logs-list"}
-       (cond->> habit-logs
-         :always (map (fn [log] (list-item log))))]])))
+      (side-bar (pot/map-of email)
+                [:div.my-4
+                 (link-button {:href  "/app/new/habit-log"
+                               :label "Create Habit Log"})]
+                [:div.my-4
+                 (if sensitive
+                   [:a.link {:href "/app/habit-logs"} "hide sensitive"]
+                   [:a.link {:href "/app/habit-logs?sensitive=true"} "sensitive"])]
+                ;; TODO add filter options and search
+                [:div {:id "habit-logs-list"}
+                 (cond->> habit-logs
+                   :always (map (fn [log] (list-item log))))])])))
 
 (defn edit-form [{:keys [path-params
                          params
@@ -275,72 +285,72 @@
     (ui/page
      {}
      [:div
-      (nav-bar (pot/map-of email))
-      [:div.my-4
-       (if sensitive
-         [:a.link {:href (str "/app/habit-logs/" log-id "/edit")} "hide sensitive"]
-         [:a.link {:href (str "/app/habit-logs/" log-id "/edit?sensitive=true")} "sensitive"])]
-      [:div.w-full.md:w-96.space-y-8
-       (biff/form
-        {:hx-post   (str "/app/habit-logs/" log-id)
-         :hx-swap   "outerHTML"
-         :hx-select "#edit-habit-log-form"
-         :id        "edit-habit-log-form"}
+      (side-bar (pot/map-of email)
+                [:div.my-4
+                 (if sensitive
+                   [:a.link {:href (str "/app/habit-logs/" log-id "/edit")} "hide sensitive"]
+                   [:a.link {:href (str "/app/habit-logs/" log-id "/edit?sensitive=true")} "sensitive"])]
+                [:div.w-full.md:w-96.space-y-8
+                 (biff/form
+                  {:hx-post   (str "/app/habit-logs/" log-id)
+                   :hx-swap   "outerHTML"
+                   :hx-select "#edit-habit-log-form"
+                   :id        "edit-habit-log-form"}
 
-        [:input {:type "hidden" :name "id" :value log-id}]
+                  [:input {:type "hidden" :name "id" :value log-id}]
 
-        [:div
-         [:h2.text-base.font-semibold.leading-7.text-gray-900 "Edit Habit Log"]
-         [:p.mt-1.text-sm.leading-6.text-gray-600 "Edit your habit log entry."]]
+                  [:div
+                   [:h2.text-base.font-semibold.leading-7.text-gray-900 "Edit Habit Log"]
+                   [:p.mt-1.text-sm.leading-6.text-gray-600 "Edit your habit log entry."]]
 
-        ;; Time Zone selection
-        (time-zone-select time-zone)
+                  ;; Time Zone selection
+                  (time-zone-select time-zone)
 
 
-        ;; Notes input
-        [:div
-         [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "notes"} "Notes"]
-         [:div.mt-2
-          [:textarea.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-           {:name         "notes"
-            :rows         3
-            :placeholder  "Any additional notes..."
-            :autocomplete "off"} (get-in habit-log [:habit-log/notes])]]]
+                  ;; Notes input
+                  [:div
+                   [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "notes"} "Notes"]
+                   [:div.mt-2
+                    [:textarea.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                     {:name         "notes"
+                      :rows         3
+                      :placeholder  "Any additional notes..."
+                      :autocomplete "off"} (get-in habit-log [:habit-log/notes])]]]
 
-        ;; Timestamp input
-        [:div
-         [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "timestamp"} "Timestamp"]
-         [:div.mt-2
-          [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-           {:type "datetime-local" :name "timestamp" :required true :value formatted-timestamp}]]]
+                  ;; Timestamp input
+                  [:div
+                   [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "timestamp"} "Timestamp"]
+                   [:div.mt-2
+                    [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                     {:type "datetime-local" :name "timestamp" :required true :value formatted-timestamp}]]]
 
-        ;; Habits selection
-        [:div
-         [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "habit-refs"} "Habits"]
-         [:div.mt-2
-          [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-           {:name "habit-refs" :multiple true :required true :autocomplete "off"}
-           (map (fn [habit]
-                  [:option {:value    (:xt/id habit)
-                            :selected (contains? (set (get-in habit-log [:habit-log/habit-ids])) (:xt/id habit))}
-                   (:habit/name habit)])
-                habits)]]]
+                  ;; Habits selection
+                  [:div
+                   [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "habit-refs"} "Habits"]
+                   [:div.mt-2
+                    [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+                     {:name "habit-refs" :multiple true :required true :autocomplete "off"}
+                     (map (fn [habit]
+                            [:option {:value    (:xt/id habit)
+                                      :selected (contains? (set (get-in habit-log [:habit-log/habit-ids])) (:xt/id habit))}
+                             (:habit/name habit)])
+                          habits)]]]
 
-        ;; Submit button
-        [:div.mt-2.w-full
-         [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
-          {:type "submit"} "Update Habit Log"]]
+                  ;; Submit button
+                  [:div.mt-2.w-full
+                   [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.w-full
+                    {:type "submit"} "Update Habit Log"]]
 
-        [:div.mt-4.flex.flex-col
-         [:span.text-gray-500 (str "last updated: " latest-tx-time)]
-         [:span.text-gray-500 (str "created at: " formatted-created-at)]])
+                  [:div.mt-4.flex.flex-col
+                   [:span.text-gray-500 (str "last updated: " latest-tx-time)]
+                   [:span.text-gray-500 (str "created at: " formatted-created-at)]])
 
-       ;; delete form
-       (biff/form
-        {:action (str "/app/habit-logs/" log-id "/delete") :method "post"}
-        [:div.w-full.md:w-96.p-2.my-4
-         [:input.text-center.bg-red-100.hover:bg-red-500.hover:text-white.text-black.font-bold.py-2.px-4.rounded.w-full
-          {:type "submit" :value "Delete"}]])]])))
+                 ;; delete form
+                 (biff/form
+                  {:action (str "/app/habit-logs/" log-id "/delete") :method "post"}
+                  [:div.w-full.md:w-96.p-2.my-4
+                   [:input.text-center.bg-red-100.hover:bg-red-500.hover:text-white.text-black.font-bold.py-2.px-4.rounded.w-full
+                    {:type "submit" :value "Delete"}]])])])))
 
 (defn edit! [{:keys [session params] :as ctx}]
   (let [id-strs        (-> params :habit-refs ensure-vector)
@@ -386,10 +396,8 @@
         habit-log            (single-for-user-query (merge ctx {:xt/id log-id}))]
     (ui/page
      {}
-     (nav-bar (pot/map-of email))
-     [:div
-
-      (list-item habit-log)])))
+     (side-bar (pot/map-of email)
+               [:div (list-item habit-log)]))))
 
 (defn soft-delete! [{:keys [path-params params]
                      :as   ctx}]

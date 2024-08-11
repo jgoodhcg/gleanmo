@@ -27,24 +27,6 @@
 
 (defn side-bar [{:keys [email]} & content]
   [:div.flex.min-h-screen
-   ;; Mobile menu button
-   [:div.block.md:hidden.p-4
-    {:id "menu-btn"}
-    [:button {:type    "button"
-              :class   "text-gray-800 focus:outline-none"
-              ;; TODO move this to js?
-              :onclick "document.getElementById('sidebar').classList.toggle('hidden');
-                        document.getElementById('sidebar').classList.toggle('flex');
-                        document.getElementById('menu-btn').classList.toggle('hidden');"}
-     ;; Menu icon (hamburger)
-     [:svg {:class   "h-6 w-6"
-            :xmlns   "http://www.w3.org/2000/svg"
-            :fill    "none"
-            :viewBox "0 0 24 24"
-            :stroke  "currentColor"}
-      [:path {:stroke-linecap "round" :stroke-linejoin "round" :stroke-width "2"
-              :d              "M4 6h16M4 12h16M4 18h16"}]]]]
-
    ;; Sidebar
    [:div#sidebar.hidden.md:flex.flex-col.space-y-4.bg-gray-100.p-4.z-50
     {:class "md:w-auto"}
@@ -68,8 +50,31 @@
       "Sign out"])]
 
    ;; Main content area
-   [:div.flex-grow.bg-white.p-8
-    content]])
+   [:div.flex-grow.bg-white.pt-12.px-4
+    {:id "side-bar-page-content"}
+    content]
+
+   ;; Mobile menu button
+   [:div.fixed.md:hidden.p-2.bg-white.w-full
+    {:id "menu-btn"}
+    [:div.flex
+     [:button.mr-4
+      {:type    "button"
+       :class   "text-gray-800 focus:outline-none"
+       ;; TODO move this to js?
+       :onclick "document.getElementById('sidebar').classList.toggle('hidden');
+                 document.getElementById('sidebar').classList.toggle('flex');
+                 document.getElementById('menu-btn').classList.toggle('hidden');
+                 document.getElementById('side-bar-page-content').classList.toggle('hidden');"}
+      ;; Menu icon (hamburger)
+      [:svg {:class   "h-6 w-6"
+             :xmlns   "http://www.w3.org/2000/svg"
+             :fill    "none"
+             :viewBox "0 0 24 24"
+             :stroke  "currentColor"}
+       [:path {:stroke-linecap "round" :stroke-linejoin "round" :stroke-width "2"
+               :d              "M4 6h16M4 12h16M4 18h16"}]]]
+     [:a.link.text-gray-800 {:href "/app/my-user"} email]]]])
 
 (def local-date-time-fmt "yyyy-MM-dd'T'HH:mm:ss")
 
