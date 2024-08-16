@@ -17,6 +17,9 @@
    [java.time ZoneId]
    [java.util UUID]))
 
+;; TODO consolidate with schema
+(def positions [:sitting :lying :walking :standing :moving])
+
 (defn all-for-user-query [{:keys [biff/db session]}]
   (let [raw-results (q db '{:find  [(pull ?meditation-log [*])
                                     (pull ?type-id [*])
@@ -169,8 +172,7 @@
                       (map (fn [position]
                              [:option {:value (name position)}
                               (str/capitalize (name position))])
-                           ;; TODO create one spot for these
-                           [:sitting :lying-down :walking :standing])]]]
+                           positions)]]]
 
                    ;; Guided input
                    [:div
@@ -410,7 +412,7 @@
                             [:option {:value    (name position)
                                       :selected (= position (get-in meditation-log [:meditation-log/position]))}
                              (str/capitalize (name position))])
-                          [:sitting :lying-down :walking :standing])]]]
+                          positions)]]]
 
                   ;; Guided input
                   [:div

@@ -71,7 +71,8 @@
                          [:meditation-log/beginning              :instant]
                          ;; TODO should we allow nil?
                          [:meditation-log/end {:optional true}   :instant]
-                         [:meditation-log/position               [:enum :sitting :lying-down :walking :standing]]
+                         ;; TODO consolidate types and maybe make this a keyword for allowed expansion?
+                         [:meditation-log/position               [:enum :sitting :lying :walking :standing :moving]]
                          [:meditation-log/guided                 :boolean]
                          [:meditation-log/type-id                :meditation-type/id]
                          [:meditation-log/interrupted            :boolean]
