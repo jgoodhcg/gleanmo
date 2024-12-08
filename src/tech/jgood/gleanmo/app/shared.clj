@@ -19,6 +19,7 @@
    [:a.link {:href "/app/meditation-types"} "meditation-types"]
    [:a.link {:href "/app/meditation-logs"} "meditation-logs"]
    [:a.link {:href "/app/ical-urls"} "ical-urls"]
+   [:a.link {:href "/app/dv/habit-logs"} "habit-logs data viz"]
    (biff/form
     {:action "/auth/signout"
      :class  "inline"}
@@ -41,6 +42,7 @@
     [:a.link.text-gray-800 {:href "/app/meditation-types"} "meditation-types"]
     [:a.link.text-gray-800 {:href "/app/meditation-logs"} "meditation-logs"]
     [:a.link.text-gray-800 {:href "/app/ical-urls"} "ical-urls"]
+    [:a.link {:href "/app/dv/habit-logs"} "habit-logs data viz"]
 
     ;; Subtle Sign out button
     (biff/form

@@ -23,7 +23,7 @@
     (str "/js/main.js?t=" last-modified)
     "/js/main.js"))
 
-(defn base [{:keys [::recaptcha] :as ctx} & body]
+(defn base [{:keys [::recaptcha ::cal-heatmap] :as ctx} & body]
   (apply
    biff/base-html
    (-> ctx
@@ -33,19 +33,30 @@
                      :description (str settings/app-name " Description")
                      :image       "https://clojure.org/images/clojure-logo-120b.png"})
        (update :base/head (fn [head]
-                            (concat [[:link {:rel "stylesheet" :href (css-path)}]
-                                     [:link {:rel "preconnect" :href "https://fonts.googleapis.com"}]
-                                     [:link {:rel "preconnect" :href "https://fonts.gstatic.com" :crossorigin true}]
-                                     [:link {:href "https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" :rel "stylesheet"}]
-                                     [:script {:src (js-path)}]
-                                     [:script {:src "https://unpkg.com/htmx.org@1.9.0"}]
-                                     [:script {:src "https://unpkg.com/htmx.org/dist/ext/ws.js"}]
-                                     [:script {:src "https://unpkg.com/hyperscript.org@0.9.8"}]
-                                     [:script {:defer true :data-domain "gleanmo.com" :src "https://plausible.io/js/script.js"}]
-                                     (when recaptcha
-                                       [:script {:src   "https://www.google.com/recaptcha/api.js"
-                                                 :async "async" :defer "defer"}])]
-                                    head))))
+                            (cond->> head
+                              :always
+                              (concat [[:link {:rel "stylesheet" :href (css-path)}]
+                                       [:link {:rel "preconnect" :href "https://fonts.googleapis.com"}]
+                                       [:link {:rel "preconnect" :href "https://fonts.gstatic.com" :crossorigin true}]
+                                       [:link {:href "https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" :rel "stylesheet"}]
+                                       [:script {:src (js-path)}]
+                                       [:script {:src "https://unpkg.com/htmx.org@1.9.0"}]
+                                       [:script {:src "https://unpkg.com/htmx.org/dist/ext/ws.js"}]
+                                       [:script {:src "https://unpkg.com/hyperscript.org@0.9.8"}]
+                                       [:script {:defer true :data-domain "gleanmo.com" :src "https://plausible.io/js/script.js"}]])
+                              (true? recaptcha)
+                              (concat
+                               [[:script {:src   "https://www.google.com/recaptcha/api.js"
+                                          :async "async" :defer "defer"}]])
+                              (true? cal-heatmap)
+                              (concat
+                               [[:script {:src "https://d3js.org/d3.v7.min.js"}]
+                                [:script {:src "https://unpkg.com/@popperjs/core@2"}]
+                                [:script {:src "https://unpkg.com/cal-heatmap/dist/plugins/Tooltip.min.js"}]
+                                [:script {:src "https://unpkg.com/cal-heatmap/dist/plugins/CalendarLabel.min.js"}]
+                                [:script {:src "https://unpkg.com/cal-heatmap/dist/cal-heatmap.min.js"}]
+                                [:script {:src "https://unpkg.com/cal-heatmap/dist/plugins/LegendLite.min.js"}]
+                                [:link {:rel "stylesheet" :href "https://unpkg.com/cal-heatmap/dist/cal-heatmap.css"}]])))))
    body))
 
 (defn page [ctx & body]
@@ -55,8 +66,7 @@
     (when (bound? #'csrf/*anti-forgery-token*)
       {:hx-headers (cheshire/generate-string
                     {:x-csrf-token csrf/*anti-forgery-token*})})
-    body]
-   ))
+    body]))
 
 (defn on-error [{:keys [status ex] :as ctx}]
   {:status status

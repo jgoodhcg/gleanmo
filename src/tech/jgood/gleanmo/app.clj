@@ -1,5 +1,7 @@
 (ns tech.jgood.gleanmo.app
   (:require
+   [cheshire.core :as json]
+   [clojure.set :as set]
    [clojure.string :as str]
    [com.biffweb :as biff :refer [q]]
    [potpuri.core :as pot]
@@ -15,7 +17,10 @@
    [tech.jgood.gleanmo.schema :as schema]
    [tech.jgood.gleanmo.settings :as settings]
    [tech.jgood.gleanmo.ui :as ui]
-   [xtdb.api :as xt]))
+   [tick.core :as t]
+   [xtdb.api :as xt])
+  (:import
+   [java.util UUID]))
 
 (def about-page
   (ui/page
@@ -65,59 +70,59 @@
 
     (ui/page
      {}
-       (side-bar (pot/map-of email)
+     (side-bar (pot/map-of email)
                  ;; supported types
-                 [:div.my-4
-                  (for [t (-> db-viz-supported-types sort)]
-                    [:a.link.mr-2 {:href (str "/app/db/" (name t) "?offset=0&limit=" limit)}
-                     t])]
-                 (when (some? type)
+               [:div.my-4
+                (for [t (-> db-viz-supported-types sort)]
+                  [:a.link.mr-2 {:href (str "/app/db/" (name t) "?offset=0&limit=" limit)}
+                   t])]
+               (when (some? type)
                    ;; pagination
-                   [:div.mt-4.mb-2
-                    [:a.link.mr-4 {:href (str "/app/db/" (name type) "?offset=" (max 0 (- offset limit))
-                                              "&limit=" limit)}
-                     "<-"]
-                    [:a.link {:href (str "/app/db/" (name type) "?offset=" (+ offset limit)
-                                         "&limit=" limit)}
-                     "->"]])
+                 [:div.mt-4.mb-2
+                  [:a.link.mr-4 {:href (str "/app/db/" (name type) "?offset=" (max 0 (- offset limit))
+                                            "&limit=" limit)}
+                   "<-"]
+                  [:a.link {:href (str "/app/db/" (name type) "?offset=" (+ offset limit)
+                                       "&limit=" limit)}
+                   "->"]])
                  ;; items
-                 (if (some? type)
-                   (let [query-result
-                         (->> (q db query [type filter-email]))
-                         all-entities
-                         (->> query-result
-                              (map first)
-                              (filter #(uuid? (:xt/id %)))
-                              (sort-by (juxt ::schema/created-at :user/id :xt/id))
-                              (drop offset)
-                              (take limit)
-                              (map #(into (sorted-map) %)))
-                         all-attributes
-                         (->> all-entities
-                              (mapcat keys)
-                              distinct
-                              sort)
-                         table-rows
-                         (map (fn [entity]
-                                (map (fn [attr]
-                                       (get entity attr "_"))
-                                     all-attributes))
-                              all-entities)]
-                     [:div.my-4
-                      [:h2.text-lg.font-bold.mb-2 type]
-                      [:table.w-full.rounded-lg.overflow-hidden.bg-white.shadow-md
-                       [:thead.bg-gray-100
-                        [:tr
-                         (for [attr all-attributes]
-                           [:th.py-2.px-4.text-left.text-gray-600.border-b
-                            (str attr)])]]
-                       [:tbody
-                        (for [row table-rows]
-                          [:tr.hover:bg-gray-50
-                           (for [attr-val row]
-                             [:td.py-2.px-4.border-b.text-gray-900
-                              (str attr-val)])])]]])
-                   [:div.my-4 [:span "Unsupported type, must be one of: " (str db-viz-supported-types)]])))))
+               (if (some? type)
+                 (let [query-result
+                       (->> (q db query [type filter-email]))
+                       all-entities
+                       (->> query-result
+                            (map first)
+                            (filter #(uuid? (:xt/id %)))
+                            (sort-by (juxt ::schema/created-at :user/id :xt/id))
+                            (drop offset)
+                            (take limit)
+                            (map #(into (sorted-map) %)))
+                       all-attributes
+                       (->> all-entities
+                            (mapcat keys)
+                            distinct
+                            sort)
+                       table-rows
+                       (map (fn [entity]
+                              (map (fn [attr]
+                                     (get entity attr "_"))
+                                   all-attributes))
+                            all-entities)]
+                   [:div.my-4
+                    [:h2.text-lg.font-bold.mb-2 type]
+                    [:table.w-full.rounded-lg.overflow-hidden.bg-white.shadow-md
+                     [:thead.bg-gray-100
+                      [:tr
+                       (for [attr all-attributes]
+                         [:th.py-2.px-4.text-left.text-gray-600.border-b
+                          (str attr)])]]
+                     [:tbody
+                      (for [row table-rows]
+                        [:tr.hover:bg-gray-50
+                         (for [attr-val row]
+                           [:td.py-2.px-4.border-b.text-gray-900
+                            (str attr-val)])])]]])
+                 [:div.my-4 [:span "Unsupported type, must be one of: " (str db-viz-supported-types)]])))))
 
 (defn root [{:keys [session biff/db]}]
   (let [user-id              (:uid session)
@@ -132,6 +137,7 @@
 (def module
   {:static {"/about/" about-page}
    :routes ["/app" {:middleware [mid/wrap-signed-in]}
+
             ;; Main app and DB visualization
             [""    {:get root}]
 
@@ -201,5 +207,10 @@
             ["/ical-urls/:id/edit"      {:get ical-url/edit-form}]
             ["/ical-urls/:id/delete"    {:post ical-url/soft-delete!}]
 
+            ;;
+            ;; data viz
+            ;;
+
+            ["/dv/habit-logs" {:get habit-log/data-viz}]
             ;;
             ]})

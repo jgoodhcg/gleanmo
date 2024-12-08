@@ -1,6 +1,8 @@
 (ns tech.jgood.gleanmo.app.habit-log
   (:require
    [clojure.string :as str]
+   [clojure.set :as set]
+   [cheshire.core :as json]
    [com.biffweb :as biff :refer [q]]
    [potpuri.core :as pot]
    [tech.jgood.gleanmo.app.habit :as habit]
@@ -24,6 +26,8 @@
        (some true?)))
 
 (defn some-archived-habits [{habits :habit-log/habits}]
+  ;; TODO add ? to these
+  ;; TODO need all-archived-habits?
   (->> habits
        (map :habit/archived)
        (some true?)))
@@ -415,3 +419,108 @@
          :headers {"location" "/app/habit-logs"}})
       {:status 403
        :body   "Not authorized to edit that habit log"})))
+
+(defn data-viz [{:keys [session biff/db params]
+                 :as   context}]
+  ;; Retrieve the user entity, including the time zone
+  (let [{:user/keys [email time-zone] :as user}
+        (xt/entity db (:uid session))
+        sensitive            (some-> params :sensitive param-true?)
+        archived             (some-> params :archived param-true?)
+        ;; Normalize :habit-ids to always be a sequence
+        params-ids           (let [ids (:habit-ids params)]
+                          (if (string? ids)
+                            [ids]   ;; Wrap single string in a vector
+                            ids))   ;; Leave as-is if already a sequence
+        filtered-habits      (->> params-ids
+                             (map (fn [s]
+                                    (when (not (str/blank? s))
+                                      (UUID/fromString s))))
+                             (remove nil?)
+                             set)
+        all-habit-logs       (->> (all-for-user-query (merge context (pot/map-of sensitive archived)))
+                             (sort-by :habit-log/timestamp)
+                             reverse)
+        all-habits           (->> (habit/all-for-user-query (merge context (pot/map-of sensitive archived))))
+        ;; Aggregate habit logs per day in the user's time zone
+        counts-per-day       (->> all-habit-logs
+                             (filter (fn [log]
+                                       ;; NOTE should this condition be moved to a cond->> ?
+                                       (if (seq filtered-habits)
+                                         (seq (set/intersection
+                                               filtered-habits
+                                               (:habit-log/habit-ids log)))
+                                         true)))
+                             ;; Map each item to the date in the user's time zone
+                             (map (fn [item]
+                                    (let [timestamp      (:habit-log/timestamp item)
+                                          item-time-zone (or (:habit-log/time-zone item) time-zone)
+                                          zoned-date     (-> timestamp
+                                                             (t/in (t/zone item-time-zone)))
+                                          local-date     (t/date zoned-date)]
+                                      local-date)))
+                             ;; Count the frequency of each date
+                             frequencies
+                             ;; Convert to a sequence of maps with 'date' and 'value'
+                             (map (fn [[date count]]
+                                    {:date  (t/format (t/formatter "yyyy-MM-dd") date)
+                                     :value count}))
+                             ;; Convert to a vector
+                             vec)
+        base-url "/app/dv/habit-logs"]
+    ;; Render the page with Cal-Heatmap and habit filter buttons
+    (ui/page
+     {::ui/cal-heatmap true}
+     (side-bar
+      (pot/map-of email)
+      [:div.flex.flex-col
+       [:a.link {:href (str base-url)} "clear filters"]
+       (if sensitive
+         [:a.link {:href (str base-url "?"
+                              (when archived "archived=true"))} "remove sensitive"]
+         [:a.link {:href (str base-url "?" "sensitive=true"
+                              (when archived "&archived=true"))} "sensitive"])
+       (if archived
+         [:a.link {:href (str base-url "?"
+                              (when sensitive "sensitive=true"))} "remove archived"]
+         [:a.link {:href (str base-url "?" "archived=true"
+                              (when archived "&sensitive=true"))} "archived"])
+
+       ;; Filter buttons section
+       [:div#habit-filters.flex.flex-wrap.my-4.w-96
+        ;; Render a button for each unique habit
+        (for [{id :xt/id name :habit/name} all-habits]
+          (let [url-habits-s  (->> filtered-habits
+                                   (remove (fn [fid] (= fid id)))
+                                   (map str)
+                                   (map (fn [s] (str "habit-ids=" s "&")))
+                                   (str/join ""))
+                url-habits-ns (->> filtered-habits
+                                   (map str)
+                                   (concat [(str id)])
+                                   (map (fn [s] (str "habit-ids=" s "&")))
+                                   (str/join ""))
+                selected      (seq (set/intersection filtered-habits #{id}))]
+            (if selected
+              [:a.px-4.py-2.rounded.m-1.hover:underline.text-blue-500.outline.outline-blue-500.outline-2
+               {:href (str base-url "?" url-habits-s
+                           (when sensitive "&sensitive=true")
+                           (when archived "&archived=true"))}
+               name]
+              [:a.px-4.py-2.bg-gray-200.rounded.m-1.hover:underline.text-blue-500.outline.outline-gray-300.outline-2
+               {:href (str base-url "?" url-habits-ns
+                           (when sensitive "&sensitive=true")
+                           (when archived "&archived=true"))}
+               name])))]
+       ;; Container for the heatmap
+       [:div#cal-heatmap.my-4]
+       ;; Hidden data element for heatmap data
+       [:div#cal-heatmap-data.hidden
+        (json/generate-string counts-per-day {:pretty true})]
+       ;; Script to initialize heatmap rendering
+       [:script "renderCalHeatmap();"]
+
+       #_
+       (for [item all-items]
+         (habit-log/list-item item))
+       ]))))
