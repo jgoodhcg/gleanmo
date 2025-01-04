@@ -6,18 +6,6 @@
    [potpuri.core :as pot]
    [tech.jgood.gleanmo.ui :as ui]))
 
-#_(defmacro defcrud [entity-name schema]
-    (let [ns-name (symbol (str "tech.jgood.gleanmo.app." entity-name))]
-      (list 'do
-            (list 'create-ns (list 'quote ns-name))
-            (list 'doseq [['fn-name 'fn-body]
-                          {''new-form (list 'fn ['ctx]
-                                            [:div (list 'str "New form for " (str entity-name))])}]
-                  (list 'intern (list 'quote ns-name) 'fn-name 'fn-body))
-            (list 'intern (list 'quote ns-name) ''routes
-                  [(str "/" entity-name)
-                   ["/new" {:get (symbol (str ns-name "/new-form"))}]]))))
-
 (defmacro defcrud [entity-name schema]
   (let [entity-key      (keyword entity-name)
         entity-schema   (get schema entity-key)
