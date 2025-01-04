@@ -134,7 +134,7 @@
   {:static {"/about/" about-page}
    :routes ["/app" {:middleware [mid/wrap-signed-in]}
 
-            cruddy/routes
+            cruddy/crud-routes
             ;; Main app and DB visualization
             [""    {:get root}]
 

@@ -154,20 +154,18 @@
                   [:airtable/exercise-id                                     :string]
                   [:airtable/missing-duration                                :number]]
 
-   :crudy [:map {:closed true}
-           [:xt/id                            :uuid]
-           [::type                            [:enum :macro-test]]
-           [:macro-test/name                   :string]
-           [:macro-test/num                    :number]
-           [:macro-test/bool                   :boolean]
-           [:macro-test/integer                :int]
-           [:macro-test/single-relation        :habit/id]
-           [:macro-test/set-relation           [:set :habit/id]]
-           [:macro-test/enum                   [:enum :a :b :c]]
-           [:macro-test/timestamp              :instant]
-           [:macro-test/float {:optional true} :float]
-           ]
-   })
+   :cruddy [:map {:closed true}
+            [:xt/id                         :uuid]
+            [::type                         [:enum :cruddy]]
+            [:cruddy/name                   :string]
+            [:cruddy/num                    :number]
+            [:cruddy/bool                   :boolean]
+            [:cruddy/integer                :int]
+            [:cruddy/single-relation        :habit/id]
+            [:cruddy/set-relation           [:set :habit/id]]
+            [:cruddy/enum                   [:enum :a :b :c]]
+            [:cruddy/timestamp              :instant]
+            [:cruddy/float {:optional true} :float]]})
 
 (def module
   {:schema schema})

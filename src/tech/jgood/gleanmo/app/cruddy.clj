@@ -3,4 +3,6 @@
    [tech.jgood.gleanmo.crud :as crud]
    [tech.jgood.gleanmo.schema :refer [schema]]))
 
-(def routes (crud/gen-routes :cruddy schema))
+(def crud-routes (crud/gen-routes {:entity-key :cruddy
+                                   :plural-str "cruddies"
+                                   :schema     schema}))
