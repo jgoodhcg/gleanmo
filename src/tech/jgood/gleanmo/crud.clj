@@ -4,8 +4,10 @@
    [com.biffweb :as biff]
    [potpuri.core :as pot]
    [tech.jgood.gleanmo.app.shared :refer [side-bar]]
+   [clojure.string :as str]
    [xtdb.api :as xt]
-   [tech.jgood.gleanmo.ui :as ui]))
+   [tech.jgood.gleanmo.ui :as ui]
+   [clojure.string :as str]))
 
 (defn parse-field [[key-or-opts & more :as entry]]
   (let [has-opts (map? (second entry))
@@ -16,9 +18,19 @@
      :opts opts
      :type type}))
 
+(defn string-field [{:keys [name placeholder]}]
+  [:div
+   [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for name} (str/capitalize name)]
+   [:div.mt-2
+    [:textarea.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+     {:name         name
+      :rows         3
+      :placeholder  (or placeholder "...")
+      :autocomplete "off"}]]])
+
 (defn field->input [{:keys [key type opts]}]
   (case type
-    :string  [:input {:type "text" :name (name key)}]
+    :string  (string-field {:name (name key) :placeholder nil})
     :boolean [:input {:type "checkbox" :name (name key)}]
     :number  [:input {:type "number" :step "any" :name (name key)}]
     :int     [:input {:type "number" :step "1" :name (name key)}]
@@ -82,10 +94,13 @@
       (side-bar (pot/map-of email)
                 [:div.flex.flex-col.md:flex-row.justify-center
                  [:h1.text-3xl.font-bold plural-str]]
-                [:form {}
-                 [:div.flex.flex-col
+                [:div.w-full.md:w-96.space-y-8
+                 (biff/form
+                  {}
+                  [:div.flex.flex-col
                   (doall (schema->form schema))
-                  [:button {:type "submit"} "Create"]]])])))
+                  [:button {:type "submit"} "Create"]])]
+                )])))
 
 (defn gen-routes [{:keys [entity-key schema plural-str]}]
   (let [schema          (entity-key schema)
