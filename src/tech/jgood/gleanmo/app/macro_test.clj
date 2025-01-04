@@ -2,4 +2,4 @@
   (:require [tech.jgood.gleanmo.schema :refer [schema]]
             [tech.jgood.gleanmo.crud :refer [defcrud]]))
 
-(defcrud macro-test schema)
+(defcrud :macro-test schema)
