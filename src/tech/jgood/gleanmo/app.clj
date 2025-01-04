@@ -1,10 +1,9 @@
 (ns tech.jgood.gleanmo.app
   (:require
-   [cheshire.core :as json]
-   [clojure.set :as set]
    [clojure.string :as str]
    [com.biffweb :as biff :refer [q]]
    [potpuri.core :as pot]
+   [tech.jgood.gleanmo.app.cruddy :as cruddy]
    [tech.jgood.gleanmo.app.habit :as habit]
    [tech.jgood.gleanmo.app.habit-log :as habit-log]
    [tech.jgood.gleanmo.app.ical-url :as ical-url]
@@ -17,10 +16,7 @@
    [tech.jgood.gleanmo.schema :as schema]
    [tech.jgood.gleanmo.settings :as settings]
    [tech.jgood.gleanmo.ui :as ui]
-   [tick.core :as t]
-   [xtdb.api :as xt])
-  (:import
-   [java.util UUID]))
+   [xtdb.api :as xt]))
 
 (def about-page
   (ui/page
@@ -138,6 +134,7 @@
   {:static {"/about/" about-page}
    :routes ["/app" {:middleware [mid/wrap-signed-in]}
 
+            cruddy/routes
             ;; Main app and DB visualization
             [""    {:get root}]
 

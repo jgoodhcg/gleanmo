@@ -14,7 +14,6 @@
    [tech.jgood.gleanmo.schema :as schema]
    [tech.jgood.gleanmo.ui :as ui]
    [tech.jgood.gleanmo.worker :as worker]
-   [tech.jgood.gleanmo.app.macro-test :as macro-test]
    [tick.core :as t])
   (:gen-class))
 
@@ -30,8 +29,7 @@
            :user/joined-at now}]))})
    home/module
    schema/module
-   worker/module
-   macro-test/crud-module])
+   worker/module])
 
 (def routes [["" {:middleware [mid/wrap-site-defaults]}
               (keep :routes modules)]

@@ -154,19 +154,19 @@
                   [:airtable/exercise-id                                     :string]
                   [:airtable/missing-duration                                :number]]
 
-   :macro-test [:map {:closed true}
-                [:xt/id :uuid]
-                [::type [:enum :macro-test]]
-                :macro-test/name            :string
-                :macro-test/num             :number
-                :macro-test/bool            :boolean
-                :macro-test/integer         :int
-                :macro-test/single-relation :habit/id
-                :macro-test/set-relation    [:set :habit/id]
-                :macro-test/enum            [:enum :a :b :c]
-                :macro-test/timestamp       :instant
-                :macro-test/float           :float
-                ]
+   :crudy [:map {:closed true}
+           [:xt/id                            :uuid]
+           [::type                            [:enum :macro-test]]
+           [:macro-test/name                   :string]
+           [:macro-test/num                    :number]
+           [:macro-test/bool                   :boolean]
+           [:macro-test/integer                :int]
+           [:macro-test/single-relation        :habit/id]
+           [:macro-test/set-relation           [:set :habit/id]]
+           [:macro-test/enum                   [:enum :a :b :c]]
+           [:macro-test/timestamp              :instant]
+           [:macro-test/float {:optional true} :float]
+           ]
    })
 
 (def module
