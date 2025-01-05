@@ -31,7 +31,9 @@
            [::deleted-at {:optional true}        :instant]
            [::created-at                         :instant]
            [:user/id                             :user/id]
-           [:habit/name                          :string]
+           ;; name is DEPRECATED for label
+           [:habit/name {:optional true}         :string]
+           [:habit/label                         :string]
            [:habit/sensitive {:optional true}    :boolean]
            [:habit/notes {:optional true}        :string]
            [:habit/archived {:optional true}     :boolean]
@@ -55,7 +57,9 @@
               [::deleted-at {:optional true}    :instant]
               [::created-at                     :instant]
               [:user/id                         :user/id]
-              [:location/name                   :string]
+              ;; name is DEPRECATED for label
+              [:location/name {:optional true}  :string]
+              [:location/label                  :string]
               [:location/notes {:optional true} :string]]
 
    :meditation-type [:map {:closed true}
@@ -64,7 +68,9 @@
                      [::deleted-at {:optional true}           :instant]
                      [::created-at                            :instant]
                      [:user/id                                :user/id]
-                     [:meditation-type/name                   :string]
+                     ;; name is DEPRECATED for label
+                     [:meditation-type/name {:optional true}  :string]
+                     [:meditation-type/label                  :string]
                      [:meditation-type/notes {:optional true} :string]]
 
    :meditation-log [:map {:closed true}
@@ -97,7 +103,9 @@
               ;; [:ical-url/fetch-interval {:optional true} :duration] ;; duration can be represented in ISO 8601 format
               [:ical-url/source {:optional true}         :string]
               [:ical-url/active {:optional true}         :boolean]
+              ;; name is DEPRECATED for label
               [:ical-url/name {:optional true}           :string]
+              [:ical-url/label {:optional true}          :string]
               [:ical-url/notes {:optional true}          :string]
               [:ical-url/visibility {:optional true}     [:enum :public :private]]]
 
@@ -157,7 +165,7 @@
    :cruddy [:map {:closed true}
             [:xt/id                         :uuid]
             [::type                         [:enum :cruddy]]
-            [:cruddy/name                   :string]
+            [:cruddy/label                  :string]
             [:cruddy/num                    :number]
             [:cruddy/bool                   :boolean]
             [:cruddy/integer                :int]

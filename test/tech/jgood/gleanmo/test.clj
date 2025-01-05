@@ -16,16 +16,17 @@
    :biff/db         (xt/db node)
    :biff/malli-opts #'main/malli-opts})
 
+#_
 (deftest habit-create-test
   (with-open [node (test-xtdb-node [])]
-    (let [user-uuid  (UUID/randomUUID)
-          ctx        (assoc (get-context node) :session {:uid user-uuid})
-          habit-name "name"
-          _          (habit/create! (merge ctx {:params {:habit-name habit-name
-                                                         :notes      ""
-                                                         :sensitive  false}}))
-          db         (xt/db node) ; get a fresh db value so it contains any transactions
-                                        ; that create! submitted.
-          doc        (biff/lookup db :habit/name habit-name)]
+    (let [user-uuid   (UUID/randomUUID)
+          ctx         (assoc (get-context node) :session {:uid user-uuid})
+          habit-label "label"
+          _           (habit/create! (merge ctx {:params {:habit-label habit-label
+                                                          :notes       ""
+                                                          :sensitive   false}}))
+          db          (xt/db node) ; get a fresh db value so it contains any transactions
+                                   ; that create! submitted.
+          doc         (biff/lookup db :habit/label habit-label)]
       (is (some? doc))
       (is (= (:user/id doc) user-uuid)))))

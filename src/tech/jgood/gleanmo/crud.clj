@@ -11,14 +11,24 @@
 
 (defn parse-field [[key-or-opts & more :as entry]]
   (let [has-opts (map? (second entry))
-        key       (if has-opts key-or-opts (first entry))
+        k       (if has-opts key-or-opts (first entry))
         opts      (if has-opts (second entry) {})
         type      (if has-opts (nth entry 2) (second entry))]
-    {:key key
+    {:field-key k
      :opts opts
      :type type}))
 
-(defn string-field [{:keys [name placeholder]}]
+#_
+(defn string-field [{:keys [field-key]}]
+  (let [n (-> field-key str rest str/join (str/replace "/" "-"))
+        l (->)]
+    (cond
+      (str/includes? n "name")
+      [:div
+       [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for n} "Habit Name"]
+       [:div.mt-2
+        [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+         {:type "text" :name "habit-name" :autocomplete "off"}]]]))
   [:div
    [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for name} (str/capitalize name)]
    [:div.mt-2
@@ -28,14 +38,15 @@
       :placeholder  (or placeholder "...")
       :autocomplete "off"}]]])
 
-(defn field->input [{:keys [key type opts]}]
+(defn field->input [{:keys [field-key type opts]}]
   (case type
-    :string  (string-field {:name (name key) :placeholder nil})
-    :boolean [:input {:type "checkbox" :name (name key)}]
-    :number  [:input {:type "number" :step "any" :name (name key)}]
-    :int     [:input {:type "number" :step "1" :name (name key)}]
-    :float   [:input {:type "number" :step "0.001" :name (name key)}]
-    :instant [:input {:type "datetime-local" :name (name key)}]
+    #_#_
+    :string  (string-field (pot/map-of field-key))
+    :boolean [:input {:type "checkbox" :name (name field-key)}]
+    :number  [:input {:type "number" :step "any" :name (name field-key)}]
+    :int     [:input {:type "number" :step "1" :name (name field-key)}]
+    :float   [:input {:type "number" :step "0.001" :name (name field-key)}]
+    :instant [:input {:type "datetime-local" :name (name field-key)}]
     ;; handle special references, sets, enums, etc.
     (str [:div (str "unsupported type: " type)])))
 
@@ -53,7 +64,10 @@
            [:cruddy/enum [:enum :a :b :c]]
            [:cruddy/timestamp :instant]
            [:cruddy/float {:optional true} :float])
-         (rand-int 10))))
+         (rand-int 10)))
+   )
+
+  (-> :cruddy/name str rest str/join (str/replace "/" "-"))
   ;;
   )
 

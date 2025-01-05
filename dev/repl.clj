@@ -137,6 +137,7 @@
 
 ;; connect to production db from dev repl
 ;; realized this is uneccesary if I just used `clj -M:dev prod-repl`
+;; update to the above, it actually times out on any evaluation ...
 (comment
   ;; secrets are wrapped as functions so that they don't show up when serializing the maps
   (def prod-node (let [jdbc-url ((-> (check-config) :prod-config :biff.xtdb.jdbc/jdbcUrl))]
@@ -172,3 +173,24 @@
   (-> @main/system
       (merge {:biff.xtdb/node prod-node-ref})
       biff/assoc-db))
+
+;; migration to change name to label
+(comment
+  (def prod-node (prod-node-start))
+
+  (let [ctx     (get-prod-db-context prod-node)
+        prod-db (:biff/db ctx)
+        habits  (q prod-db '{:find  (pull ?habit [*])
+                             :where [[?habit :tech.jgood.gleanmo.schema/type :habit]]})]
+    (->> habits
+         (mapv (fn [{n :habit/name :as habit}]
+                 (merge habit
+                        {:habit/label n
+                         :db/doc-type :habit
+                         :db/op       :update})))
+         rand-nth
+         #_(biff/submit-tx ctx))
+    )
+
+  ;;
+  )
