@@ -85,12 +85,13 @@
                       (map list-item)))]))))
 
 (defn create! [{:keys [params session] :as ctx}]
-  (let [now       (t/now)]
+  (let [now (t/now)]
     (biff/submit-tx ctx
                     [(merge {:db/doc-type           :meditation-type
                              ::schema/type          :meditation-type
                              :user/id               (:uid session)
                              :meditation-type/name  (:meditation-type-name params)
+                             :meditation-type/label (:meditation-type-name params)
                              :meditation-type/notes (:notes params)
                              ::schema/created-at    now})]))
   {:status  303
@@ -146,18 +147,19 @@
                       (map (fn [z] (list-item (-> z (assoc :edit-id edit-id))))))])])))
 
 (defn edit! [{:keys [params] :as ctx}]
-  (let [id       (-> params :id UUID/fromString)
+  (let [id              (-> params :id UUID/fromString)
         meditation-type (single-for-user-query (merge ctx {:xt/id id}))
-        name     (:name params)
-        notes    (-> params :notes str)]
+        name            (:name params)
+        notes           (-> params :notes str)]
     ;; Authz is that the user owns the meditation-type
     (if (some? meditation-type)
       (do
         (biff/submit-tx ctx
-                        [{:db/op          :update
-                          :db/doc-type    :meditation-type
-                          :xt/id          id
+                        [{:db/op                 :update
+                          :db/doc-type           :meditation-type
+                          :xt/id                 id
                           :meditation-type/name  name
+                          :meditation-type/label name
                           :meditation-type/notes notes}])
         {:status  303
          :headers {"location" (str "/app/meditation-types/" id "/edit")}})

@@ -93,15 +93,16 @@
                       (map list-item)))]))))
 
 (defn create! [{:keys [params session] :as ctx}]
-  (let [now       (t/now)]
+  (let [now (t/now)]
     (biff/submit-tx ctx
-                    [(merge {:db/doc-type           :ical-url
-                             ::schema/type          :ical-url
-                             :ical-url/user-id      (:uid session)
-                             :ical-url/name         (:ical-url-name params)
-                             :ical-url/url          (:url params)
-                             :ical-url/notes        (:notes params)
-                             ::schema/created-at    now})]))
+                    [(merge {:db/doc-type        :ical-url
+                             ::schema/type       :ical-url
+                             :ical-url/user-id   (:uid session)
+                             :ical-url/name      (:ical-url-name params)
+                             :ical-url/label     (:ical-url-name params)
+                             :ical-url/url       (:url params)
+                             :ical-url/notes     (:notes params)
+                             ::schema/created-at now})]))
   {:status  303
    :headers {"location" "/app/new/ical-url"}})
 
@@ -170,6 +171,7 @@
                           :db/doc-type    :ical-url
                           :xt/id          id
                           :ical-url/name  name
+                          :ical-url/label name
                           :ical-url/url   url
                           :ical-url/notes notes}])
         {:status  303

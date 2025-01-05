@@ -165,6 +165,8 @@
    :cruddy [:map {:closed true}
             [:xt/id                         :uuid]
             [::type                         [:enum :cruddy]]
+            [::deleted-at  {:optional true} :boolean]
+            [::created-at                   :instant]
             [:cruddy/label                  :string]
             [:cruddy/num                    :number]
             [:cruddy/bool                   :boolean]

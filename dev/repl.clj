@@ -178,6 +178,7 @@
 (comment
   (def prod-node (prod-node-start))
 
+  ;; habits
   (let [ctx     (get-prod-db-context prod-node)
         prod-db (:biff/db ctx)
         habits  (q prod-db '{:find  (pull ?habit [*])
@@ -188,9 +189,37 @@
                         {:habit/label n
                          :db/doc-type :habit
                          :db/op       :update})))
-         rand-nth
-         #_(biff/submit-tx ctx))
+         (biff/submit-tx ctx))
     )
+
+  ;; locations
+  (let [ctx       (get-prod-db-context prod-node)
+        prod-db   (:biff/db ctx)
+        locations (q prod-db '{:find  (pull ?location [*])
+                               :where [[?location :tech.jgood.gleanmo.schema/type :location]]})]
+    (->> locations
+         (mapv (fn [{n :location/name :as location}]
+                 (merge location
+                        {:location/label n
+                         :db/doc-type    :location
+                         :db/op          :update})))
+         (biff/submit-tx ctx))
+    )
+  ;; meditation-types
+  (let [ctx       (get-prod-db-context prod-node)
+        prod-db   (:biff/db ctx)
+        meditation-types (q prod-db '{:find  (pull ?meditation-type [*])
+                               :where [[?meditation-type :tech.jgood.gleanmo.schema/type :meditation-type]]})]
+    (->> meditation-types
+         (mapv (fn [{n :meditation-type/name :as meditation-type}]
+                 (merge meditation-type
+                        {:meditation-type/label n
+                         :db/doc-type    :meditation-type
+                         :db/op          :update})))
+         (biff/submit-tx ctx))
+    )
+
+  ;; ical-urls (there are none in prod right now)
 
   ;;
   )

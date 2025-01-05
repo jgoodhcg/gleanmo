@@ -18,29 +18,32 @@
      :opts opts
      :type type}))
 
-#_
 (defn string-field [{:keys [field-key]}]
   (let [n (-> field-key str rest str/join (str/replace "/" "-"))
-        l (->)]
+        l (-> n (str/split #"-") (->> (map str/capitalize)) (->> (str/join " ")))]
     (cond
-      (str/includes? n "name")
+      (str/includes? n "label")
       [:div
-       [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for n} "Habit Name"]
+       [:label.block.text-sm.font-medium.leading-6.text-gray-900
+        {:for n} l]
        [:div.mt-2
         [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-         {:type "text" :name "habit-name" :autocomplete "off"}]]]))
-  [:div
-   [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for name} (str/capitalize name)]
-   [:div.mt-2
-    [:textarea.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-     {:name         name
-      :rows         3
-      :placeholder  (or placeholder "...")
-      :autocomplete "off"}]]])
+         {:type "text" :name n :autocomplete "off"}]]]
+
+      :else
+      [:div
+       [:label.block.text-sm.font-medium.leading-6.text-gray-900
+        {:for n} l]
+       [:div.mt-2
+        [:textarea.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+         {:name         n
+          :rows         3
+          :placeholder  "..."
+          :autocomplete "off"}]]])))
 
 (defn field->input [{:keys [field-key type opts]}]
   (case type
-    #_#_
+    :uuid    nil
     :string  (string-field (pot/map-of field-key))
     :boolean [:input {:type "checkbox" :name (name field-key)}]
     :number  [:input {:type "number" :step "any" :name (name field-key)}]
@@ -71,11 +74,18 @@
   ;;
   )
 
+(->> :tech.jgood.gleanmo.schema/type namespace)
 (defn schema->form [schema]
   (let [has-opts (map? (second schema))
-        fields   (if has-opts (drop 2 schema) (rest schema))]
+        fields   (if has-opts (drop 2 schema) (rest schema))
+        fields   (->> fields
+                      (map parse-field)
+                      ;; remove schema fields that aren't necessary for new forms
+                      (remove (fn [{:keys [field-key]}]
+                                (let [n (namespace field-key)]
+                                  (= "tech.jgood.gleanmo.schema" n)))))]
     (for [field fields]
-      (field->input (parse-field field)))))
+      (field->input field))))
 
 (comment
   (schema->form [:map
@@ -106,12 +116,15 @@
      {}
      [:div
       (side-bar (pot/map-of email)
-                [:div.flex.flex-col.md:flex-row.justify-center
-                 [:h1.text-3xl.font-bold plural-str]]
                 [:div.w-full.md:w-96.space-y-8
                  (biff/form
                   {}
-                  [:div.flex.flex-col
+                  [:div
+                   [:h2.text-base.font-semibold.leading-7.text-gray-900
+                    (str "New " (str/capitalize entity-name-str))]
+                   [:p.mt-1.text-sm.leading-6.text-gray-600
+                    (str "Create a new " entity-name-str)]]
+                  [:div.grid.grid-cols-1.gap-y-6
                   (doall (schema->form schema))
                   [:button {:type "submit"} "Create"]])]
                 )])))

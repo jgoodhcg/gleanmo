@@ -91,6 +91,7 @@
                              ::schema/type       :location
                              :user/id            (:uid session)
                              :location/name      (:location-name params)
+                             :location/label     (:location-name params)
                              :location/notes     (:notes params)
                              ::schema/created-at now})]))
   {:status  303
@@ -158,6 +159,7 @@
                           :db/doc-type    :location
                           :xt/id          id
                           :location/name  name
+                          :location/label name
                           :location/notes notes}])
         {:status  303
          :headers {"location" (str "/app/locations/" id "/edit")}})

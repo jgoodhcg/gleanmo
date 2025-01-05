@@ -104,6 +104,7 @@
                              ::schema/type       :habit
                              :user/id            (:uid session)
                              :habit/name         (:habit-name params)
+                             :habit/label        (:habit-name params)
                              :habit/notes        (:notes params)
                              ::schema/created-at now}
                             (when sensitive
@@ -201,6 +202,7 @@
                           :db/doc-type     :habit
                           :xt/id           id
                           :habit/name      name
+                          :habit/label     name
                           :habit/notes     notes
                           :habit/sensitive sensitive
                           :habit/archived  archived}])
