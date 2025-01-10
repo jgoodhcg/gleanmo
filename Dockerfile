@@ -47,5 +47,4 @@ EXPOSE 8080
 # By default, run in PROD profile
 ENV BIFF_PROFILE=prod
 ENV HOST=0.0.0.0
-ENV PORT=8080
 CMD ["/opt/java/openjdk/bin/java", "-XX:-OmitStackTraceInFastThrow", "-XX:+CrashOnOutOfMemoryError", "-jar", "app.jar"]
