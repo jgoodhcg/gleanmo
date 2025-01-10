@@ -2,6 +2,7 @@
 ;; #biff/env and #biff/secret will load values from the environment and from config.env.
 {:biff/base-url #profile {:prod #join ["https://" #biff/env DOMAIN] :default "http://localhost:8080"}
  :biff/host     #profile {:dev     "0.0.0.0"
+                          :prod    #or [#biff/env HOST "localhost"]
                           :default "localhost"}
  :biff/port     #profile {:dev 8080
                           :prod #long #biff/env PORT}
