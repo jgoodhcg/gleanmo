@@ -223,3 +223,39 @@
 
   ;;
   )
+
+;; fixed an errant user creation colliding on email
+(comment
+  (def prod-node (prod-node-start))
+
+  (let [ctx     (get-prod-db-context prod-node)
+        prod-db (:biff/db ctx)]
+    #_
+    (biff/lookup prod-db :xt/id #uuid "955d1dac-f0fe-48d2-bccf-41a99beabdab")
+    (biff/submit-tx ctx [{:xt/id       #uuid "955d1dac-f0fe-48d2-bccf-41a99beabdab"
+                          :db/doc-type :user
+                          :db/op       :update
+                          :user/email  "notArealUser@example.com"}])
+    )
+  ;;
+  )
+
+;; migrate :meditation-log/position from :lying-down -> :lying
+(comment
+  (def prod-node (prod-node-start))
+
+  (let [ctx     (get-prod-db-context prod-node)
+        prod-db (:biff/db ctx)
+        logs    (q prod-db '{:find  (pull ?l [*])
+                             :where [[?l :tech.jgood.gleanmo.schema/type :meditation-log]
+                                     [?l :meditation-log/position :lying-down]]})]
+    (->> logs
+         (mapv (fn [{id :xt/id}]
+                 {:meditation-log/position :lying
+                  :xt/id                   id
+                  :db/doc-type             :meditation-log
+                  :db/op                   :update}))
+         (biff/submit-tx ctx)))
+
+;;
+  )

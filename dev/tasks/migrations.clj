@@ -42,7 +42,6 @@
   [& args]
   (let [command (first args)
         config  (load-config)]
-    (pprint config)
     (case command
       "rollback"
       (do
