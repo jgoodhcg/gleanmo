@@ -1,6 +1,3 @@
-DROP TABLE IF EXISTS valid_time_zones CASCADE;
-
---;;
 DROP TABLE IF EXISTS exercise_set CASCADE;
 
 --;;
