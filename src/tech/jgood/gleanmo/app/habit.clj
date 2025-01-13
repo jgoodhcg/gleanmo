@@ -6,7 +6,7 @@
    [tech.jgood.gleanmo.app.shared :refer [get-last-tx-time get-user-time-zone
                                           link-button param-true?
                                           search-str-xform side-bar zoned-date-time-fmt]]
-   [tech.jgood.gleanmo.schema :as schema]
+   [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.ui :as ui]
    [tick.core :as t]
    [xtdb.api :as xt])
@@ -15,21 +15,21 @@
 
 (defn all-for-user-query [{:keys [biff/db session sensitive archived]}]
   (cond->>  (q db '{:find  (pull ?habit [*])
-                    :where [[?habit ::schema/type :habit]
+                    :where [[?habit ::sm/type :habit]
                             [?habit :user/id user-id]
-                            (not [?habit ::schema/deleted-at])]
+                            (not [?habit ::sm/deleted-at])]
                     :in    [user-id]} (:uid session))
     (not sensitive) (remove :habit/sensitive)
     (not archived)  (remove :habit/archived)
-    :always         (sort-by ::schema/created-at)))
+    :always         (sort-by ::sm/created-at)))
 
 (defn single-for-user-query [{:keys [biff/db session xt/id]}]
   (first
    (q db '{:find  (pull ?habit [*])
            :where [[?habit :xt/id habit-id]
-                   [?habit ::schema/type :habit]
+                   [?habit ::sm/type :habit]
                    [?habit :user/id user-id]
-                   (not [?habit ::schema/deleted-at])]
+                   (not [?habit ::sm/deleted-at])]
            :in    [user-id habit-id]} (:uid session) id)))
 
 (defn list-item [{:habit/keys [sensitive name notes archived]
@@ -47,7 +47,7 @@
   (let [user-id              (:uid session)
         {:user/keys [email]} (xt/entity db user-id)
         recent-habits        (->> (all-for-user-query ctx)
-                                  (sort-by ::schema/created-at)
+                                  (sort-by ::sm/created-at)
                                   (reverse)
                                   (take 3))]
     (ui/page
@@ -101,12 +101,12 @@
         sensitive (boolean (:sensitive params))]
     (biff/submit-tx ctx
                     [(merge {:db/doc-type        :habit
-                             ::schema/type       :habit
+                             ::sm/type       :habit
                              :user/id            (:uid session)
                              :habit/name         (:habit-name params)
                              :habit/label        (:habit-name params)
                              :habit/notes        (:notes params)
-                             ::schema/created-at now}
+                             ::sm/created-at now}
                             (when sensitive
                               {:habit/sensitive sensitive}))]))
   {:status  303
@@ -224,7 +224,7 @@
                                  (t/in (t/zone time-zone))
                                  (->> (t/format (t/formatter zoned-date-time-fmt))))
         formatted-created-at (-> habit
-                                 ::schema/created-at
+                                 ::sm/created-at
                                  (t/in (t/zone time-zone))
                                  (->> (t/format (t/formatter zoned-date-time-fmt))))]
     (ui/page
@@ -284,7 +284,7 @@
 
                    [:div.mt-4.flex.flex-col
                     [:span.text-gray-500 (str "last updated: " latest-tx-time)]
-                    [:span.text-gray-500 (str "created at: " (or formatted-created-at (::schema/created-at habit)))]]]])
+                    [:span.text-gray-500 (str "created at: " (or formatted-created-at (::sm/created-at habit)))]]]])
 
                 ;; delete form
                 (biff/form
@@ -318,7 +318,7 @@
                         [{:db/op              :update
                           :db/doc-type        :habit
                           :xt/id              habit-id
-                          ::schema/deleted-at now}])
+                          ::sm/deleted-at now}])
         {:status  303
          :headers {"location" "/app/habits"}})
       {:status 403

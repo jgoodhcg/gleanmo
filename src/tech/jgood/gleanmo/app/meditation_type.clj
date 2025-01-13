@@ -6,7 +6,7 @@
    [tech.jgood.gleanmo.app.shared :refer [get-last-tx-time get-user-time-zone
                                           link-button search-str-xform
                                           side-bar zoned-date-time-fmt]]
-   [tech.jgood.gleanmo.schema :as schema]
+   [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.ui :as ui]
    [tick.core :as t]
    [xtdb.api :as xt])
@@ -15,19 +15,19 @@
 
 (defn all-for-user-query [{:keys [biff/db session]}]
   (cond->>  (q db '{:find  (pull ?meditation-type [*])
-                    :where [[?meditation-type ::schema/type :meditation-type]
+                    :where [[?meditation-type ::sm/type :meditation-type]
                             [?meditation-type :user/id user-id]
-                            (not [?meditation-type ::schema/deleted-at])]
+                            (not [?meditation-type ::sm/deleted-at])]
                     :in    [user-id]} (:uid session))
-    :always         (sort-by ::schema/created-at)))
+    :always         (sort-by ::sm/created-at)))
 
 (defn single-for-user-query [{:keys [biff/db session xt/id]}]
   (first
    (q db '{:find  (pull ?meditation-type [*])
-           :where [[?meditation-type ::schema/type :meditation-type]
+           :where [[?meditation-type ::sm/type :meditation-type]
                    [?meditation-type :user/id user-id]
                    [?meditation-type :xt/id meditation-type-id]
-                   (not [?meditation-type ::schema/deleted-at])]
+                   (not [?meditation-type ::sm/deleted-at])]
            :in    [user-id meditation-type-id]} (:uid session) id)))
 
 (defn list-item [{:meditation-type/keys [name notes]
@@ -42,7 +42,7 @@
   (let [user-id              (:uid session)
         {:user/keys [email]} (xt/entity db user-id)
         recent-meditation-types        (->> (all-for-user-query ctx)
-                                  (sort-by ::schema/created-at)
+                                  (sort-by ::sm/created-at)
                                   (reverse)
                                   (take 3))]
     (ui/page
@@ -88,12 +88,12 @@
   (let [now (t/now)]
     (biff/submit-tx ctx
                     [(merge {:db/doc-type           :meditation-type
-                             ::schema/type          :meditation-type
+                             ::sm/type          :meditation-type
                              :user/id               (:uid session)
                              :meditation-type/name  (:meditation-type-name params)
                              :meditation-type/label (:meditation-type-name params)
                              :meditation-type/notes (:notes params)
-                             ::schema/created-at    now})]))
+                             ::sm/created-at    now})]))
   {:status  303
    :headers {"location" "/app/new/meditation-type"}})
 
@@ -179,7 +179,7 @@
                                  (t/in (t/zone time-zone))
                                  (->> (t/format (t/formatter zoned-date-time-fmt))))
         formatted-created-at (-> meditation-type
-                                 ::schema/created-at
+                                 ::sm/created-at
                                  (t/in (t/zone time-zone))
                                  (->> (t/format (t/formatter zoned-date-time-fmt))))]
     (ui/page
@@ -222,7 +222,7 @@
 
                    [:div.mt-4.flex.flex-col
                     [:span.text-gray-500 (str "last updated: " latest-tx-time)]
-                    [:span.text-gray-500 (str "created at: " (or formatted-created-at (::schema/created-at meditation-type)))]]]])
+                    [:span.text-gray-500 (str "created at: " (or formatted-created-at (::sm/created-at meditation-type)))]]]])
 
                 ;; delete form
                 (biff/form
@@ -256,7 +256,7 @@
                         [{:db/op              :update
                           :db/doc-type        :meditation-type
                           :xt/id              meditation-type-id
-                          ::schema/deleted-at now}])
+                          ::sm/deleted-at now}])
         {:status  303
          :headers {"location" "/app/meditation-types"}})
       {:status 403

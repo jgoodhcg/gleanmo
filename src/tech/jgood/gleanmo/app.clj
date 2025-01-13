@@ -13,7 +13,7 @@
    [tech.jgood.gleanmo.app.shared :refer [side-bar]]
    [tech.jgood.gleanmo.app.user :as user]
    [tech.jgood.gleanmo.middleware :as mid]
-   [tech.jgood.gleanmo.schema :as schema]
+   [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.settings :as settings]
    [tech.jgood.gleanmo.ui :as ui]
    [xtdb.api :as xt]))
@@ -40,17 +40,17 @@
         filter-email               (-> params :email)
         all-query                  '{:find  [(pull ?entity [*])]
                                      :where [[?entity :xt/id ?id]
-                                             [?entity ::schema/type type]]
+                                             [?entity ::sm/type type]]
                                      :in    [[type email]]}
         email-query                '{:find  [(pull ?entity [*])]
                                      :where [[?entity :xt/id ?id]
-                                             [?entity ::schema/type type]
+                                             [?entity ::sm/type type]
                                              [?user   :user/email email]
                                              [?entity :user/id ?user]]
                                      :in    [[type email]]}
         email-query-user           '{:find  [(pull ?entity [*])]
                                      :where [[?entity :xt/id ?id]
-                                             [?entity ::schema/type type]
+                                             [?entity ::sm/type type]
                                              [?entity :user/email email]]
                                      :in    [[type email]]}
         query                      (cond
@@ -89,7 +89,7 @@
                        (->> query-result
                             (map first)
                             (filter #(uuid? (:xt/id %)))
-                            (sort-by (juxt ::schema/created-at :user/id :xt/id))
+                            (sort-by (juxt ::sm/created-at :user/id :xt/id))
                             (drop offset)
                             (take limit)
                             (map #(into (sorted-map) %)))

@@ -74,7 +74,6 @@
   ;;
   )
 
-(->> :tech.jgood.gleanmo.schema/type namespace)
 (defn schema->form [schema]
   (let [has-opts (map? (second schema))
         fields   (if has-opts (drop 2 schema) (rest schema))

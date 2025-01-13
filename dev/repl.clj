@@ -1,6 +1,6 @@
 (ns repl
   (:require [tech.jgood.gleanmo :as main]
-            [tech.jgood.gleanmo.schema :as schema]
+            [tech.jgood.gleanmo.schema.meta :as sm]
             [com.biffweb :as biff :refer [q]]
             [clojure.edn :as edn]
             [clojure.java.io :as io]

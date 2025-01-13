@@ -9,7 +9,7 @@
                                           get-last-tx-time get-user-time-zone link-button
                                           local-date-time-fmt param-true? side-bar str->instant time-zone-select
                                           zoned-date-time-fmt]]
-   [tech.jgood.gleanmo.schema :as schema]
+   [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.ui :as ui]
    [tick.core :as t]
    [xtdb.api :as xt])
@@ -26,7 +26,7 @@
                                     (pull ?location-id [*])
                                     ?tz]
                             :where [[?meditation-log :user/id user-id]
-                                    [?meditation-log ::schema/type :meditation-log]
+                                    [?meditation-log ::sm/type :meditation-log]
                                     [?meditation-log :meditation-log/type-id ?type-id]
                                     [?meditation-log :meditation-log/location-id ?location-id]
                                     [?user :xt/id user-id]
@@ -34,7 +34,7 @@
                                     ;; NOTE not sure if I want to limit these ...
                                     ;; (not [?type-id ::schema/deleted-at])
                                     ;; (not [?location-id ::schema/deleted-at])
-                                    (not [?meditation-log ::schema/deleted-at])]
+                                    (not [?meditation-log ::sm/deleted-at])]
                             :in    [user-id]} (:uid session))]
     (cond->> raw-results
       :always (group-by (fn [[meditation-log _ _]] (:xt/id meditation-log))) ; Group by meditation-log id
@@ -54,9 +54,9 @@
   (first
    (q db '{:find  (pull ?meditation-log [*])
            :where [[?meditation-log :xt/id meditation-log-id]
-                   [?meditation-log ::schema/type :meditation-log]
+                   [?meditation-log ::sm/type :meditation-log]
                    [?meditation-log :user/id user-id]
-                   (not [?meditation-log ::schema/deleted-at])]
+                   (not [?meditation-log ::sm/deleted-at])]
            :in    [user-id meditation-log-id]} (:uid session) id)))
 
 (defn list-item
@@ -232,7 +232,7 @@
                     (vec (remove nil?
                                  [(merge
                                    {:db/doc-type                :meditation-log
-                                    ::schema/type               :meditation-log
+                                    ::sm/type               :meditation-log
                                     :user/id                    user-id
                                     :meditation-log/location-id location-id
                                     :meditation-log/time-zone   time-zone
@@ -241,7 +241,7 @@
                                     :meditation-log/guided      guided
                                     :meditation-log/type-id     type-id
                                     :meditation-log/interrupted interrupted
-                                    ::schema/created-at         now}
+                                    ::sm/created-at         now}
                                    (when (some? end)
                                      {:meditation-log/end end}))
                                   (when new-tz
@@ -290,7 +290,7 @@
         new-tz         (not= user-time-zone time-zone)
         ops            (->> [(merge {:db/op                      :update
                                      :db/doc-type                :meditation-log
-                                     ::schema/type               :meditation-log
+                                     ::sm/type               :meditation-log
                                      :xt/id                      log-id
                                      :meditation-log/location-id location-id
                                      :meditation-log/beginning   beginning
@@ -340,7 +340,7 @@
                                  (t/in (t/zone time-zone))
                                  (->> (t/format (t/formatter zoned-date-time-fmt))))
         formatted-created-at (-> meditation-log
-                                 ::schema/created-at
+                                 ::sm/created-at
                                  (t/in (t/zone time-zone))
                                  (->> (t/format (t/formatter zoned-date-time-fmt))))]
     (ui/page
@@ -483,7 +483,7 @@
                         [{:db/op              :update
                           :db/doc-type        :meditation-log
                           :xt/id              meditation-log-id
-                          ::schema/deleted-at now}])
+                          ::sm/deleted-at now}])
         {:status  303
          :headers {"location" "/app/meditation-logs"}})
       {:status 403
