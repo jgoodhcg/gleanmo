@@ -1,5 +1,5 @@
 CREATE TABLE exercise (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     label TEXT NOT NULL,
     deleted_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -14,10 +14,10 @@ CREATE TABLE exercise (
 );
 --;;
 CREATE INDEX idx_exercise_not_deleted ON exercise (id) WHERE deleted_at IS NULL;
-
 --;;
+
 CREATE TABLE exercise_session (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     start_timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     end_timestamp TIMESTAMPTZ,
     notes TEXT,
@@ -28,17 +28,18 @@ CREATE TABLE exercise_session (
 );
 --;;
 CREATE INDEX idx_exercise_session_not_deleted ON exercise_session (id) WHERE deleted_at IS NULL;
-
 --;;
+
 CREATE TABLE exercise_log (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     start_timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     end_timestamp TIMESTAMPTZ,
     exercise_session_id UUID NOT NULL,
-    notes TEXT NOT NULL,
-    interval_global_median_ending BOOLEAN NOT NULL,
-    airtable_ported BOOLEAN NOT NULL,
-    airtable_missing_duration NUMERIC NOT NULL,
+    label TEXT,
+    notes TEXT,
+    interval_global_median_ending BOOLEAN,
+    airtable_ported BOOLEAN,
+    airtable_missing_duration NUMERIC,
     deleted_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     user_id UUID,
@@ -50,7 +51,7 @@ CREATE INDEX idx_exercise_log_not_deleted ON exercise_log (id) WHERE deleted_at 
 
 --;;
 CREATE TABLE exercise_set (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     start_timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     end_timestamp TIMESTAMPTZ,
     exercise_id UUID NOT NULL,
@@ -60,6 +61,7 @@ CREATE TABLE exercise_set (
     weight_amount NUMERIC(6,2),
     weight_unit TEXT CHECK (weight_unit IN ('pounds', 'kilograms')),
     reps NUMERIC(5,1),
+    notes TEXT,
     interval_global_median_end BOOLEAN,
     airtable_ported BOOLEAN,
     airtable_exercise_id TEXT,
