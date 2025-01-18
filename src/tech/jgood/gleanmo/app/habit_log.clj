@@ -40,6 +40,8 @@
 (defn all-for-user-query [{:keys [biff/db session sensitive archived]}]
   (let [raw-results (q db '{:find  [(pull ?habit-log [*]) (pull ?habit [*]) ?tz]
                             :where [[?habit-log :user/id user-id]
+                                    [?habit :user/id user-id]
+                                    [?habit-log ::sm/type :habit-log]
                                     [?habit-log :habit-log/timestamp]
                                     [?habit-log :habit-log/habit-ids ?habit-id]
                                     [?habit :xt/id ?habit-id]

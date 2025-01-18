@@ -25,7 +25,8 @@
      (fn [ctx email]
        (let [now (t/now)]
          [{:db/doc-type    :user
-           ::sm/type   :user
+           ::sm/type       :user
+           ::sm/created-at now
            :db.op/upsert   {:user/email email}
            :user/joined-at now}]))})
    home/module
@@ -73,9 +74,9 @@
 
 (def components
   [biff/use-aero-config
-   biff/use-xt
+   biff/use-xtdb
    biff/use-queues
-   biff/use-tx-listener
+   biff/use-xtdb-tx-listener
    biff/use-htmx-refresh
    biff/use-jetty
    biff/use-chime

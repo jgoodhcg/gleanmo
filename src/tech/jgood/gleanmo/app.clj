@@ -3,13 +3,14 @@
    [clojure.string :as str]
    [com.biffweb :as biff :refer [q]]
    [potpuri.core :as pot]
+   [clojure.pprint :refer [pprint]]
    [tech.jgood.gleanmo.app.cruddy :as cruddy]
    [tech.jgood.gleanmo.app.habit :as habit]
    [tech.jgood.gleanmo.app.habit-log :as habit-log]
    [tech.jgood.gleanmo.app.ical-url :as ical-url]
    [tech.jgood.gleanmo.app.location :as location]
    [tech.jgood.gleanmo.app.meditation-log :as meditation-log]
-   [tech.jgood.gleanmo.app.meditation-type :as meditation-type]
+   [tech.jgood.gleanmo.app.meditation :as meditation]
    [tech.jgood.gleanmo.app.shared :refer [side-bar]]
    [tech.jgood.gleanmo.app.user :as user]
    [tech.jgood.gleanmo.middleware :as mid]
@@ -24,7 +25,7 @@
    [:p "This app was made with "
     [:a.link {:href "https://biffweb.com"} "Biff"] "."]))
 
-(def db-viz-supported-types #{:user :habit :habit-log :meditation-type :meditation-log :location :ical-url})
+(def db-viz-supported-types #{:user :habit :habit-log :meditation :meditation-log :location :ical-url})
 
 (defn db-viz [{:keys [session biff/db path-params params]}]
   (let [{:user/keys  [email]
@@ -61,6 +62,8 @@
 
                                      :else all-query)]
 
+    (pprint
+     (pot/map-of super-user email type ))
     (when (not (true? super-user))
       (throw (Exception. "User not authorized for db-viz")))
 
@@ -104,6 +107,8 @@
                                      (get entity attr "_"))
                                    all-attributes))
                             all-entities)]
+                   (pprint
+                    (pot/map-of query-result))
                    [:div.my-4
                     [:h2.text-lg.font-bold.mb-2 type]
                     [:table.w-full.rounded-lg.overflow-hidden.bg-white.shadow-md
@@ -178,13 +183,13 @@
             ;; mbsr
             ;;
 
-            ;; meditation-type
-            ["/new/meditation-type"         {:get meditation-type/new-form}]
-            ["/search-meditation-types"     {:post meditation-type/list-page}]
-            ["/meditation-types"            {:get meditation-type/list-page :post meditation-type/create!}]
-            ["/meditation-types/:id"        {:get meditation-type/view :post meditation-type/edit!}]
-            ["/meditation-types/:id/edit"   {:get meditation-type/edit-form}]
-            ["/meditation-types/:id/delete" {:post meditation-type/soft-delete!}]
+            ;; meditation
+            ["/new/meditation"         {:get meditation/new-form}]
+            ["/search-meditations"     {:post meditation/list-page}]
+            ["/meditations"            {:get meditation/list-page :post meditation/create!}]
+            ["/meditations/:id"        {:get meditation/view :post meditation/edit!}]
+            ["/meditations/:id/edit"   {:get meditation/edit-form}]
+            ["/meditations/:id/delete" {:post meditation/soft-delete!}]
 
             ;; meditation-log
             ["/new/meditation-log"         {:get meditation-log/new-form}]

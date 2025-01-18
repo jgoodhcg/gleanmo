@@ -4,7 +4,7 @@
    [com.biffweb :as biff :refer [q]]
    [potpuri.core :as pot]
    [tech.jgood.gleanmo.app.location :as location]
-   [tech.jgood.gleanmo.app.meditation-type :as meditation-type]
+   [tech.jgood.gleanmo.app.meditation :as meditation]
    [tech.jgood.gleanmo.app.shared :refer [format-date-time-local
                                           get-last-tx-time get-user-time-zone link-button
                                           local-date-time-fmt param-true? side-bar str->instant time-zone-select
@@ -39,11 +39,11 @@
     (cond->> raw-results
       :always (group-by (fn [[meditation-log _ _]] (:xt/id meditation-log))) ; Group by meditation-log id
       :always (map (fn [[_ tuple-vec]]
-                     (let [[meditation-log meditation-type location tz] (first tuple-vec)]
+                     (let [[meditation-log meditation location tz] (first tuple-vec)]
                        (merge meditation-log
                               {:user/time-zone tz}
-                              (select-keys meditation-type [:meditation-type/name
-                                                            :meditation-type/notes])
+                              (select-keys meditation [:meditation/name
+                                                            :meditation/notes])
                               (select-keys location   [:location/name
                                                        :location/notes])))))
       :always (into [])
@@ -67,7 +67,7 @@
                           interrupted]
     id                   :xt/id
     location             :location/name
-    meditation-type      :meditation-type/name
+    meditation      :meditation/name
     user-time-zone       :user/time-zone}]
   (let [formatted-beginning (when beginning
                               (-> beginning
@@ -93,7 +93,7 @@
          [:span (str duration " minutes")])]
       [:div.mt-2
        [:p.text-sm.font-bold (str "Location: " location)]
-       [:p.text-sm.font-bold (str "Type: " meditation-type)]
+       [:p.text-sm.font-bold (str "Type: " meditation)]
        [:p.text-sm (str "Position: " (name position))]
        [:p.text-sm (str "Guided: " (if guided "Yes" "No"))]
        [:p.text-sm (str "Interrupted: " (if interrupted "Yes" "No"))]]]]))
@@ -103,7 +103,7 @@
   (let [user-id             (:uid session)
         {:user/keys [email]} (xt/entity db user-id)
         locations            (location/all-for-user-query ctx)
-        meditation-types     (meditation-type/all-for-user-query ctx)
+        meditations     (meditation/all-for-user-query ctx)
         time-zone            (get-user-time-zone ctx)
         time-zone            (if (some? time-zone) time-zone "US/Eastern")
         current-time         (format-date-time-local (t/now) time-zone)
@@ -144,10 +144,10 @@
                     [:div.mt-2
                      [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
                       {:name "type-id" :required true :autocomplete "off"}
-                      (map (fn [meditation-type]
-                             [:option {:value (:xt/id meditation-type)}
-                              (:meditation-type/name meditation-type)])
-                           meditation-types)]]]
+                      (map (fn [meditation]
+                             [:option {:value (:xt/id meditation)}
+                              (:meditation/name meditation)])
+                           meditations)]]]
 
                    ;; Beginning time input
                    [:div
@@ -324,7 +324,7 @@
         {:user/keys [email]} (xt/entity db user-id)
         meditation-log       (single-for-user-query (merge ctx {:xt/id log-id}))
         locations            (location/all-for-user-query ctx)
-        meditation-types     (meditation-type/all-for-user-query ctx)
+        meditations     (meditation/all-for-user-query ctx)
         time-zone            (or (get-in meditation-log [:meditation-log/time-zone])
                                  (get-user-time-zone ctx))
         formatted-beginning  (-> (get-in meditation-log [:meditation-log/beginning])
@@ -372,18 +372,18 @@
                              (:location/name location)])
                           locations)]]]
 
-                  ;; Meditation Type selection
+                  ;; Meditation selection
                   [:div
                    [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for "type-id"} "Meditation Type"]
                    [:div.mt-2
                     [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
                      {:name "type-id" :required true :autocomplete "off"}
-                     (map (fn [meditation-type]
-                            [:option {:value    (:xt/id meditation-type)
-                                      :selected (= (:xt/id meditation-type)
+                     (map (fn [meditation]
+                            [:option {:value    (:xt/id meditation)
+                                      :selected (= (:xt/id meditation)
                                                    (get-in meditation-log [:meditation-log/type-id]))}
-                             (:meditation-type/name meditation-type)])
-                          meditation-types)]]]
+                             (:meditation/name meditation)])
+                          meditations)]]]
 
                   ;; Time zone selection
                   (time-zone-select time-zone)
