@@ -6,7 +6,7 @@
    [tech.jgood.gleanmo.app.shared :refer [get-last-tx-time get-user-time-zone
                                           link-button search-str-xform
                                           side-bar zoned-date-time-fmt]]
-   [tech.jgood.gleanmo.schema :as schema]
+   [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.ui :as ui]
    [tick.core :as t]
    [xtdb.api :as xt])
@@ -15,19 +15,19 @@
 
 (defn all-for-user-query [{:keys [biff/db session]}]
   (cond->>  (q db '{:find  (pull ?ical-url [*])
-                    :where [[?ical-url ::schema/type :ical-url]
+                    :where [[?ical-url ::sm/type :ical-url]
                             [?ical-url :ical-url/user-id user-id]
-                            (not [?ical-url ::schema/deleted-at])]
+                            (not [?ical-url ::sm/deleted-at])]
                     :in    [user-id]} (:uid session))
-    :always         (sort-by ::schema/created-at)))
+    :always         (sort-by ::sm/created-at)))
 
 (defn single-for-user-query [{:keys [biff/db session xt/id]}]
   (first
    (q db '{:find  (pull ?ical-url [*])
-           :where [[?ical-url ::schema/type :ical-url]
+           :where [[?ical-url ::sm/type :ical-url]
                    [?ical-url :ical-url/user-id user-id]
                    [?ical-url :xt/id ical-url-id]
-                   (not [?ical-url ::schema/deleted-at])]
+                   (not [?ical-url ::sm/deleted-at])]
            :in    [user-id ical-url-id]} (:uid session) id)))
 
 (defn list-item [{:ical-url/keys [name url notes]
@@ -43,7 +43,7 @@
   (let [user-id              (:uid session)
         {:user/keys [email]} (xt/entity db user-id)
         recent-ical-urls        (->> (all-for-user-query ctx)
-                                  (sort-by ::schema/created-at)
+                                  (sort-by ::sm/created-at)
                                   (reverse)
                                   (take 3))]
     (ui/page
@@ -96,13 +96,13 @@
   (let [now (t/now)]
     (biff/submit-tx ctx
                     [(merge {:db/doc-type        :ical-url
-                             ::schema/type       :ical-url
+                             ::sm/type       :ical-url
                              :ical-url/user-id   (:uid session)
                              :ical-url/name      (:ical-url-name params)
                              :ical-url/label     (:ical-url-name params)
                              :ical-url/url       (:url params)
                              :ical-url/notes     (:notes params)
-                             ::schema/created-at now})]))
+                             ::sm/created-at now})]))
   {:status  303
    :headers {"location" "/app/new/ical-url"}})
 
@@ -192,7 +192,7 @@
                                  (t/in (t/zone time-zone))
                                  (->> (t/format (t/formatter zoned-date-time-fmt))))
         formatted-created-at (-> ical-url
-                                 ::schema/created-at
+                                 ::sm/created-at
                                  (t/in (t/zone time-zone))
                                  (->> (t/format (t/formatter zoned-date-time-fmt))))]
     (ui/page
@@ -242,7 +242,7 @@
 
                    [:div.mt-4.flex.flex-col
                     [:span.text-gray-500 (str "last updated: " latest-tx-time)]
-                    [:span.text-gray-500 (str "created at: " (or formatted-created-at (::schema/created-at ical-url)))]]]])
+                    [:span.text-gray-500 (str "created at: " (or formatted-created-at (::sm/created-at ical-url)))]]]])
 
                 ;; delete form
                 (biff/form
@@ -276,7 +276,7 @@
                         [{:db/op              :update
                           :db/doc-type        :ical-url
                           :xt/id              ical-url-id
-                          ::schema/deleted-at now}])
+                          ::sm/deleted-at now}])
         {:status  303
          :headers {"location" "/app/ical-urls"}})
       {:status 403

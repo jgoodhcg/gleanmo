@@ -10,7 +10,7 @@
                                           get-last-tx-time get-user-time-zone
                                           link-button local-date-time-fmt param-true? search-str-xform side-bar
                                           time-zone-select zoned-date-time-fmt]]
-   [tech.jgood.gleanmo.schema :as schema]
+   [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.ui :as ui]
    [tick.core :as t]
    [xtdb.api :as xt])
@@ -40,14 +40,16 @@
 (defn all-for-user-query [{:keys [biff/db session sensitive archived]}]
   (let [raw-results (q db '{:find  [(pull ?habit-log [*]) (pull ?habit [*]) ?tz]
                             :where [[?habit-log :user/id user-id]
+                                    [?habit :user/id user-id]
+                                    [?habit-log ::sm/type :habit-log]
                                     [?habit-log :habit-log/timestamp]
                                     [?habit-log :habit-log/habit-ids ?habit-id]
                                     [?habit :xt/id ?habit-id]
                                     [?habit :habit/name ?habit-name]
                                     [?user :xt/id user-id]
                                     [?user :user/time-zone ?tz]
-                                    (not [?habit ::schema/deleted-at])
-                                    (not [?habit-log ::schema/deleted-at])]
+                                    (not [?habit ::sm/deleted-at])
+                                    (not [?habit-log ::sm/deleted-at])]
                             :in    [user-id]} (:uid session))]
     (cond->> raw-results
       :always         (group-by (fn [[habit-log _ _]] (:xt/id habit-log))) ; Group by habit-log id
@@ -70,13 +72,13 @@
   (let [user-id (:uid session)
         result (q db '{:find  [(pull ?habit-log [*]) (pull ?habit [*])]
                    :where [[?habit-log :xt/id log-id]
-                           [?habit-log ::schema/type :habit-log]
+                           [?habit-log ::sm/type :habit-log]
                            [?habit-log :user/id user-id]
                            [?habit-log :habit-log/habit-ids ?habit-id]
                            [?habit :xt/id ?habit-id]
                            [?habit :habit/name ?habit-name]
-                           (not [?habit ::schema/deleted-at])
-                           (not [?habit-log ::schema/deleted-at])]
+                           (not [?habit ::sm/deleted-at])
+                           (not [?habit-log ::sm/deleted-at])]
                    :in    [user-id log-id]} user-id id)]
     (consolidate-habit-log (-> result first first)
                            (->> result (map second))
@@ -212,12 +214,12 @@
                     (vec (remove nil?
                                  [(merge
                                    {:db/doc-type :habit-log
-                                    ::schema/type :habit-log
+                                    ::sm/type :habit-log
                                     :user/id user-id
                                     :habit-log/timestamp timestamp
                                     :habit-log/time-zone time-zone
                                     :habit-log/habit-ids habit-ids
-                                    ::schema/created-at now}
+                                    ::sm/created-at now}
                                    (when (not (str/blank? notes))
                                      {:habit-log/notes notes}))
                                   (when new-tz
@@ -283,7 +285,7 @@
                                  (t/in (t/zone time-zone))
                                  (->> (t/format (t/formatter zoned-date-time-fmt))))
         formatted-created-at (-> habit-log
-                                 ::schema/created-at
+                                 ::sm/created-at
                                  (t/in (t/zone time-zone))
                                  (->> (t/format (t/formatter zoned-date-time-fmt))))]
     (ui/page
@@ -374,7 +376,7 @@
         new-tz         (not= user-time-zone time-zone)
         ops            (->> [(merge {:db/op               :update
                                      :db/doc-type         :habit-log
-                                     ::schema/type        :habit-log
+                                     ::sm/type        :habit-log
                                      :xt/id               log-id
                                      :habit-log/timestamp timestamp
                                      :habit-log/time-zone time-zone
@@ -414,7 +416,7 @@
                         [{:db/op              :update
                           :db/doc-type        :habit-log
                           :xt/id              log-id
-                          ::schema/deleted-at now}])
+                          ::sm/deleted-at now}])
         {:status  303
          :headers {"location" "/app/habit-logs"}})
       {:status 403

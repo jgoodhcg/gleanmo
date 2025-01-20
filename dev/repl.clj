@@ -1,10 +1,11 @@
 (ns repl
   (:require [tech.jgood.gleanmo :as main]
-            [tech.jgood.gleanmo.schema :as schema]
+            [tech.jgood.gleanmo.schema.meta :as sm]
             [com.biffweb :as biff :refer [q]]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
-            [xtdb.api :as xt]))
+            [xtdb.api :as xt]
+            [potpuri.core :as pot]))
 
 ;; This function should only be used from the REPL. Regular application code
 ;; should receive the system map from the parent Biff component. For example,
@@ -33,57 +34,21 @@
   ;; Query the database
   (let [{:keys [biff/db] :as ctx} (get-context)]
     (q db
-       '{:find (pull user [*])
+       '{:find  (pull user [*])
          :where [[user :user/email]]}))
 
   ;; Update an existing user's email address
   (let [{:keys [biff/db] :as ctx} (get-context)
-        user-id (biff/lookup-id db :user/email "hello@example.com")]
+        user-id                   (biff/lookup-id db :user/email "hello@example.com")]
     (biff/submit-tx ctx
                     [{:db/doc-type :user
-                      :xt/id user-id
-                      :db/op :update
-                      :user/email "new.address@example.com"}]))
+                      :xt/id       user-id
+                      :db/op       :update
+                      :user/email  "new.address@example.com"}]))
 
-  (sort (keys (get-context)))
-
-  ;; Change all :habit-log/habit-ids from vecs to sets
+  ;; get latest transaction time for an entity
   (let [{:keys [biff/db] :as ctx} (get-context)
-        habit-logs                (q db '{:find  (pull ?habit-log [*])
-                                          :where [[?habit-log :habit-log/timestamp]]})]
-    (->> habit-logs
-         (mapv (fn [{ids :habit-log/habit-ids
-                     :as habit-log}]
-                 (merge habit-log
-                        {:habit-log/habit-ids (set ids)
-                         :db/doc-type         :habit-log
-                         :db/op               :update})))
-         (biff/submit-tx ctx)))
-
-  ;; query habit-logs with habit names from refs in :habit-log/habit-ids
-  (let [{:keys [biff/db] :as ctx} (get-context)
-        user-id                   #uuid "1677c7f5-232d-47a5-9df7-244b040cdcb1"
-        raw-results               (q db '{:find  [(pull ?habit-log [*]) ?habit-id ?habit-name]
-                                          :where [[?habit-log :habit-log/timestamp]
-                                                  [?habit-log :user/id user-id]
-                                                  [?habit-log :habit-log/habit-ids ?habit-id]
-                                                  [?habit :xt/id ?habit-id]
-                                                  [?habit :habit/name ?habit-name]]
-                                          :in    [user-id]} user-id)]
-    (->> raw-results
-         (group-by (fn [[habit-log _ _]] (:xt/id habit-log))) ; Group by habit-log id
-         (map (fn [[log-id grouped-tuples]]
-                (let [habit-log-map (first (first grouped-tuples))] ; Extract the habit-log map from the first tuple
-                  (assoc habit-log-map :habit-log/habits
-                         (map (fn [[_ ?habit-id ?habit-name]] ; Construct habit maps
-                                {:habit/id   ?habit-id
-                                 :habit/name ?habit-name})
-                              grouped-tuples)))))
-         (into [])))
-
-;; get latest transaction time for an entity
-  (let [{:keys [biff/db] :as ctx} (get-context)
-        habit-id                   #uuid "7f41decc-8a3d-4062-9ea4-3c953d30c0f3"
+        habit-id                  #uuid "e6457eda-f975-4a54-b6fa-fa31f6736690"
         history                   (xt/entity-history db habit-id :desc)
         tx-time                   (-> history first :xtdb.api/tx-time)]
     tx-time)
@@ -91,19 +56,17 @@
   ;; get all habits that aren't deleted
   (let [{:keys [biff/db] :as ctx} (get-context)]
     (q db
-       '{:find (pull habit [:habit/name])
-         :where [[habit ::schema/type :habit]
-                 (not [habit ::schema/deleted-at])]}))
+       '{:find  (pull habit [:habit/name])
+         :where [[habit ::sm/type :habit]
+                 (not [habit ::sm/deleted-at])]}))
 
   ;; set super user for email
   (let [{:keys [biff/db] :as ctx} (get-context)
-        user-id (biff/lookup-id db :user/email
-                                "justin@jgood.online")]
-    user-id
+        user-id                   (biff/lookup-id db :user/email "justin@jgood.online")]
     (biff/submit-tx ctx
-                    [{:db/doc-type :user
-                      :xt/id user-id
-                      :db/op :update
+                    [{:db/doc-type      :user
+                      :xt/id            user-id
+                      :db/op            :update
                       :authz/super-user true}]))
 
   ;; Check the terminal for output.
@@ -135,32 +98,6 @@
   ;;
   )
 
-;; connect to production db from dev repl
-;; realized this is uneccesary if I just used `clj -M:dev prod-repl`
-;; update to the above, it actually times out on any evaluation ...
-(comment
-  ;; secrets are wrapped as functions so that they don't show up when serializing the maps
-  (def prod-node (let [jdbc-url ((-> (check-config) :prod-config :biff.xtdb.jdbc/jdbcUrl))]
-                   (biff/start-node {:topology  :jdbc
-                                     :jdbc-spec {:jdbcUrl jdbc-url}
-                                     :dir       "prod-storage/"})))
-
-  (def email "example@example.com")
-
-  ;; set a super user in production
-  (let [ctx (-> @main/system
-                (merge {:biff.xtdb/node prod-node})
-                biff/assoc-db)
-        prod-db (:biff/db ctx)
-        user-id (biff/lookup-id prod-db :user/email email)]
-    (biff/submit-tx ctx
-                    [{:db/doc-type :user
-                      :xt/id user-id
-                      :db/op :update
-                      :authz/super-user true}]))
-  ;;
-  )
-
 (defn prod-node-start
   "Only call this once"
   []
@@ -174,52 +111,51 @@
       (merge {:biff.xtdb/node prod-node-ref})
       biff/assoc-db))
 
-;; migration to change name to label
+;; migration to add new schema meta keys and change :meditation-type -> :meditation
 (comment
   (def prod-node (prod-node-start))
 
-  ;; habits
-  (let [ctx     (get-prod-db-context prod-node)
-        prod-db (:biff/db ctx)
-        habits  (q prod-db '{:find  (pull ?habit [*])
-                             :where [[?habit :tech.jgood.gleanmo.schema/type :habit]]})]
-    (->> habits
-         (mapv (fn [{n :habit/name :as habit}]
-                 (merge habit
-                        {:habit/label n
-                         :db/doc-type :habit
-                         :db/op       :update})))
-         (biff/submit-tx ctx))
-    )
+  (let [{:keys [biff/db] :as ctx}
+        (get-prod-db-context prod-node)
+        #_
+        (get-context)
 
-  ;; locations
-  (let [ctx       (get-prod-db-context prod-node)
-        prod-db   (:biff/db ctx)
-        locations (q prod-db '{:find  (pull ?location [*])
-                               :where [[?location :tech.jgood.gleanmo.schema/type :location]]})]
-    (->> locations
-         (mapv (fn [{n :location/name :as location}]
-                 (merge location
-                        {:location/label n
-                         :db/doc-type    :location
-                         :db/op          :update})))
-         (biff/submit-tx ctx))
-    )
-  ;; meditation-types
-  (let [ctx       (get-prod-db-context prod-node)
-        prod-db   (:biff/db ctx)
-        meditation-types (q prod-db '{:find  (pull ?meditation-type [*])
-                               :where [[?meditation-type :tech.jgood.gleanmo.schema/type :meditation-type]]})]
-    (->> meditation-types
-         (mapv (fn [{n :meditation-type/name :as meditation-type}]
-                 (merge meditation-type
-                        {:meditation-type/label n
-                         :db/doc-type    :meditation-type
-                         :db/op          :update})))
-         (biff/submit-tx ctx))
-    )
-
-  ;; ical-urls (there are none in prod right now)
-
-  ;;
+        entities
+        (q db
+           '{:find  (pull e [*])
+             :where [[e :tech.jgood.gleanmo.schema/type]
+                     (not [e ::sm/type])]})]
+    (count entities)
+    #_
+    (->> entities
+         (remove (fn [e] (nil? (:xt/id e))))
+         #_
+         (take 500)
+         (mapv (fn [{id     :xt/id
+                    ca     :tech.jgood.gleanmo.schema/created-at
+                    da     :tech.jgood.gleanmo.schema/deleted-at
+                    t      :tech.jgood.gleanmo.schema/type
+                    ml     :meditation-type/label
+                    ml-alt :meditation-type/name
+                    mn     :meditation-type/notes
+                    hl     :habit/name
+                    hll    :habit-log/name
+                    ll     :location/name
+                    ja     :user/joined-at}]
+                 (let [t (if (= t :meditation-type)
+                           :meditation
+                           t)]
+                   (-> {:xt/id          id
+                        ::sm/created-at (or ca ja)
+                        ::sm/type       t
+                        :db/doc-type    t
+                        :db/op          :update}
+                       (pot/assoc-if :location/label ll)
+                       (pot/assoc-if :habit/label hl)
+                       (pot/assoc-if :habit-log/label hll)
+                       (pot/assoc-if :meditation/notes mn)
+                       (pot/assoc-if :meditation/label (or ml ml-alt))
+                       (pot/assoc-if ::sm/deleted-at da)))))
+         (biff/submit-tx ctx)))
+;;
   )

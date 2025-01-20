@@ -1,7 +1,7 @@
 (ns airtable.activity
   (:require
    [clj-uuid :as uuid]
-   [tech.jgood.gleanmo.schema :as schema]
+   [tech.jgood.gleanmo.schema.meta :as sm]
    [clojure.edn :as edn]
    [potpuri.core :as pot]
    [clojure.string :as str]
@@ -44,8 +44,8 @@
                   notes      (-> edn-data (get "fields") (get "notes"))
                   habit      (cond-> {:xt/id              xt-id
                                       :db/doc-type        :habit
-                                      ::schema/type       :habit
-                                      ::schema/created-at created-at
+                                      ::sm/type       :habit
+                                      ::sm/created-at created-at
                                       :user/id            user-id
                                       :habit/name         habit-name
                                       :airtable/id        at-id
@@ -76,8 +76,8 @@
                   xt-id         (uuid/v5 ns-uuid-activity-log at-id)
                   habit-log     (cond-> {:xt/id               xt-id
                                          :db/doc-type         :habit-log
-                                         ::schema/type        :habit-log
-                                         ::schema/created-at  created-at
+                                         ::sm/type        :habit-log
+                                         ::sm/created-at  created-at
                                          :user/id             user-id
                                          :habit-log/timestamp timestamp
                                          :habit-log/time-zone tz-str

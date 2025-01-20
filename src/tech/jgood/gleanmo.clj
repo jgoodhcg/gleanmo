@@ -11,6 +11,7 @@
    [tech.jgood.gleanmo.email :as email]
    [tech.jgood.gleanmo.home :as home]
    [tech.jgood.gleanmo.middleware :as mid]
+   [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.schema :as schema]
    [tech.jgood.gleanmo.ui :as ui]
    [tech.jgood.gleanmo.worker :as worker]
@@ -24,7 +25,8 @@
      (fn [ctx email]
        (let [now (t/now)]
          [{:db/doc-type    :user
-           ::schema/type   :user
+           ::sm/type       :user
+           ::sm/created-at now
            :db.op/upsert   {:user/email email}
            :user/joined-at now}]))})
    home/module
@@ -72,9 +74,9 @@
 
 (def components
   [biff/use-aero-config
-   biff/use-xt
+   biff/use-xtdb
    biff/use-queues
-   biff/use-tx-listener
+   biff/use-xtdb-tx-listener
    biff/use-htmx-refresh
    biff/use-jetty
    biff/use-chime
