@@ -18,9 +18,13 @@
      :opts opts
      :type type}))
 
-(defn string-field [{:keys [field-key]}]
+(defn parse-field-key [{:keys [field-key]}]
   (let [n (-> field-key str rest str/join (str/replace "/" "-"))
         l (-> n (str/split #"-") (->> (map str/capitalize)) (->> (str/join " ")))]
+    (pot/map-of n l)))
+
+(defn string-field [{:keys [field-key] :as args}]
+  (let [{:keys [n l]} (parse-field-key args)]
     (cond
       (str/includes? n "label")
       [:div
@@ -41,15 +45,62 @@
           :placeholder  "..."
           :autocomplete "off"}]]])))
 
+(defn checkbox-field [{:keys [field-key]
+                       :as args}]
+  (let [{:keys [n l]} (parse-field-key args)]
+    [:div.flex.items-center
+     [:input.rounded.shadow-sm.mr-2.text-indigo-600.focus:ring-blue-500.focus:border-indigo-500
+      {:type "checkbox" :name n :autocomplete "off"}]
+     [:label.text-sm.font-medium.leading-6.text-gray-900 {:for n} l]]))
+
+(defn number-field [{:keys [field-key] :as args}]
+  (let [{:keys [n l]} (parse-field-key args)]
+    [:div
+     [:label.block.text-sm.font-medium.leading-6.text-gray-900
+      {:for n} l]
+     [:div.mt-2
+      [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+       {:type "number" :step "any" :name n :autocomplete "off"}]]]))
+
+(defn int-field [{:keys [field-key] :as args}]
+  (let [{:keys [n l]} (parse-field-key args)]
+    [:div
+     [:label.block.text-sm.font-medium.leading-6.text-gray-900
+      {:for n} l]
+     [:div.mt-2
+      [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+       {:type "number" :step "1" :name n :autocomplete "off"}]]]))
+
+(defn float-field [{:keys [field-key] :as args}]
+  (let [{:keys [n l]} (parse-field-key args)]
+    [:div
+     [:label.block.text-sm.font-medium.leading-6.text-gray-900
+      {:for n} l]
+     [:div.mt-2
+      [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+       {:type "number" :step "0.001" :name n :autocomplete "off"}]]]))
+
+(defn instant-field [{:keys [field-key current-time] :as args}]
+  (let [{:keys [n l]} (parse-field-key args)]
+    [:div
+     [:label.block.text-sm.font-medium.leading-6.text-gray-900
+      {:for n} l]
+     [:div.mt-2
+      [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+       {:type "datetime-local"
+        :name n
+        :required true
+        :value current-time}]]]))
+
 (defn field->input [{:keys [field-key type opts]}]
   (case type
     :uuid    nil
     :string  (string-field (pot/map-of field-key))
-    :boolean [:input {:type "checkbox" :name (name field-key)}]
-    :number  [:input {:type "number" :step "any" :name (name field-key)}]
-    :int     [:input {:type "number" :step "1" :name (name field-key)}]
-    :float   [:input {:type "number" :step "0.001" :name (name field-key)}]
-    :instant [:input {:type "datetime-local" :name (name field-key)}]
+    :boolean (checkbox-field (pot/map-of field-key))
+    :number  (number-field (pot/map-of field-key))
+    :int     (int-field (pot/map-of field-key))
+    :float   (float-field (pot/map-of field-key))
+    :instant (instant-field (pot/map-of field-key))
     ;; handle special references, sets, enums, etc.
     (str [:div (str "unsupported type: " type)])))
 
@@ -67,8 +118,7 @@
            [:cruddy/enum [:enum :a :b :c]]
            [:cruddy/timestamp :instant]
            [:cruddy/float {:optional true} :float])
-         (rand-int 10)))
-   )
+         (rand-int 10))))
 
   (-> :cruddy/name str rest str/join (str/replace "/" "-"))
   ;;
@@ -82,7 +132,9 @@
                       ;; remove schema fields that aren't necessary for new forms
                       (remove (fn [{:keys [field-key]}]
                                 (let [n (namespace field-key)]
-                                  (= "tech.jgood.gleanmo.schema" n)))))]
+                                  (or
+                                   (= "tech.jgood.gleanmo.schema" n)
+                                   (= "tech.jgood.gleanmo.schema.meta" n))))))]
     (for [field fields]
       (field->input field))))
 
@@ -124,9 +176,8 @@
                    [:p.mt-1.text-sm.leading-6.text-gray-600
                     (str "Create a new " entity-name-str)]]
                   [:div.grid.grid-cols-1.gap-y-6
-                  (doall (schema->form schema))
-                  [:button {:type "submit"} "Create"]])]
-                )])))
+                   (doall (schema->form schema))
+                   [:button {:type "submit"} "Create"]])])])))
 
 (defn gen-routes [{:keys [entity-key schema plural-str]}]
   (let [schema          (entity-key schema)
