@@ -117,45 +117,63 @@
 
   (let [{:keys [biff/db] :as ctx}
         (get-prod-db-context prod-node)
+        #_ (get-context)
+
+        entities
+        (q db
+           '{:find (pull e [*])
+              :where [[e :tech.jgood.gleanmo.schema/type]
+                      (not [e ::sm/type])]})]
+    (count entities)
+    #_(->> entities
+           (remove (fn [e] (nil? (:xt/id e))))
+           #_(take 500)
+           (mapv (fn [{id :xt/id
+                        ca :tech.jgood.gleanmo.schema/created-at
+                        da :tech.jgood.gleanmo.schema/deleted-at
+                        t :tech.jgood.gleanmo.schema/type
+                        ml :meditation-type/label
+                        ml-alt :meditation-type/name
+                        mn :meditation-type/notes
+                        hl :habit/name
+                        hll :habit-log/name
+                        ll :location/name
+                        ja :user/joined-at}]
+                    (let [t (if (= t :meditation-type)
+                              :meditation
+                             t)]
+                      (-> {:xt/id id
+                           ::sm/created-at (or ca ja)
+                           ::sm/type t
+                           :db/doc-type t
+                           :db/op :update}
+                         (pot/assoc-if :location/label ll)
+                         (pot/assoc-if :habit/label hl)
+                         (pot/assoc-if :habit-log/label hll)
+                         (pot/assoc-if :meditation/notes mn)
+                         (pot/assoc-if :meditation/label (or ml ml-alt))
+                         (pot/assoc-if ::sm/deleted-at da)))))
+           (biff/submit-tx ctx)))
+
+  ;; Forgot meditation/name
+  (let [{:keys [biff/db] :as ctx}
         #_
+        (get-prod-db-context prod-node)
         (get-context)
 
         entities
         (q db
            '{:find  (pull e [*])
-             :where [[e :tech.jgood.gleanmo.schema/type]
-                     (not [e ::sm/type])]})]
-    (count entities)
-    #_
+             :where [[e ::sm/type :meditation]]})]
     (->> entities
          (remove (fn [e] (nil? (:xt/id e))))
-         #_
-         (take 500)
-         (mapv (fn [{id     :xt/id
-                    ca     :tech.jgood.gleanmo.schema/created-at
-                    da     :tech.jgood.gleanmo.schema/deleted-at
-                    t      :tech.jgood.gleanmo.schema/type
-                    ml     :meditation-type/label
-                    ml-alt :meditation-type/name
-                    mn     :meditation-type/notes
-                    hl     :habit/name
-                    hll    :habit-log/name
-                    ll     :location/name
-                    ja     :user/joined-at}]
-                 (let [t (if (= t :meditation-type)
-                           :meditation
-                           t)]
-                   (-> {:xt/id          id
-                        ::sm/created-at (or ca ja)
-                        ::sm/type       t
-                        :db/doc-type    t
-                        :db/op          :update}
-                       (pot/assoc-if :location/label ll)
-                       (pot/assoc-if :habit/label hl)
-                       (pot/assoc-if :habit-log/label hll)
-                       (pot/assoc-if :meditation/notes mn)
-                       (pot/assoc-if :meditation/label (or ml ml-alt))
-                       (pot/assoc-if ::sm/deleted-at da)))))
+         (mapv (fn [{id :xt/id
+                    ml :meditation/label}]
+                 (-> {:xt/id           id
+                      :meditation/name ml
+                      :db/doc-type     :meditation
+                      :db/op           :update}
+                     )))
          (biff/submit-tx ctx)))
 ;;
   )
