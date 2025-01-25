@@ -117,36 +117,36 @@
 
   (let [{:keys [biff/db] :as ctx}
         (get-prod-db-context prod-node)
-        #_ (get-context)
+        #_(get-context)
 
         entities
         (q db
            '{:find (pull e [*])
-              :where [[e :tech.jgood.gleanmo.schema/type]
-                      (not [e ::sm/type])]})]
+             :where [[e :tech.jgood.gleanmo.schema/type]
+                     (not [e ::sm/type])]})]
     (count entities)
     #_(->> entities
            (remove (fn [e] (nil? (:xt/id e))))
            #_(take 500)
            (mapv (fn [{id :xt/id
-                        ca :tech.jgood.gleanmo.schema/created-at
-                        da :tech.jgood.gleanmo.schema/deleted-at
-                        t :tech.jgood.gleanmo.schema/type
-                        ml :meditation-type/label
-                        ml-alt :meditation-type/name
-                        mn :meditation-type/notes
-                        hl :habit/name
-                        hll :habit-log/name
-                        ll :location/name
-                        ja :user/joined-at}]
-                    (let [t (if (= t :meditation-type)
-                              :meditation
+                       ca :tech.jgood.gleanmo.schema/created-at
+                       da :tech.jgood.gleanmo.schema/deleted-at
+                       t :tech.jgood.gleanmo.schema/type
+                       ml :meditation-type/label
+                       ml-alt :meditation-type/name
+                       mn :meditation-type/notes
+                       hl :habit/name
+                       hll :habit-log/name
+                       ll :location/name
+                       ja :user/joined-at}]
+                   (let [t (if (= t :meditation-type)
+                             :meditation
                              t)]
-                      (-> {:xt/id id
-                           ::sm/created-at (or ca ja)
-                           ::sm/type t
-                           :db/doc-type t
-                           :db/op :update}
+                     (-> {:xt/id id
+                          ::sm/created-at (or ca ja)
+                          ::sm/type t
+                          :db/doc-type t
+                          :db/op :update}
                          (pot/assoc-if :location/label ll)
                          (pot/assoc-if :habit/label hl)
                          (pot/assoc-if :habit-log/label hll)
@@ -157,8 +157,7 @@
 
   ;; Forgot meditation/name
   (let [{:keys [biff/db] :as ctx}
-        #_
-        (get-prod-db-context prod-node)
+        #_(get-prod-db-context prod-node)
         (get-context)
 
         entities
@@ -168,12 +167,58 @@
     (->> entities
          (remove (fn [e] (nil? (:xt/id e))))
          (mapv (fn [{id :xt/id
-                    ml :meditation/label}]
+                     ml :meditation/label}]
                  (-> {:xt/id           id
                       :meditation/name ml
                       :db/doc-type     :meditation
-                      :db/op           :update}
-                     )))
+                      :db/op           :update})))
          (biff/submit-tx ctx)))
 ;;
+  )
+
+;; crud single relation query
+(comment
+  (let [ctx (get-context)]
+    (q (:biff/db ctx)
+       '{:find  [?id ?label]
+         :where [[?e ::sm/type :location]
+                 [?e :xt/id ?id]
+                 [?e :location/label ?label]]}))
+
+  (let [ctx       (get-context)
+        label-key :location/label]
+
+    (q (:biff/db ctx)
+       `{:find  [~'?id ~'?label]
+         :where [[~'?e ::sm/type ~'related-entity]
+                 [~'?e :xt/id ~'?id]
+                 [~'?e ~label-key ~'?label]]
+         :in    [[related-entity]]}
+       [:location]))
+
+  (let [a 1]
+    `[a 'a ~a ~'a])
+
+  (let [a "1"]
+    '[a 'a ~a ~'a])
+
+  (let [ctx       (get-context)
+        label-key :location/label]
+    (q (:biff/db ctx)
+       {:find  ['?id '?label]
+        :where [['?e ::sm/type 'related-entity]
+                ['?e :xt/id '?id]
+                ['?e label-key '?label]]
+        :in    [['related-entity]]}
+       [:location]))
+
+  (let [ctx            (get-context)
+        label-key      :location/label
+        related-entity :location]
+    (q (:biff/db ctx)
+       {:find  ['?id '?label]
+        :where [['?e ::sm/type related-entity]
+                ['?e :xt/id '?id]
+                ['?e label-key '?label]]}))
+  ;;
   )

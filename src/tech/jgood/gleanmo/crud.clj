@@ -1,13 +1,13 @@
 (ns tech.jgood.gleanmo.crud
   (:require
    [clojure.pprint :refer [pprint]]
-   [com.biffweb :as biff]
+   [com.biffweb :as biff :refer [q]]
    [potpuri.core :as pot]
+   [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.app.shared :refer [side-bar]]
    [clojure.string :as str]
    [xtdb.api :as xt]
-   [tech.jgood.gleanmo.ui :as ui]
-   [clojure.string :as str]))
+   [tech.jgood.gleanmo.ui :as ui]))
 
 (defn parse-field [[key-or-opts & more :as entry]]
   (let [has-opts (map? (second entry))
@@ -92,39 +92,54 @@
         :required true
         :value current-time}]]]))
 
-(defn field->input [{:keys [field-key type opts]}]
-  (case type
-    :uuid    nil
-    :string  (string-field (pot/map-of field-key))
-    :boolean (checkbox-field (pot/map-of field-key))
-    :number  (number-field (pot/map-of field-key))
-    :int     (int-field (pot/map-of field-key))
-    :float   (float-field (pot/map-of field-key))
-    :instant (instant-field (pot/map-of field-key))
-    ;; handle special references, sets, enums, etc.
-    (str [:div (str "unsupported type: " type)])))
+(defn single-relation-field [{:keys [field-key related-entity-str]
+                              :as   args}
+                             ctx]
+  (let [{:keys [n l]}  (parse-field-key args)
+        related-entity (keyword related-entity-str)
+        label-key      (keyword (str related-entity-str "/label"))
+        options        (->> (q (:biff/db ctx)
+                               {:find  ['?id '?label]
+                                :where [['?e ::sm/type related-entity]
+                                        ['?e :xt/id '?id]
+                                        ['?e label-key '?label]]})
+                            (map (fn [[id label]] {:id id, :label label})))]
+    [:div
+     [:label.block.text-sm.font-medium.leading-6.text-gray-900
+      {:for n} l]
+     [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+      {:name n :required true}
+      (for [{:keys [id label]} options]
+        [:option {:value id} label])]]))
 
-(comment
-  (field->input
-   (parse-field
-    (nth '([:xt/id :uuid]
-           [:tech.jgood.gleanmo.schema/type [:enum :cruddy]]
-           [:cruddy/name :string]
-           [:cruddy/num :number]
-           [:cruddy/bool :boolean]
-           [:cruddy/integer :int]
-           [:cruddy/single-relation :habit/id]
-           [:cruddy/set-relation [:set :habit/id]]
-           [:cruddy/enum [:enum :a :b :c]]
-           [:cruddy/timestamp :instant]
-           [:cruddy/float {:optional true} :float])
-         (rand-int 10))))
+(defn field->input [{:keys [field-key type opts]}
+                    ctx]
+  (let [is-vec             (vector? type)
+        is-enum            (and is-vec (-> type first (= :enum)))
+        is-set             (and is-vec (-> type first (= :set)))
+        is-keyword         (keyword? type)
+        is-id              (and is-keyword (-> type name (= "id")))
+        related-entity-str (cond
+                             is-id  (-> type namespace)
+                             is-set (-> type second namespace))
+        input-type         (cond
+                             is-set :many-relationship
+                             is-id  :single-relationship
+                             :else  type)]
+    (case input-type
+      :uuid                nil
+      :string              (string-field (pot/map-of field-key))
+      :boolean             (checkbox-field (pot/map-of field-key))
+      :number              (number-field (pot/map-of field-key))
+      :int                 (int-field (pot/map-of field-key))
+      :float               (float-field (pot/map-of field-key))
+      :instant             (instant-field (pot/map-of field-key))
+      :single-relationship (single-relation-field (pot/map-of field-key related-entity-str) ctx)
+      ;; handle special references, sets, enums, etc.
+      [:div (str "unsupported!: "
+                 (pot/map-of related-entity-str type input-type))])))
 
-  (-> :cruddy/name str rest str/join (str/replace "/" "-"))
-  ;;
-  )
-
-(defn schema->form [schema]
+(defn schema->form [schema ctx]
   (let [has-opts (map? (second schema))
         fields   (if has-opts (drop 2 schema) (rest schema))
         fields   (->> fields
@@ -136,31 +151,14 @@
                                    (= "tech.jgood.gleanmo.schema" n)
                                    (= "tech.jgood.gleanmo.schema.meta" n))))))]
     (for [field fields]
-      (field->input field))))
-
-(comment
-  (schema->form [:map
-                 {:closed true}
-                 [:xt/id :uuid]
-                 [:tech.jgood.gleanmo.schema/type [:enum :cruddy]]
-                 [:cruddy/name :string]
-                 [:cruddy/num :number]
-                 [:cruddy/bool :boolean]
-                 [:cruddy/integer :int]
-                 [:cruddy/single-relation :habit/id]
-                 [:cruddy/set-relation [:set :habit/id]]
-                 [:cruddy/enum [:enum :a :b :c]]
-                 [:cruddy/timestamp :instant]
-                 [:cruddy/float {:optional true} :float]])
-
-  ;;
-  )
+      (field->input field ctx))))
 
 (defn new-form [{:keys [entity-key
                         schema
                         plural-str
                         entity-name-str]}
-                {:keys [session biff/db]}]
+                {:keys [session biff/db]
+                 :as ctx}]
   (let [user-id              (:uid session)
         {:user/keys [email]} (xt/entity db user-id)]
     (ui/page
@@ -176,7 +174,7 @@
                    [:p.mt-1.text-sm.leading-6.text-gray-600
                     (str "Create a new " entity-name-str)]]
                   [:div.grid.grid-cols-1.gap-y-6
-                   (doall (schema->form schema))
+                   (doall (schema->form schema ctx))
                    [:button {:type "submit"} "Create"]])])])))
 
 (defn gen-routes [{:keys [entity-key schema plural-str]}]

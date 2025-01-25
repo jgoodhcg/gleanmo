@@ -9,8 +9,10 @@
        [::sm/deleted-at {:optional true}    :instant]
        [::sm/created-at                     :instant]
        [:user/id                         :user/id]
-       [:location/name {:optional true}  :string] ;; DEPRECATED
        [:location/label                  :string]
        [:location/notes {:optional true} :string]]
       (concat sm/legacy-meta)
+      ;; DEPRECATED
+      (concat
+       [[:location/name {:optional true} :string]])
       vec))
