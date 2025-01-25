@@ -4,10 +4,31 @@
    [com.biffweb :as biff :refer [q]]
    [potpuri.core :as pot]
    [tech.jgood.gleanmo.schema.meta :as sm]
-   [tech.jgood.gleanmo.app.shared :refer [side-bar]]
+   [tech.jgood.gleanmo.app.shared :refer [side-bar param-true?]]
    [clojure.string :as str]
    [xtdb.api :as xt]
    [tech.jgood.gleanmo.ui :as ui]))
+
+(defn all-for-user-query [{:keys [entity-type-str]}
+                          {:keys [biff/db session params]}]
+  (let [sensitive      (some-> params :sensitive param-true?)
+        archived       (some-> params :archived param-true?)
+        entity-type    (keyword entity-type-str)
+        time-stamp-key (keyword entity-type-str "timestamp")
+        sensitive-key  (keyword entity-type-str "sensitive")
+        archived-key   (keyword entity-type-str "archived")
+        raw-results    (q db {:find  '(pull ?e [*])
+                              :where ['[?e :user/id user-id]
+                                      ['?e ::sm/type entity-type]
+                                      '[?user :xt/id user-id]
+                                      '(not [?e ::sm/deleted-at])]
+                              :in    ['user-id]}
+                          (:uid session))]
+    (cond->> raw-results
+      :always         (sort-by #(or (time-stamp-key %) (::sm/created-at %)))
+      :always         (reverse)
+      (not sensitive) (remove sensitive-key)
+      (not archived)  (remove archived-key))))
 
 (defn parse-field [[key-or-opts & more :as entry]]
   (let [has-opts (map? (second entry))
@@ -95,15 +116,14 @@
 (defn single-relation-field [{:keys [field-key related-entity-str]
                               :as   args}
                              ctx]
-  (let [{:keys [n l]}  (parse-field-key args)
-        related-entity (keyword related-entity-str)
-        label-key      (keyword (str related-entity-str "/label"))
-        options        (->> (q (:biff/db ctx)
-                               {:find  ['?id '?label]
-                                :where [['?e ::sm/type related-entity]
-                                        ['?e :xt/id '?id]
-                                        ['?e label-key '?label]]})
-                            (map (fn [[id label]] {:id id, :label label})))]
+  (let [{:keys [n l]} (parse-field-key args)
+        label-key     (keyword related-entity-str "label")
+        id-key        (keyword related-entity-str "id")
+        options       (->> (all-for-user-query
+                            {:entity-type-str related-entity-str}
+                             ctx)
+                           (map (fn [e] {:id    (id-key e)
+                                        :label (label-key e)})))]
     [:div
      [:label.block.text-sm.font-medium.leading-6.text-gray-900
       {:for n} l]
@@ -134,7 +154,9 @@
       :int                 (int-field (pot/map-of field-key))
       :float               (float-field (pot/map-of field-key))
       :instant             (instant-field (pot/map-of field-key))
-      :single-relationship (single-relation-field (pot/map-of field-key related-entity-str) ctx)
+      :single-relationship (single-relation-field
+                            (pot/map-of field-key related-entity-str)
+                            ctx)
       ;; handle special references, sets, enums, etc.
       [:div (str "unsupported!: "
                  (pot/map-of related-entity-str type input-type))])))
@@ -157,8 +179,8 @@
                         schema
                         plural-str
                         entity-name-str]}
-                {:keys [session biff/db]
-                 :as ctx}]
+                {:keys [session biff/db params]
+                 :as   ctx}]
   (let [user-id              (:uid session)
         {:user/keys [email]} (xt/entity db user-id)]
     (ui/page
