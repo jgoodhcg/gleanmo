@@ -66,8 +66,7 @@
           :placeholder  "..."
           :autocomplete "off"}]]])))
 
-(defn checkbox-field [{:keys [field-key]
-                       :as args}]
+(defn checkbox-field [{:keys [field-key] :as args}]
   (let [{:keys [n l]} (parse-field-key args)]
     [:div.flex.items-center
      [:input.rounded.shadow-sm.mr-2.text-indigo-600.focus:ring-blue-500.focus:border-indigo-500
@@ -158,52 +157,67 @@
          (and (keyword? elem)
               (= "id" (name elem))))))
 
-(defn field->input [{:keys [field-key type opts]}
-                    ctx]
-  (let [is-vec             (vector? type)
-        is-enum            (and is-vec (-> type first (= :enum)))
-        is-set             (and is-vec (-> type first (= :set)))
-        is-keyword         (keyword? type)
-        is-id              (and is-keyword (-> type name (= "id")))
-        has-id-in-set      (has-id-in-set type)
+(defn field-type-descriptor
+  "Transforms a field definition into an abstract descriptor with an input type."
+  [{:keys [field-key type opts]}]
+  (let [is-vec          (vector? type)
+        has-id-in-set?  (and is-vec
+                             (= :set (first type))
+                             (let [elem (second type)]
+                               (and (keyword? elem)
+                                    (= "id" (name elem)))))
+        is-keyword      (keyword? type)
+        is-id           (and is-keyword (= "id" (name type)))
         related-entity-str (cond
-                             is-id  (-> type namespace)
-                             is-set (-> type second namespace))
-        input-type         (cond
-                             has-id-in-set :many-relationship
-                             is-id         :single-relationship
-                             :else         type)]
-    (case input-type
-      :uuid                nil
-      :string              (string-field (pot/map-of field-key))
-      :boolean             (checkbox-field (pot/map-of field-key))
-      :number              (number-field (pot/map-of field-key))
-      :int                 (int-field (pot/map-of field-key))
-      :float               (float-field (pot/map-of field-key))
-      :instant             (instant-field (pot/map-of field-key))
-      :single-relationship (single-relation-field
-                            (pot/map-of field-key related-entity-str)
-                            ctx)
-      :many-relationship   (many-relation-field
-                            (pot/map-of field-key related-entity-str)
-                            ctx)
-      ;; handle special references, sets, enums, etc.
-      [:div (str "unsupported!: "
-                 (pot/map-of related-entity-str type input-type))])))
+                             is-id           (-> type namespace)
+                             has-id-in-set?  (-> type second namespace))
+        input-type      (cond
+                          has-id-in-set? :many-relationship
+                          is-id          :single-relationship
+                          :else          type)]
+    {:field-key          field-key
+     :input-type         input-type
+     :related-entity-str related-entity-str}))
+
+(def renderers
+  {:string              (fn [{:keys [field-key]} _]
+                          (string-field (pot/map-of field-key)))
+   :boolean             (fn [{:keys [field-key]} _]
+                          (checkbox-field (pot/map-of field-key)))
+   :number              (fn [{:keys [field-key]} _]
+                          (number-field (pot/map-of field-key)))
+   :int                 (fn [{:keys [field-key]} _]
+                          (int-field (pot/map-of field-key)))
+   :float               (fn [{:keys [field-key]} _]
+                          (float-field (pot/map-of field-key)))
+   :instant             (fn [{:keys [field-key]} _]
+                          (instant-field (pot/map-of field-key)))
+   :single-relationship (fn [{:keys [field-key related-entity-str]} ctx]
+                          (single-relation-field (pot/map-of field-key related-entity-str) ctx))
+   :many-relationship   (fn [{:keys [field-key related-entity-str]} ctx]
+                          (many-relation-field (pot/map-of field-key related-entity-str) ctx))})
+
+(defn render-field-input [field ctx]
+  (let [desc     (field-type-descriptor field)
+        renderer (get renderers (:input-type desc))]
+    (if renderer
+      (renderer desc ctx)
+      [:div "unsupported field type: " (pr-str desc)])))
 
 (defn schema->form [schema ctx]
   (let [has-opts (map? (second schema))
         fields   (if has-opts (drop 2 schema) (rest schema))
         fields   (->> fields
                       (map parse-field)
-                      ;; remove schema fields that aren't necessary for new forms
+                      ;; remove fields that aren't necessary for new forms
                       (remove (fn [{:keys [field-key]}]
                                 (let [n (namespace field-key)]
                                   (or
+                                   (= :xt/id field-key)
                                    (= "tech.jgood.gleanmo.schema" n)
                                    (= "tech.jgood.gleanmo.schema.meta" n))))))]
     (for [field fields]
-      (field->input field ctx))))
+      (render-field-input field ctx))))
 
 (defn new-form [{:keys [entity-key
                         schema
