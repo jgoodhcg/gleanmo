@@ -41,7 +41,11 @@
 
 (defn parse-field-key [{:keys [field-key]}]
   (let [n (-> field-key str rest str/join (str/replace "/" "-"))
-        l (-> n (str/split #"-") (->> (map str/capitalize)) (->> (str/join " ")))]
+        l (-> field-key
+              name
+              (str/split #"-")
+              (->> (map str/capitalize))
+              (->> (str/join " ")))]
     (pot/map-of n l)))
 
 (defn string-field [{:keys [field-key] :as args}]
@@ -120,9 +124,9 @@
         id-key        (keyword related-entity-str "id")
         options       (->> (all-for-user-query
                             {:entity-type-str related-entity-str}
-                             ctx)
+                            ctx)
                            (map (fn [e] {:id    (id-key e)
-                                        :label (label-key e)})))]
+                                         :label (label-key e)})))]
     [:div
      [:label.block.text-sm.font-medium.leading-6.text-gray-900
       {:for n} l]
@@ -150,6 +154,22 @@
       (for [{:keys [id label]} options]
         [:option {:value id} label])]]))
 
+(defn enum-field
+  "Renders a select input for enum fields. Expects :enum-options in the descriptor."
+  [{:keys [field-key enum-options]} ctx]
+  (let [n (-> field-key str rest str/join (str/replace "/" "-"))
+        l (-> n
+              (str/split #"-")
+              (->> (map str/capitalize))
+              (str/join " "))]
+    [:div
+     [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for n} l]
+     [:div.mt-2
+      [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+       {:name n :required true}
+       (for [opt enum-options]
+         [:option {:value (name opt)} (name opt)])]]]))
+
 (defn has-id-in-set [type]
   (and (vector? type)
        (= :set (first type))
@@ -158,26 +178,30 @@
               (= "id" (name elem))))))
 
 (defn field-type-descriptor
-  "Transforms a field definition into an abstract descriptor with an input type."
+  "Transforms a field definition into an abstract descriptor with an input type.
+   If the type is an enum (e.g. [:enum :a :b :c]), returns :enum with :enum-options."
   [{:keys [field-key type opts]}]
-  (let [is-vec          (vector? type)
-        has-id-in-set?  (and is-vec
-                             (= :set (first type))
-                             (let [elem (second type)]
-                               (and (keyword? elem)
-                                    (= "id" (name elem)))))
-        is-keyword      (keyword? type)
-        is-id           (and is-keyword (= "id" (name type)))
-        related-entity-str (cond
-                             is-id           (-> type namespace)
-                             has-id-in-set?  (-> type second namespace))
-        input-type      (cond
-                          has-id-in-set? :many-relationship
-                          is-id          :single-relationship
-                          :else          type)]
-    {:field-key          field-key
-     :input-type         input-type
-     :related-entity-str related-entity-str}))
+  (if (and (vector? type) (= :enum (first type)))
+    {:field-key   field-key
+     :input-type  :enum
+     :enum-options (vec (rest type))}
+    (let [has-id-in-set? (and (vector? type)
+                              (= :set (first type))
+                              (let [elem (second type)]
+                                (and (keyword? elem)
+                                     (= "id" (name elem)))))
+          is-keyword (keyword? type)
+          is-id      (and is-keyword (= "id" (name type)))
+          related-entity-str (cond
+                               is-id          (-> type namespace)
+                               has-id-in-set? (-> type second namespace))
+          input-type (cond
+                       has-id-in-set? :many-relationship
+                       is-id         :single-relationship
+                       :else         type)]
+      {:field-key          field-key
+       :input-type         input-type
+       :related-entity-str related-entity-str})))
 
 (def renderers
   {:string              (fn [{:keys [field-key]} _]
@@ -195,7 +219,9 @@
    :single-relationship (fn [{:keys [field-key related-entity-str]} ctx]
                           (single-relation-field (pot/map-of field-key related-entity-str) ctx))
    :many-relationship   (fn [{:keys [field-key related-entity-str]} ctx]
-                          (many-relation-field (pot/map-of field-key related-entity-str) ctx))})
+                          (many-relation-field (pot/map-of field-key related-entity-str) ctx))
+   :enum                (fn [descriptor ctx]
+                          (enum-field descriptor ctx))})
 
 (defn render-field-input [field ctx]
   (let [desc     (field-type-descriptor field)
