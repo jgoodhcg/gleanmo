@@ -132,6 +132,32 @@
       (for [{:keys [id label]} options]
         [:option {:value id} label])]]))
 
+(defn many-relation-field
+  "Renders a multiple select for a set of related entities."
+  [{:keys [field-key related-entity-str] :as args} ctx]
+  (let [{:keys [n l]} (parse-field-key args)
+        label-key (keyword related-entity-str "label")
+        id-key    (keyword related-entity-str "id")
+        options   (->> (all-for-user-query {:entity-type-str related-entity-str} ctx)
+                       (map (fn [e]
+                              {:id    (id-key e)
+                               :label (label-key e)})))]
+    [:div
+     [:label.block.text-sm.font-medium.leading-6.text-gray-900
+      {:for n} l]
+     [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+      {:name n
+       :multiple true} ; allow multiple selections
+      (for [{:keys [id label]} options]
+        [:option {:value id} label])]]))
+
+(defn has-id-in-set [type]
+  (and (vector? type)
+       (= :set (first type))
+       (let [elem (second type)]
+         (and (keyword? elem)
+              (= "id" (name elem))))))
+
 (defn field->input [{:keys [field-key type opts]}
                     ctx]
   (let [is-vec             (vector? type)
@@ -139,13 +165,14 @@
         is-set             (and is-vec (-> type first (= :set)))
         is-keyword         (keyword? type)
         is-id              (and is-keyword (-> type name (= "id")))
+        has-id-in-set      (has-id-in-set type)
         related-entity-str (cond
                              is-id  (-> type namespace)
                              is-set (-> type second namespace))
         input-type         (cond
-                             is-set :many-relationship
-                             is-id  :single-relationship
-                             :else  type)]
+                             has-id-in-set :many-relationship
+                             is-id         :single-relationship
+                             :else         type)]
     (case input-type
       :uuid                nil
       :string              (string-field (pot/map-of field-key))
@@ -155,6 +182,9 @@
       :float               (float-field (pot/map-of field-key))
       :instant             (instant-field (pot/map-of field-key))
       :single-relationship (single-relation-field
+                            (pot/map-of field-key related-entity-str)
+                            ctx)
+      :many-relationship   (many-relation-field
                             (pot/map-of field-key related-entity-str)
                             ctx)
       ;; handle special references, sets, enums, etc.
