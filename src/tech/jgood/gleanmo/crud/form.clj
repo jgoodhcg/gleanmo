@@ -4,7 +4,7 @@
    [com.biffweb :as biff]
    [potpuri.core :as pot]
    [tech.jgood.gleanmo.app.shared :refer [side-bar]]
-   [tech.jgood.gleanmo.crud.fields :refer [parse-field render-field-input]]
+   [tech.jgood.gleanmo.crud.fields :refer [parse-field field-input]]
    [tech.jgood.gleanmo.ui :as ui]
    [xtdb.api :as xt]))
 
@@ -21,7 +21,7 @@
                                    (= "tech.jgood.gleanmo.schema" n)
                                    (= "tech.jgood.gleanmo.schema.meta" n))))))]
     (for [field fields]
-      (render-field-input field ctx))))
+      (field-input field ctx))))
 
 (defn new-form [{:keys [entity-key
                         schema
