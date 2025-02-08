@@ -1,34 +1,8 @@
-(ns tech.jgood.gleanmo.crud
+(ns tech.jgood.gleanmo.crud.fields
   (:require
-   [clojure.pprint :refer [pprint]]
-   [com.biffweb :as biff :refer [q]]
-   [potpuri.core :as pot]
-   [tech.jgood.gleanmo.schema.meta :as sm]
-   [tech.jgood.gleanmo.app.shared :refer [side-bar param-true?]]
    [clojure.string :as str]
-   [xtdb.api :as xt]
-   [tech.jgood.gleanmo.ui :as ui]))
-
-(defn all-for-user-query [{:keys [entity-type-str]}
-                          {:keys [biff/db session params]}]
-  (let [sensitive      (some-> params :sensitive param-true?)
-        archived       (some-> params :archived param-true?)
-        entity-type    (keyword entity-type-str)
-        time-stamp-key (keyword entity-type-str "timestamp")
-        sensitive-key  (keyword entity-type-str "sensitive")
-        archived-key   (keyword entity-type-str "archived")
-        raw-results    (q db {:find  '(pull ?e [*])
-                              :where ['[?e :user/id user-id]
-                                      ['?e ::sm/type entity-type]
-                                      '[?user :xt/id user-id]
-                                      '(not [?e ::sm/deleted-at])]
-                              :in    ['user-id]}
-                          (:uid session))]
-    (cond->> raw-results
-      :always         (sort-by #(or (time-stamp-key %) (::sm/created-at %)))
-      :always         (reverse)
-      (not sensitive) (remove sensitive-key)
-      (not archived)  (remove archived-key))))
+   [tech.jgood.gleanmo.crud.operations :refer [all-for-user-query]]
+   [potpuri.core :as pot]))
 
 (defn parse-field [[key-or-opts & more :as entry]]
   (let [has-opts (map? (second entry))
@@ -156,7 +130,7 @@
 
 (defn enum-field
   "Renders a select input for enum fields. Expects :enum-options in the descriptor."
-  [{:keys [field-key enum-options]} ctx]
+  [{:keys [field-key enum-options]} _]
   (let [n (-> field-key str rest str/join (str/replace "/" "-"))
         l (-> n
               (str/split #"-")
@@ -170,22 +144,15 @@
        (for [opt enum-options]
          [:option {:value (name opt)} (name opt)])]]]))
 
-(defn has-id-in-set [type]
-  (and (vector? type)
-       (= :set (first type))
-       (let [elem (second type)]
-         (and (keyword? elem)
-              (= "id" (name elem))))))
-
 (defn field-type-descriptor
   "Transforms a field definition into an abstract descriptor with an input type.
    If the type is an enum (e.g. [:enum :a :b :c]), returns :enum with :enum-options."
-  [{:keys [field-key type opts]}]
+  [{:keys [field-key type _]}]
   (if (and (vector? type) (= :enum (first type)))
     {:field-key   field-key
      :input-type  :enum
      :enum-options (vec (rest type))}
-    (let [has-id-in-set? (and (vector? type)
+    (let [has-id-in-set (and (vector? type)
                               (= :set (first type))
                               (let [elem (second type)]
                                 (and (keyword? elem)
@@ -194,9 +161,9 @@
           is-id      (and is-keyword (= "id" (name type)))
           related-entity-str (cond
                                is-id          (-> type namespace)
-                               has-id-in-set? (-> type second namespace))
+                               has-id-in-set (-> type second namespace))
           input-type (cond
-                       has-id-in-set? :many-relationship
+                       has-id-in-set :many-relationship
                        is-id         :single-relationship
                        :else         type)]
       {:field-key          field-key
@@ -229,55 +196,3 @@
     (if renderer
       (renderer desc ctx)
       [:div "unsupported field type: " (pr-str desc)])))
-
-(defn schema->form [schema ctx]
-  (let [has-opts (map? (second schema))
-        fields   (if has-opts (drop 2 schema) (rest schema))
-        fields   (->> fields
-                      (map parse-field)
-                      ;; remove fields that aren't necessary for new forms
-                      (remove (fn [{:keys [field-key]}]
-                                (let [n (namespace field-key)]
-                                  (or
-                                   (= :xt/id field-key)
-                                   (= "tech.jgood.gleanmo.schema" n)
-                                   (= "tech.jgood.gleanmo.schema.meta" n))))))]
-    (for [field fields]
-      (render-field-input field ctx))))
-
-(defn new-form [{:keys [entity-key
-                        schema
-                        plural-str
-                        entity-name-str]}
-                {:keys [session biff/db params]
-                 :as   ctx}]
-  (let [user-id              (:uid session)
-        {:user/keys [email]} (xt/entity db user-id)]
-    (ui/page
-     {}
-     [:div
-      (side-bar (pot/map-of email)
-                [:div.w-full.md:w-96.space-y-8
-                 (biff/form
-                  {}
-                  [:div
-                   [:h2.text-base.font-semibold.leading-7.text-gray-900
-                    (str "New " (str/capitalize entity-name-str))]
-                   [:p.mt-1.text-sm.leading-6.text-gray-600
-                    (str "Create a new " entity-name-str)]]
-                  [:div.grid.grid-cols-1.gap-y-6
-                   (doall (schema->form schema ctx))
-                   [:button {:type "submit"} "Create"]])])])))
-
-(defn gen-routes [{:keys [entity-key schema plural-str]}]
-  (let [schema          (entity-key schema)
-        entity-name-str (name entity-key)
-        args            (pot/map-of entity-key
-                                    schema
-                                    plural-str
-                                    entity-name-str)]
-    ["/crud" {}
-     ;; new is preppended because the trie based router can't distinguish between
-     ;; /entity/new and /entity/:id
-     ;; this could be fixed with a linear based router but I think this is a fine REST convention to break from
-     [(str "/new/" entity-name-str) {:get (partial new-form args)}]]))
