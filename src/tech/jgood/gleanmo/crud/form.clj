@@ -4,7 +4,7 @@
    [com.biffweb :as biff]
    [potpuri.core :as pot]
    [tech.jgood.gleanmo.app.shared :refer [side-bar]]
-   [tech.jgood.gleanmo.crud.fields :refer [parse-field field-input]]
+   [tech.jgood.gleanmo.crud.fields :refer [field-input prepare-field]]
    [tech.jgood.gleanmo.ui :as ui]
    [xtdb.api :as xt]))
 
@@ -12,7 +12,7 @@
   (let [has-opts (map? (second schema))
         fields   (if has-opts (drop 2 schema) (rest schema))
         fields   (->> fields
-                      (map parse-field)
+                      (map prepare-field)
                       ;; remove fields that aren't necessary for new forms
                       (remove (fn [{:keys [field-key]}]
                                 (let [n (namespace field-key)]
