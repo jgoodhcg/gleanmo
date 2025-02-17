@@ -3,7 +3,9 @@
    [clojure.string :as str]
    [tech.jgood.gleanmo.app.shared :refer [format-date-time-local get-user-time-zone]]
    [tech.jgood.gleanmo.crud.operations :refer [all-for-user-query]]
-   [tick.core :as t]))
+   [tick.core :as t])
+  (:import
+   [java.time ZoneId]))
 
 (defn parse-field [[key-or-opts & _ :as entry]]
   (let [has-opts (map? (second entry))
@@ -57,14 +59,30 @@
 
 (defmulti field-input :input-type)
 
-(defmethod field-input :string [field _]
-  (let [{:keys [input-name input-label]} field]
-    (if (str/includes? input-name "label")
+(defmethod field-input :string [field ctx]
+  (let [{:keys [input-name
+                input-label]} field
+        time-zone             (get-user-time-zone ctx)]
+    (cond
+      (str/includes? input-name "label")
       [:div
        [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for input-name} input-label]
        [:div.mt-2
         [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
          {:type "text" :name input-name :autocomplete "off"}]]]
+
+      (str/includes? input-name "time-zone")
+      [:div
+       [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for input-name} input-label]
+       [:div.mt-2
+        [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+         {:name input-name :required true :autocomplete "off"}
+         (->> (ZoneId/getAvailableZoneIds)
+              sort
+              (map (fn [zoneId]
+                     [:option {:value    zoneId
+                               :selected (= zoneId time-zone)} zoneId])))]]]
+      :else
       [:div
        [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for input-name} input-label]
        [:div.mt-2

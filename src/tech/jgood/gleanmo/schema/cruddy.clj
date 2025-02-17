@@ -15,6 +15,7 @@
        [:cruddy/another-single-relation :location/id]
        [:cruddy/set-relation [:set :habit/id]]
        [:cruddy/enum [:enum :a :b :c]]
+       [:cruddy/time-zone :string]
        [:cruddy/timestamp :instant]
        [:cruddy/float {:optional true} :float]]
       (concat sm/legacy-meta)

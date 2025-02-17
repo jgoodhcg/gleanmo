@@ -5,5 +5,6 @@
 
 (def crud-routes
   (crud/gen-routes {:entity-key :cruddy
+                    :entity-str "cruddy"
                     :plural-str "cruddies"
                     :schema     schema}))

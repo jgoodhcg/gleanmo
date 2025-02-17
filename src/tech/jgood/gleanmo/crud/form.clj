@@ -2,6 +2,7 @@
   (:require
    [clojure.string :as str]
    [com.biffweb :as biff]
+   [clojure.pprint :refer [pprint]]
    [potpuri.core :as pot]
    [tech.jgood.gleanmo.app.shared :refer [side-bar]]
    [tech.jgood.gleanmo.crud.fields :refer [field-input prepare-field]]
@@ -9,9 +10,9 @@
    [xtdb.api :as xt]))
 
 (defn schema->form [schema ctx]
-  (let [has-opts (map? (second schema))
-        fields   (if has-opts (drop 2 schema) (rest schema))
-        fields   (->> fields
+  (let [has-opts   (map? (second schema))
+        raw-fields (if has-opts (drop 2 schema) (rest schema))
+        fields     (->> raw-fields
                       (map prepare-field)
                       ;; remove fields that aren't necessary for new forms
                       (remove (fn [{:keys [field-key]}]
@@ -26,23 +27,35 @@
 (defn new-form [{:keys [entity-key
                         schema
                         plural-str
-                        entity-name-str]}
+                        entity-str]}
                 {:keys [session biff/db params]
                  :as   ctx}]
   (let [user-id              (:uid session)
-        {:user/keys [email]} (xt/entity db user-id)]
+        {:user/keys [email]} (xt/entity db user-id)
+        form-id              (str entity-str "-new-form")]
     (ui/page
      {}
      [:div
       (side-bar (pot/map-of email)
                 [:div.w-full.md:w-96.space-y-8
                  (biff/form
-                  {}
+                  {:hx-post   (str "/app/crud/" entity-str)
+                   :hx-swap   "outerHTML"
+                   :hx-select (str "#" form-id)
+                   :id        form-id}
                   [:div
                    [:h2.text-base.font-semibold.leading-7.text-gray-900
-                    (str "New " (str/capitalize entity-name-str))]
+                    (str "New " (str/capitalize entity-str))]
                    [:p.mt-1.text-sm.leading-6.text-gray-600
-                    (str "Create a new " entity-name-str)]]
+                    (str "Create a new " entity-str)]]
                   [:div.grid.grid-cols-1.gap-y-6
                    (doall (schema->form schema ctx))
                    [:button {:type "submit"} "Create"]])])])))
+
+(defn create-entity! [args {:keys [session biff/db params] :as ctx}]
+  (let [user-id (:uid session)
+        user    (xt/entity db user-id)
+        entity  (-> args :entity-key name)]
+    (pprint (pot/map-of user params))
+    {:status  303
+     :headers {"location" (str "/app/crud/new/" entity)}}))
