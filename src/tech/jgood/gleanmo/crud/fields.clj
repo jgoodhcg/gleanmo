@@ -9,15 +9,15 @@
 
 (defn parse-field [[key-or-opts & _ :as entry]]
   (let [has-opts (map? (second entry))
-        k       (if has-opts key-or-opts (first entry))
-        opts      (if has-opts (second entry) {})
-        type      (if has-opts (nth entry 2) (second entry))]
+        k        (if has-opts key-or-opts (first entry))
+        opts     (if has-opts (second entry) {})
+        type     (if has-opts (nth entry 2) (second entry))]
     {:field-key k
-     :opts opts
-     :type type}))
+     :opts      opts
+     :type      type}))
 
 (defn add-input-name-label [{:keys [field-key] :as field}]
-  (let [n (-> field-key str rest str/join (str/replace "/" "-"))
+  (let [n (-> field-key str (str/replace ":" ""))
         l (-> field-key name (str/split #"-")
               (->> (map str/capitalize))
               (->> (str/join " ")))]

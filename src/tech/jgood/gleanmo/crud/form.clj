@@ -52,10 +52,30 @@
                    (doall (schema->form schema ctx))
                    [:button {:type "submit"} "Create"]])])])))
 
-(defn create-entity! [args {:keys [session biff/db params] :as ctx}]
+(defn get-type [schema k]
+  (some (fn [[field-key & rest]]
+          (when (= field-key k)
+            (if (map? (first rest))
+              (second rest)  ; When an options map is present
+              (first rest)))) ; When no options map is present
+        (drop 2 schema)))
+
+(defn form->schema [form-fields schema ctx]
+  (->> form-fields
+       (mapv (fn [[k v]]
+               (let [k (-> k keyword)]
+                 {:k k :v v :type (get-type schema k)})))
+       pprint)
+  )
+
+(defn create-entity! [{:keys [schema]
+                       :as args}
+                      {:keys [session biff/db params]
+                       :as ctx}]
   (let [user-id (:uid session)
         user    (xt/entity db user-id)
         entity  (-> args :entity-key name)]
-    (pprint (pot/map-of user params))
+    (pprint (pot/map-of user params schema))
+    (form->schema params schema ctx)
     {:status  303
      :headers {"location" (str "/app/crud/new/" entity)}}))
