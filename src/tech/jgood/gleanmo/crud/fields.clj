@@ -51,15 +51,15 @@
               :input-type         input-type
               :related-entity-str related-str}))))
 
-(defn prepare-field [field]
+(defn prepare [field]
   (-> field
       parse-field
       add-descriptors
       add-input-name-label))
 
-(defmulti field-input :input-type)
+(defmulti input :input-type)
 
-(defmethod field-input :string [field ctx]
+(defmethod input :string [field ctx]
   (let [{:keys [input-name
                 input-label]} field
         time-zone             (get-user-time-zone ctx)]
@@ -89,14 +89,14 @@
         [:textarea.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
          {:name input-name :rows 3 :placeholder "..." :autocomplete "off"}]]])))
 
-(defmethod field-input :boolean [field _]
+(defmethod input :boolean [field _]
   (let [{:keys [input-name input-label]} field]
     [:div.flex.items-center
      [:input.rounded.shadow-sm.mr-2.text-indigo-600.focus:ring-blue-500.focus:border-indigo-500
       {:type "checkbox" :name input-name :autocomplete "off"}]
      [:label.text-sm.font-medium.leading-6.text-gray-900 {:for input-name} input-label]]))
 
-(defmethod field-input :number [field _]
+(defmethod input :number [field _]
   (let [{:keys [input-name input-label]} field]
     [:div
      [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for input-name} input-label]
@@ -104,7 +104,7 @@
       [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
        {:type "number" :step "any" :name input-name :autocomplete "off"}]]]))
 
-(defmethod field-input :int [field _]
+(defmethod input :int [field _]
   (let [{:keys [input-name input-label]} field]
     [:div
      [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for input-name} input-label]
@@ -112,7 +112,7 @@
       [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
        {:type "number" :step "1" :name input-name :autocomplete "off"}]]]))
 
-(defmethod field-input :float [field _]
+(defmethod input :float [field _]
   (let [{:keys [input-name input-label]} field]
     [:div
      [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for input-name} input-label]
@@ -120,7 +120,7 @@
       [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
        {:type "number" :step "0.001" :name input-name :autocomplete "off"}]]]))
 
-(defmethod field-input :instant [field ctx]
+(defmethod input :instant [field ctx]
   (let [{:keys [input-name
                 input-label]} field
         time-zone             (get-user-time-zone ctx)
@@ -135,7 +135,7 @@
         :required true
         :value    current-time}]]]))
 
-(defmethod field-input :single-relationship [field ctx]
+(defmethod input :single-relationship [field ctx]
   (let [{:keys [input-name
                 input-label
                 related-entity-str]} field
@@ -150,7 +150,7 @@
       (for [{:keys [id label]} options]
         [:option {:value id} label])]]))
 
-(defmethod field-input :many-relationship [field ctx]
+(defmethod input :many-relationship [field ctx]
   (let [{:keys [input-name
                 input-label
                 related-entity-str]} field
@@ -165,7 +165,7 @@
       (for [{:keys [id label]} options]
         [:option {:value id} label])]]))
 
-(defmethod field-input :enum [field _]
+(defmethod input :enum [field _]
   (let [{:keys [enum-options
                 input-name
                 input-label]} field]
@@ -177,5 +177,5 @@
        (for [opt enum-options]
          [:option {:value (name opt)} (name opt)])]]]))
 
-(defmethod field-input :default [field _]
+(defmethod input :default [field _]
   [:div "Unsupported field type: " (pr-str field)])

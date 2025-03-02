@@ -1,11 +1,11 @@
-(ns tech.jgood.gleanmo.crud.form
+(ns tech.jgood.gleanmo.crud.forms
   (:require
    [clojure.string :as str]
    [com.biffweb :as biff]
    [clojure.pprint :refer [pprint]]
    [potpuri.core :as pot]
    [tech.jgood.gleanmo.app.shared :refer [side-bar]]
-   [tech.jgood.gleanmo.crud.fields :refer [field-input prepare-field]]
+   [tech.jgood.gleanmo.crud.fields :as f]
    [tech.jgood.gleanmo.ui :as ui]
    [xtdb.api :as xt]))
 
@@ -13,7 +13,7 @@
   (let [has-opts   (map? (second schema))
         raw-fields (if has-opts (drop 2 schema) (rest schema))
         fields     (->> raw-fields
-                      (map prepare-field)
+                      (map f/prepare)
                       ;; remove fields that aren't necessary for new forms
                       (remove (fn [{:keys [field-key]}]
                                 (let [n (namespace field-key)]
@@ -22,7 +22,7 @@
                                    (= "tech.jgood.gleanmo.schema" n)
                                    (= "tech.jgood.gleanmo.schema.meta" n))))))]
     (for [field fields]
-      (field-input field ctx))))
+      (f/input field ctx))))
 
 (defn new-form [{:keys [entity-key
                         schema

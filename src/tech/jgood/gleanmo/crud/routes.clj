@@ -1,7 +1,7 @@
 (ns tech.jgood.gleanmo.crud.routes
   (:require
    [potpuri.core :as pot]
-   [tech.jgood.gleanmo.crud.form :as form]))
+   [tech.jgood.gleanmo.crud.forms :as forms]))
 
 (defn gen-routes [{:keys [entity-key schema plural-str entity-str]}]
   (let [schema          (entity-key schema)
@@ -13,5 +13,5 @@
      ;; new is preppended because the trie based router can't distinguish between
      ;; /entity/new and /entity/:id
      ;; this could be fixed with a linear based router but I think this is a fine REST convention to break from
-     [(str "/new/" entity-str) {:get (partial form/new-form args)}]
-     [(str "/" entity-str) {:post (partial form/create-entity! args)}]]))
+     [(str "/new/" entity-str) {:get (partial forms/new-form args)}]
+     [(str "/" entity-str) {:post (partial forms/create-entity! args)}]]))
