@@ -7,6 +7,7 @@
        [::sm/type [:enum :cruddy]]
        [::sm/deleted-at {:optional true} :boolean]
        [::sm/created-at :instant]
+       [:user/id :user/id]
        [:cruddy/label :string]
        [:cruddy/num :number]
        [:cruddy/bool :boolean]
