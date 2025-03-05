@@ -43,6 +43,7 @@
     [:a.link.text-gray-800 {:href "/app/meditation-logs"} "meditation-logs"]
     [:a.link.text-gray-800 {:href "/app/ical-urls"} "ical-urls"]
     [:a.link {:href "/app/dv/habit-logs"} "habit-logs data viz"]
+    [:a.link {:href "/app/dv/habit-dates"} "habit-logs predictions"]
 
     ;; Subtle Sign out button
     (biff/form
