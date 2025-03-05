@@ -1,5 +1,30 @@
 // When plain htmx isn't quite enough, you can stick some custom JS here.
 
+function copyToClipboard(text) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text)
+      .then(() => console.log('Text copied to clipboard'))
+      .catch(err => console.error('Failed to copy text: ', err));
+  } else {
+    // Fallback for browsers that don't support clipboard API
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';  // Avoid scrolling to bottom
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+      const successful = document.execCommand('copy');
+      console.log(successful ? 'Text copied to clipboard' : 'Copy failed');
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+    
+    document.body.removeChild(textArea);
+  }
+}
+
 function setURLParameter(paramName, value) {
   console.log("setting url param: ", paramName, value)
   const url = new URL(window.location);

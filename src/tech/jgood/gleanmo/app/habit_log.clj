@@ -451,6 +451,9 @@
                                          {:date formatted-date
                                           :id   (:xt/id item)})))
                                 vec)
+        dates-only-text     (->> habit-log-dates
+                                 (map :date)
+                                 (str/join "\n"))
         base-url            "/app/dv/habit-dates"]
     ;; Render the page with list of dates when habit was logged
     (ui/page
@@ -480,6 +483,23 @@
          [:div.mb-6
           [:h2.text-xl.font-semibold (:habit/name habit)]
           [:p.text-gray-600 "All dates this habit was logged:"]])
+       
+       ;; Copy dates button (only visible when habit is selected and dates exist)
+       (when (and habit-id (seq habit-log-dates))
+         [:div.mb-4
+          [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.flex.items-center
+           {:id "copy-dates-btn"
+            :onclick (str "copyToClipboard(`" dates-only-text "`)")}
+           [:svg.w-4.h-4.mr-2 {:xmlns "http://www.w3.org/2000/svg" :fill "none" :viewBox "0 0 24 24" :stroke "currentColor"}
+            [:path {:stroke-linecap "round"
+                    :stroke-linejoin "round"
+                    :stroke-width "2"
+                    :d "M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"}]]
+           "Copy Dates"]])
+       
+       ;; Hidden textarea containing just the dates for copying (invisible element)
+       (when (and habit-id (seq habit-log-dates))
+         [:textarea.hidden#dates-text dates-only-text])
        
        ;; List of dates
        (if (and habit-id (seq habit-log-dates))
