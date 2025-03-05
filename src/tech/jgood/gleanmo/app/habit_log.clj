@@ -422,6 +422,88 @@
       {:status 403
        :body   "Not authorized to edit that habit log"})))
 
+(defn habit-dates [{:keys [session biff/db params]
+                 :as   context}]
+  ;; Retrieve the user entity, including the time zone
+  (let [{:user/keys [email time-zone] :as user}
+        (xt/entity db (:uid session))
+        sensitive           (some-> params :sensitive param-true?)
+        archived            (some-> params :archived param-true?)
+        habit-id            (when-not (str/blank? (:habit-id params))
+                              (UUID/fromString (:habit-id params)))
+        habit               (when habit-id
+                              (xt/entity db habit-id))
+        all-habit-logs      (->> (all-for-user-query (merge context (pot/map-of sensitive archived)))
+                                (sort-by :habit-log/timestamp)
+                                (filter (fn [log]
+                                          (when habit-id
+                                            (contains? (:habit-log/habit-ids log) habit-id))))
+                                reverse)
+        all-habits          (->> (habit/all-for-user-query (merge context (pot/map-of sensitive archived))))
+        ;; Extract dates of habit logs
+        habit-log-dates     (->> all-habit-logs
+                                (map (fn [item]
+                                       (let [timestamp      (:habit-log/timestamp item)
+                                             item-time-zone (or (:habit-log/time-zone item) time-zone)
+                                             zoned-date     (-> timestamp
+                                                                (t/in (t/zone item-time-zone)))
+                                             formatted-date (t/format (t/formatter "yyyy-MM-dd") (t/date zoned-date))]
+                                         {:date formatted-date
+                                          :id   (:xt/id item)})))
+                                vec)
+        base-url            "/app/dv/habit-dates"]
+    ;; Render the page with list of dates when habit was logged
+    (ui/page
+     {}
+     (side-bar
+      (pot/map-of email)
+      [:div.flex.flex-col
+       [:h1.text-2xl.font-bold.mb-4 "Habit Log Dates"]
+       
+       ;; Habit selection dropdown
+       [:div.mb-6
+        [:label.block.text-sm.font-medium.text-gray-700 "Select a habit:"]
+        [:div.mt-1
+         [:select.block.w-full.rounded-md.border-gray-300.shadow-sm.focus:border-blue-500.focus:ring.focus:ring-blue-500.focus:ring-opacity-50
+          {:onchange "window.location.href=this.value;"}
+          [:option {:value (str base-url)} "-- Select habit --"]
+          (for [{id :xt/id name :habit/name} all-habits]
+            [:option 
+             {:value (str base-url "?habit-id=" id 
+                          (when sensitive "&sensitive=true") 
+                          (when archived "&archived=true"))
+              :selected (= id habit-id)}
+             name])]]]
+       
+       ;; Display habit name if selected
+       (when habit
+         [:div.mb-6
+          [:h2.text-xl.font-semibold (:habit/name habit)]
+          [:p.text-gray-600 "All dates this habit was logged:"]])
+       
+       ;; List of dates
+       (if (and habit-id (seq habit-log-dates))
+         [:div.border.rounded-lg.overflow-hidden
+          [:table.min-w-full.divide-y.divide-gray-200
+           [:thead.bg-gray-50
+            [:tr
+             [:th.px-6.py-3.text-left.text-xs.font-medium.text-gray-500.uppercase.tracking-wider "Date"]
+             [:th.px-6.py-3.text-left.text-xs.font-medium.text-gray-500.uppercase.tracking-wider "Action"]]]
+           [:tbody.bg-white.divide-y.divide-gray-200
+            (for [{:keys [date id]} habit-log-dates]
+              [:tr.hover:bg-gray-50
+               [:td.px-6.py-4.whitespace-nowrap.text-sm.text-gray-900 date]
+               [:td.px-6.py-4.whitespace-nowrap.text-sm.font-medium
+                [:a.text-blue-600.hover:text-blue-900 
+                 {:href (str "/app/habit-logs/" id "/edit")} 
+                 "View Details"]]])]]]
+         
+         ;; No habit selected or no dates found
+         [:div.text-center.py-8.text-gray-500
+          (if habit-id
+            "No log entries found for this habit."
+            "Please select a habit to view log dates.")])]))))
+
 (defn data-viz [{:keys [session biff/db params]
                  :as   context}]
   ;; Retrieve the user entity, including the time zone

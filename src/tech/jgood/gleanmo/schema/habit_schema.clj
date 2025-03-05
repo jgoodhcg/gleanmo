@@ -14,8 +14,7 @@
        [:habit/archived {:optional true} :boolean]
        [:airtable/id {:optional true} :string]
        [:airtable/ported-at {:optional true} :instant]]
-      (concat
-       sm/legacy-meta)
+      (concat sm/legacy-meta)
       ;; DEPRECATED
       (concat
        [[:habit/name {:optional true} :string]])

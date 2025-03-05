@@ -215,5 +215,6 @@
             ;;
 
             ["/dv/habit-logs" {:get habit-log/data-viz}]
+            ["/dv/habit-dates" {:get habit-log/habit-dates}]
             ;;
             ]})
