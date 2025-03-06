@@ -18,6 +18,7 @@
        [:cruddy/enum [:enum :a :b :c]]
        [:cruddy/time-zone :string]
        [:cruddy/timestamp :instant]
+       [:cruddy/other-timestamp {:optional true} :instant]
        [:cruddy/float {:optional true} :float]]
       (concat sm/legacy-meta)
       vec))

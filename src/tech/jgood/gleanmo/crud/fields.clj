@@ -7,7 +7,10 @@
   (:import
    [java.time ZoneId]))
 
-(defn parse-field [[key-or-opts & _ :as entry]]
+(defn parse-field 
+  "Extracts field key, options, and type from a schema entry.
+   Handles entries with and without option maps."
+  [[key-or-opts & _ :as entry]]
   (let [has-opts (map? (second entry))
         k        (if has-opts key-or-opts (first entry))
         opts     (if has-opts (second entry) {})
@@ -15,6 +18,26 @@
     {:field-key k
      :opts      opts
      :type      type}))
+
+(defn extract-schema-fields
+  "Extracts fields from a schema, skipping the schema identifier and options if present"
+  [schema]
+  (let [has-opts (map? (second schema))]
+    (if has-opts
+      (drop 2 schema)  ; Skip schema type and options map
+      (rest schema)))) ; Just skip schema type
+
+(defn get-field-info
+  "Returns a map with :type and :opts for a given field key from a schema"
+  [schema k]
+  (some (fn [[field-key & rest]]
+          (when (= field-key k)
+            (if (map? (first rest))
+              {:type (second rest)
+               :opts (first rest)}  ; When an options map is present
+              {:type (first rest)
+               :opts {}}))) ; When no options map is present
+        (extract-schema-fields schema)))
 
 (defn add-input-name-label [{:keys [field-key opts] :as field}]
   (let [n (-> field-key str (str/replace ":" ""))
@@ -26,32 +49,42 @@
                   :input-label  l
                   :input-required required})))
 
+(defn determine-input-type
+  "Determines the input type based on the field type definition.
+   Handles enum fields, relationships, and primitive types."
+  [type]
+  (cond
+    (and (vector? type) (= :enum (first type)))
+    {:input-type :enum
+     :enum-options (vec (rest type))
+     :related-entity-str nil}
+    
+    (and (vector? type) 
+         (= :set (first type))
+         (let [elem (second type)]
+           (and (keyword? elem) (= "id" (name elem)))))
+    {:input-type :many-relationship
+     :enum-options nil
+     :related-entity-str (-> type second namespace)}
+    
+    (and (keyword? type) (= "id" (name type)))
+    {:input-type :single-relationship
+     :enum-options nil
+     :related-entity-str (-> type namespace)}
+    
+    :else
+    {:input-type type
+     :enum-options nil
+     :related-entity-str nil}))
+
 (defn add-descriptors
   "Returns a descriptor with an :input-type key for dispatching.
    Assumes enum fields are defined as [:enum ...] and relationships are inferred from keywords."
   [{:keys [field-key type] :as field}]
-  (if (and (vector? type) (= :enum (first type)))
-    (merge field
-           {:field-key   field-key
-            :input-type  :enum
-            :enum-options (vec (rest type))})
-    (let [has-id-in-set (and (vector? type)
-                             (= :set (first type))
-                             (let [elem (second type)]
-                               (and (keyword? elem) (= "id" (name elem)))))
-          is-keyword    (keyword? type)
-          is-id         (and is-keyword (= "id" (name type)))
-          related-str   (cond
-                          is-id          (-> type namespace)
-                          has-id-in-set  (-> type second namespace))
-          input-type    (cond
-                          has-id-in-set :many-relationship
-                          is-id         :single-relationship
-                          :else         type)]
-      (merge field
-             {:field-key          field-key
-              :input-type         input-type
-              :related-entity-str related-str}))))
+  (let [type-info (determine-input-type type)]
+    (merge field 
+           {:field-key field-key}
+           type-info)))
 
 (defn prepare [field]
   (-> field

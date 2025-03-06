@@ -62,8 +62,6 @@
 
                                      :else all-query)]
 
-    (pprint
-     (pot/map-of super-user email type ))
     (when (not (true? super-user))
       (throw (Exception. "User not authorized for db-viz")))
 
@@ -107,8 +105,6 @@
                                      (get entity attr "_"))
                                    all-attributes))
                             all-entities)]
-                   (pprint
-                    (pot/map-of query-result))
                    [:div.my-4
                     [:h2.text-lg.font-bold.mb-2 type]
                     [:table.w-full.rounded-lg.overflow-hidden.bg-white.shadow-md

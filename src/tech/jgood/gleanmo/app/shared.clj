@@ -136,3 +136,21 @@
             (LocalDateTime/parse)
             (ZonedDateTime/of zone-id)
             (t/instant))))
+
+(defn str->instant!
+  "Convert string to instant, throwing exception if conversion fails.
+   Throws IllegalArgumentException if input is blank or parsing fails."
+  [date-time-str zone-id]
+  (if (str/blank? date-time-str)
+    (throw (IllegalArgumentException. "Date time string cannot be blank"))
+    (try
+      (-> date-time-str
+          (LocalDateTime/parse)
+          (ZonedDateTime/of zone-id)
+          (t/instant))
+      (catch Exception e
+        (throw (IllegalArgumentException. 
+                (str "Failed to parse date time string: " date-time-str 
+                     " with zone ID: " zone-id 
+                     ". Error: " (.getMessage e))
+                e))))))
