@@ -1,7 +1,8 @@
 (ns tech.jgood.gleanmo.crud.routes
   (:require
    [potpuri.core :as pot]
-   [tech.jgood.gleanmo.crud.forms :as forms]))
+   [tech.jgood.gleanmo.crud.forms :as forms]
+   [tech.jgood.gleanmo.crud.views :as views]))
 
 (defn gen-routes [{:keys [entity-key schema plural-str entity-str]}]
   (let [schema          (entity-key schema)
@@ -14,4 +15,5 @@
      ;; /entity/new and /entity/:id
      ;; this could be fixed with a linear based router but I think this is a fine REST convention to break from
      [(str "/new/" entity-str) {:get (partial forms/new-form args)}]
-     [(str "/" entity-str) {:post (partial forms/create-entity! args)}]]))
+     [(str "/" entity-str) {:get (partial views/list-entities args)
+                           :post (partial forms/create-entity! args)}]]))
