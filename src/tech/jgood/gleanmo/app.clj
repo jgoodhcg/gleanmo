@@ -25,7 +25,15 @@
    [:p "This app was made with "
     [:a.link {:href "https://biffweb.com"} "Biff"] "."]))
 
-(def db-viz-supported-types #{:user :habit :habit-log :meditation :meditation-log :location :ical-url})
+(def db-viz-supported-types
+  #{:user
+    :habit
+    :habit-log
+    :meditation
+    :meditation-log
+    :location
+    :ical-url
+    :cruddy})
 
 (defn db-viz [{:keys [session biff/db path-params params]}]
   (let [{:user/keys  [email]

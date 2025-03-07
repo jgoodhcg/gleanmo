@@ -97,12 +97,30 @@
           (throw (ex-info (.getMessage e) {:value value :type :instant})))))))
 
 (defmethod convert-field-value :single-relationship [_ value _]
-  value)
+  (try
+      (java.util.UUID/fromString value)
+      (catch IllegalArgumentException e
+        (throw (ex-info (str "Could not convert '" value "' to UUID: " (.getMessage e))
+                        {:value value :type :single-relationship})))))
 
 (defmethod convert-field-value :many-relationship [_ values _]
-  (if (string? values)
-    #{values}
-    (set values)))
+  (cond
+    (string? values)
+    (when (not-empty values)
+      #{(try
+          (java.util.UUID/fromString values)
+          (catch IllegalArgumentException e
+            (throw (ex-info (str "Could not convert '" values "' to UUID: " (.getMessage e))
+                            {:value values :type :many-relationship}))))})
+    :else 
+    (into #{}
+          (map (fn [v]
+                 (try
+                   (java.util.UUID/fromString v)
+                   (catch IllegalArgumentException e
+                     (throw (ex-info (str "Could not convert '" v "' to UUID: " (.getMessage e))
+                                     {:value v :type :many-relationship})))))
+               values))))
 
 (defmethod convert-field-value :enum [_ value _]
   (when (not-empty value)
@@ -144,5 +162,9 @@
                   :user/id        user-id}
                  data)]
     (pprint doc)
+    (biff/submit-tx ctx
+                    [(merge {:db/doc-type entity-key
+                             :xt/id       (:xt/id doc)}
+                          doc)])
     {:status  303
      :headers {"location" (str "/app/crud/new/" entity)}}))

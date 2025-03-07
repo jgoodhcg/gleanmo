@@ -12,6 +12,8 @@
 ;; all glenamo/type attributes are the schema key
 (def schema
   {:instant             [:fn t/instant?]
+   :number              [:fn number?]
+   :float               [:fn float?]
    :user/id             :uuid
    :habit/id            :uuid
    :habit-log/id        :uuid
