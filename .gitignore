@@ -23,3 +23,5 @@ config.env
 prod-storage/
 
 airtable_data/
+
+CLAUDE.md
