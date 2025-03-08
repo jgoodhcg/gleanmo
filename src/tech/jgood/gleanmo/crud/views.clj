@@ -108,25 +108,56 @@
                        (= "tech.jgood.gleanmo.schema" n)
                        (= "tech.jgood.gleanmo.schema.meta" n)))))))
 
-(defn render-table [entities fields ctx]
-  [:div.overflow-x-auto
-   [:table.min-w-full.divide-y.divide-gray-200
-    [:thead.bg-gray-50
-     [:tr
-      (for [{:keys [field-key input-label]} fields]
-        [:th.px-6.py-3.text-left.text-xs.font-medium.text-gray-500.uppercase.tracking-wider 
-         {:key (name field-key)} 
-         input-label])]]
-    [:tbody.bg-white.divide-y.divide-gray-200
-     (map-indexed
-      (fn [idx entity]
-        [:tr {:key idx
-              :class (when (odd? idx) "bg-gray-50")}
-         (for [{:keys [field-key input-type type]} fields]
-           [:td.px-6.py-4.whitespace-nowrap.text-sm.text-gray-900 
-            {:key (name field-key)}
-            (format-cell-value input-type (get entity field-key) ctx)])])
-      entities)]]])
+(defn render-table [{:keys [entities
+                            display-fields
+                            entity-str]} ctx]
+  (let [;; Sort function that places label field first, then alphabetically by name
+        sort-with-label-first (fn [fields]
+                                (let [label-key (keyword entity-str "label")]
+                                  ;; If we have a label field, sort it first
+                                  (if (some #(= (:field-key %) label-key) fields)
+                                    (concat 
+                                     ;; First the label field
+                                     (filter #(= (:field-key %) label-key) fields)
+                                     ;; Then all other fields sorted alphabetically
+                                     (sort-by (comp name :field-key) 
+                                              (remove #(= (:field-key %) label-key) fields)))
+                                    ;; Otherwise just sort alphabetically
+                                    (sort-by (comp name :field-key) fields))))
+        
+        sorted-fields (sort-with-label-first display-fields)
+        ;; Process fields to adjust labels and handle special cases
+        processed-fields (map (fn [{:keys [field-key input-label] :as field}]
+                                (if (= field-key :user/id)
+                                  ;; Special case for user/id - change label to just "User"
+                                  (assoc field :input-label "User") 
+                                  field))
+                              sorted-fields)]
+    [:div.overflow-x-auto
+     [:table.min-w-full.divide-y.divide-gray-200
+      [:thead.bg-gray-50
+       [:tr
+        (for [{:keys [field-key input-label]} processed-fields]
+          [:th.px-6.py-3.text-left.text-xs.font-medium.text-gray-500.uppercase.tracking-wider 
+           {:key (name field-key)} 
+           input-label])]]
+      [:tbody.bg-white.divide-y.divide-gray-200
+       (map-indexed
+        (fn [idx entity]
+          [:tr {:key idx
+                :class (when (odd? idx) "bg-gray-50")}
+           (for [{:keys [field-key input-type type]} processed-fields]
+             [:td.px-6.py-4.whitespace-nowrap.text-sm.text-gray-900 
+              {:key (name field-key)}
+              (cond
+                ;; Special case for user/id
+                (= field-key :user/id)
+                [:span.text-gray-600 (str (some-> entity (get field-key) str (subs 0 8)) "...")]
+                
+                ;; Default case - use the regular formatter
+                :else
+                (format-cell-value input-type (get entity field-key) ctx))])])
+        entities)]]]))
 
 (defn list-entities [{:keys [entity-key
                              entity-str
@@ -137,11 +168,7 @@
         {:user/keys [email]} (xt/entity db user-id)
         entity-type-str      (name entity-key)
         entities             (ops/all-for-user-query {:entity-type-str entity-type-str} ctx)
-        display-fields       (get-display-fields schema)
-        all-keys             (reduce (fn [keys-set entity]
-                                       (apply conj keys-set (keys entity)))
-                                     #{}
-                                     entities)]
+        display-fields       (get-display-fields schema)]
     (ui/page
      {}
      [:div
@@ -154,5 +181,7 @@
                    [:div.text-lg "No items found"]
                    [:div
                     [:div.mb-6
-                     (render-table entities display-fields ctx)]
+                     (render-table (pot/map-of entities
+                                               display-fields
+                                               entity-str) ctx)]
                     ])])])))
