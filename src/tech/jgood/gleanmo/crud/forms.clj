@@ -8,6 +8,7 @@
                                           get-user-time-zone
                                           str->instant!]]
    [tech.jgood.gleanmo.crud.fields :as f]
+   [tech.jgood.gleanmo.crud.schema-utils :as schema-utils]
    [tech.jgood.gleanmo.ui :as ui]
    [tech.jgood.gleanmo.schema.meta :as sm]
    [tick.core :as t]
@@ -15,18 +16,24 @@
   (:import
    [java.time ZoneId LocalDateTime ZonedDateTime]))
 
+(defn prepare-form-fields
+  "Extract and prepare fields from a schema, filtering out system fields.
+   Returns a sequence of prepared field maps."
+  [schema]
+  (let [raw-fields (schema-utils/extract-schema-fields schema)]
+    (->> raw-fields
+         (map schema-utils/prepare-field)
+         ;; remove fields that aren't necessary for forms
+         (remove (fn [{:keys [field-key]}]
+                   (let [n (namespace field-key)]
+                     (or
+                      (= :xt/id field-key)
+                      (= :user/id field-key)
+                      (= "tech.jgood.gleanmo.schema" n)
+                      (= "tech.jgood.gleanmo.schema.meta" n))))))))
+
 (defn schema->form [schema ctx]
-  (let [raw-fields (f/extract-schema-fields schema)
-        fields     (->> raw-fields
-                        (map f/prepare)
-                      ;; remove fields that aren't necessary for new forms
-                        (remove (fn [{:keys [field-key]}]
-                                  (let [n (namespace field-key)]
-                                    (or
-                                     (= :xt/id field-key)
-                                     (= :user/id field-key)
-                                     (= "tech.jgood.gleanmo.schema" n)
-                                     (= "tech.jgood.gleanmo.schema.meta" n))))))]
+  (let [fields (prepare-form-fields schema)]
     (for [field fields]
       (f/input field ctx))))
 
@@ -136,10 +143,10 @@
       (->> (reduce
             (fn [acc [k v]]
               (let [k                    (keyword k)
-                    field-info           (f/get-field-info schema k)
+                    field-info           (schema-utils/get-field-info schema k)
                     optional?            (get-in field-info [:opts :optional])
                     type                 (:type field-info)
-                    {:keys [input-type]} (f/determine-input-type type)]
+                    {:keys [input-type]} (schema-utils/determine-input-type type)]
                       ;; Skip empty values for optional fields, otherwise convert
                 (if (and optional? (or (nil? v) (str/blank? v)))
                   acc  ; Skip this field

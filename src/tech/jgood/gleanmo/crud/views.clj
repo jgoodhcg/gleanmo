@@ -1,18 +1,14 @@
 (ns tech.jgood.gleanmo.crud.views
   (:require
-   [clojure.pprint :refer [pprint]]
    [clojure.string :as str]
-   [com.biffweb :as biff]
+   [clojure.pprint :refer [pprint]]
    [potpuri.core :as pot]
-   [tech.jgood.gleanmo.app.shared :refer [side-bar
-                                         get-user-time-zone
-                                         link-button
-                                         format-date-time-local
-                                         param-true?]]
+   [tech.jgood.gleanmo.app.shared :refer [format-date-time-local
+                                          get-user-time-zone side-bar]]
    [tech.jgood.gleanmo.crud.operations :as ops]
-   [tech.jgood.gleanmo.crud.fields :as f]
-   [tech.jgood.gleanmo.ui :as ui]
+   [tech.jgood.gleanmo.crud.schema-utils :as schema-utils]
    [tech.jgood.gleanmo.schema.meta :as sm]
+   [tech.jgood.gleanmo.ui :as ui]
    [xtdb.api :as xt]))
 
 ;; Multimethod for formatting cell values based on field type
@@ -102,8 +98,8 @@
 (defn get-display-fields
   "Extract fields from schema that should be displayed in the table"
   [schema]
-  (->> (f/extract-schema-fields schema)
-       (map f/prepare)
+  (->> (schema-utils/extract-schema-fields schema)
+       (map schema-utils/prepare-field)
        ;; remove internal fields
        (remove (fn [{:keys [field-key]}]
                  (let [n (namespace field-key)]
@@ -168,7 +164,8 @@
 (defn list-entities [{:keys [entity-key
                              entity-str
                              plural-str
-                             schema] :as args}
+                             schema]
+                      :as   args}
                      {:keys [session biff/db params] :as ctx}]
   (let [user-id              (:uid session)
         {:user/keys [email]} (xt/entity db user-id)
@@ -181,15 +178,20 @@
                                   (catch Exception _ 0))
         limit                (try (Integer/parseInt limit-str)
                                   (catch Exception _ default-limit))
+        filter-references    true
         ;; Get all entities
-        entities             (ops/all-for-user-query {:entity-type-str entity-type-str} ctx)
+        entities             (ops/all-for-user-query
+                              (pot/map-of entity-type-str schema filter-references)
+                              ctx)
         ;; Count for pagination
         total-count          (count entities)
         ;; Apply pagination
         paginated-entities   (->> entities (drop offset) (take limit))
         ;; Fields
         display-fields       (get-display-fields schema)]
-    (pprint (pot/map-of params offset limit offset-str limit-str))
+    (pprint {:entities  (count entities)
+             :paginated (count paginated-entities)
+             :random    (rand-nth entities)})
     (ui/page
      {}
      [:div
@@ -221,14 +223,14 @@
                        {:class (if (> offset 0)
                                  "bg-blue-500 text-white"
                                  "bg-gray-100 text-gray-400")
-                        :href (if (> offset 0)
-                                (str "/app/crud/" entity-str "?offset=" (max 0 (- offset limit)) "&limit=" limit)
-                                "#")}
+                        :href  (if (> offset 0)
+                                 (str "/app/crud/" entity-str "?offset=" (max 0 (- offset limit)) "&limit=" limit)
+                                 "#")}
                        "Previous"]
                       [:a.px-3.py-1.rounded.border.bg-blue-500.text-white
-                       {:href (if (< (+ offset (count paginated-entities)) total-count)
-                                (str "/app/crud/" entity-str "?offset=" (+ offset limit) "&limit=" limit)
-                                "#")
+                       {:href  (if (< (+ offset (count paginated-entities)) total-count)
+                                 (str "/app/crud/" entity-str "?offset=" (+ offset limit) "&limit=" limit)
+                                 "#")
                         :class (if (< (+ offset (count paginated-entities)) total-count)
                                  "bg-blue-500 text-white"
                                  "bg-gray-100 text-gray-400")}
