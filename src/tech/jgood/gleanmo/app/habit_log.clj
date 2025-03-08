@@ -13,6 +13,8 @@
    [tech.jgood.gleanmo.prediction.heuristics :as pred]
    [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.ui :as ui]
+   [tech.jgood.gleanmo.crud.routes :as crud]
+   [tech.jgood.gleanmo.schema :refer [schema]]
    [tick.core :as t]
    [xtdb.api :as xt])
   (:import
@@ -20,6 +22,12 @@
    [java.time LocalDateTime]
    [java.time ZonedDateTime]
    [java.util UUID]))
+
+(def crud-routes
+  (crud/gen-routes {:entity-key :habit-log
+                    :entity-str "habit-log"
+                    :plural-str "Habit Logs"
+                    :schema     schema}))
 
 (defn some-sensitive-habits [{habits :habit-log/habits}]
   (->> habits

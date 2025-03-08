@@ -144,6 +144,7 @@
    :routes ["/app" {:middleware [mid/wrap-signed-in]}
 
             cruddy/crud-routes
+            habit-log/crud-routes
 
             ;; Main app and DB visualization
             [""    {:get root}]
