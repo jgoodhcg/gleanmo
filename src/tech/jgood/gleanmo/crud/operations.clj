@@ -7,6 +7,31 @@
    [tech.jgood.gleanmo.crud.schema-utils :as schema-utils]
    [tech.jgood.gleanmo.schema.meta :as sm]))
 
+(defn- has-sensitive-or-archived-related-entity?
+  [entity relationship-fields db]
+  (boolean
+   (some
+    (fn [{:keys [field-key input-type related-entity-str]}]
+      (let [rel-sensitive-key (keyword related-entity-str "sensitive")
+            rel-archived-key  (keyword related-entity-str "archived")
+            related-ids       (if (= input-type :many-relationship)
+                                (get entity field-key)
+                                #{(get entity field-key)})]
+        (when (seq related-ids)
+          ;; Query for related entities
+          (let [related-entities (mapv 
+                                  (fn [id]
+                                    (first (q db {:find  '(pull ?e [*])
+                                                  :where [['?e :xt/id id]]
+                                                  :in    '[id]}
+                                              id)))
+                                  (vec related-ids))]
+            ;; Check if any related entity is sensitive or archived
+            (some #(or (get % rel-sensitive-key)
+                       (get % rel-archived-key))
+                  related-entities)))))
+    relationship-fields)))
+
 (defn all-for-user-query [{:keys [entity-type-str schema filter-references]}
                           {:keys [biff/db session params]}]
   (let [user-id        (:uid session)
@@ -34,38 +59,21 @@
         entities    raw-results
 
         ;; Filter by related entity attributes
-        filtered-entities (if (and filter-references relationship-fields (not sensitive) (not archived))
+        filtered-entities (if (and filter-references
+                                   relationship-fields
+                                   (not sensitive)
+                                   (not archived))
                             (let [;; Get related entity types
                                   related-types (->> relationship-fields
                                                      (map :related-entity-str)
                                                      (remove nil?)
                                                      set)]
                               ;; Filter out entities with sensitive or archived related entities
-                              (remove
-                               (fn [entity]
-                                 (boolean
-                                  (some
-                                   (fn [{:keys [field-key input-type related-entity-str]}]
-                                     (let [rel-sensitive-key (keyword related-entity-str "sensitive")
-                                           rel-archived-key  (keyword related-entity-str "archived")
-                                           related-ids       (if (= input-type :many-relationship)
-                                                               (get entity field-key)
-                                                               #{(get entity field-key)})]
-                                       (when (seq related-ids)
-                                         ;; Query for related entities
-                                         (let [related-entities (mapv 
-                                                                 (fn [id]
-                                                                   (first (q db {:find  '(pull ?e [*])
-                                                                                 :where [['?e :xt/id id]]
-                                                                                 :in    '[id]}
-                                                                             id)))
-                                                                 (vec related-ids))]
-                                           ;; Check if any related entity is sensitive or archived
-                                           (some #(or (get % rel-sensitive-key)
-                                                      (get % rel-archived-key))
-                                                 related-entities)))))
-                                   relationship-fields)))
-                               entities))
+                              (->> entities
+                                   (remove #(has-sensitive-or-archived-related-entity?
+                                             %
+                                             relationship-fields
+                                             db))))
                             entities)]
     
     ;; Basic filtering for sensitivity and archiving
