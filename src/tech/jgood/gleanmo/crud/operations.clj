@@ -22,25 +22,54 @@
                               (schema-utils/extract-relationship-fields
                                schema
                                :remove-system-fields true))
-        
-        ;; Debug log
-        _ (when (and relationship-fields filter-references)
-            (pprint {:entity-type entity-type-str
-                     :relationship-fields (map :field-key relationship-fields)
-                     :full-fields relationship-fields}))
-        
+
         ;; Query for entities
-        raw-results    (q db {:find  '(pull ?e [*])
-                              :where ['[?e :user/id user-id]
-                                      ['?e ::sm/type entity-type]
-                                      '[?user :xt/id user-id]
-                                      '(not [?e ::sm/deleted-at])]
-                              :in    ['user-id]}
-                          user-id)
-        entities       raw-results]
+        raw-results (q db {:find  '(pull ?e [*])
+                           :where ['[?e :user/id user-id]
+                                   ['?e ::sm/type entity-type]
+                                   '[?user :xt/id user-id]
+                                   '(not [?e ::sm/deleted-at])]
+                           :in    ['user-id]}
+                       user-id)
+        entities    raw-results
+
+        ;; Filter by related entity attributes
+        filtered-entities (if (and filter-references relationship-fields (not sensitive) (not archived))
+                            (let [;; Get related entity types
+                                  related-types (->> relationship-fields
+                                                     (map :related-entity-str)
+                                                     (remove nil?)
+                                                     set)]
+                              ;; Filter out entities with sensitive or archived related entities
+                              (remove
+                               (fn [entity]
+                                 (boolean
+                                  (some
+                                   (fn [{:keys [field-key input-type related-entity-str]}]
+                                     (let [rel-sensitive-key (keyword related-entity-str "sensitive")
+                                           rel-archived-key  (keyword related-entity-str "archived")
+                                           related-ids       (if (= input-type :many-relationship)
+                                                               (get entity field-key)
+                                                               #{(get entity field-key)})]
+                                       (when (seq related-ids)
+                                         ;; Query for related entities
+                                         (let [related-entities (mapv 
+                                                                 (fn [id]
+                                                                   (first (q db {:find  '(pull ?e [*])
+                                                                                 :where [['?e :xt/id id]]
+                                                                                 :in    '[id]}
+                                                                             id)))
+                                                                 (vec related-ids))]
+                                           ;; Check if any related entity is sensitive or archived
+                                           (some #(or (get % rel-sensitive-key)
+                                                      (get % rel-archived-key))
+                                                 related-entities)))))
+                                   relationship-fields)))
+                               entities))
+                            entities)]
     
     ;; Basic filtering for sensitivity and archiving
-    (cond->> entities
+    (cond->> filtered-entities
       :always         (sort-by #(or (time-stamp-key %) (::sm/created-at %)))
       :always         (reverse)
       (not sensitive) (remove sensitive-key)
