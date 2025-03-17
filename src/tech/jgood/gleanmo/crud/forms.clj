@@ -24,13 +24,7 @@
     (->> raw-fields
          (map schema-utils/prepare-field)
          ;; remove fields that aren't necessary for forms
-         (remove (fn [{:keys [field-key]}]
-                   (let [n (namespace field-key)]
-                     (or
-                      (= :xt/id field-key)
-                      (= :user/id field-key)
-                      (= "tech.jgood.gleanmo.schema" n)
-                      (= "tech.jgood.gleanmo.schema.meta" n))))))))
+         (remove schema-utils/should-remove-system-or-user-field?))))
 
 (defn schema->form [schema ctx]
   (let [fields (prepare-form-fields schema)]

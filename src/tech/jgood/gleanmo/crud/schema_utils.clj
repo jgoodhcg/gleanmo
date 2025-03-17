@@ -75,15 +75,27 @@
       add-descriptors
       add-input-name-label))
 
+(defn should-remove-system-or-user-field?
+  "Predicate to identify system fields and user ID fields that should be excluded from queries."
+  [{:keys [field-key]}]
+  (let [n (namespace field-key)]
+    (or
+     (= :xt/id field-key)
+     (= :user/id field-key)
+     (= "tech.jgood.gleanmo.schema" n)
+     (= "tech.jgood.gleanmo.schema.meta" n))))
+
 (defn extract-relationship-fields
   "Extracts relationship fields from a schema.
    Returns a sequence of processed fields that are relationships."
-  [schema]
-  (->> (extract-schema-fields schema)
-       (map prepare-field)
-       (filter (fn [{:keys [input-type]}]
-                 (or (= input-type :single-relationship)
-                     (= input-type :many-relationship))))))
+  [schema & {:keys [remove-system-fields] :or {remove-system-fields false}}]
+  (cond->> schema
+    :always              extract-schema-fields
+    :always              (map prepare-field)
+    :always              (filter (fn [{:keys [input-type]}]
+                                   (or (= input-type :single-relationship)
+                                       (= input-type :many-relationship))))
+    remove-system-fields (remove should-remove-system-or-user-field?)))
 
 (defn get-field-info
   "Returns a map with :type and :opts for a given field key from a schema"

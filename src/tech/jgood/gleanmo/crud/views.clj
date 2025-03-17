@@ -189,9 +189,6 @@
         paginated-entities   (->> entities (drop offset) (take limit))
         ;; Fields
         display-fields       (get-display-fields schema)]
-    (pprint {:entities  (count entities)
-             :paginated (count paginated-entities)
-             :random    (rand-nth entities)})
     (ui/page
      {}
      [:div

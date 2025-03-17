@@ -17,9 +17,11 @@
         sensitive-key  (keyword entity-type-str "sensitive")
         archived-key   (keyword entity-type-str "archived")
         
-        ;; Get relationship fields from schema
+        ;; Get relationship fields from schema, removing system fields like :user/id
         relationship-fields (when (and schema filter-references)
-                              (schema-utils/extract-relationship-fields schema))
+                              (schema-utils/extract-relationship-fields
+                               schema
+                               :remove-system-fields true))
         
         ;; Debug log
         _ (when (and relationship-fields filter-references)
