@@ -221,6 +221,7 @@
 
             ["/dv/habit-logs" {:get habit-log/data-viz}]
             ["/dv/habit-dates" {:get habit-log/habit-dates}]
-            ["/dv/meditation-stats" {:get meditation-log/meditation-stats}]
+            ["/dv/meditation-stats" {:get meditation-log/meditation-stats
+                                              :post meditation-log/meditation-stats}]
             ;;
             ]})
