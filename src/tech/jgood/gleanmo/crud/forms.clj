@@ -169,3 +169,16 @@
                           doc)])
     {:status  303
      :headers {"location" (str "/app/crud/new/" entity)}}))
+     
+(defn edit-form [{:keys [entity-key
+                         schema
+                         plural-str
+                         entity-str]}
+                 {:keys [session biff/db params path-params]
+                  :as   ctx}]
+  (let [user-id  (:uid session)
+        entity-id (java.util.UUID/fromString (:id path-params))]
+    (ui/page
+     {}
+     [:div
+      [:h1 "Edit Form Placeholder"]])))

@@ -140,7 +140,10 @@
            {:key   (str (name field-key))
             :style {:max-width "250px"
                     :overflow  "hidden"}}
-           input-label])]]
+           input-label])
+        ;; Add actions column header
+        [:th.px-6.py-3.text-right.text-xs.font-medium.text-gray-500.uppercase.tracking-wider
+         "Actions"]]]
       [:tbody.bg-white.divide-y.divide-gray-200
        (map-indexed
         (fn [idx entity]
@@ -158,7 +161,12 @@
                 
                 ;; Default case - use the regular formatter
                 :else
-                (format-cell-value input-type (get entity field-key) ctx))])])
+                (format-cell-value input-type (get entity field-key) ctx))])
+           ;; Add edit link cell
+           [:td.px-6.py-4.whitespace-nowrap.text-right.text-sm.font-medium
+            [:a.text-blue-600.hover:text-blue-900
+             {:href (str "/app/crud/" entity-str "/" (:xt/id entity) "/edit")}
+             "Edit"]]])
         paginated-entities)]]]))
 
 (defn list-entities [{:keys [entity-key
