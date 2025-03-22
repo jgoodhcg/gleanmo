@@ -521,7 +521,25 @@
                                 (/ (reduce + durations) completed-count)
                                 0)
                               double
-                              (format "%.1f min"))]
+                              (format "%.1f min"))
+        ;; Calculate average daily duration (minutes per day)
+        total-duration       (if (pos? completed-count) (reduce + durations) 0)
+        first-log-date       (when (pos? completed-count)
+                               (:meditation-log/beginning (last completed-logs)))
+        last-log-date        (when (pos? completed-count)
+                               (:meditation-log/end (first completed-logs)))
+        days-interval        (when (and first-log-date last-log-date)
+                               (-> (t/duration
+                                    {:tick/beginning first-log-date
+                                     :tick/end last-log-date})
+                                   t/days
+                                   (max 1))) ;; Ensure at least 1 day to avoid division by zero
+        avg-daily-duration   (->>
+                              (if (and (pos? completed-count) days-interval)
+                                (/ total-duration days-interval)
+                                0)
+                              double
+                              (format "%.1f min/day"))]
     
     (ui/page
      {}
@@ -530,7 +548,7 @@
       [:div.flex.flex-col
        [:h1.text-2xl.font-bold.mb-4 "Meditation Statistics"]
        
-       [:div.grid.grid-cols-1.gap-4.md:grid-cols-3.mb-6
+       [:div.grid.grid-cols-1.gap-4.md:grid-cols-4.mb-6
         [:div.bg-white.p-6.rounded-lg.shadow
          [:h3.text-sm.font-medium.text-gray-500 "Total Meditation Logs"]
          [:p.text-3xl.font-bold total-logs]]
@@ -541,4 +559,8 @@
         
         [:div.bg-white.p-6.rounded-lg.shadow
          [:h3.text-sm.font-medium.text-gray-500 "Average Duration"]
-         [:p.text-3xl.font-bold avg-duration]]]]))))
+         [:p.text-3xl.font-bold avg-duration]]
+        
+        [:div.bg-white.p-6.rounded-lg.shadow
+         [:h3.text-sm.font-medium.text-gray-500 "Daily Average"]
+         [:p.text-3xl.font-bold avg-daily-duration]]]]))))
