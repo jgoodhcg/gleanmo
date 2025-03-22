@@ -488,3 +488,33 @@
          :headers {"location" "/app/meditation-logs"}})
       {:status 403
        :body   "Not authorized to edit that meditation-log"})))
+
+(defn meditation-stats [{:keys [session biff/db]
+                        :as   context}]
+  (let [{:user/keys [email]} (xt/entity db (:uid session))
+        logs (all-for-user-query context)
+        
+        ;; Count total meditation logs
+        total-logs (count logs)
+        
+        ;; Count logs with both beginning and end timestamps
+        completed-logs (->> logs
+                           (filter #(and (:meditation-log/beginning %) 
+                                        (:meditation-log/end %)))
+                           count)]
+    
+    (ui/page
+     {}
+     (side-bar
+      (pot/map-of email)
+      [:div.flex.flex-col
+       [:h1.text-2xl.font-bold.mb-4 "Meditation Statistics"]
+       
+       [:div.grid.grid-cols-1.gap-4.md:grid-cols-2.mb-6
+        [:div.bg-white.p-6.rounded-lg.shadow
+         [:h3.text-sm.font-medium.text-gray-500 "Total Meditation Logs"]
+         [:p.text-3xl.font-bold total-logs]]
+        
+        [:div.bg-white.p-6.rounded-lg.shadow
+         [:h3.text-sm.font-medium.text-gray-500 "Completed Meditation Logs"]
+         [:p.text-3xl.font-bold completed-logs]]]]))))
