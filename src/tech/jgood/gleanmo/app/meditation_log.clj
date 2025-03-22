@@ -228,6 +228,10 @@
         user-time-zone (get-user-time-zone ctx)
         new-tz         (not= user-time-zone time-zone)]
 
+    ;; Validate that end time is after beginning time if provided
+    (when (and (some? end) (some? beginning) (not (t/> end beginning)))
+      (throw (ex-info "End time must be after beginning time" {})))
+
     (biff/submit-tx ctx
                     (vec (remove nil?
                                  [(merge
@@ -290,7 +294,7 @@
         new-tz         (not= user-time-zone time-zone)
         ops            (->> [(merge {:db/op                      :update
                                      :db/doc-type                :meditation-log
-                                     ::sm/type               :meditation-log
+                                     ::sm/type                   :meditation-log
                                      :xt/id                      log-id
                                      :meditation-log/location-id location-id
                                      :meditation-log/beginning   beginning
@@ -309,6 +313,10 @@
                                 :xt/id          user-id
                                 :user/time-zone time-zone})]
                             (remove nil?))]
+
+    ;; Validate that end time is after beginning time if provided
+    (when (and (some? end) (some? beginning) (not (t/> end beginning)))
+      (throw (ex-info "End time must be after beginning time" {})))
 
     (biff/submit-tx ctx ops)
 
@@ -490,18 +498,30 @@
        :body   "Not authorized to edit that meditation-log"})))
 
 (defn meditation-stats [{:keys [session biff/db]
-                        :as   context}]
+                         :as   context}]
   (let [{:user/keys [email]} (xt/entity db (:uid session))
-        logs (all-for-user-query context)
-        
+        logs                 (all-for-user-query context)
         ;; Count total meditation logs
-        total-logs (count logs)
-        
-        ;; Count logs with both beginning and end timestamps
-        completed-logs (->> logs
-                           (filter #(and (:meditation-log/beginning %) 
-                                        (:meditation-log/end %)))
-                           count)]
+        total-logs           (count logs)
+        ;; Filter logs with both beginning and end timestamps (completed logs)
+        completed-logs       (->> logs
+                                  (filter #(and (:meditation-log/beginning %)
+                                                (:meditation-log/end %))))
+        completed-count      (count completed-logs)
+        ;; Calculate duration for each completed log
+        durations            (map (fn [log]
+                                    (-> (t/duration
+                                         {:tick/beginning (:meditation-log/beginning log)
+                                          :tick/end       (:meditation-log/end log)})
+                                        t/minutes))
+                                  completed-logs)
+        ;; Calculate average duration (in minutes)
+        avg-duration         (->>
+                              (if (pos? completed-count)
+                                (/ (reduce + durations) completed-count)
+                                0)
+                              double
+                              (format "%.1f min"))]
     
     (ui/page
      {}
@@ -510,11 +530,15 @@
       [:div.flex.flex-col
        [:h1.text-2xl.font-bold.mb-4 "Meditation Statistics"]
        
-       [:div.grid.grid-cols-1.gap-4.md:grid-cols-2.mb-6
+       [:div.grid.grid-cols-1.gap-4.md:grid-cols-3.mb-6
         [:div.bg-white.p-6.rounded-lg.shadow
          [:h3.text-sm.font-medium.text-gray-500 "Total Meditation Logs"]
          [:p.text-3xl.font-bold total-logs]]
         
         [:div.bg-white.p-6.rounded-lg.shadow
          [:h3.text-sm.font-medium.text-gray-500 "Completed Meditation Logs"]
-         [:p.text-3xl.font-bold completed-logs]]]]))))
+         [:p.text-3xl.font-bold completed-count]]
+        
+        [:div.bg-white.p-6.rounded-lg.shadow
+         [:h3.text-sm.font-medium.text-gray-500 "Average Duration"]
+         [:p.text-3xl.font-bold avg-duration]]]]))))
