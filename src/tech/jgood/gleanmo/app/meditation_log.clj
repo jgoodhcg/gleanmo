@@ -523,7 +523,8 @@
         start-date-str       (:start-date params)
         end-date-str         (:end-date params)
         start-date           (date-str->instant start-date-str zone-id)
-        end-date             (date-str->end-of-day-instant end-date-str zone-id) ;; Include the entire end day
+        ;; end-date if supplied or right now
+        end-date             (date-str->end-of-day-instant end-date-str zone-id)
         all-logs             (all-for-user-query context)
         ;; Apply date range filtering if provided
         logs                 (cond->> all-logs
@@ -553,14 +554,16 @@
                               (format "%.1f min"))
         ;; Calculate average daily duration (minutes per day)
         total-duration       (if (pos? completed-count) (reduce + durations) 0)
-        first-log-date       (when (pos? completed-count)
-                               (:meditation-log/beginning (last completed-logs)))
-        last-log-date        (when (pos? completed-count)
-                               (:meditation-log/end (first completed-logs)))
-        days-interval        (when (and first-log-date last-log-date)
+        first-date           (when (pos? completed-count)
+                               (or start-date
+                                   (:meditation-log/beginning (last completed-logs))))
+        last-date            (when (pos? completed-count)
+                               (or end-date
+                                   (t/now)))
+        days-interval        (when (and first-date last-date)
                                (-> (t/duration
-                                    {:tick/beginning first-log-date
-                                     :tick/end last-log-date})
+                                    {:tick/beginning first-date
+                                     :tick/end       last-date})
                                    t/days
                                    (max 1))) ;; Ensure at least 1 day to avoid division by zero
         avg-daily-duration   (->>
@@ -568,7 +571,10 @@
                                 (/ total-duration days-interval)
                                 0)
                               double
-                              (format "%.1f min/day"))]
+                              (format "%.1f min/day"))
+        days-display         (when days-interval
+                               (format "(%d day%s)" days-interval
+                                       (if (= days-interval 1) "" "s")))]
     
     (ui/page
      {}
@@ -579,12 +585,12 @@
        
        ;; Date Range Filter Form
        (biff/form
-        {:hx-post "/app/dv/meditation-stats"
-         :hx-swap "outerHTML"
+        {:hx-post   "/app/dv/meditation-stats"
+         :hx-swap   "outerHTML"
          :hx-target "#meditation-stats-container"
          :hx-select "#meditation-stats-container"
-         :id "meditation-stats-form"
-         :class "bg-white p-6 rounded-lg shadow mb-6"}
+         :id        "meditation-stats-form"
+         :class     "bg-white p-6 rounded-lg shadow mb-6"}
         [:div.flex.flex-col.space-y-4
          [:h2.text-lg.font-semibold "Filter by Date Range"]
          
@@ -618,12 +624,12 @@
             "Showing statistics for "
             (cond
               (and start-date-str end-date-str) (str "period from " 
-                                            start-date-str
-                                            " to " 
-                                            end-date-str)
-              start-date-str (str "period starting " start-date-str)
-              end-date-str (str "period ending " end-date-str)
-              :else "")]])
+                                                     start-date-str
+                                                     " to "
+                                                     end-date-str)
+              start-date-str                    (str "period starting " start-date-str)
+              end-date-str                      (str "period ending " end-date-str)
+              :else                             "")]])
         
         [:div.grid.grid-cols-1.gap-4.md:grid-cols-4.mb-6
          [:div.bg-white.p-6.rounded-lg.shadow
@@ -640,4 +646,7 @@
          
          [:div.bg-white.p-6.rounded-lg.shadow
           [:h3.text-sm.font-medium.text-gray-500 "Daily Average"]
-          [:p.text-3xl.font-bold avg-daily-duration]]]]]))))
+          [:div.flex.flex-col
+           [:p.text-3xl.font-bold avg-daily-duration]
+           (when days-display
+             [:p.text-sm.text-gray-500 days-display])]]]]]))))
