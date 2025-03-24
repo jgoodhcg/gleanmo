@@ -176,9 +176,17 @@
                          entity-str]}
                  {:keys [session biff/db params path-params]
                   :as   ctx}]
-  (let [user-id  (:uid session)
-        entity-id (java.util.UUID/fromString (:id path-params))]
+  (let [user-id   (:uid session)
+        {:user/keys [email]} (xt/entity db user-id)
+        entity-id (java.util.UUID/fromString (:id path-params))
+        entity    (xt/entity db entity-id)]
     (ui/page
      {}
      [:div
-      [:h1 "Edit Form Placeholder"]])))
+      (side-bar (pot/map-of email)
+                [:div
+                 [:h1.text-xl.font-bold.mb-4 (str "Edit " (str/capitalize entity-str))]
+                 [:div.bg-white.shadow.rounded.p-4
+                  [:h2.text-lg.font-semibold "Entity Details:"]
+                  [:pre.mt-4.bg-gray-100.p-4.rounded.text-sm.overflow-auto
+                   (with-out-str (pprint entity))]]])])))
