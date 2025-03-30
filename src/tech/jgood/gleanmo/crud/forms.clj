@@ -99,10 +99,10 @@
 
 (defmethod convert-field-value :single-relationship [_ value _]
   (try
-      (java.util.UUID/fromString value)
-      (catch IllegalArgumentException e
-        (throw (ex-info (str "Could not convert '" value "' to UUID: " (.getMessage e))
-                        {:value value :type :single-relationship})))))
+    (java.util.UUID/fromString value)
+    (catch IllegalArgumentException e
+      (throw (ex-info (str "Could not convert '" value "' to UUID: " (.getMessage e))
+                      {:value value :type :single-relationship})))))
 
 (defmethod convert-field-value :many-relationship [_ values _]
   (cond
@@ -113,7 +113,7 @@
           (catch IllegalArgumentException e
             (throw (ex-info (str "Could not convert '" values "' to UUID: " (.getMessage e))
                             {:value values :type :many-relationship}))))})
-    :else 
+    :else
     (into #{}
           (map (fn [v]
                  (try
@@ -166,10 +166,10 @@
     (biff/submit-tx ctx
                     [(merge {:db/doc-type entity-key
                              :xt/id       (:xt/id doc)}
-                          doc)])
+                            doc)])
     {:status  303
      :headers {"location" (str "/app/crud/new/" entity)}}))
-     
+
 (defn edit-form [{:keys [entity-key
                          schema
                          plural-str
@@ -190,3 +190,4 @@
                   [:h2.text-lg.font-semibold "Entity Details:"]
                   [:pre.mt-4.bg-gray-100.p-4.rounded.text-sm.overflow-auto
                    (with-out-str (pprint entity))]]])])))
+
