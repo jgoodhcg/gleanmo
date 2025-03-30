@@ -13,7 +13,8 @@
 (defmethod input :string [field ctx]
   (let [{:keys [input-name
                 input-label
-                input-required]} field
+                input-required
+                value]} field
         time-zone                 (get-user-time-zone ctx)]
     (cond
       (str/includes? input-name "label")
@@ -21,10 +22,11 @@
        [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for input-name} input-label]
        [:div.mt-2
         [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-         {:type "text" 
-          :name input-name 
-          :required input-required
-          :autocomplete "off"}]]]
+         (cond-> {:type "text" 
+                  :name input-name 
+                  :required input-required
+                  :autocomplete "off"}
+                 value (assoc :value value))]]]
 
       (str/includes? input-name "time-zone")
       [:div
@@ -38,79 +40,91 @@
               sort
               (map (fn [zoneId]
                      [:option {:value    zoneId
-                               :selected (= zoneId time-zone)} zoneId])))]]]
+                               :selected (or (= zoneId value) (= zoneId time-zone))} zoneId])))]]]
       :else
       [:div
        [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for input-name} input-label]
        [:div.mt-2
         [:textarea.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-         {:name input-name 
-          :rows 3 
-          :required input-required
-          :placeholder "..." 
-          :autocomplete "off"}]]])))
+         (cond-> {:name input-name 
+                  :rows 3 
+                  :required input-required
+                  :placeholder "..." 
+                  :autocomplete "off"}
+                 value (assoc :value value))]]])))
 
 (defmethod input :boolean [field _]
   (let [{:keys [input-name 
                 input-label
-                input-required]} field]
+                input-required
+                value]} field]
     [:div.flex.items-center
      [:input.rounded.shadow-sm.mr-2.text-indigo-600.focus:ring-blue-500.focus:border-indigo-500
-      {:type "checkbox" 
-       :name input-name 
-       :required input-required
-       :autocomplete "off"}]
+      (cond-> {:type "checkbox" 
+               :name input-name 
+               :required input-required
+               :autocomplete "off"}
+              value (assoc :checked "checked"))]
      [:label.text-sm.font-medium.leading-6.text-gray-900 {:for input-name} input-label]]))
 
 (defmethod input :number [field _]
   (let [{:keys [input-name 
                 input-label
-                input-required]} field]
+                input-required
+                value]} field]
     [:div
      [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for input-name} input-label]
      [:div.mt-2
       [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-       {:type "number" 
-        :step "any" 
-        :name input-name 
-        :required input-required
-        :autocomplete "off"}]]]))
+       (cond-> {:type "number" 
+                :step "any" 
+                :name input-name 
+                :required input-required
+                :autocomplete "off"}
+               value (assoc :value value))]]]))
 
 (defmethod input :int [field _]
   (let [{:keys [input-name 
                 input-label
-                input-required]} field]
+                input-required
+                value]} field]
     [:div
      [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for input-name} input-label]
      [:div.mt-2
       [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-       {:type "number" 
-        :step "1" 
-        :name input-name 
-        :required input-required
-        :autocomplete "off"}]]]))
+       (cond-> {:type "number" 
+                :step "1" 
+                :name input-name 
+                :required input-required
+                :autocomplete "off"}
+               value (assoc :value value))]]]))
 
 (defmethod input :float [field _]
   (let [{:keys [input-name 
                 input-label
-                input-required]} field]
+                input-required
+                value]} field]
     [:div
      [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for input-name} input-label]
      [:div.mt-2
       [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-       {:type "number" 
-        :step "0.001" 
-        :name input-name 
-        :required input-required
-        :autocomplete "off"}]]]))
+       (cond-> {:type "number" 
+                :step "0.001" 
+                :name input-name 
+                :required input-required
+                :autocomplete "off"}
+               value (assoc :value value))]]]))
 
 (defmethod input :instant [field ctx]
   (let [{:keys [input-name
                 input-label
-                input-required]} field
+                input-required
+                value]} field
         time-zone                 (get-user-time-zone ctx)
         time-zone                 (if (some? time-zone) time-zone "US/Eastern")
-        current-time              (format-date-time-local (t/now) time-zone)]  ; assumes the current time is passed in the field map
+        formatted-time            (if value
+                                   (format-date-time-local value time-zone)
+                                   (format-date-time-local (t/now) time-zone))]
     [:div
      [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for input-name} input-label]
      [:div.mt-2
@@ -118,13 +132,14 @@
        {:type     "datetime-local"
         :name     input-name
         :required input-required
-        :value    current-time}]]]))
+        :value    formatted-time}]]]))
 
 (defmethod input :single-relationship [field ctx]
   (let [{:keys [input-name
                 input-label
                 input-required
-                related-entity-str]} field
+                related-entity-str
+                value]} field
         label-key                    (keyword related-entity-str "label")
         id-key                       :xt/id
         entity-schema                (get schema/schema (keyword related-entity-str))
@@ -137,19 +152,21 @@
       {:name input-name 
        :required input-required}
       (for [{:keys [id label]} options]
-        [:option {:value id} label])]]))
+        [:option {:value id :selected (= (str id) (str value))} label])]]))
 
 (defmethod input :many-relationship [field ctx]
   (let [{:keys [input-name
                 input-label
                 input-required
-                related-entity-str]} field
+                related-entity-str
+                value]} field
         label-key                    (keyword related-entity-str "label")
         id-key                       :xt/id
         entity-schema                (get schema/schema (keyword related-entity-str))
         options                      (->> (all-for-user-query {:entity-type-str related-entity-str
                                                              :schema entity-schema} ctx)
-                                          (map (fn [e] {:id (id-key e) :label (label-key e)})))]
+                                          (map (fn [e] {:id (id-key e) :label (label-key e)})))
+        value-set                    (when value (set (map str value)))]
     [:div
      [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for input-name} input-label]
      [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
@@ -157,13 +174,14 @@
        :multiple true
        :required input-required}
       (for [{:keys [id label]} options]
-        [:option {:value id} label])]]))
+        [:option {:value id :selected (and value-set (contains? value-set (str id)))} label])]]))
 
 (defmethod input :enum [field _]
   (let [{:keys [enum-options
                 input-name
                 input-label
-                input-required]} field]
+                input-required
+                value]} field]
     [:div
      [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for input-name} input-label]
      [:div.mt-2
@@ -171,7 +189,9 @@
        {:name input-name 
         :required input-required}
        (for [opt enum-options]
-         [:option {:value (name opt)} (name opt)])]]]))
+         [:option {:value (name opt) 
+                  :selected (= (keyword opt) value)} 
+          (name opt)])]]]))
 
 (defmethod input :default [field _]
   [:div "Unsupported field type: " (pr-str field)])
