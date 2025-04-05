@@ -17,6 +17,5 @@
       {:get  (partial views/list-entities args),
        :post (partial forms/create-entity! args)}]
      [(str "/" entity-str "/:id/edit") {:get (partial forms/edit-form args)}]
-     ;; [(str "/" entity-str "/:id")      {:post (partial
-     ;; forms/update-entity! args)}]
-    ]))
+     [(str "/" entity-str "/:id")
+      {:post (partial forms/update-entity! args)}]]))
