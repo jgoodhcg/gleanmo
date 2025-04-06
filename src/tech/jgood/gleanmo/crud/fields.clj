@@ -56,13 +56,11 @@
 (defmethod input :boolean [field _]
   (let [{:keys [input-name 
                 input-label
-                input-required
                 value]} field]
     [:div.flex.items-center
      [:input.rounded.shadow-sm.mr-2.text-indigo-600.focus:ring-blue-500.focus:border-indigo-500
       (cond-> {:type "checkbox" 
                :name input-name 
-               :required input-required
                :autocomplete "off"}
               value (assoc :checked "checked"))]
      [:label.text-sm.font-medium.leading-6.text-gray-900 {:for input-name} input-label]]))
