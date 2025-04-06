@@ -17,4 +17,7 @@
       {:get  (partial views/list-entities args)
        :post (partial forms/create-entity! args)}]
      [(str "/" entity-str "/:id")
-      {:post (partial forms/update-entity! args)}]]))
+      {:post (partial forms/update-entity! args)}]
+     ;; Delete route
+     [(str "/" entity-str "/:id/delete")
+      {:post (partial forms/delete-entity! args)}]]))

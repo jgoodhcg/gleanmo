@@ -1,11 +1,12 @@
 (ns tech.jgood.gleanmo.crud.forms
   (:require [clojure.string :as str]
-            [com.biffweb :as biff]
+            [com.biffweb :as biff :refer [q]]
             [clojure.pprint :refer [pprint]]
             [potpuri.core :as pot]
             [tech.jgood.gleanmo.app.shared :refer
              [side-bar get-user-time-zone str->instant!]]
             [tech.jgood.gleanmo.crud.fields :as f]
+            [tech.jgood.gleanmo.crud.operations :as operations]
             [tech.jgood.gleanmo.crud.schema-utils :as schema-utils]
             [tech.jgood.gleanmo.ui :as ui]
             [tech.jgood.gleanmo.schema.meta :as sm]
@@ -236,4 +237,29 @@
     {:status  303,
      :headers {"location"
                (str "/app/crud/forms/" entity-str "/edit/" entity-id)}}))
+
+(defn delete-entity!
+  "Soft-delete an entity by setting its deleted-at timestamp"
+  [{:keys [entity-key entity-str]} {:keys [biff/db path-params], :as ctx}]
+  (let [entity-id (java.util.UUID/fromString (:id path-params))
+        user-id   (-> ctx
+                      :session
+                      :uid)
+        entity    (operations/get-entity-for-user db
+                                                  entity-id
+                                                  user-id
+                                                  entity-key)]
+    ;; Perform soft delete by setting deleted-at timestamp if entity exists
+    (if entity
+      (do
+        (biff/submit-tx ctx
+                        [{:db/op          :update,
+                          :db/doc-type    entity-key,
+                          :xt/id          (:xt/id entity),
+                          ::sm/deleted-at (t/now)}])
+        {:status  303,
+         :headers {"location" (str "/app/crud/" entity-str)}})
+      ;; Entity not found or doesn't belong to this user
+      {:status  303,
+       :headers {"location" (str "/app/crud/" entity-str)}})))
 

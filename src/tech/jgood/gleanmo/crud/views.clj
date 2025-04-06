@@ -2,6 +2,7 @@
   (:require
    [clojure.string :as str]
    [clojure.pprint :refer [pprint]]
+   [com.biffweb :as biff]
    [potpuri.core :as pot]
    [tech.jgood.gleanmo.app.shared :refer
     [format-date-time-local
@@ -103,7 +104,10 @@
        (when (seq labels)
          (str
           (str/join ", " (take 2 labels))
-          (when (-> labels count (> 2)) " ...")))])))
+          (when (-> labels
+                    count
+                    (> 2))
+            " ...")))])))
 
 (defmethod format-cell-value :enum
   [_ value _]
@@ -203,10 +207,20 @@
                 (format-cell-value input-type (get entity field-key) ctx))])
             ;; Add edit link cell
            [:td.px-6.py-4.whitespace-nowrap.text-right.text-sm.font-medium
-            [:a.text-blue-600.hover:text-blue-900
-             {:href (str "/app/crud/forms/" entity-str
-                         "/edit/" (:xt/id entity))}
-             "Edit"]]])
+            [:div.flex.justify-end.space-x-4
+             [:a.text-blue-600.hover:text-blue-900
+              {:href (str "/app/crud/forms/" entity-str
+                          "/edit/" (:xt/id entity))}
+              "Edit"]
+             (biff/form
+              {:action
+               (str "/app/crud/" entity-str "/" (:xt/id entity) "/delete"),
+               :method "post",
+               :onsubmit
+               "return confirm('Are you sure you want to delete this item? This action cannot be undone.');"}
+              [:button.text-red-600.hover:text-red-900
+               {:type "submit"}
+               "Delete"])]]])
         paginated-entities)]]]))
 
 (defn list-entities
@@ -251,6 +265,7 @@
         [:h1.text-2xl.font-bold.mb-4
          (str/capitalize plural-str)]
 
+  
           ;; New entity button
         [:div.mb-4
          [:a.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded
