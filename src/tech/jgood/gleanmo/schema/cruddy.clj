@@ -9,6 +9,8 @@
        [::sm/created-at :instant]
        [:user/id :user/id]
        [:cruddy/label :string]
+       [:cruddy/notes {:optional true} :string]
+       [:cruddy/other-text {:optional true} :string]
        [:cruddy/num :number]
        [:cruddy/bool :boolean]
        [:cruddy/integer :int]

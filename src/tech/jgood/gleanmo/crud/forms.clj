@@ -39,18 +39,18 @@
               (side-bar (pot/map-of email)
                         [:div.w-full.md:w-96.space-y-8
                          (biff/form
-                           {:hx-post   (str "/app/crud/" entity-str),
-                            :hx-swap   "outerHTML",
-                            :hx-select (str "#" form-id),
-                            :id        form-id}
-                           [:div
-                            [:h2.text-base.font-semibold.leading-7.text-gray-900
-                             (str "New " (str/capitalize entity-str))]
-                            [:p.mt-1.text-sm.leading-6.text-gray-600
-                             (str "Create a new " entity-str)]]
-                           [:div.grid.grid-cols-1.gap-y-6
-                            (doall (schema->form schema ctx))
-                            [:button {:type "submit"} "Create"]])])])))
+                          {:hx-post   (str "/app/crud/" entity-str),
+                           :hx-swap   "outerHTML",
+                           :hx-select (str "#" form-id),
+                           :id        form-id}
+                          [:div
+                           [:h2.text-base.font-semibold.leading-7.text-gray-900
+                            (str "New " (str/capitalize entity-str))]
+                           [:p.mt-1.text-sm.leading-6.text-gray-600
+                            (str "Create a new " entity-str)]]
+                          [:div.grid.grid-cols-1.gap-y-6
+                           (doall (schema->form schema ctx))
+                           [:button {:type "submit"} "Create"]])])])))
 
 (defmulti convert-field-value (fn [type _value _ctx] type))
 
@@ -106,22 +106,22 @@
                            #{(try (java.util.UUID/fromString values)
                                   (catch IllegalArgumentException e
                                     (throw (ex-info
-                                             (str "Could not convert '" values
-                                                  "' to UUID: " (.getMessage e))
-                                             {:value values,
-                                              :type  :many-relationship}))))})
+                                            (str "Could not convert '" values
+                                                 "' to UUID: " (.getMessage e))
+                                            {:value values,
+                                             :type  :many-relationship}))))})
         :else            (into #{}
                                (map (fn [v]
                                       (try (java.util.UUID/fromString v)
                                            (catch IllegalArgumentException e
                                              (throw
-                                               (ex-info
-                                                 (str "Could not convert '" v
-                                                      "' to UUID: " (.getMessage
-                                                                      e))
-                                                 {:value v,
-                                                  :type :many-relationship})))))
-                                 values))))
+                                              (ex-info
+                                               (str "Could not convert '" v
+                                                    "' to UUID: " (.getMessage
+                                                                   e))
+                                               {:value v,
+                                                :type :many-relationship})))))
+                                    values))))
 
 (defmethod convert-field-value :enum
   [_ value _]
@@ -142,15 +142,15 @@
                            optional?  (get-in field-info [:opts :optional])
                            type       (:type field-info)
                            {:keys [input-type]}
-                             (schema-utils/determine-input-type type)]
+                           (schema-utils/determine-input-type type)]
                        ;; Skip empty values for optional fields, otherwise
                        ;; convert
                        (if (and optional? (or (nil? v) (str/blank? v)))
                          acc ; Skip this field
                          (let [converted-value
-                                 (convert-field-value input-type v ctx)]
+                               (convert-field-value input-type v ctx)]
                            (assoc acc k converted-value)))))
-             {}))))
+                   {}))))
 
 (defn create-entity!
   [{:keys [schema entity-key], :as args}
@@ -188,39 +188,53 @@
         entity    (xt/entity db entity-id)
         form-id   (str entity-str "-edit-form")]
     (ui/page
-      {}
-      [:div
-       (side-bar
-         (pot/map-of email)
-         [:div.w-full.md:w-96.space-y-8
-          (biff/form
-            {:hx-post   (str "/app/crud/" entity-str "/" entity-id),
-             :hx-swap   "outerHTML",
-             :hx-select (str "#" form-id),
-             :id        form-id}
-            [:div
-             [:h1.text-xl.font-bold.mb-4
-              (str "Edit " (str/capitalize entity-str))]
-             [:p.mt-1.text-sm.leading-6.text-gray-600
-              (str "Edit this " entity-str)]]
-            [:div.grid.grid-cols-1.gap-y-6
-             (doall (schema->form-with-values schema entity ctx))
-             [:div.flex.justify-between.mt-4
-              [:a.inline-flex.items-center.px-4.py-2.bg-gray-200.text-gray-800.rounded-md.hover:bg-gray-300
-               {:href (str "/app/crud/" entity-str)} "Cancel"]
-              [:button.inline-flex.items-center.px-4.py-2.bg-blue-600.text-white.rounded-md.hover:bg-blue-700
-               {:type "submit"} "Save Changes"]]])])])))
+     {}
+     [:div
+      (side-bar
+       (pot/map-of email)
+       [:div.w-full.md:w-96.space-y-8
+        (biff/form
+         {:hx-post   (str "/app/crud/" entity-str "/" entity-id),
+          :hx-swap   "outerHTML",
+          :hx-select (str "#" form-id),
+          :id        form-id}
+         [:div
+          [:h1.text-xl.font-bold.mb-4
+           (str "Edit " (str/capitalize entity-str))]
+          [:p.mt-1.text-sm.leading-6.text-gray-600
+           (str "Edit this " entity-str)]]
+         [:div.grid.grid-cols-1.gap-y-6
+          (doall (schema->form-with-values schema entity ctx))
+          [:div.flex.justify-between.mt-4
+           [:a.inline-flex.items-center.px-4.py-2.bg-gray-200.text-gray-800.rounded-md.hover:bg-gray-300
+            {:href (str "/app/crud/" entity-str)} "Cancel"]
+           [:button.inline-flex.items-center.px-4.py-2.bg-blue-600.text-white.rounded-md.hover:bg-blue-700
+            {:type "submit"} "Save Changes"]]])])])))
 
 (defn update-entity!
   [{:keys [schema entity-key entity-str], :as args}
    {:keys [session biff/db params path-params], :as ctx}]
-  (let [user-id     (:uid session)
-        entity-id   (java.util.UUID/fromString (:id path-params))
-        entity      (xt/entity db entity-id)
-        form-data   (form->schema params schema ctx)
-        updated-doc (merge entity form-data)]
-    ;; Instead of transacting, just print out the updated entity
-    (println "Form submission for entity update:")
-    (pprint updated-doc)
-    {:status 303, :headers {"location" (str "/app/crud/" entity-str)}}))
+  (let [user-id        (:uid session)
+        entity-id      (java.util.UUID/fromString (:id path-params))
+        entity         (xt/entity db entity-id)
+        form-data      (form->schema params schema ctx)
+        time-zone      (-> params
+                           (get (str entity-str "/time-zone")))
+        user-time-zone (get-user-time-zone ctx)
+        new-tz         (and time-zone (not= user-time-zone time-zone))
+        ops            [(merge {:db/op       :update,
+                                :db/doc-type entity-key,
+                                ::sm/type    entity-key,
+                                :xt/id       entity-id}
+                               form-data)
+                        (when new-tz
+                          {:db/op          :update,
+                           :db/doc-type    :user,
+                           :xt/id          user-id,
+                           :user/time-zone time-zone})]]
+    ;; Submit transaction
+    (biff/submit-tx ctx (vec (remove nil? ops)))
+    {:status  303,
+     :headers {"location"
+               (str "/app/crud/" entity-str "/" entity-id "/edit")}}))
 
