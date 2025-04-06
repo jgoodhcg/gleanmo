@@ -153,13 +153,10 @@
                    {}))))
 
 (defn create-entity!
-  [{:keys [schema entity-key], :as args}
+  [{:keys [schema entity-key entity-str]}
    {:keys [session biff/db params], :as ctx}]
   (let [user-id (:uid session)
         user    (xt/entity db user-id)
-        entity  (-> args
-                    :entity-key
-                    name)
         data    (form->schema params schema ctx)
         doc     (merge {:xt/id          (random-uuid),
                         ::sm/type       entity-key,
@@ -167,9 +164,11 @@
                         :user/id        (:xt/id user)}
                        data)]
     (biff/submit-tx ctx
-                    [(merge {:db/doc-type entity-key, :xt/id (:xt/id doc)}
+                    [(merge {:db/doc-type entity-key,
+                             :xt/id       (:xt/id doc)}
                             doc)])
-    {:status 303, :headers {"location" (str "/app/crud/new/" entity)}}))
+    {:status  303,
+     :headers {"location" (str "/app/crud/forms/" entity-str "/new")}}))
 
 (defn schema->form-with-values
   "Similar to schema->form but includes entity values in input fields"
@@ -236,5 +235,5 @@
     (biff/submit-tx ctx (vec (remove nil? ops)))
     {:status  303,
      :headers {"location"
-               (str "/app/crud/" entity-str "/" entity-id "/edit")}}))
+               (str "/app/crud/forms/" entity-str "/edit/" entity-id)}}))
 

@@ -8,14 +8,13 @@
   (let [schema (entity-key schema)
         args   (pot/map-of entity-key schema plural-str entity-str)]
     ["/crud" {}
-     ;; new is preppended because the trie based router can't distinguish
-     ;; between /entity/new and /entity/:id this could be fixed with a
-     ;; linear based router but I think this is a fine REST convention to
-     ;; break from
-     [(str "/new/" entity-str) {:get (partial forms/new-form args)}]
+     ;; Form routes - grouped under /forms
+     ["/forms" {}
+      [(str "/" entity-str "/new") {:get (partial forms/new-form args)}]
+      [(str "/" entity-str "/edit/:id") {:get (partial forms/edit-form args)}]]
+     ;; Data routes
      [(str "/" entity-str)
-      {:get  (partial views/list-entities args),
+      {:get  (partial views/list-entities args)
        :post (partial forms/create-entity! args)}]
-     [(str "/" entity-str "/:id/edit") {:get (partial forms/edit-form args)}]
      [(str "/" entity-str "/:id")
       {:post (partial forms/update-entity! args)}]]))
