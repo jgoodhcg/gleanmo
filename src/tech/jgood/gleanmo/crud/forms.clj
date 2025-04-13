@@ -6,6 +6,7 @@
             [tech.jgood.gleanmo.app.shared :refer
              [side-bar get-user-time-zone str->instant!]]
             [tech.jgood.gleanmo.crud.fields :as f]
+            [tech.jgood.gleanmo.crud.forms.inputs :as inputs]
             [tech.jgood.gleanmo.crud.operations :as operations]
             [tech.jgood.gleanmo.crud.schema-utils :as schema-utils]
             [tech.jgood.gleanmo.db.mutations :as mutations]
@@ -28,7 +29,7 @@
 (defn schema->form
   [schema ctx]
   (let [fields (prepare-form-fields schema)]
-    (for [field fields] (f/input field ctx))))
+    (for [field fields] (inputs/render field ctx))))
 
 (defn new-form
   [{:keys [entity-key schema plural-str entity-str]}
@@ -193,7 +194,7 @@
     (for [field fields
           :let  [field-key (:field-key field)
                  value     (get entity field-key)]]
-      (f/input (assoc field :value value) ctx))))
+      (inputs/render (assoc field :value value) ctx))))
 
 (defn edit-form
   [{:keys [schema entity-str]} {:keys [session biff/db path-params], :as ctx}]
