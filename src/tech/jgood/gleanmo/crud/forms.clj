@@ -8,6 +8,7 @@
             [tech.jgood.gleanmo.crud.fields :as f]
             [tech.jgood.gleanmo.crud.operations :as operations]
             [tech.jgood.gleanmo.crud.schema-utils :as schema-utils]
+            [tech.jgood.gleanmo.db.mutations :as mutations]
             [tech.jgood.gleanmo.ui :as ui]
             [tech.jgood.gleanmo.schema.meta :as sm]
             [tick.core :as t]
@@ -156,18 +157,32 @@
 (defn create-entity!
   [{:keys [schema entity-key entity-str]}
    {:keys [session biff/db params], :as ctx}]
-  (let [user-id (:uid session)
-        user    (xt/entity db user-id)
-        data    (form->schema params schema ctx)
-        doc     (merge {:xt/id          (random-uuid),
-                        ::sm/type       entity-key,
-                        ::sm/created-at (t/now),
-                        :user/id        (:xt/id user)}
-                       data)]
-    (biff/submit-tx ctx
-                    [(merge {:db/doc-type entity-key,
-                             :xt/id       (:xt/id doc)}
-                            doc)])
+  (let [user-id        (:uid session)
+        user           (xt/entity db user-id)
+        data           (form->schema params schema ctx)
+        ;; Add user ID to data
+        data-with-user (assoc data :user/id (:xt/id user))
+        ;; Check if time zone is being updated
+        time-zone      (-> params
+                           (get (str entity-str "/time-zone")))
+        user-time-zone (get-user-time-zone ctx)
+        new-tz         (and time-zone (not= user-time-zone time-zone))]
+
+    ;; Use the mutations namespace to create the entity
+    (mutations/create-entity!
+     ctx
+     {:entity-key entity-key,
+      :data       data-with-user})
+
+    ;; Optionally update user time zone
+    (when new-tz
+      (mutations/update-entity!
+       ctx
+       {:entity-key :user,
+        :entity-id  user-id,
+        :data       {:user/time-zone time-zone}}))
+
+    ;; Return redirect response
     {:status  303,
      :headers {"location" (str "/app/crud/forms/" entity-str "/new")}}))
 
@@ -221,19 +236,21 @@
         time-zone      (-> params
                            (get (str entity-str "/time-zone")))
         user-time-zone (get-user-time-zone ctx)
-        new-tz         (and time-zone (not= user-time-zone time-zone))
-        ops            [(merge {:db/op       :update,
-                                :db/doc-type entity-key,
-                                ::sm/type    entity-key,
-                                :xt/id       entity-id}
-                               form-data)
-                        (when new-tz
-                          {:db/op          :update,
-                           :db/doc-type    :user,
-                           :xt/id          user-id,
-                           :user/time-zone time-zone})]]
-    ;; Submit transaction
-    (biff/submit-tx ctx (vec (remove nil? ops)))
+        new-tz         (and time-zone (not= user-time-zone time-zone))]
+    ;; Update the entity
+    (mutations/update-entity!
+     ctx
+     {:entity-key entity-key,
+      :entity-id  entity-id,
+      :data       form-data})
+    ;; Optionally update user time zone
+    (when new-tz
+      (mutations/update-entity!
+       ctx
+       {:entity-key :user,
+        :entity-id  user-id,
+        :data       {:user/time-zone time-zone}}))
+    ;; Return redirect response
     {:status  303,
      :headers {"location"
                (str "/app/crud/forms/" entity-str "/edit/" entity-id)}}))
@@ -252,11 +269,12 @@
     ;; Perform soft delete by setting deleted-at timestamp if entity exists
     (if entity
       (do
-        (biff/submit-tx ctx
-                        [{:db/op          :update,
-                          :db/doc-type    entity-key,
-                          :xt/id          (:xt/id entity),
-                          ::sm/deleted-at (t/now)}])
+        ;; Use the mutations namespace to delete the entity
+        (mutations/soft-delete-entity!
+         ctx
+         {:entity-key entity-key,
+          :entity-id  entity-id})
+
         {:status  303,
          :headers {"location" (str "/app/crud/" entity-str)}})
       ;; Entity not found or doesn't belong to this user
