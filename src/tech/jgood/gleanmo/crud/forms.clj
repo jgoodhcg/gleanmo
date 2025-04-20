@@ -4,8 +4,9 @@
             [clojure.pprint :refer [pprint]]
             [potpuri.core :as pot]
             [tech.jgood.gleanmo.app.shared :refer
-             [side-bar get-user-time-zone str->instant!]]
+             [side-bar get-user-time-zone]]
             [tech.jgood.gleanmo.crud.forms.inputs :as inputs]
+            [tech.jgood.gleanmo.crud.forms.converters :refer [convert-field-value]]
             [tech.jgood.gleanmo.crud.operations :as operations]
             [tech.jgood.gleanmo.crud.schema-utils :as schema-utils]
             [tech.jgood.gleanmo.db.mutations :as mutations]
@@ -13,7 +14,7 @@
             [tech.jgood.gleanmo.schema.meta :as sm]
             [tick.core :as t]
             [xtdb.api :as xt])
-  (:import [java.time ZoneId LocalDateTime ZonedDateTime]))
+  (:import [java.time LocalDateTime ZonedDateTime]))
 
 (defn prepare-form-fields
   "Extract and prepare fields from a schema, filtering out system fields.
@@ -54,85 +55,6 @@
                            (doall (schema->form schema ctx))
                            [:button {:type "submit"} "Create"]])])])))
 
-(defmulti convert-field-value (fn [type _value _ctx] type))
-
-(defmethod convert-field-value :string [_ value _] value)
-
-(defmethod convert-field-value :int
-  [_ value _]
-  (try (Integer/parseInt value)
-       (catch Exception e
-         (throw (ex-info (str "Could not convert '" value
-                              "' to int: " (.getMessage e))
-                         {:value value, :type :int})))))
-
-(defmethod convert-field-value :float
-  [_ value _]
-  (try (Float/parseFloat value)
-       (catch Exception e
-         (throw (ex-info (str "Could not convert '" value
-                              "' to float: "        (.getMessage e))
-                         {:value value, :type :float})))))
-
-(defmethod convert-field-value :number
-  [_ value _]
-  (try (Double/parseDouble value)
-       (catch Exception e
-         (throw (ex-info (str "Could not convert '" value
-                              "' to number: "       (.getMessage e))
-                         {:value value, :type :number})))))
-
-(defmethod convert-field-value :boolean [_ value _] (boolean value))
-
-(defmethod convert-field-value :instant
-  [_ value ctx]
-  (when (not-empty value)
-    (let [time-zone (get-user-time-zone ctx)
-          zone-id   (ZoneId/of (or time-zone "UTC"))]
-      (try (str->instant! value zone-id)
-           (catch IllegalArgumentException e
-             (throw (ex-info (.getMessage e)
-                             {:value value, :type :instant})))))))
-
-(defmethod convert-field-value :single-relationship
-  [_ value _]
-  (try (java.util.UUID/fromString value)
-       (catch IllegalArgumentException e
-         (throw (ex-info (str "Could not convert '" value
-                              "' to UUID: "         (.getMessage e))
-                         {:value value, :type :single-relationship})))))
-
-(defmethod convert-field-value :many-relationship
-  [_ values _]
-  (cond (string? values) (when (not-empty values)
-                           #{(try (java.util.UUID/fromString values)
-                                  (catch IllegalArgumentException e
-                                    (throw (ex-info
-                                            (str "Could not convert '" values
-                                                 "' to UUID: " (.getMessage e))
-                                            {:value values,
-                                             :type  :many-relationship}))))})
-        :else            (into #{}
-                               (map (fn [v]
-                                      (try (java.util.UUID/fromString v)
-                                           (catch IllegalArgumentException e
-                                             (throw
-                                              (ex-info
-                                               (str "Could not convert '" v
-                                                    "' to UUID: " (.getMessage
-                                                                   e))
-                                               {:value v,
-                                                :type :many-relationship})))))
-                                    values))))
-
-(defmethod convert-field-value :enum
-  [_ value _]
-  (when (not-empty value) (keyword value)))
-
-(defmethod convert-field-value :default
-  [type value _]
-  (throw (ex-info (str "Unknown field type for conversion: " type)
-                  {:value value, :type type})))
 
 (defn form->schema
   [form-fields schema ctx]
