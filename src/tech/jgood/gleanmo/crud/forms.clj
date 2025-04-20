@@ -1,20 +1,17 @@
 (ns tech.jgood.gleanmo.crud.forms
   (:require [clojure.string :as str]
-            [com.biffweb :as biff :refer [q]]
-            [clojure.pprint :refer [pprint]]
             [potpuri.core :as pot]
+            [com.biffweb :as biff]
             [tech.jgood.gleanmo.app.shared :refer
              [side-bar get-user-time-zone]]
             [tech.jgood.gleanmo.crud.forms.inputs :as inputs]
-            [tech.jgood.gleanmo.crud.forms.converters :refer [convert-field-value]]
+            [tech.jgood.gleanmo.crud.forms.converters :refer
+             [convert-field-value]]
             [tech.jgood.gleanmo.crud.operations :as operations]
             [tech.jgood.gleanmo.crud.schema-utils :as schema-utils]
             [tech.jgood.gleanmo.db.mutations :as mutations]
             [tech.jgood.gleanmo.ui :as ui]
-            [tech.jgood.gleanmo.schema.meta :as sm]
-            [tick.core :as t]
-            [xtdb.api :as xt])
-  (:import [java.time LocalDateTime ZonedDateTime]))
+            [xtdb.api :as xt]))
 
 (defn prepare-form-fields
   "Extract and prepare fields from a schema, filtering out system fields.
@@ -32,8 +29,8 @@
     (for [field fields] (inputs/render field ctx))))
 
 (defn new-form
-  [{:keys [entity-key schema plural-str entity-str]}
-   {:keys [session biff/db params], :as ctx}]
+  [{:keys [schema entity-str]}
+   {:keys [session biff/db], :as ctx}]
   (let [user-id (:uid session)
         {:user/keys [email]} (xt/entity db user-id)
         form-id (str entity-str "-new-form")]
@@ -54,7 +51,6 @@
                           [:div.grid.grid-cols-1.gap-y-6
                            (doall (schema->form schema ctx))
                            [:button {:type "submit"} "Create"]])])])))
-
 
 (defn form->schema
   [form-fields schema ctx]
@@ -149,11 +145,10 @@
             {:type "submit"} "Save Changes"]]])])])))
 
 (defn update-entity!
-  [{:keys [schema entity-key entity-str], :as args}
-   {:keys [session biff/db params path-params], :as ctx}]
+  [{:keys [schema entity-key entity-str]}
+   {:keys [session params path-params] :as ctx}]
   (let [user-id        (:uid session)
         entity-id      (java.util.UUID/fromString (:id path-params))
-        entity         (xt/entity db entity-id)
         form-data      (form->schema params schema ctx)
         time-zone      (-> params
                            (get (str entity-str "/time-zone")))

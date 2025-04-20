@@ -1,11 +1,10 @@
 (ns tech.jgood.gleanmo.crud.forms.converters
   (:require
-   [clojure.string :as str]
    [tech.jgood.gleanmo.app.shared :refer [get-user-time-zone str->instant!]])
   (:import
    [java.time ZoneId]))
 
-(defmulti convert-field-value 
+(defmulti convert-field-value
   "Convert a form field value to the appropriate type for the schema.
    Dispatches on the field type."
   (fn [type _value _ctx] type))
@@ -25,7 +24,7 @@
   (try (Float/parseFloat value)
        (catch Exception e
          (throw (ex-info (str "Could not convert '" value
-                              "' to float: " (.getMessage e))
+                              "' to float: "        (.getMessage e))
                          {:value value, :type :float})))))
 
 (defmethod convert-field-value :number
@@ -33,7 +32,7 @@
   (try (Double/parseDouble value)
        (catch Exception e
          (throw (ex-info (str "Could not convert '" value
-                              "' to number: " (.getMessage e))
+                              "' to number: "       (.getMessage e))
                          {:value value, :type :number})))))
 
 (defmethod convert-field-value :boolean [_ value _] (boolean value))
@@ -53,7 +52,7 @@
   (try (java.util.UUID/fromString value)
        (catch IllegalArgumentException e
          (throw (ex-info (str "Could not convert '" value
-                              "' to UUID: " (.getMessage e))
+                              "' to UUID: "         (.getMessage e))
                          {:value value, :type :single-relationship})))))
 
 (defmethod convert-field-value :many-relationship
@@ -73,7 +72,8 @@
                                              (throw
                                               (ex-info
                                                (str "Could not convert '" v
-                                                    "' to UUID: " (.getMessage e))
+                                                    "' to UUID: " (.getMessage
+                                                                   e))
                                                {:value v,
                                                 :type :many-relationship})))))
                                     values))))
