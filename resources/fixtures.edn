@@ -1,10 +1,163 @@
 ;; Biff transaction. See https://biffweb.com/docs/reference/transactions/
-[{:db/doc-type :user
-  :xt/id :db.id/user-a
-  :user/email "a@example.com"
-  :user/foo "Some Value"
-  :user/joined-at :db/now}
- {:db/doc-type :msg
-  :msg/user :db.id/user-a
-  :msg/text "hello there"
-  :msg/sent-at :db/now}]
+[
+ ;; User
+ {:db/doc-type    :user,
+  :xt/id          #uuid "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  :tech.jgood.gleanmo.schema.meta/type :user,
+  :tech.jgood.gleanmo.schema.meta/created-at #time/instant "2023-01-01T00:00:00.000Z",
+  :user/email     "test@example.com",
+  :user/time-zone "America/New_York",
+  :user/joined-at #time/instant "2023-01-01T00:00:00.000Z"}
+
+ ;; Locations
+ {:db/doc-type    :location,
+  :xt/id          #uuid "a9b8e8ab-cf4d-4a54-87c4-85b89e73b0e2",
+  :tech.jgood.gleanmo.schema.meta/type :location,
+  :tech.jgood.gleanmo.schema.meta/created-at #time/instant "2023-01-03T00:00:00.000Z",
+  :user/id        #uuid "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  :location/label "Home Office",
+  :location/name  "Home Office",
+  :location/notes "Quiet room with meditation cushion"}
+
+ {:db/doc-type    :location,
+  :xt/id          #uuid "b6c98d0c-12e5-47d5-a44c-b0c01234e567",
+  :tech.jgood.gleanmo.schema.meta/type :location,
+  :tech.jgood.gleanmo.schema.meta/created-at #time/instant "2023-01-03T01:00:00.000Z",
+  :user/id        #uuid "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  :location/label "Backyard",
+  :location/name  "Backyard",
+  :location/notes "Peaceful garden space"}
+
+ {:db/doc-type    :location,
+  :xt/id          #uuid "c7d12e3f-00a1-48b6-b55d-c0d01234e567",
+  :tech.jgood.gleanmo.schema.meta/type :location,
+  :tech.jgood.gleanmo.schema.meta/created-at #time/instant "2023-01-04T00:00:00.000Z",
+  :user/id        #uuid "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  :location/label "Meditation Room",
+  :location/name  "Meditation Room",
+  :location/notes "Dedicated space with cushions and incense"}
+
+ ;; Habits
+ {:db/doc-type :habit,
+  :xt/id       #uuid "d8e23f4f-15b2-49c7-b66e-d1e01234e567",
+  :tech.jgood.gleanmo.schema.meta/type :habit,
+  :tech.jgood.gleanmo.schema.meta/created-at #time/instant "2023-01-05T00:00:00.000Z",
+  :user/id     #uuid "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  :habit/label "Daily Sunshine",
+  :habit/name  "Daily Sunshine",
+  :habit/notes "Morning sunshine exposure for at least 10 minutes"}
+
+ {:db/doc-type :habit,
+  :xt/id       #uuid "e9f34f5a-26c3-50d8-a77f-e2f01234e567",
+  :tech.jgood.gleanmo.schema.meta/type :habit,
+  :tech.jgood.gleanmo.schema.meta/created-at #time/instant "2023-01-06T00:00:00.000Z",
+  :user/id     #uuid "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  :habit/label "Drink Water",
+  :habit/name  "Drink Water",
+  :habit/notes "Drink at least 8 glasses of water daily"}
+
+ {:db/doc-type :habit,
+  :xt/id       #uuid "f0a45a6b-37d4-61e9-b88f-f3a01234e567",
+  :tech.jgood.gleanmo.schema.meta/type :habit,
+  :tech.jgood.gleanmo.schema.meta/created-at #time/instant "2023-01-07T00:00:00.000Z",
+  :user/id     #uuid "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  :habit/label "Journal Writing",
+  :habit/name  "Journal Writing",
+  :habit/notes "Write in journal for 15 minutes before bed"}
+
+ ;; Habit Logs
+ {:db/doc-type :habit-log,
+  :xt/id #uuid "a1b56c7d-48e5-72f0-c99a-a4b01234e567",
+  :tech.jgood.gleanmo.schema.meta/type :habit-log,
+  :tech.jgood.gleanmo.schema.meta/created-at #time/instant "2023-01-08T00:00:00.000Z",
+  :user/id #uuid "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  :habit-log/timestamp #time/instant "2023-01-08T08:00:00.000Z",
+  :habit-log/time-zone "America/New_York",
+  :habit-log/habit-ids #{#uuid "d8e23f4f-15b2-49c7-b66e-d1e01234e567"
+                         #uuid "e9f34f5a-26c3-50d8-a77f-e2f01234e567"},
+  :habit-log/notes "Completed both habits this morning"}
+
+ {:db/doc-type :habit-log,
+  :xt/id #uuid "b2c67d8e-59f6-83a1-d00b-b5c01234e567",
+  :tech.jgood.gleanmo.schema.meta/type :habit-log,
+  :tech.jgood.gleanmo.schema.meta/created-at #time/instant "2023-01-09T00:00:00.000Z",
+  :user/id #uuid "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  :habit-log/timestamp #time/instant "2023-01-09T22:00:00.000Z",
+  :habit-log/time-zone "America/New_York",
+  :habit-log/habit-ids #{#uuid "f0a45a6b-37d4-61e9-b88f-f3a01234e567"},
+  :habit-log/notes "Journaled about today's events"}
+
+ ;; Meditations (Types)
+ {:db/doc-type      :meditation,
+  :xt/id            #uuid "c3d78e9f-60a7-94b2-e11c-c6d01234e567",
+  :tech.jgood.gleanmo.schema.meta/type :meditation,
+  :tech.jgood.gleanmo.schema.meta/created-at #time/instant "2023-01-10T00:00:00.000Z",
+  :user/id          #uuid "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  :meditation/label "Mindfulness",
+  :meditation/name  "Mindfulness",
+  :meditation/notes "Focusing on breath and present moment awareness"}
+
+ {:db/doc-type      :meditation,
+  :xt/id            #uuid "d4e89f0a-71b8-05c3-f22d-d7e01234e567",
+  :tech.jgood.gleanmo.schema.meta/type :meditation,
+  :tech.jgood.gleanmo.schema.meta/created-at #time/instant "2023-01-11T00:00:00.000Z",
+  :user/id          #uuid "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  :meditation/label "Loving-kindness",
+  :meditation/name  "Loving-kindness",
+  :meditation/notes "Cultivating feelings of goodwill and compassion"}
+
+ {:db/doc-type :meditation,
+  :xt/id #uuid "e5f90a1b-82c9-16d4-a33e-e8f01234e567",
+  :tech.jgood.gleanmo.schema.meta/type :meditation,
+  :tech.jgood.gleanmo.schema.meta/created-at #time/instant "2023-01-12T00:00:00.000Z",
+  :user/id #uuid "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  :meditation/label "Body Scan",
+  :meditation/name "Body Scan",
+  :meditation/notes "Systematically bringing awareness to different parts of the body"}
+
+ ;; Meditation Logs
+ {:db/doc-type :meditation-log,
+  :xt/id #uuid "f6a01b2c-93d0-27e5-b44f-f9a01234e567",
+  :tech.jgood.gleanmo.schema.meta/type :meditation-log,
+  :tech.jgood.gleanmo.schema.meta/created-at #time/instant "2023-01-13T00:00:00.000Z",
+  :user/id #uuid "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  :meditation-log/location-id #uuid "a9b8e8ab-cf4d-4a54-87c4-85b89e73b0e2",
+  :meditation-log/beginning #time/instant "2023-01-13T07:00:00.000Z",
+  :meditation-log/end #time/instant "2023-01-13T07:15:00.000Z",
+  :meditation-log/position :sitting,
+  :meditation-log/guided false,
+  :meditation-log/type-id #uuid "c3d78e9f-60a7-94b2-e11c-c6d01234e567",
+  :meditation-log/interrupted false,
+  :meditation-log/time-zone "America/New_York",
+  :meditation-log/notes "Felt very calm and centered today"}
+
+ {:db/doc-type :meditation-log,
+  :xt/id #uuid "a7b12c3d-04e1-38f6-c55a-a0b01234e567",
+  :tech.jgood.gleanmo.schema.meta/type :meditation-log,
+  :tech.jgood.gleanmo.schema.meta/created-at #time/instant "2023-01-14T00:00:00.000Z",
+  :user/id #uuid "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  :meditation-log/location-id #uuid "b6c98d0c-12e5-47d5-a44c-b0c01234e567",
+  :meditation-log/beginning #time/instant "2023-01-14T18:30:00.000Z",
+  :meditation-log/end #time/instant "2023-01-14T19:00:00.000Z",
+  :meditation-log/position :lying,
+  :meditation-log/guided true,
+  :meditation-log/type-id #uuid "d4e89f0a-71b8-05c3-f22d-d7e01234e567",
+  :meditation-log/interrupted true,
+  :meditation-log/time-zone "America/New_York",
+  :meditation-log/notes "Was interrupted by a phone call, but got back into it"}
+
+ {:db/doc-type :meditation-log,
+  :xt/id #uuid "b8c23d4e-15f2-49a7-d66b-b1c01234e567",
+  :tech.jgood.gleanmo.schema.meta/type :meditation-log,
+  :tech.jgood.gleanmo.schema.meta/created-at #time/instant "2023-01-15T00:00:00.000Z",
+  :user/id #uuid "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  :meditation-log/location-id #uuid "c7d12e3f-00a1-48b6-b55d-c0d01234e567",
+  :meditation-log/beginning #time/instant "2023-01-15T06:00:00.000Z",
+  :meditation-log/end #time/instant "2023-01-15T06:20:00.000Z",
+  :meditation-log/position :sitting,
+  :meditation-log/guided false,
+  :meditation-log/type-id #uuid "e5f90a1b-82c9-16d4-a33e-e8f01234e567",
+  :meditation-log/interrupted false,
+  :meditation-log/time-zone "America/New_York",
+  :meditation-log/notes "Particularly good session, felt very aware of bodily sensations"}
+]

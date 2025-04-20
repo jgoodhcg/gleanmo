@@ -5,6 +5,7 @@
             [clojure.edn :as edn]
             [clojure.java.io :as io]
             [xtdb.api :as xt]
+            [tick.core :as t]
             [potpuri.core :as pot]))
 
 ;; This function should only be used from the REPL. Regular application code
@@ -14,10 +15,30 @@
   (biff/assoc-db @main/system))
 
 (defn add-fixtures []
-  (biff/submit-tx (get-context)
-                  (-> (io/resource "fixtures.edn")
-                      slurp
-                      edn/read-string)))
+  (try
+    (let [;; Define a custom reader for #time/instant
+          readers {'time/instant (fn [inst-str]
+                                  (if (string? inst-str)
+                                    (t/instant (java.time.Instant/parse inst-str))
+                                    inst-str))
+                   ;; Add other readers if needed
+                   }
+          
+          ;; Read the fixtures file 
+          fixtures-str (slurp (io/resource "fixtures.edn"))
+          _ (println "Loaded fixtures file, size:" (count fixtures-str) "chars")
+          
+          ;; Parse the EDN with the custom readers
+          fixtures (edn/read-string {:readers readers} fixtures-str)
+          _ (println "Parsed EDN, found" (count fixtures) "entities")]
+      
+      ;; Submit the transaction
+      (println "Submitting transaction...")
+      (biff/submit-tx (get-context) fixtures))
+    (catch Exception e
+      (println "Error in add-fixtures:" (.getMessage e))
+      (println "Cause:" (if-let [cause (.getCause e)] (.getMessage cause) "None"))
+      (.printStackTrace e))))
 
 (comment
   ;; Call this function if you make a change to main/initial-system,

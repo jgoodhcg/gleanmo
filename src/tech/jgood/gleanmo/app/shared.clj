@@ -88,13 +88,15 @@
   (->> (t/in instant zone-id)
        (t/format (t/formatter local-date-time-fmt))))
 
-(defn get-user-time-zone [{:keys [biff/db session]}]
+(defn get-user-time-zone 
+  "Takes biff context (db, session) and queries for user time zone. If it doesn't exist returns UTC. All returns are Strings."
+  [{:keys [biff/db session]}]
   (let [user-id (:uid session)]
     (or (first (first (q db '{:find  [?tz]
                               :where [[?user :xt/id user-id]
                                       [?user :user/time-zone ?tz]]
                               :in    [user-id]} user-id)))
-        (t/zone "UTC"))))
+        "UTC")))
 
 (defn ensure-vector [item]
   (if (vector? item)
