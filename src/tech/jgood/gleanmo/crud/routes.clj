@@ -1,6 +1,7 @@
 (ns tech.jgood.gleanmo.crud.routes
   (:require [potpuri.core :as pot]
             [tech.jgood.gleanmo.crud.forms :as forms]
+            [tech.jgood.gleanmo.crud.handlers :as handlers]
             [tech.jgood.gleanmo.crud.views :as views]))
 
 (defn gen-routes
@@ -15,9 +16,9 @@
      ;; Data routes
      [(str "/" entity-str)
       {:get  (partial views/list-entities args)
-       :post (partial forms/create-entity! args)}]
+       :post (partial handlers/create-entity! args)}]
      [(str "/" entity-str "/:id")
-      {:post (partial forms/update-entity! args)}]
+      {:post (partial handlers/update-entity! args)}]
      ;; Delete route
      [(str "/" entity-str "/:id/delete")
-      {:post (partial forms/delete-entity! args)}]]))
+      {:post (partial handlers/delete-entity! args)}]]))
