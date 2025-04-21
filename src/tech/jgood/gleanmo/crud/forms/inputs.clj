@@ -3,7 +3,7 @@
    [clojure.string :as str]
    [tech.jgood.gleanmo.app.shared :refer
     [format-date-time-local get-user-time-zone]]
-   [tech.jgood.gleanmo.crud.operations :refer [all-for-user-query]]
+   [tech.jgood.gleanmo.db.queries :refer [all-for-user-query]]
    [tech.jgood.gleanmo.schema :as schema]
    [tick.core :as t])
   (:import

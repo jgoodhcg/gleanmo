@@ -2,9 +2,9 @@
   (:require [clojure.string :as str]
             [tech.jgood.gleanmo.app.shared :refer [get-user-time-zone]]
             [tech.jgood.gleanmo.crud.forms.converters :refer [convert-field-value]]
-            [tech.jgood.gleanmo.crud.operations :as operations]
             [tech.jgood.gleanmo.crud.schema-utils :as schema-utils]
             [tech.jgood.gleanmo.db.mutations :as mutations]
+            [tech.jgood.gleanmo.db.queries :as db]
             [xtdb.api :as xt]))
 
 ;; Helper function moved from forms.clj
@@ -98,10 +98,10 @@
         user-id   (-> ctx
                       :session
                       :uid)
-        entity    (operations/get-entity-for-user db
-                                                  entity-id
-                                                  user-id
-                                                  entity-key)]
+        entity    (db/get-entity-for-user db
+                                          entity-id
+                                          user-id
+                                          entity-key)]
     ;; Perform soft delete by setting deleted-at timestamp if entity exists
     (if entity
       (do

@@ -5,9 +5,9 @@
    [potpuri.core :as pot]
    [tech.jgood.gleanmo.app.shared :refer
     [side-bar]]
-   [tech.jgood.gleanmo.crud.operations :as ops]
    [tech.jgood.gleanmo.crud.schema-utils :as schema-utils]
    [tech.jgood.gleanmo.crud.views.formatting :refer [format-cell-value]]
+   [tech.jgood.gleanmo.db.queries :as db]
    [tech.jgood.gleanmo.ui :as ui]
    [xtdb.api :as xt]))
 
@@ -132,7 +132,7 @@
                                 (catch Exception _ default-limit))
         filter-references  true
         ;; Get all entities
-        entities           (ops/all-for-user-query
+        entities           (db/all-for-user-query
                             (pot/map-of entity-type-str
                                         schema
                                         filter-references)

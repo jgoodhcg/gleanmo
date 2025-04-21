@@ -1,6 +1,8 @@
 (ns tech.jgood.gleanmo.db.queries
   (:require
    [com.biffweb :as biff :refer [q]]
+   [tech.jgood.gleanmo.app.shared :refer [param-true?]]
+   [tech.jgood.gleanmo.crud.schema-utils :as schema-utils]
    [tech.jgood.gleanmo.schema.meta :as sm]))
 
 (defn get-entity-by-id
@@ -84,13 +86,7 @@
 
         ;; Filter by related entity attributes
         filtered-entities (if (and filter-references relationship-fields)
-                            (let [;; Get related entity types
-                                  related-types     (->> relationship-fields
-                                                         (map
-                                                          :related-entity-str)
-                                                         (remove nil?)
-                                                         set)
-                                  filter-sensitive? (not filter-sensitive)
+                            (let [filter-sensitive? (not filter-sensitive)
                                   filter-archived?  (not filter-archived)]
                               ;; Filter out entities with sensitive or
                               ;; archived related entities based on current
@@ -110,3 +106,35 @@
       :always (reverse)
       (not filter-sensitive) (remove sensitive-key)
       (not filter-archived) (remove archived-key))))
+
+;; Function moved from operations.clj - used by application endpoints
+(defn all-for-user-query
+  "Get all entities for a user with filtering options from request params.
+   This function is a higher-level wrapper around all-entities-for-user."
+  [{:keys [entity-type-str schema filter-references]}
+   {:keys [biff/db session params]}]
+  (let [user-id             (:uid session)
+        sensitive           (some-> params
+                                    :sensitive
+                                    param-true?)
+        archived            (some-> params
+                                    :archived
+                                    param-true?)
+        entity-type         (keyword entity-type-str)
+
+        ;; Get relationship fields from schema, removing system fields
+        relationship-fields (when (and schema filter-references)
+                              (schema-utils/extract-relationship-fields
+                               schema
+                               :remove-system-fields
+                               true))]
+
+    ;; Use the core function
+    (all-entities-for-user
+     db
+     user-id
+     entity-type
+     :filter-sensitive    sensitive
+     :filter-archived     archived
+     :filter-references   filter-references
+     :relationship-fields relationship-fields)))
