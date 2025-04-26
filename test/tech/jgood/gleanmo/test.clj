@@ -4,6 +4,7 @@
    [com.biffweb :as biff :refer [test-xtdb-node]]
    [tech.jgood.gleanmo :as main]
    [tech.jgood.gleanmo.app.habit :as habit]
+   [tech.jgood.gleanmo.test.db.mutations-test]
    [xtdb.api :as xt])
   (:import
    [java.util UUID]))

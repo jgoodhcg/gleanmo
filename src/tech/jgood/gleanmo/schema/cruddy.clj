@@ -5,7 +5,7 @@
   (-> [:map {:closed true}
        [:xt/id :uuid]
        [::sm/type [:enum :cruddy]]
-       [::sm/deleted-at {:optional true} :boolean]
+       [::sm/deleted-at {:optional true} :instant]
        [::sm/created-at :instant]
        [:user/id :user/id]
        [:cruddy/label :string]
