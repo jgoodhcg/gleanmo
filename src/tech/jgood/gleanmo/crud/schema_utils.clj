@@ -59,8 +59,11 @@
            {:field-key field-key}
            type-info)))
 
+(defn ns-keyword->input-name [k]
+  (-> k str (str/replace ":" "")))
+
 (defn add-input-name-label [{:keys [field-key opts] :as field}]
-  (let [n (-> field-key str (str/replace ":" ""))
+  (let [n (ns-keyword->input-name field-key)
         l (-> field-key name (str/split #"-")
               (->> (map str/capitalize))
               (->> (str/join " ")))

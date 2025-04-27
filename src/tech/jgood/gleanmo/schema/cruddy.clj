@@ -21,6 +21,8 @@
        [:cruddy/time-zone :string]
        [:cruddy/timestamp :instant]
        [:cruddy/other-timestamp {:optional true} :instant]
-       [:cruddy/float {:optional true} :float]]
+       [:cruddy/float {:optional true} :float]
+       [:cruddy/sensitive {:optional true} :boolean]
+       [:cruddy/archived {:optional true} :boolean]]
       (concat sm/legacy-meta)
       vec))
