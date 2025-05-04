@@ -21,6 +21,9 @@
        (let [test-var-in-sub (first 
                               (filter some?
                                       [(resolve (symbol (str "tech.jgood.gleanmo.test.db.mutations-test/" test-name)))
+                                       (resolve (symbol (str "tech.jgood.gleanmo.test.db.queries-test/" test-name)))
+                                       (resolve (symbol (str "tech.jgood.gleanmo.test.crud.schema-utils-test/" test-name)))
+                                       (resolve (symbol (str "tech.jgood.gleanmo.test.crud.forms.converters-test/" test-name)))
                                        ;; Add other test namespaces as they are created
                                        ]))]
          (if test-var-in-sub
