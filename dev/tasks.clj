@@ -1,7 +1,9 @@
 (ns tasks
-  (:require [com.biffweb.tasks :as tasks]
-            [tasks.airtable :as airtable]
-            [clojure.test :as test]))
+  (:require
+   [clojure.string    :as str]
+   [clojure.test      :as test]
+   [com.biffweb.tasks :as tasks]
+   [tasks.airtable    :as airtable]))
 
 (defn hello
   "Says 'Hello'"
@@ -9,32 +11,39 @@
   (println "Hello"))
 
 (defn run-tests
-  "Run tests in tech.jgood.gleanmo.test namespace and sub-namespaces"
+  "Run tests in tech.jgood.gleanmo.test namespace and sub-namespaces.
+  
+  Usage:
+  - (run-tests) - Run all tests
+  - (run-tests \"namespace.name\") - Run all tests in the specified namespace
+  - (run-tests \"namespace.name/test-name\") - Run a specific test"
   ([]
    (require 'tech.jgood.gleanmo.test :reload)
    (test/run-all-tests #"tech.jgood.gleanmo.test.*"))
-  ([test-name]
-   (require 'tech.jgood.gleanmo.test :reload)
-   (let [test-var (resolve (symbol (str "tech.jgood.gleanmo.test/" test-name)))]
-     (if test-var
-       (test/test-vars [test-var])
-       (let [test-var-in-sub (first 
-                              (filter some?
-                                      [(resolve (symbol (str "tech.jgood.gleanmo.test.db.mutations-test/" test-name)))
-                                       (resolve (symbol (str "tech.jgood.gleanmo.test.db.queries-test/" test-name)))
-                                       (resolve (symbol (str "tech.jgood.gleanmo.test.crud.schema-utils-test/" test-name)))
-                                       (resolve (symbol (str "tech.jgood.gleanmo.test.crud.forms.converters-test/" test-name)))
-                                       ;; Add other test namespaces as they are created
-                                       ]))]
-         (if test-var-in-sub
-           (test/test-vars [test-var-in-sub])
-           (println "Test" test-name "not found in any test namespace.")))))))
+  ([test-spec]
+   (if (str/includes? test-spec "/")
+     ;; Handle fully qualified test name (namespace/test-name)
+     (let [[ns-name test-name] (str/split test-spec #"/")
+           ns-sym (symbol (str "tech.jgood.gleanmo.test." ns-name))
+           _ (require ns-sym :reload)
+           test-var (resolve (symbol (str ns-sym "/" test-name)))]
+       (if test-var
+         (test/test-vars [test-var])
+         (println "Test" test-spec "not found.")))
+     
+     ;; Handle namespace name only
+     (let [ns-sym (symbol (str "tech.jgood.gleanmo.test." test-spec))]
+       (try
+         (require ns-sym :reload)
+         (test/run-tests ns-sym)
+         (catch java.io.FileNotFoundException _
+           (println "Namespace" ns-sym "not found.")))))))
 
 ;; Tasks should be vars (#'hello instead of hello) so that `clj -Mdev help` can
 ;; print their docstrings.
 (def custom-tasks
-  {"hello" #'hello
-   "download-airtable" #'airtable/download-all-records
-   "test" #'run-tests})
+  {"hello" #'hello,
+   "download-airtable" #'airtable/download-all-records,
+   "test"  #'run-tests})
 
 (def tasks (merge tasks/tasks custom-tasks))
