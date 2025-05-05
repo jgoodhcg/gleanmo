@@ -1,13 +1,14 @@
 (ns tech.jgood.gleanmo.crud.forms
-  (:require [clojure.string :as str]
-            [potpuri.core :as pot]
-            [com.biffweb :as biff]
-            [tech.jgood.gleanmo.app.shared :refer
-             [side-bar get-user-time-zone]]
-            [tech.jgood.gleanmo.crud.forms.inputs :as inputs]
-            [tech.jgood.gleanmo.crud.schema-utils :as schema-utils]
-            [tech.jgood.gleanmo.ui :as ui]
-            [xtdb.api :as xt]))
+  (:require
+   [clojure.string        :as str]
+   [com.biffweb           :as biff]
+   [potpuri.core          :as pot]
+   [tech.jgood.gleanmo.app.shared :refer
+    [side-bar]]
+   [tech.jgood.gleanmo.crud.forms.inputs :as inputs]
+   [tech.jgood.gleanmo.crud.schema-utils :as schema-utils]
+   [tech.jgood.gleanmo.ui :as ui]
+   [xtdb.api              :as xt]))
 
 (defn prepare-form-fields
   "Extract and prepare fields from a schema, filtering out system fields.
