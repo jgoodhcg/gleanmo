@@ -2,7 +2,8 @@
   (:require
    [clojure.string :as str]
    [tech.jgood.gleanmo.app.shared :refer
-    [format-date-time-local get-user-time-zone]]
+    [format-date-time-local
+     get-user-time-zone]]
    [tech.jgood.gleanmo.db.queries :refer [all-for-user-query]]
    [tech.jgood.gleanmo.schema :as schema]
    [tick.core :as t])
@@ -47,11 +48,11 @@
           :autocomplete "off"}
          (->> (ZoneId/getAvailableZoneIds)
               sort
-              (map (fn [zoneId]
-                     [:option
-                      {:value    zoneId,
-                       :selected (or (= zoneId value) (= zoneId time-zone))}
-                      zoneId])))]]]
+              (mapv (fn [zoneId]
+                      [:option
+                       {:value    zoneId,
+                        :selected (or (= zoneId value) (= zoneId time-zone))}
+                       zoneId])))]]]
       :else
       [:div
        [:label.block.text-sm.font-medium.leading-6.text-gray-900
@@ -206,10 +207,12 @@
       {:name     input-name,
        :multiple true,
        :required input-required}
-      (for [{:keys [id label]} options]
-        [:option
-         {:value id, :selected (and value-set (contains? value-set (str id)))}
-         label])]]))
+      (->> options
+           (mapv (fn [{:keys [id label]}]
+                   [:option
+                    {:value    id,
+                     :selected (and value-set (contains? value-set (str id)))}
+                    label])))]]))
 
 (defmethod render :enum
   [field _]
@@ -226,11 +229,12 @@
       [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
        {:name     input-name,
         :required input-required}
-       (for [opt enum-options]
-         [:option
-          {:value    (name opt),
-           :selected (= (keyword opt) value)}
-          (name opt)])]]]))
+       (->> enum-options
+            (mapv (fn [opt]
+                    [:option
+                     {:value    (name opt),
+                      :selected (= (keyword opt) value)}
+                     (name opt)])))]]]))
 
 (defmethod render :default
   [field _]

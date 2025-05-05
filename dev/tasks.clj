@@ -16,7 +16,9 @@
   Usage:
   - (run-tests) - Run all tests
   - (run-tests \"namespace.name\") - Run all tests in the specified namespace
-  - (run-tests \"namespace.name/test-name\") - Run a specific test"
+  - (run-tests \"namespace.name/test-name\") - Run a specific test
+  
+  Note: The namespace can be provided with or without the 'tech.jgood.gleanmo.test' prefix."
   ([]
    (require 'tech.jgood.gleanmo.test :reload)
    (test/run-all-tests #"tech.jgood.gleanmo.test.*"))
@@ -24,7 +26,11 @@
    (if (str/includes? test-spec "/")
      ;; Handle fully qualified test name (namespace/test-name)
      (let [[ns-name test-name] (str/split test-spec #"/")
-           ns-sym (symbol (str "tech.jgood.gleanmo.test." ns-name))
+           ;; Check if ns-name already has the prefix
+           has-prefix (str/starts-with? ns-name "tech.jgood.gleanmo.test")
+           ns-sym (symbol (if has-prefix 
+                            ns-name 
+                            (str "tech.jgood.gleanmo.test." ns-name)))
            _ (require ns-sym :reload)
            test-var (resolve (symbol (str ns-sym "/" test-name)))]
        (if test-var
@@ -32,7 +38,11 @@
          (println "Test" test-spec "not found.")))
      
      ;; Handle namespace name only
-     (let [ns-sym (symbol (str "tech.jgood.gleanmo.test." test-spec))]
+     (let [;; Check if the namespace already has the prefix
+           has-prefix (str/starts-with? test-spec "tech.jgood.gleanmo.test")
+           ns-sym (symbol (if has-prefix 
+                            test-spec 
+                            (str "tech.jgood.gleanmo.test." test-spec)))]
        (try
          (require ns-sym :reload)
          (test/run-tests ns-sym)
