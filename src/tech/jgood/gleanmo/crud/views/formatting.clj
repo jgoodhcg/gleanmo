@@ -6,7 +6,7 @@
    [xtdb.api :as xt]))
 
 ;; Multimethod for formatting cell values based on field type
-(defmulti format-cell-value (fn [type value _] type))
+(defmulti format-cell-value (fn [type _ _] type))
 
 (defmethod format-cell-value :string
   [_ value _]
@@ -54,7 +54,7 @@
       [:span (format-date-time-local value time-zone)])))
 
 (defmethod format-cell-value :single-relationship
-  [_ value {:keys [biff/db], :as ctx}]
+  [_ value {:keys [biff/db]}]
   (if (nil? value)
     [:span.text-gray-400 "—"]
     (let [entity      (xt/entity db value)
@@ -72,12 +72,13 @@
       [:span.text-blue-600 label])))
 
 (defmethod format-cell-value :many-relationship
-  [_ values {:keys [biff/db], :as ctx}]
+  [_ values {:keys [biff/db]}]
   (cond
     (nil? values) [:span.text-gray-400 "—"]
     (empty? values) [:span.text-gray-400 "Empty set"]
     :else
     (let [labels         (for [value values]
+                           ;; TODO replace xt/entity with db query to get by id
                            (let [entity      (xt/entity db value)
                                  entity-type (or (-> entity
                                                      ::sm/type
