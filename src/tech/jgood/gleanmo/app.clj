@@ -144,7 +144,12 @@
    :routes ["/app" {:middleware [mid/wrap-signed-in]}
 
             cruddy/crud-routes
+            habit/crud-routes
             habit-log/crud-routes
+            ical-url/crud-routes
+            location/crud-routes
+            meditation/crud-routes
+            meditation-log/crud-routes
 
             ;; Main app and DB visualization
             [""    {:get root}]

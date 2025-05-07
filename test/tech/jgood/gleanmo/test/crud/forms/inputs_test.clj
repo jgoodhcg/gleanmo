@@ -20,7 +20,7 @@
    Searches recursively through nested elements."
   [hiccup tag]
   (cond
-    ;; Direct match at current level
+    ;; Direct match at current level (vector)
     (and (vector? hiccup)
          (= tag
             (-> hiccup
@@ -33,15 +33,21 @@
                 keyword)))
     hiccup
 
-    ;; Not a vector, can't contain tags
-    (not (vector? hiccup))
+    ;; Not a vector or sequence, can't contain tags
+    (not (or (vector? hiccup) (seq? hiccup)))
     nil
 
-    ;; Vector but not a match, search children
+    ;; If it's a list, recursively search through all elements in the list
+    (seq? hiccup)
+    (some #(find-element % tag) hiccup)
+
+    ;; For vectors that are not a match, search its children
     :else
-    (let [children (filter vector? hiccup)
-          results  (keep #(find-element % tag) children)]
-      (first results))))
+    (when (vector? hiccup)
+        ;; Look at each child of the vector
+      (some #(when (or (vector? %) (seq? %))
+               (find-element % tag))
+            hiccup))))
 
 ;; Set up default mocks for all tests
 (defn test-fixtures

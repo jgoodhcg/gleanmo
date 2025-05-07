@@ -4,14 +4,14 @@
    [potpuri.core :as pot]
    [tech.jgood.gleanmo.app.shared :refer [get-last-tx-time nav-bar
                                           time-zone-select zoned-date-time-fmt]]
+   [tech.jgood.gleanmo.db.queries :as db]
    [tech.jgood.gleanmo.ui :as ui]
-   [tick.core :as t]
-   [xtdb.api :as xt])
+   [tick.core :as t])
   (:import
    [java.util UUID]))
 
 (defn view [{:keys [biff/db authorized.user/id]}]
-  (let [{:user/keys [email time-zone]} (xt/entity db id)]
+  (let [{:user/keys [email time-zone]} (db/get-entity-by-id db id)]
     (ui/page
      {}
      (nav-bar (pot/map-of email))
@@ -40,7 +40,7 @@
 
 (defn edit-form [{:keys [biff/db authorized.user/id] :as ctx}]
   (let [{:user/keys [email time-zone]
-         :as        user} (xt/entity db id)
+         :as        user} (db/get-entity-by-id db id)
         time-zone         (or time-zone (t/zone "UTC"))
         latest-tx-time    (-> (get-last-tx-time (merge ctx {:xt/id id}))
                               (t/in (t/zone time-zone))

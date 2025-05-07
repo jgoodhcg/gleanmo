@@ -7,8 +7,8 @@
     [side-bar]]
    [tech.jgood.gleanmo.crud.forms.inputs :as inputs]
    [tech.jgood.gleanmo.crud.schema-utils :as schema-utils]
-   [tech.jgood.gleanmo.ui :as ui]
-   [xtdb.api              :as xt]))
+   [tech.jgood.gleanmo.db.queries :as db]
+   [tech.jgood.gleanmo.ui :as ui]))
 
 (defn prepare-form-fields
   "Extract and prepare fields from a schema, filtering out system fields.
@@ -31,7 +31,7 @@
   [{:keys [schema entity-str]}
    {:keys [session biff/db], :as ctx}]
   (let [user-id (:uid session)
-        {:user/keys [email]} (xt/entity db user-id)
+        {:user/keys [email]} (db/get-entity-by-id db user-id)
         form-id (str entity-str "-new-form")]
     (ui/page {}
              [:div
@@ -62,11 +62,11 @@
 
 (defn edit-form
   "Render an edit form for an existing entity"
-  [{:keys [schema entity-str]} {:keys [session biff/db path-params], :as ctx}]
+  [{:keys [schema entity-str entity-key]} {:keys [session biff/db path-params], :as ctx}]
   (let [user-id   (:uid session)
-        {:user/keys [email]} (xt/entity db user-id)
+        {:user/keys [email]} (db/get-entity-by-id db user-id)
         entity-id (java.util.UUID/fromString (:id path-params))
-        entity    (xt/entity db entity-id)
+        entity    (db/get-entity-for-user db entity-id user-id entity-key)
         form-id   (str entity-str "-edit-form")]
     (ui/page
      {}

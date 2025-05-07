@@ -6,12 +6,20 @@
    [tech.jgood.gleanmo.app.shared :refer [get-last-tx-time get-user-time-zone
                                           link-button param-true?
                                           search-str-xform side-bar zoned-date-time-fmt]]
+   [tech.jgood.gleanmo.crud.routes :as crud]
+   [tech.jgood.gleanmo.schema :refer [schema]]
    [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.ui :as ui]
    [tick.core :as t]
    [xtdb.api :as xt])
   (:import
    [java.util UUID]))
+
+(def crud-routes
+  (crud/gen-routes {:entity-key :habit
+                    :entity-str "habit"
+                    :plural-str "habits"
+                    :schema     schema}))
 
 (defn all-for-user-query [{:keys [biff/db session sensitive archived]}]
   (cond->>  (q db '{:find  (pull ?habit [*])

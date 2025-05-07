@@ -9,13 +9,21 @@
                                           get-last-tx-time get-user-time-zone link-button
                                           local-date-time-fmt param-true? side-bar str->instant time-zone-select
                                           zoned-date-time-fmt]]
+   [tech.jgood.gleanmo.crud.routes :as crud]
+   [tech.jgood.gleanmo.db.queries :as db]
+   [tech.jgood.gleanmo.schema :refer [schema]]
    [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.ui :as ui]
-   [tick.core :as t]
-   [xtdb.api :as xt])
+   [tick.core :as t])
   (:import
    [java.time ZoneId]
    [java.util UUID]))
+
+(def crud-routes
+  (crud/gen-routes {:entity-key :meditation-log
+                    :entity-str "meditation-log"
+                    :plural-str "meditation logs"
+                    :schema     schema}))
 
 ;; TODO consolidate with schema
 (def positions [:sitting :lying :walking :standing :moving])
@@ -101,7 +109,7 @@
 (defn new-form [{:keys [session biff/db]
                  :as   ctx}]
   (let [user-id             (:uid session)
-        {:user/keys [email]} (xt/entity db user-id)
+        {:user/keys [email]} (db/get-entity-by-id db user-id)
         locations            (location/all-for-user-query ctx)
         meditations     (meditation/all-for-user-query ctx)
         time-zone            (get-user-time-zone ctx)
@@ -169,10 +177,9 @@
                     [:div.mt-2
                      [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
                       {:name "position" :required true :autocomplete "off"}
-                      (map (fn [position]
-                             [:option {:value (name position)}
-                              (str/capitalize (name position))])
-                           positions)]]]
+                      (for [position positions]
+                        [:option {:value (name position)}
+                         (str/capitalize (name position))])]]]
 
                    ;; Guided input
                    [:div
@@ -180,13 +187,12 @@
                     [:div.mt-2
                      [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
                       {:name "guided" :required true :autocomplete "off"}
-                      (map (fn [option]
-                             [:option {:value    (str option)
-                                       :selected (= option false)}
-                              (case option
-                                true  "Yes"
-                                false "No")])
-                           [true false])]]]
+                      (for [option [true false]]
+                        [:option {:value    (str option)
+                                  :selected (= option false)}
+                         (case option
+                           true  "Yes"
+                           false "No")])]]]
 
                    ;; Interrupted input
                    [:div
@@ -263,7 +269,7 @@
     :as   ctx}]
   (let [user-id             (:uid session)
         {:user/keys
-         [email]} (xt/entity db user-id)
+         [email]} (db/get-entity-by-id db user-id)
         meditation-logs           (all-for-user-query ctx)
         edit-id             (some-> params :edit (UUID/fromString))]
     (ui/page
@@ -329,7 +335,7 @@
                   :as   ctx}]
   (let [log-id               (-> path-params :id UUID/fromString)
         user-id              (:uid session)
-        {:user/keys [email]} (xt/entity db user-id)
+        {:user/keys [email]} (db/get-entity-by-id db user-id)
         meditation-log       (single-for-user-query (merge ctx {:xt/id log-id}))
         locations            (location/all-for-user-query ctx)
         meditations     (meditation/all-for-user-query ctx)
@@ -472,7 +478,7 @@
              :as   ctx}]
   (let [meditation-log-id   (-> path-params :id UUID/fromString)
         user-id             (:uid session)
-        {email :user/email} (xt/entity db user-id)
+        {email :user/email} (db/get-entity-by-id db user-id)
         meditation-log      (single-for-user-query (merge ctx {:xt/id meditation-log-id}))]
     (ui/page
      {}
@@ -517,7 +523,7 @@
 
 (defn meditation-stats [{:keys [session biff/db params]
                          :as   context}]
-  (let [{:user/keys [email]} (xt/entity db (:uid session))
+  (let [{:user/keys [email]} (db/get-entity-by-id db (:uid session))
         time-zone            (get-user-time-zone context)
         zone-id              (ZoneId/of (or time-zone "US/Eastern"))
         start-date-str       (:start-date params)

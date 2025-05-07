@@ -9,8 +9,8 @@
   (let [schema (entity-key schema)
         args   (pot/map-of entity-key schema plural-str entity-str)]
     ["/crud" {}
-     ;; Form routes - grouped under /forms
-     ["/forms" {}
+     ;; Form routes - grouped under /form
+     ["/form" {}
       [(str "/" entity-str "/new") {:get (partial forms/new-form args)}]
       [(str "/" entity-str "/edit/:id") {:get (partial forms/edit-form args)}]]
      ;; Data routes

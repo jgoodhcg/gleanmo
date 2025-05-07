@@ -8,8 +8,7 @@
    [tech.jgood.gleanmo.crud.schema-utils :as schema-utils]
    [tech.jgood.gleanmo.crud.views.formatting :refer [format-cell-value]]
    [tech.jgood.gleanmo.db.queries :as db]
-   [tech.jgood.gleanmo.ui :as ui]
-   [xtdb.api :as xt]))
+   [tech.jgood.gleanmo.ui :as ui]))
 
 (defn get-display-fields
   "Extract fields from schema that should be displayed in the table"
@@ -98,7 +97,7 @@
            [:td.px-6.py-4.whitespace-nowrap.text-right.text-sm.font-medium
             [:div.flex.justify-end.space-x-4
              [:a.text-blue-600.hover:text-blue-900
-              {:href (str "/app/crud/forms/" entity-str
+              {:href (str "/app/crud/form/" entity-str
                           "/edit/" (:xt/id entity))}
               "Edit"]
              (biff/form
@@ -120,7 +119,7 @@
     :as   args}
    {:keys [session biff/db params], :as ctx}]
   (let [user-id            (:uid session)
-        {:user/keys [email]} (xt/entity db user-id)
+        {:user/keys [email]} (db/get-entity-by-id db user-id)
         entity-type-str    (name entity-key)
         ;; Parse pagination parameters safely
         default-limit      15
@@ -157,7 +156,7 @@
 ;; New entity button
         [:div.mb-4
          [:a.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded
-          {:href (str "/app/crud/forms/" entity-str "/new")}
+          {:href (str "/app/crud/form/" entity-str "/new")}
           (str "New " entity-str)]]
 
         (if (empty? entities)

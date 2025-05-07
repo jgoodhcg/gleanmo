@@ -2,8 +2,8 @@
   (:require
    [clojure.string :as str]
    [tech.jgood.gleanmo.app.shared :refer [format-date-time-local get-user-time-zone]]
-   [tech.jgood.gleanmo.schema.meta :as sm]
-   [xtdb.api :as xt]))
+   [tech.jgood.gleanmo.db.queries :as db]
+   [tech.jgood.gleanmo.schema.meta :as sm]))
 
 ;; Multimethod for formatting cell values based on field type
 (defmulti format-cell-value (fn [type _ _] type))
@@ -57,7 +57,7 @@
   [_ value {:keys [biff/db]}]
   (if (nil? value)
     [:span.text-gray-400 "—"]
-    (let [entity      (xt/entity db value)
+    (let [entity      (db/get-entity-by-id db value)
           entity-type (or (-> entity
                               ::sm/type
                               name)
@@ -78,8 +78,7 @@
     (empty? values) [:span.text-gray-400 "Empty set"]
     :else
     (let [labels         (for [value values]
-                           ;; TODO replace xt/entity with db query to get by id
-                           (let [entity      (xt/entity db value)
+                           (let [entity      (db/get-entity-by-id db value)
                                  entity-type (or (-> entity
                                                      ::sm/type
                                                      name)

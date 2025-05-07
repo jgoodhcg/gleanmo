@@ -4,8 +4,7 @@
             [tech.jgood.gleanmo.crud.forms.converters :refer [convert-field-value]]
             [tech.jgood.gleanmo.crud.schema-utils :as schema-utils]
             [tech.jgood.gleanmo.db.mutations :as mutations]
-            [tech.jgood.gleanmo.db.queries :as db]
-            [xtdb.api :as xt]))
+            [tech.jgood.gleanmo.db.queries :as db]))
 
 ;; Helper function moved from forms.clj
 (defn form->schema
@@ -49,7 +48,7 @@
   [{:keys [schema entity-key entity-str]}
    {:keys [session biff/db params], :as ctx}]
   (let [user-id        (:uid session)
-        user           (xt/entity db user-id)
+        user           (db/get-entity-by-id db user-id)
         data           (form->schema params schema ctx)
         ;; Add user ID to data
         data-with-user (assoc data :user/id (:xt/id user))
@@ -75,7 +74,7 @@
 
     ;; Return redirect response
     {:status  303,
-     :headers {"location" (str "/app/crud/forms/" entity-str "/new")}}))
+     :headers {"location" (str "/app/crud/form/" entity-str "/new")}}))
 
 (defn update-entity!
   "Handle entity update from form submission"
@@ -84,7 +83,7 @@
   (let [user-id        (:uid session)
         entity-id      (java.util.UUID/fromString (:id path-params))
         ;; Get current entity data to compare with
-        current-entity (xt/entity db entity-id)
+        current-entity (db/get-entity-for-user db entity-id user-id entity-key)
         
         ;; Process optional boolean fields that might have been unchecked
         updated-params (reduce (fn [acc field]
@@ -130,7 +129,7 @@
     ;; Return redirect response
     {:status  303,
      :headers {"location"
-               (str "/app/crud/forms/" entity-str "/edit/" entity-id)}}))
+               (str "/app/crud/form/" entity-str "/edit/" entity-id)}}))
 
 (defn delete-entity!
   "Soft-delete an entity by setting its deleted-at timestamp"

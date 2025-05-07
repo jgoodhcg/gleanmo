@@ -123,8 +123,8 @@
                       (reset! updated-entity-data data)
                       entity-id)
                     shared/get-user-time-zone (constantly "UTC")
-                    xt/entity (fn [_ id]
-                                {:xt/id id, :user/email "test@example.com"})]
+                    db-queries/get-entity-by-id (fn [_ id]
+                                                 {:xt/id id, :user/email "test@example.com"})]
 
         (testing "creates entity with user ID and returns redirect"
           (let [result (handlers/create-entity! entity-args ctx)]
@@ -134,7 +134,7 @@
 
             ;; Verify redirect response
             (is (= 303 (:status result)))
-            (is (= "/app/crud/forms/habit/new"
+            (is (= "/app/crud/form/habit/new"
                    (get-in result [:headers "location"])))))
 
         (testing "handles time zone updates"
@@ -150,7 +150,7 @@
 
             ;; Verify redirect response
             (is (= 303 (:status result)))
-            (is (= "/app/crud/forms/habit/new"
+            (is (= "/app/crud/form/habit/new"
                    (get-in result [:headers "location"])))))))))
 
 (deftest update-entity!-test
@@ -196,10 +196,12 @@
                                {:entity-id entity-id, :data data}))
                       entity-id)
                     shared/get-user-time-zone (constantly "UTC")
-                    xt/entity (fn [_ id]
-                                (if (= id entity-id)
-                                  current-entity
-                                  {:xt/id id}))]
+                    db-queries/get-entity-by-id (fn [_ id]
+                                                  {:xt/id id, :user/email "test@example.com"})
+                    db-queries/get-entity-for-user (fn [_ id _ _]
+                                                     (if (= id entity-id)
+                                                       current-entity
+                                                       nil))]
 
         (testing "updates entity and returns redirect response"
           (let [result (handlers/update-entity! entity-args ctx)]
@@ -212,7 +214,7 @@
 
             ;; Verify redirect response
             (is (= 303 (:status result)))
-            (is (= (str "/app/crud/forms/habit/edit/" entity-id)
+            (is (= (str "/app/crud/form/habit/edit/" entity-id)
                    (get-in result [:headers "location"])))))
 
         (testing "handles optional boolean fields that were unchecked"
@@ -254,7 +256,7 @@
 
             ;; Verify redirect response
             (is (= 303 (:status result)))
-            (is (= (str "/app/crud/forms/habit/edit/" entity-id)
+            (is (= (str "/app/crud/form/habit/edit/" entity-id)
                    (get-in result [:headers "location"])))))))))
 
 (deftest delete-entity!-test

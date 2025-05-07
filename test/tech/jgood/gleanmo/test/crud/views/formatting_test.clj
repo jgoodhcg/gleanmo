@@ -3,6 +3,7 @@
    [clojure.test :refer [deftest is testing use-fixtures]]
    [tech.jgood.gleanmo.app.shared :as shared]
    [tech.jgood.gleanmo.crud.views.formatting :as fmt]
+   [tech.jgood.gleanmo.db.queries :as db]
    [tech.jgood.gleanmo.schema.meta :as sm]
    [xtdb.api :as xt]))
 
@@ -96,17 +97,17 @@
                                       {:biff/db mock-db}))))
 
       (testing "displays label from entity when available"
-        (with-redefs [xt/entity (constantly {:xt/id      uuid,
-                                             ::sm/type   :user,
-                                             :user/label "John Doe"})]
+        (with-redefs [db/get-entity-by-id (constantly {:xt/id      uuid,
+                                                      ::sm/type   :user,
+                                                      :user/label "John Doe"})]
           (let [result (fmt/format-cell-value :single-relationship
                                               uuid
                                               {:biff/db mock-db})]
             (is (= [:span.text-blue-600 "John Doe"] result)))))
 
       (testing "displays ID truncated when no label available"
-        (with-redefs [xt/entity (constantly {:xt/id uuid
-                                             ::sm/type :foo})]
+        (with-redefs [db/get-entity-by-id (constantly {:xt/id uuid
+                                                      ::sm/type :foo})]
           (let [result (fmt/format-cell-value :single-relationship
                                               uuid
                                               {:biff/db mock-db})]
@@ -138,7 +139,7 @@
                                 ::sm/type  :tag,
                                 :tag/label "Tag Two"}}
               entity-fn (fn [_ id] (get entities id))]
-          (with-redefs [xtdb.api/entity entity-fn]
+          (with-redefs [db/get-entity-by-id entity-fn]
             (let [result (fmt/format-cell-value :many-relationship
                                                 [uuid1 uuid2]
                                                 {:biff/db mock-db})]
@@ -157,7 +158,7 @@
                                 ::sm/type  :tag,
                                 :tag/label "Tag Three"}}
               entity-fn (fn [_ id] (get entities id))]
-          (with-redefs [xtdb.api/entity entity-fn]
+          (with-redefs [db/get-entity-by-id entity-fn]
             (let [result (fmt/format-cell-value :many-relationship
                                                 [uuid1 uuid2 uuid3]
                                                 {:biff/db mock-db})]

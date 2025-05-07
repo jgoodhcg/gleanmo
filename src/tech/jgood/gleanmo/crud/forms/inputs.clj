@@ -46,13 +46,11 @@
          {:name         input-name,
           :required     input-required,
           :autocomplete "off"}
-         (->> (ZoneId/getAvailableZoneIds)
-              sort
-              (mapv (fn [zoneId]
-                      [:option
-                       {:value    zoneId,
-                        :selected (or (= zoneId value) (= zoneId time-zone))}
-                       zoneId])))]]]
+         (for [zoneId (sort (ZoneId/getAvailableZoneIds))]
+            [:option
+             {:value    zoneId,
+              :selected (or (= zoneId value) (= zoneId time-zone))}
+             zoneId])]]]
       :else
       [:div
        [:label.block.text-sm.font-medium.leading-6.text-gray-900
@@ -207,12 +205,11 @@
       {:name     input-name,
        :multiple true,
        :required input-required}
-      (->> options
-           (mapv (fn [{:keys [id label]}]
-                   [:option
-                    {:value    id,
-                     :selected (and value-set (contains? value-set (str id)))}
-                    label])))]]))
+      (for [{:keys [id label]} options]
+        [:option
+         {:value    id,
+          :selected (and value-set (contains? value-set (str id)))}
+         label])]]))
 
 (defmethod render :enum
   [field _]
@@ -229,12 +226,11 @@
       [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
        {:name     input-name,
         :required input-required}
-       (->> enum-options
-            (mapv (fn [opt]
-                    [:option
-                     {:value    (name opt),
-                      :selected (= (keyword opt) value)}
-                     (name opt)])))]]]))
+       (for [opt enum-options]
+         [:option
+          {:value    (name opt),
+           :selected (= (keyword opt) value)}
+          (name opt)])]]]))
 
 (defmethod render :default
   [field _]

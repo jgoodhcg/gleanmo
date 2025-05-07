@@ -36,12 +36,14 @@
 
     ;; Navigation links
     [:a.link.text-gray-800 {:href "/app"} "home"]
-    [:a.link.text-gray-800 {:href "/app/habits"} "habits"]
-    [:a.link.text-gray-800 {:href "/app/habit-logs"} "habit-logs"]
-    [:a.link.text-gray-800 {:href "/app/locations"} "locations"]
-    [:a.link.text-gray-800 {:href "/app/meditations"} "meditations"]
-    [:a.link.text-gray-800 {:href "/app/meditation-logs"} "meditation-logs"]
-    [:a.link.text-gray-800 {:href "/app/ical-urls"} "ical-urls"]
+    ;; CRUD
+    [:a.link.text-gray-800 {:href "/app/crud/habit"} "habits"]
+    [:a.link.text-gray-800 {:href "/app/crud/habit-log"} "habit-logs"]
+    [:a.link.text-gray-800 {:href "/app/crud/location"} "locations"]
+    [:a.link.text-gray-800 {:href "/app/crud/meditation"} "meditations"]
+    [:a.link.text-gray-800 {:href "/app/crud/meditation-log"} "meditation-logs"]
+    [:a.link.text-gray-800 {:href "/app/crud/ical-url"} "ical-urls"]
+    ;; Insight
     [:a.link {:href "/app/dv/habit-logs"} "habit-logs data viz"]
     [:a.link {:href "/app/dv/habit-dates"} "habit-logs predictions"]
     [:a.link {:href "/app/dv/meditation-stats"} "mediation-logs stats"]

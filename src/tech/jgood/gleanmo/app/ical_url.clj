@@ -6,12 +6,20 @@
    [tech.jgood.gleanmo.app.shared :refer [get-last-tx-time get-user-time-zone
                                           link-button search-str-xform
                                           side-bar zoned-date-time-fmt]]
+   [tech.jgood.gleanmo.crud.routes :as crud]
+   [tech.jgood.gleanmo.db.queries :as db]
+   [tech.jgood.gleanmo.schema :refer [schema]]
    [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.ui :as ui]
-   [tick.core :as t]
-   [xtdb.api :as xt])
+   [tick.core :as t])
   (:import
    [java.util UUID]))
+
+(def crud-routes
+  (crud/gen-routes {:entity-key :ical-url
+                    :entity-str "ical-url"
+                    :plural-str "iCal URLs"
+                    :schema     schema}))
 
 (defn all-for-user-query [{:keys [biff/db session]}]
   (cond->>  (q db '{:find  (pull ?ical-url [*])
@@ -41,7 +49,7 @@
 
 (defn new-form [{:keys [session biff/db] :as ctx}]
   (let [user-id              (:uid session)
-        {:user/keys [email]} (xt/entity db user-id)
+        {:user/keys [email]} (db/get-entity-by-id db user-id)
         recent-ical-urls        (->> (all-for-user-query ctx)
                                   (sort-by ::sm/created-at)
                                   (reverse)
@@ -132,7 +140,7 @@
     :as   ctx}]
   (let [user-id             (:uid session)
         {:user/keys
-         [email time-zone]} (xt/entity db user-id)
+         [email time-zone]} (db/get-entity-by-id db user-id)
         ical-urls           (all-for-user-query ctx)
         edit-id             (some-> params :edit (UUID/fromString))
         search-str          (or (some-> params :search search-str-xform)
@@ -185,7 +193,7 @@
                   :as   ctx}]
   (let [ical-url-id             (-> path-params :id UUID/fromString)
         user-id              (:uid session)
-        {email :user/email}  (xt/entity db user-id)
+        {email :user/email}  (db/get-entity-by-id db user-id)
         time-zone            (get-user-time-zone ctx)
         ical-url                (single-for-user-query (merge ctx {:xt/id ical-url-id}))
         latest-tx-time       (-> (get-last-tx-time (merge ctx {:xt/id ical-url-id}))
@@ -257,7 +265,7 @@
              :as   ctx}]
   (let [ical-url-id         (-> path-params :id UUID/fromString)
         user-id             (:uid session)
-        {email :user/email} (xt/entity db user-id)
+        {email :user/email} (db/get-entity-by-id db user-id)
         ical-url            (single-for-user-query (merge ctx {:xt/id ical-url-id}))]
     (ui/page
      {}
