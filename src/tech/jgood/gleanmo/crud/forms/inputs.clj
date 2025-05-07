@@ -47,10 +47,10 @@
           :required     input-required,
           :autocomplete "off"}
          (for [zoneId (sort (ZoneId/getAvailableZoneIds))]
-            [:option
-             {:value    zoneId,
-              :selected (or (= zoneId value) (= zoneId time-zone))}
-             zoneId])]]]
+           [:option
+            {:value    zoneId,
+             :selected (or (= zoneId value) (= zoneId time-zone))}
+            zoneId])]]]
       :else
       [:div
        [:label.block.text-sm.font-medium.leading-6.text-gray-900
@@ -145,18 +145,31 @@
         field
         time-zone (get-user-time-zone ctx)
         time-zone (if (some? time-zone) time-zone "US/Eastern")
-        formatted-time (if value
+        ;; Only default to now if it's a beginning timestamp or value is
+        ;; already set
+        formatted-time (cond
+                         ;; Use existing value if provided
+                         value
                          (format-date-time-local value time-zone)
-                         (format-date-time-local (t/now) time-zone))]
+
+                         ;; Set default now value only for beginning fields
+                         (and (string? input-name)
+                              (or (str/includes? input-name "beginning")
+                                  (str/includes? input-name "timestamp")))
+                         (format-date-time-local (t/now) time-zone)
+
+                         ;; Otherwise, leave empty
+                         :else
+                         nil)]
     [:div
      [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for input-name}
       input-label]
      [:div.mt-2
       [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
-       {:type     "datetime-local",
-        :name     input-name,
-        :required input-required,
-        :value    formatted-time}]]]))
+       (cond-> {:type     "datetime-local",
+                :name     input-name,
+                :required input-required}
+         formatted-time (assoc :value formatted-time))]]]))
 
 (defmethod render :single-relationship
   [field ctx]

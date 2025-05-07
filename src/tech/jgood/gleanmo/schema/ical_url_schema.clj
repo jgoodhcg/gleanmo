@@ -7,7 +7,7 @@
        [::sm/type [:enum :ical-url]]
        [::sm/deleted-at {:optional true} :instant]
        [::sm/created-at :instant]
-       [:ical-url/user-id :user/id]
+       [:user/id :user/id]
        [:ical-url/url :string]
        [:ical-url/refreshed-at {:optional true} :instant]
        [:ical-url/last-fetched {:optional true} :instant]

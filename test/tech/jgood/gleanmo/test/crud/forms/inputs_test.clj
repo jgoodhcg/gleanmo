@@ -196,7 +196,7 @@
                  :input-required true,
                  :input-type     :instant}]
 
-      (testing "renders datetime-local input"
+      (testing "renders datetime-local input without default for non-beginning fields"
         (with-redefs [shared/get-user-time-zone     (constantly "UTC")
                       shared/format-date-time-local (constantly
                                                      "2023-05-15T14:30")]
@@ -207,8 +207,42 @@
             (is (some? input))
             (is (= "datetime-local" (get-attr input :type)))
             (is (= "habit/due-date" (get-attr input :name)))
-            (is (= "2023-05-15T14:30" (get-attr input :value)))
-            (is (true? (get-attr input :required)))))))))
+            (is (nil? (get-attr input :value))) ; No default for non-beginning fields
+            (is (true? (get-attr input :required))))))
+      
+      (testing "sets default now value for beginning fields"
+        (with-redefs [shared/get-user-time-zone     (constantly "UTC")
+                      shared/format-date-time-local (constantly
+                                                     "2023-05-15T14:30")]
+          (let [field-with-beginning {:input-name     "habit/beginning",
+                                      :input-label    "Beginning Time",
+                                      :input-required true,
+                                      :input-type     :instant}
+                result (inputs/render field-with-beginning ctx)
+                input  (find-element result :input)]
+            (is (some? input))
+            (is (= "2023-05-15T14:30" (get-attr input :value))))))
+      
+      (testing "sets default now value for timestamp fields"
+        (with-redefs [shared/get-user-time-zone     (constantly "UTC")
+                      shared/format-date-time-local (constantly
+                                                     "2023-05-15T14:30")]
+          (let [field-with-timestamp {:input-name     "habit/timestamp",
+                                      :input-label    "Timestamp",
+                                      :input-required true,
+                                      :input-type     :instant}
+                result (inputs/render field-with-timestamp ctx)
+                input  (find-element result :input)]
+            (is (some? input))
+            (is (= "2023-05-15T14:30" (get-attr input :value))))))
+                
+      (testing "includes value when provided, regardless of field name"
+        (with-redefs [shared/get-user-time-zone     (constantly "UTC")
+                      shared/format-date-time-local (constantly
+                                                     "2023-05-15T14:30")]
+          (let [result (inputs/render (assoc field :value (java.time.Instant/now)) ctx)
+                input  (find-element result :input)]
+            (is (= "2023-05-15T14:30" (get-attr input :value)))))))))
 
 (deftest render-single-relationship-test
   (testing "render single-relationship field"
