@@ -17,7 +17,7 @@
       (concat sm/legacy-meta)
       ;; DEPRECATED
       (concat
-       [[:habit/name {:optional true} :string]])
+       [[:habit/name {:optional true :hide true} :string]])
       vec))
 
 (def habit-log

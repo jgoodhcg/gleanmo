@@ -162,23 +162,41 @@
 
 (deftest should-remove-system-or-user-field?-test
   (testing "should-remove-system-or-user-field? function"
+    ;; First, check if the function exists and works properly
+    (let [fn-result (schema-utils/should-remove-system-or-user-field? {:field-key :xt/id, :opts {}})]
+      (is (not (nil? fn-result)) "Function should return a boolean value, not nil"))
+      
     (testing "identifies xt/id field"
-      (is (true? (schema-utils/should-remove-system-or-user-field? {:field-key :xt/id}))))
+      (is (= true (schema-utils/should-remove-system-or-user-field? {:field-key :xt/id, :opts {}}))))
     
     (testing "identifies user/id field"
-      (is (true? (schema-utils/should-remove-system-or-user-field? {:field-key :user/id}))))
+      (is (= true (schema-utils/should-remove-system-or-user-field? {:field-key :user/id, :opts {}}))))
     
     (testing "identifies schema namespace fields"
-      (is (true? (schema-utils/should-remove-system-or-user-field? 
-                  {:field-key :tech.jgood.gleanmo.schema/created-at}))))
+      (is (= true (schema-utils/should-remove-system-or-user-field? 
+                  {:field-key :tech.jgood.gleanmo.schema/created-at, :opts {}}))))
     
     (testing "identifies schema.meta namespace fields"
-      (is (true? (schema-utils/should-remove-system-or-user-field? 
-                  {:field-key :tech.jgood.gleanmo.schema.meta/version}))))
+      (is (= true (schema-utils/should-remove-system-or-user-field? 
+                  {:field-key :tech.jgood.gleanmo.schema.meta/version, :opts {}}))))
     
     (testing "keeps regular fields"
-      (is (false? (schema-utils/should-remove-system-or-user-field? {:field-key :user/name})))
-      (is (false? (schema-utils/should-remove-system-or-user-field? {:field-key :habit/title}))))))
+      (is (= false (schema-utils/should-remove-system-or-user-field? {:field-key :user/name, :opts {}})))
+      (is (= false (schema-utils/should-remove-system-or-user-field? {:field-key :habit/title, :opts {}}))))
+    
+    (testing "identifies airtable namespace fields"
+      (is (= true (schema-utils/should-remove-system-or-user-field? 
+                  {:field-key :airtable/id, :opts {}})))
+      (is (= true (schema-utils/should-remove-system-or-user-field? 
+                  {:field-key :airtable/last-modified, :opts {}}))))
+                  
+    (testing "identifies fields with hide option"
+      (is (= true (schema-utils/should-remove-system-or-user-field?
+                  {:field-key :habit/secret-field, :opts {:hide true}})))
+      (is (= false (schema-utils/should-remove-system-or-user-field?
+                   {:field-key :habit/visible-field, :opts {:hide false}})))
+      (is (= false (schema-utils/should-remove-system-or-user-field?
+                   {:field-key :habit/normal-field, :opts {}}))))))
 
 (deftest extract-relationship-fields-test
   (testing "extract-relationship-fields function"

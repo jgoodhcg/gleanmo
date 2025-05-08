@@ -79,14 +79,24 @@
       add-input-name-label))
 
 (defn should-remove-system-or-user-field?
-  "Predicate to identify system fields and user ID fields that should be excluded from queries."
-  [{:keys [field-key]}]
+  "Predicate to identify fields that should be excluded from forms:
+   - System fields (:xt/id)
+   - User ID fields (:user/id)
+   - Schema namespace fields (tech.jgood.gleanmo.schema/*)
+   - Airtable namespace fields (airtable/*)
+   - Fields with {:hide true} option"
+  [{:keys [field-key opts]}]
   (let [n (namespace field-key)]
-    (or
-     (= :xt/id field-key)
-     (= :user/id field-key)
-     (= "tech.jgood.gleanmo.schema" n)
-     (= "tech.jgood.gleanmo.schema.meta" n))))
+    (boolean
+     (or
+      ;; System and namespace-based exclusions
+      (= :xt/id field-key)
+      (= :user/id field-key)
+      (= "tech.jgood.gleanmo.schema" n)
+      (= "tech.jgood.gleanmo.schema.meta" n)
+      (= "airtable" n)
+      ;; Hide option exclusion
+      (:hide opts)))))
 
 (defn extract-relationship-fields
   "Extracts relationship fields from a schema.

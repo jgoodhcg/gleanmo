@@ -68,6 +68,42 @@
                     [:tech.jgood.gleanmo.schema/created-at :inst]]
             result (forms/prepare-form-fields schema)]
         (is (empty? result))))
+        
+    (testing "excludes airtable namespace fields"
+      (let [schema [:entity-with-airtable
+                    [:entity/name :string]
+                    [:entity/description :string]
+                    [:airtable/id :string]
+                    [:airtable/last-modified :inst]
+                    [:airtable/created-time :inst]]
+            result (forms/prepare-form-fields schema)]
+        ;; Should only have the non-airtable fields
+        (is (= 2 (count result)))
+        (is (some? (first (filter #(= :entity/name (:field-key %)) result))))
+        (is (some? (first (filter #(= :entity/description (:field-key %)) result))))
+        ;; Airtable fields should be excluded
+        (is (nil? (first (filter #(= :airtable/id (:field-key %)) result))))
+        (is (nil? (first (filter #(= :airtable/last-modified (:field-key %)) result))))
+        (is (nil? (first (filter #(= :airtable/created-time (:field-key %)) result))))))
+        
+    (testing "excludes fields with hide option"
+      (let [schema [:entity-with-hidden-fields
+                    [:entity/name :string]
+                    [:entity/description :string]
+                    [:entity/visible {:optional true} :string]
+                    [:entity/hidden {:hide true} :string]
+                    [:entity/admin-only {:hide true} :boolean]
+                    [:entity/internal-id {:hide true} :uuid]]
+            result (forms/prepare-form-fields schema)]
+        ;; Should only have the non-hidden fields
+        (is (= 3 (count result)))
+        (is (some? (first (filter #(= :entity/name (:field-key %)) result))))
+        (is (some? (first (filter #(= :entity/description (:field-key %)) result))))
+        (is (some? (first (filter #(= :entity/visible (:field-key %)) result))))
+        ;; Hidden fields should be excluded
+        (is (nil? (first (filter #(= :entity/hidden (:field-key %)) result))))
+        (is (nil? (first (filter #(= :entity/admin-only (:field-key %)) result))))
+        (is (nil? (first (filter #(= :entity/internal-id (:field-key %)) result))))))
 
     (testing "includes relationship fields"
       (let [schema [:habit

@@ -331,7 +331,6 @@
                                 (filter #(and (= :option (first %))
                                               (= "admin" (get-attr % :value))))
                                 first)]
-          (pprint (pot/map-of admin-option))
           (is (some? admin-option))
           (is (true? (get-attr admin-option :selected))))))))
 
