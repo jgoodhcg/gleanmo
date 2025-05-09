@@ -36,17 +36,18 @@
     {:class "md:w-auto"}
     ;; User email link
     [:a.link.text-gray-800 {:href "/app/my-user"} email]
-
     ;; Navigation links
     [:a.link.text-gray-800 {:href "/app"} "home"]
+    [:hr]
     ;; CRUD
     [:a.link.text-gray-800 {:href "/app/crud/habit"} "habits"]
     [:a.link.text-gray-800 {:href "/app/crud/habit-log"} "habit-logs"]
     [:a.link.text-gray-800 {:href "/app/crud/location"} "locations"]
     [:a.link.text-gray-800 {:href "/app/crud/meditation"} "meditations"]
     [:a.link.text-gray-800 {:href "/app/crud/meditation-log"} "meditation-logs"]
-    [:a.link.text-gray-800 {:href "/app/crud/ical-url"} "ical-urls"]
+    ;; [:a.link.text-gray-800 {:href "/app/crud/ical-url"} "ical-urls"]
     ;; Insight
+    [:hr]
     [:a.link {:href "/app/dv/habit-logs"} "habit-logs data viz"]
     [:a.link {:href "/app/dv/habit-dates"} "habit-logs predictions"]
     [:a.link {:href "/app/dv/meditation-stats"} "mediation-logs stats"]

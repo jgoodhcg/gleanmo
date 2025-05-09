@@ -146,7 +146,7 @@
             cruddy/crud-routes
             habit/crud-routes
             habit-log/crud-routes
-            ical-url/crud-routes
+            ;; ical-url/crud-routes
             location/crud-routes
             meditation/crud-routes
             meditation-log/crud-routes
