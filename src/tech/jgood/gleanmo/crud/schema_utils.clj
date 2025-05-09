@@ -64,9 +64,15 @@
 
 (defn add-input-name-label [{:keys [field-key opts] :as field}]
   (let [n (ns-keyword->input-name field-key)
-        l (-> field-key name (str/split #"-")
-              (->> (map str/capitalize))
-              (->> (str/join " ")))
+        ;; Special case for meditation/type-id to show a more user-friendly label
+        l (cond
+            (= field-key :meditation-log/type-id)
+            "Meditation Type"
+            
+            :else
+            (-> field-key name (str/split #"-")
+                (->> (map str/capitalize))
+                (->> (str/join " "))))
         required (not (:optional opts))]
     (merge field {:input-name   n
                   :input-label  l

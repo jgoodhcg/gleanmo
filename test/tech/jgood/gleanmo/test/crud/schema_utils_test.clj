@@ -134,7 +134,14 @@
             result (schema-utils/add-input-name-label field)]
         (is (= "user/middle-name" (:input-name result)))
         (is (= "Middle Name" (:input-label result)))
-        (is (false? (:input-required result)))))))
+        (is (false? (:input-required result)))))
+    
+    (testing "uses special label for meditation-log/type-id"
+      (let [field {:field-key :meditation-log/type-id :opts {}}
+            result (schema-utils/add-input-name-label field)]
+        (is (= "meditation-log/type-id" (:input-name result)))
+        (is (= "Meditation Type" (:input-label result)))
+        (is (true? (:input-required result)))))))
 
 (deftest prepare-field-test
   (testing "prepare-field function"

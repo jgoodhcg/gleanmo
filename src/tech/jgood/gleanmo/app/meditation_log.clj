@@ -6,6 +6,7 @@
    [tech.jgood.gleanmo.crud.routes :as crud]
    [tech.jgood.gleanmo.db.queries :as db]
    [tech.jgood.gleanmo.schema :refer [schema]]
+   [tech.jgood.gleanmo.schema.meditation-schema :as mc]
    [tech.jgood.gleanmo.ui :as ui]
    [tick.core :as t])
   (:import
@@ -46,7 +47,11 @@
         start-date           (date-str->instant start-date-str zone-id)
         ;; end-date if supplied or right now
         end-date             (date-str->end-of-day-instant end-date-str zone-id)
-        all-logs             (all-for-user-query context)
+        all-logs             (db/all-for-user-query
+                              {:entity-type-str "meditation-log",
+                               :schema mc/meditation-log,
+                               :filter-references true}
+                              context)
         ;; Apply date range filtering if provided
         logs                 (cond->> all-logs
                                start-date (filter
