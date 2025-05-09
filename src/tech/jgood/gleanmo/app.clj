@@ -166,60 +166,6 @@
             ["/users/:id/edit" {:middleware [mid/wrap-user-authz]
                                 :get        user/edit-form}]
 
-            ;; habit
-            ["/new/habit"         {:get habit/new-form}]
-            ["/search-habits"     {:post habit/list-page}]
-            ["/habits"            {:get habit/list-page :post habit/create!}]
-            ["/habits/:id"        {:get habit/view :post habit/edit!}]
-            ["/habits/:id/edit"   {:get habit/edit-form}]
-            ["/habits/:id/delete" {:post habit/soft-delete!}]
-
-            ;; habit-log
-            ["/new/habit-log"         {:get habit-log/new-form}]
-            ["/habit-logs"            {:get habit-log/list-page :post habit-log/create!}]
-            ["/habit-logs/:id"        {:get habit-log/view :post habit-log/edit!}]
-            ["/habit-logs/:id/edit"   {:get habit-log/edit-form}]
-            ["/habit-logs/:id/delete" {:post habit-log/soft-delete!}]
-
-            ;; location
-            ["/new/location"          {:get location/new-form}]
-            ["/search-locations"      {:post location/list-page}]
-            ["/locations"             {:get location/list-page :post location/create!}]
-            ["/locations/:id"         {:get location/view :post location/edit!}]
-            ["/locations/:id/edit"    {:get location/edit-form}]
-            ["/locations/:id/delete"  {:post location/soft-delete!}]
-
-            ;;
-            ;; mbsr
-            ;;
-
-            ;; meditation
-            ["/new/meditation"         {:get meditation/new-form}]
-            ["/search-meditations"     {:post meditation/list-page}]
-            ["/meditations"            {:get meditation/list-page :post meditation/create!}]
-            ["/meditations/:id"        {:get meditation/view :post meditation/edit!}]
-            ["/meditations/:id/edit"   {:get meditation/edit-form}]
-            ["/meditations/:id/delete" {:post meditation/soft-delete!}]
-
-            ;; meditation-log
-            ["/new/meditation-log"         {:get meditation-log/new-form}]
-            ["/meditation-logs"            {:get meditation-log/list-page :post meditation-log/create!}]
-            ["/meditation-logs/:id"        {:get meditation-log/view :post meditation-log/edit!}]
-            ["/meditation-logs/:id/edit"   {:get meditation-log/edit-form}]
-            ["/meditation-logs/:id/delete" {:post meditation-log/soft-delete!}]
-
-            ;;
-            ;; time tracking
-            ;;
-
-            ;; ical-url
-            ["/new/ical-url"            {:get ical-url/new-form}]
-            ["/search-ical-urls"        {:post ical-url/list-page}]
-            ["/ical-urls"               {:get ical-url/list-page :post ical-url/create!}]
-            ["/ical-urls/:id"           {:get ical-url/view :post ical-url/edit!}]
-            ["/ical-urls/:id/edit"      {:get ical-url/edit-form}]
-            ["/ical-urls/:id/delete"    {:post ical-url/soft-delete!}]
-
             ;;
             ;; data viz
             ;;
