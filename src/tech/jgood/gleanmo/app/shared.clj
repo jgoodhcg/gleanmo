@@ -39,6 +39,9 @@
     ;; Navigation links
     [:a.link.text-gray-800 {:href "/app"} "home"]
     [:hr]
+    [:a.link.text-gray-800 {:href "/app/crud/habit-log/form/new"} "Add habit-log"]
+    [:a.link.text-gray-800 {:href "/app/crud/meditation-log/form/new"} "Add meditation-log"]
+    [:hr]
     ;; CRUD
     [:a.link.text-gray-800 {:href "/app/crud/habit"} "habits"]
     [:a.link.text-gray-800 {:href "/app/crud/habit-log"} "habit-logs"]
