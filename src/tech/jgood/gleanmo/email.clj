@@ -114,6 +114,10 @@
   (let [form-params (if-some [template-key (:template opts)]
                       (template template-key opts)
                       opts)]
+    ;; 2025-06-07 Justin 
+    ;; Temporarily send only console because of Mailersend trial plan changes
+    (send-console ctx form-params)
+    #_
     (if (every? some?
                 [(secret :mailersend/api-key)
                  (secret :recaptcha/secret-key)
