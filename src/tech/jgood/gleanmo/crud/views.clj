@@ -1,6 +1,7 @@
 (ns tech.jgood.gleanmo.crud.views
   (:require
    [clojure.string :as str]
+   [clojure.tools.logging :as log]
    [com.biffweb :as biff]
    [potpuri.core :as pot]
    [tech.jgood.gleanmo.app.shared :refer
@@ -8,7 +9,10 @@
    [tech.jgood.gleanmo.crud.schema-utils :as schema-utils]
    [tech.jgood.gleanmo.crud.views.formatting :refer [format-cell-value]]
    [tech.jgood.gleanmo.db.queries :as db]
-   [tech.jgood.gleanmo.ui :as ui]))
+   [tech.jgood.gleanmo.ui :as ui])
+  (:import
+   [java.time          Duration Instant]
+   [java.time.temporal ChronoUnit]))
 
 (defn get-display-fields
   "Extract fields from schema that should be displayed in the table"
@@ -111,6 +115,299 @@
                "Delete"])]]])
         paginated-entities)]]]))
 
+;; Helper function to format relative time
+(defn format-relative-time
+  "Format an instant as a relative time string (e.g. '2 hours ago')"
+  [instant]
+  (when instant
+    (let [now (Instant/now)
+          seconds-diff (.until instant now ChronoUnit/SECONDS)]
+      (cond
+        (< seconds-diff 60)       "just now"
+        (< seconds-diff 3600)     (str (quot seconds-diff 60)
+                                       " minute"
+                                       (when (not= 1 (quot seconds-diff 60))
+                                         "s")
+                                       " ago")
+        (< seconds-diff 86400)    (str (quot seconds-diff 3600)
+                                       " hour"
+                                       (when (not= 1 (quot seconds-diff 3600))
+                                         "s")
+                                       " ago")
+        (< seconds-diff 604800)   (str (quot seconds-diff 86400)
+                                       " day"
+                                       (when (not= 1 (quot seconds-diff 86400))
+                                         "s")
+                                       " ago")
+        (< seconds-diff 2592000)  (str (quot seconds-diff 604800)
+                                       " week"
+                                       (when (not= 1 (quot seconds-diff 604800))
+                                         "s")
+                                       " ago")
+        (< seconds-diff 31536000) (str (quot seconds-diff 2592000)
+                                       " month"
+                                       (when (not= 1
+                                                   (quot seconds-diff 2592000))
+                                         "s")
+                                       " ago")
+        :else                     (str (quot seconds-diff 31536000)
+                                       " year"
+                                       (when (not= 1
+                                                   (quot seconds-diff 31536000))
+                                         "s")
+                                       " ago")))))
+
+;; Helper function to format duration between two instants
+(defn format-duration
+  "Format duration between two instants"
+  [start-instant end-instant]
+  (when (and start-instant end-instant)
+    (let [duration (Duration/between start-instant end-instant)
+          hours    (.toHours duration)
+          minutes  (- (.toMinutes duration) (* 60 hours))
+          seconds  (- (.getSeconds duration) (* 60 (.toMinutes duration)))]
+      (cond
+        (pos? hours)   (format "%dh %dm" hours minutes)
+        (pos? minutes) (format "%dm %ds" minutes seconds)
+        :else          (format "%ds" seconds)))))
+
+;; Card view implementation
+(defn render-card-view
+  [{:keys [paginated-entities display-fields entity-str]} ctx]
+  (let [;; Helper to find any field containing a pattern in its name
+        find-field-by-pattern (fn [entity pattern]
+                                (->> entity
+                                     (filter (fn [[k _]]
+                                               (and (keyword? k)
+                                                    (= (namespace k) entity-str)
+                                                    (str/includes? (name k)
+                                                                   pattern))))
+                                     first))
+
+        ;; Find field formatter for a given field key
+        get-field-formatter   (fn [field-key]
+                                (when field-key
+                                  (let [field-info (->> display-fields
+                                                        (filter #(= (:field-key
+                                                                     %)
+                                                                    field-key))
+                                                        first)]
+                                    (when field-info
+                                      (:input-type field-info)))))]
+
+    [:div.grid.grid-cols-1.md:grid-cols-2.lg:grid-cols-3.gap-4
+     (for [entity paginated-entities]
+       (let [;; Find key fields
+             label-key         (keyword entity-str "label")
+             label-value       (get entity label-key)
+             entity-id         (:xt/id entity)
+
+             ;; Find timestamp field
+             timestamp-field   (find-field-by-pattern entity "timestamp")
+             timestamp-key     (first timestamp-field)
+             timestamp-value   (second timestamp-field)
+             timestamp-type    (get-field-formatter timestamp-key)
+
+             ;; Find beginning and end fields
+             beginning-field   (find-field-by-pattern entity "beginning")
+             beginning-key     (first beginning-field)
+             beginning-value   (second beginning-field)
+             beginning-type    (get-field-formatter beginning-key)
+
+             end-field         (find-field-by-pattern entity "end")
+             end-key           (first end-field)
+             end-value         (second end-field)
+             end-type          (get-field-formatter end-key)
+
+             ;; Calculate duration if beginning and end exist
+             duration          (when (and beginning-value end-value)
+                                 (format-duration beginning-value
+                                                  end-value))
+
+             ;; Find notes field if available
+             notes-field       (find-field-by-pattern entity "notes")
+             notes-key         (first notes-field)
+             notes-value       (second notes-field)]
+
+         ;; Wrapper div for entire card - not clickable itself, but
+         ;; contains clickable areas
+         [:div.p-4.bg-white.rounded-lg.shadow-md.border.border-gray-200.flex.flex-col.relative.group
+          {:key (str entity-id)}
+
+          ;; Subtle entity ID display in top-right corner
+          [:div.absolute.top-1.right-2.text-xs.text-gray-400.opacity-70.font-mono
+           (str (subs (str entity-id) 0 8) "...")]
+
+          ;; Main card content area - clickable for edit
+          [:a.flex-grow.flex.flex-col.p-2.rounded-md.relative.z-10
+           {:href (str "/app/crud/form/" entity-str "/edit/" entity-id),
+            :class
+            "hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-300",
+            :aria-label (str "Edit " (or label-value entity-str)),
+            :role "button"}
+
+           ;; Card header with label
+           [:div.mb-3
+            [:h3.text-lg.font-semibold.text-center
+             (or label-value (str entity-str))]]
+
+           ;; Main content section
+           [:div.flex-grow
+
+            ;; Timestamp with relative time
+            (when timestamp-value
+              [:div.mb-3
+               [:div.text-sm.font-medium.text-blue-600
+                (str (str/capitalize (name timestamp-key)) ":")]
+               [:div.ml-1.flex.items-center.justify-between
+                [:span
+                 (if timestamp-type
+                   (format-cell-value timestamp-type timestamp-value ctx)
+                   (str timestamp-value))]
+                [:span.text-xs.text-gray-500.ml-2
+                 (format-relative-time timestamp-value)]]])
+
+            ;; Beginning and End with duration (if both exist)
+            (when (or beginning-value end-value)
+              [:div.mb-3
+               (when beginning-value
+                 [:div
+                  [:span.text-sm.font-medium.text-blue-600
+                   (str (str/capitalize (name beginning-key)) ":")]
+                  [:div.ml-1
+                   (if beginning-type
+                     (format-cell-value beginning-type beginning-value ctx)
+                     (str beginning-value))]])
+
+               (when end-value
+                 [:div.mt-1
+                  [:span.text-sm.font-medium.text-blue-600
+                   (str (str/capitalize (name end-key)) ":")]
+                  [:div.ml-1
+                   (if end-type
+                     (format-cell-value end-type end-value ctx)
+                     (str end-value))]])
+
+               ;; Duration display if we have both beginning and end
+               (when duration
+                 [:div.mt-1.flex.items-center
+                  [:span.text-sm.font-medium.text-blue-600 "Duration:"]
+                  [:span.ml-1.px-2.py-0.5.text-xs.font-medium.bg-blue-100.text-blue-800.rounded-full
+                   duration]])])
+
+            ;; Notes section
+            (when notes-value
+              [:div.mb-3
+               [:span.text-sm.font-medium.text-gray-500
+                (str (str/capitalize (name notes-key)) ":")]
+               [:div.ml-1.text-sm.text-gray-600
+                {:class "line-clamp-2", :title notes-value}
+                (str notes-value)]])
+
+            ;; Additional fields section
+            (let [important-fields
+                  (->> display-fields
+                       (filter #(not (or
+                                      (= (:field-key %) label-key)
+                                      (= (:field-key %) timestamp-key)
+                                      (= (:field-key %) beginning-key)
+                                      (= (:field-key %) end-key)
+                                      (= (:field-key %) notes-key))))
+                       (take 3))]
+              [:div.mt-2.space-y-1
+               (for [{:keys [field-key input-type input-label]}
+                     important-fields]
+                 [:div.text-sm {:key (name field-key)}
+                  [:span.text-gray-500.font-medium (str input-label ": ")]
+                  [:span
+                   (format-cell-value input-type
+                                      (get entity field-key)
+                                      ctx)]])])]
+
+           ;; Small icon to indicate card is clickable
+           [:div.absolute.bottom-2.right-2.text-gray-400.opacity-0.group-hover:opacity-100
+            [:svg.h-4.w-4
+             {:xmlns   "http://www.w3.org/2000/svg",
+              :viewBox "0 0 20 20",
+              :fill    "currentColor"}
+             [:path
+              {:fill-rule "evenodd",
+               :d
+               "M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z",
+               :clip-rule "evenodd"}]]]]
+
+          ;; Delete button - separate from the main clickable area
+          [:div.mt-3.border-t.border-gray-100.pt-2.flex.justify-end
+           (biff/form
+            {:action (str "/app/crud/" entity-str "/" entity-id "/delete"),
+             :method "post",
+             :class "inline",
+             :onsubmit
+             "return confirm('Are you sure you want to delete this item? This action cannot be undone.');"}
+            [:button.text-red-600.hover:text-red-900.text-xs.font-medium.px-2.py-1.border.border-red-200.rounded.hover:bg-red-50.focus:outline-none.focus:ring-2.focus:ring-red-300
+             {:type       "submit",
+              :aria-label (str "Delete " (or label-value entity-str))}
+             "Delete"])]]))]))
+
+;; List view implementation
+(defn render-list-view
+  [{:keys [paginated-entities display-fields entity-str]} ctx]
+  [:div.divide-y.divide-gray-200
+   (for [entity paginated-entities]
+     [:div.py-4.flex.justify-between.items-center
+      {:key (str (:xt/id entity))}
+      [:div.flex-1
+       [:div.font-medium "List View - Entity ID: "
+        (str (subs (str (:xt/id entity)) 0 8) "...")]]
+      [:div.flex.space-x-2
+       [:a.text-blue-600.hover:text-blue-900
+        {:href (str "/app/crud/form/" entity-str "/edit/" (:xt/id entity))}
+        "Edit"]
+       (biff/form
+        {:action (str "/app/crud/" entity-str "/" (:xt/id entity) "/delete"),
+         :method "post",
+         :class "inline",
+         :onsubmit
+         "return confirm('Are you sure you want to delete this item? This action cannot be undone.');"}
+        [:button.text-red-600.hover:text-red-900
+         {:type "submit"}
+         "Delete"])]])])
+
+;; View type selector component
+(defn view-selector
+  [{:keys [entity-str view-type offset limit]}]
+  [:div.flex.space-x-2.mb-4
+   [:a.px-3.py-1.rounded.border
+    {:class (if (= view-type "table")
+              "bg-blue-500 text-white"
+              "bg-gray-100 hover:bg-gray-200"),
+     :href  (str "/app/crud/" entity-str
+                 "?view=table"
+                 (when (or offset limit)
+                   (str "&offset=" (or offset 0)
+                        "&limit="  (or limit 15))))}
+    "Table"]
+   [:a.px-3.py-1.rounded.border
+    {:class (if (= view-type "card")
+              "bg-blue-500 text-white"
+              "bg-gray-100 hover:bg-gray-200"),
+     :href  (str "/app/crud/" entity-str
+                 "?view=card"
+                 (when (or offset limit)
+                   (str "&offset=" (or offset 0)
+                        "&limit="  (or limit 15))))}
+    "Cards"]
+   [:a.px-3.py-1.rounded.border
+    {:class (if (= view-type "list")
+              "bg-blue-500 text-white"
+              "bg-gray-100 hover:bg-gray-200"),
+     :href  (str "/app/crud/" entity-str
+                 "?view=list"
+                 (when (or offset limit)
+                   (str "&offset=" (or offset 0)
+                        "&limit="  (or limit 15))))}
+    "List"]])
+
 (defn list-entities
   [{:keys [entity-key
            entity-str
@@ -121,6 +418,8 @@
   (let [user-id            (:uid session)
         {:user/keys [email]} (db/get-entity-by-id db user-id)
         entity-type-str    (name entity-key)
+        ;; Get view type from query param or default to "table"
+        view-type          (or (:view params) "table")
         ;; Parse pagination parameters safely
         default-limit      15
         offset-str         (:offset params)
@@ -153,11 +452,17 @@
         [:h1.text-2xl.font-bold.mb-4
          (str/capitalize plural-str)]
 
-;; New entity button
+          ;; New entity button
         [:div.mb-4
          [:a.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded
           {:href (str "/app/crud/form/" entity-str "/new")}
           (str "New " entity-str)]]
+
+          ;; View selector
+        (view-selector (pot/map-of entity-str
+                                   view-type
+                                   offset
+                                   limit))
 
         (if (empty? entities)
           [:div.text-lg "No items found"]
@@ -175,7 +480,7 @@
                   entity-str
                   (when (not= 1 total-count) "s"))]
 
-              ;; Pagination controls
+              ;; Pagination controls with view type preserved
             [:div.flex.items-center.gap-2
              [:a.px-3.py-1.rounded.border
               {:class (if (> offset 0)
@@ -183,7 +488,8 @@
                         "bg-gray-100 text-gray-400"),
                :href  (if (> offset 0)
                         (str "/app/crud/" entity-str
-                             "?offset="   (max 0 (- offset limit))
+                             "?view="     view-type
+                             "&offset="   (max 0 (- offset limit))
                              "&limit="    limit)
                         "#")}
               "Previous"]
@@ -191,7 +497,8 @@
               {:href  (if (< (+ offset (count paginated-entities))
                              total-count)
                         (str "/app/crud/" entity-str
-                             "?offset="   (+ offset limit)
+                             "?view="     view-type
+                             "&offset="   (+ offset limit)
                              "&limit="    limit)
                         "#"),
                :class (if (< (+ offset (count paginated-entities))
@@ -200,9 +507,19 @@
                         "bg-gray-100 text-gray-400")}
               "Next"]]]
 
-             ;; Table
+             ;; View based on selected view-type
            [:div.mb-6
-            (render-table (pot/map-of paginated-entities
-                                      display-fields
-                                      entity-str)
-                          ctx)]])])])))
+            (case view-type
+              "card" (render-card-view (pot/map-of paginated-entities
+                                                   display-fields
+                                                   entity-str)
+                                       ctx)
+              "list" (render-list-view (pot/map-of paginated-entities
+                                                   display-fields
+                                                   entity-str)
+                                       ctx)
+                ;; Default to table view
+              (render-table (pot/map-of paginated-entities
+                                        display-fields
+                                        entity-str)
+                            ctx))]])])])))

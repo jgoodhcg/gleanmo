@@ -13,7 +13,7 @@
      ["/form" {}
       [(str "/" entity-str "/new") {:get (partial forms/new-form args)}]
       [(str "/" entity-str "/edit/:id") {:get (partial forms/edit-form args)}]]
-     ;; Data routes
+     ;; Data routes - using query param for view type
      [(str "/" entity-str)
       {:get  (partial views/list-entities args)
        :post (partial handlers/create-entity! args)}]
