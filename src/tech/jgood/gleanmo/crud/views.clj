@@ -9,10 +9,8 @@
    [tech.jgood.gleanmo.crud.schema-utils :as schema-utils]
    [tech.jgood.gleanmo.crud.views.formatting :refer [format-cell-value]]
    [tech.jgood.gleanmo.db.queries :as db]
-   [tech.jgood.gleanmo.ui :as ui])
-  (:import
-   [java.time          Duration Instant]
-   [java.time.temporal ChronoUnit]))
+   [tech.jgood.gleanmo.ui :as ui]
+   [tick.core :as t]))
 
 (defn get-display-fields
   "Extract fields from schema that should be displayed in the table"
@@ -115,61 +113,89 @@
                "Delete"])]]])
         paginated-entities)]]]))
 
-;; Helper function to format relative time
+;; Helper function to format relative time using tick
 (defn format-relative-time
-  "Format an instant as a relative time string (e.g. '2 hours ago')"
+  "Format an instant as a relative time string (e.g. '2 hours ago') using tick"
   [instant]
   (when instant
-    (let [now (Instant/now)
-          seconds-diff (.until instant now ChronoUnit/SECONDS)]
+    (let [now          (t/now)
+          duration     (t/between instant now)
+          seconds-diff (t/seconds duration)]
       (cond
-        (< seconds-diff 60)       "just now"
-        (< seconds-diff 3600)     (str (quot seconds-diff 60)
-                                       " minute"
-                                       (when (not= 1 (quot seconds-diff 60))
-                                         "s")
-                                       " ago")
-        (< seconds-diff 86400)    (str (quot seconds-diff 3600)
-                                       " hour"
-                                       (when (not= 1 (quot seconds-diff 3600))
-                                         "s")
-                                       " ago")
-        (< seconds-diff 604800)   (str (quot seconds-diff 86400)
-                                       " day"
-                                       (when (not= 1 (quot seconds-diff 86400))
-                                         "s")
-                                       " ago")
-        (< seconds-diff 2592000)  (str (quot seconds-diff 604800)
-                                       " week"
-                                       (when (not= 1 (quot seconds-diff 604800))
-                                         "s")
-                                       " ago")
-        (< seconds-diff 31536000) (str (quot seconds-diff 2592000)
-                                       " month"
-                                       (when (not= 1
-                                                   (quot seconds-diff 2592000))
-                                         "s")
-                                       " ago")
-        :else                     (str (quot seconds-diff 31536000)
-                                       " year"
-                                       (when (not= 1
-                                                   (quot seconds-diff 31536000))
-                                         "s")
-                                       " ago")))))
+        ;; For durations under a month, use duration units
+        (< seconds-diff 60) "just now"
+        (< seconds-diff 3600)
+        (let [mins (t/minutes duration)]
+          (str mins " minute" (when (not= 1 mins) "s") " ago"))
+        (< seconds-diff 86400)
+        (let [hours (t/hours duration)]
+          (str hours " hour" (when (not= 1 hours) "s") " ago"))
+        (< seconds-diff 604800)
+        (let [days (t/days duration)]
+          (str days " day" (when (not= 1 days) "s") " ago"))
+        (< seconds-diff 2592000)
+        (let [weeks (int (/ (t/days duration) 7))]
+          (str weeks " week" (when (not= 1 weeks) "s") " ago"))
 
-;; Helper function to format duration between two instants
+        ;; For durations over a month, convert to period between dates
+        :else
+        (let [;; Convert instants to dates for period calculation
+              start-date (t/date instant)
+              end-date   (t/date now)
+              period     (t/between start-date end-date)
+                ;; Get years and months components
+              years      (t/years period)
+              months     (t/months (t/- period
+                                        (t/new-period years :years)))]
+          (if (pos? years)
+            (str years
+                 " year"
+                 (when (not= 1 years) "s")
+                 (when (pos? months)
+                   (str ", " months " month" (when (not= 1 months) "s")))
+                 " ago")
+            (str months " month" (when (not= 1 months) "s") " ago")))))))
+
+;; Helper function to format duration between two instants using tick
 (defn format-duration
-  "Format duration between two instants"
+  "Format duration between two instants using tick library"
   [start-instant end-instant]
   (when (and start-instant end-instant)
-    (let [duration (Duration/between start-instant end-instant)
-          hours    (.toHours duration)
-          minutes  (- (.toMinutes duration) (* 60 hours))
-          seconds  (- (.getSeconds duration) (* 60 (.toMinutes duration)))]
-      (cond
-        (pos? hours)   (format "%dh %dm" hours minutes)
-        (pos? minutes) (format "%dm %ds" minutes seconds)
-        :else          (format "%ds" seconds)))))
+    (let [start (t/instant start-instant)
+          end   (t/instant end-instant)]
+      (if (t/> start end)
+        ;; If start is after end, swap them (prevent negative durations)
+        (format-duration end start)
+        (let [duration (t/between start end)]
+          (cond
+            ;; For durations over a day, show days/hours/minutes
+            (t/>= duration (t/new-duration 1 :days))
+            (let [days       (t/days duration)
+                  hours-part (t/hours (t/- duration
+                                           (t/new-duration days :days)))
+                  mins-part  (t/minutes (t/- duration
+                                             (t/+ (t/new-duration days :days)
+                                                  (t/new-duration hours-part
+                                                                  :hours))))]
+              (format "%dd %dh %dm" days hours-part mins-part))
+
+            ;; For durations over an hour, show hours/minutes
+            (t/>= duration (t/new-duration 1 :hours))
+            (let [hours     (t/hours duration)
+                  mins-part (t/minutes (t/- duration
+                                            (t/new-duration hours :hours)))]
+              (format "%dh %dm" hours mins-part))
+
+            ;; For durations over a minute, show minutes/seconds
+            (t/>= duration (t/new-duration 1 :minutes))
+            (let [mins      (t/minutes duration)
+                  secs-part (t/seconds (t/- duration
+                                            (t/new-duration mins :minutes)))]
+              (format "%dm %ds" mins secs-part))
+
+            ;; For durations under a minute, just show seconds
+            :else
+            (format "%ds" (t/seconds duration))))))))
 
 ;; Helper to find any field containing a pattern in its name
 (defn find-field-by-pattern
@@ -191,11 +217,14 @@
       (when field-info
         (:input-type field-info)))))
 
-;; Helper to get value as Instant if possible
-(defn as-instant 
+;; Helper to get value as Instant if possible using tick
+(defn as-instant
   [value]
-  (when (instance? java.util.Date value)
-    (.toInstant value)))
+  (when value
+    (try
+      (t/instant value)
+      (catch Exception _
+        nil))))
 
 ;; Card view implementation
 (defn render-card-view
@@ -208,14 +237,18 @@
            entity-id         (:xt/id entity)
 
            ;; Find timestamp field
-           timestamp-field   (find-field-by-pattern entity entity-str "timestamp")
+           timestamp-field   (find-field-by-pattern entity
+                                                    entity-str
+                                                    "timestamp")
            timestamp-key     (first timestamp-field)
            timestamp-value   (second timestamp-field)
            timestamp-type    (get-field-formatter timestamp-key display-fields)
            timestamp-instant (as-instant timestamp-value)
 
            ;; Find beginning and end fields
-           beginning-field   (find-field-by-pattern entity entity-str "beginning")
+           beginning-field   (find-field-by-pattern entity
+                                                    entity-str
+                                                    "beginning")
            beginning-key     (first beginning-field)
            beginning-value   (second beginning-field)
            beginning-type    (get-field-formatter beginning-key display-fields)
@@ -239,7 +272,7 @@
        ;; Wrapper div for entire card - clickable area
        [:div.bg-white.rounded-lg.shadow-sm.border.border-gray-100.flex.flex-col.relative.group.overflow-hidden.hover:shadow-md.transition-all.duration-200
         {:key (str entity-id)}
-        
+
         ;; Entity type tag (subtle)
         [:div.absolute.top-2.left-2.text-xs.text-gray-400.font-light.px-1.py-0.5.rounded.bg-gray-50.opacity-60
          entity-str]
@@ -251,7 +284,8 @@
         ;; Main card content area - clickable for edit
         [:a.flex-grow.flex.flex-col.p-4.relative.z-10
          {:href (str "/app/crud/form/" entity-str "/edit/" entity-id),
-          :class "focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-inset",
+          :class
+          "focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-inset",
           :aria-label (str "Edit " (or label-value entity-str)),
           :role "button"}
 
@@ -356,13 +390,14 @@
           [:button.text-gray-400.hover:text-red-600.transition-colors
            {:type       "submit",
             :aria-label (str "Delete " (or label-value entity-str))}
-           [:svg.h-4.w-4 
-            {:xmlns "http://www.w3.org/2000/svg", 
-             :viewBox "0 0 20 20", 
-             :fill "currentColor"}
-            [:path 
-             {:fill-rule "evenodd", 
-              :d "M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z",
+           [:svg.h-4.w-4
+            {:xmlns   "http://www.w3.org/2000/svg",
+             :viewBox "0 0 20 20",
+             :fill    "currentColor"}
+            [:path
+             {:fill-rule "evenodd",
+              :d
+              "M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z",
               :clip-rule "evenodd"}]]])]]))])
 
 ;; List view implementation
