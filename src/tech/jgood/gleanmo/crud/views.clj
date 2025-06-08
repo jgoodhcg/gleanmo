@@ -207,6 +207,12 @@
                       (str/includes? (name k) pattern))))
        first))
 
+;; Helper to check if a field exists in the schema
+(defn field-exists-in-schema?
+  "Check if a field key exists in the schema by looking at display fields"
+  [field-key display-fields]
+  (boolean (some #(= (:field-key %) field-key) display-fields)))
+
 ;; Find field formatter for a given field key
 (defn get-field-formatter
   [field-key display-fields]
@@ -232,9 +238,13 @@
   [:div.grid.grid-cols-1.md:grid-cols-2.lg:grid-cols-3.gap-4
    (for [entity paginated-entities]
      (let [;; Find key fields
+           entity-id         (:xt/id entity)
+
+           ;; Check for label field - determine if it exists in schema but is nil
+           ;; or doesn't exist in schema at all
            label-key         (keyword entity-str "label")
            label-value       (get entity label-key)
-           entity-id         (:xt/id entity)
+           label-in-schema?  (field-exists-in-schema? label-key display-fields)
 
            ;; Find timestamp field
            timestamp-field   (find-field-by-pattern entity
@@ -267,7 +277,8 @@
            ;; Find notes field if available
            notes-field       (find-field-by-pattern entity entity-str "notes")
            notes-key         (first notes-field)
-           notes-value       (second notes-field)]
+           notes-value       (second notes-field)
+           notes-in-schema?  (and notes-key (field-exists-in-schema? notes-key display-fields))]
 
        ;; Wrapper div for entire card - clickable area
        [:div.bg-white.rounded-lg.shadow-sm.border.border-gray-100.flex.flex-col.relative.group.overflow-hidden.hover:shadow-md.transition-all.duration-200
@@ -292,7 +303,18 @@
          ;; Card header with label
          [:div.mb-4
           [:h3.text-lg.font-medium.text-gray-800
-           (or label-value "Unnamed")]]
+           (cond
+             ;; If label exists in schema but is nil, show message
+             (and label-in-schema? (nil? label-value))
+             [:span.text-gray-400.italic "No Label"]
+
+             ;; If label has a value, show it
+             label-value
+             label-value
+
+             ;; If label doesn't exist in schema or is absent, show entity type
+             :else
+             entity-str)]]
 
          ;; Main content section
          [:div.flex-grow.space-y-3
@@ -338,14 +360,16 @@
                 [:span.text-xs.font-medium.px-2.py-0.5.bg-blue-100.text-blue-800.rounded-full
                  (str "Duration: " duration)]])])
 
-          ;; Notes section
-          (when notes-value
+          ;; Notes section - only show if in schema (even if nil)
+          (when notes-in-schema?
             [:div
              [:span.text-sm.font-medium.text-gray-500
               (str (str/capitalize (name notes-key)) ":")]
-             [:div.text-sm.text-gray-600.line-clamp-2
-              {:title notes-value}
-              (str notes-value)]])
+             (if notes-value
+               [:div.text-sm.text-gray-600.line-clamp-2
+                {:title notes-value}
+                (str notes-value)]
+               [:span.text-sm.text-gray-400.italic "No notes"])])
 
           ;; Additional fields section
           (let [important-fields
@@ -360,12 +384,12 @@
             [:div.mt-2.space-y-1
              (for [{:keys [field-key input-type input-label]}
                    important-fields]
-               [:div.text-sm {:key (name field-key)}
-                [:span.text-gray-500.font-medium (str input-label ": ")]
-                [:span
-                 (format-cell-value input-type
-                                    (get entity field-key)
-                                    ctx)]])])]
+               (let [value (get entity field-key)]
+                 [:div.text-sm {:key (name field-key)}
+                  [:span.text-gray-500.font-medium (str input-label ": ")]
+                  (if (nil? value)
+                    [:span.text-gray-400.italic "None"]
+                    [:span (format-cell-value input-type value ctx)])]))])]
 
          ;; Small icon to indicate card is clickable
          [:div.absolute.bottom-3.right-3.text-gray-400.opacity-0.group-hover:opacity-100.transition-opacity
