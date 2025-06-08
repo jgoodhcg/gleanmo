@@ -171,183 +171,199 @@
         (pos? minutes) (format "%dm %ds" minutes seconds)
         :else          (format "%ds" seconds)))))
 
+;; Helper to find any field containing a pattern in its name
+(defn find-field-by-pattern
+  [entity entity-str pattern]
+  (->> entity
+       (filter (fn [[k _]]
+                 (and (keyword? k)
+                      (= (namespace k) entity-str)
+                      (str/includes? (name k) pattern))))
+       first))
+
+;; Find field formatter for a given field key
+(defn get-field-formatter
+  [field-key display-fields]
+  (when field-key
+    (let [field-info (->> display-fields
+                          (filter #(= (:field-key %) field-key))
+                          first)]
+      (when field-info
+        (:input-type field-info)))))
+
+;; Helper to get value as Instant if possible
+(defn as-instant 
+  [value]
+  (when (instance? java.util.Date value)
+    (.toInstant value)))
+
 ;; Card view implementation
 (defn render-card-view
   [{:keys [paginated-entities display-fields entity-str]} ctx]
-  (let [;; Helper to find any field containing a pattern in its name
-        find-field-by-pattern (fn [entity pattern]
-                                (->> entity
-                                     (filter (fn [[k _]]
-                                               (and (keyword? k)
-                                                    (= (namespace k) entity-str)
-                                                    (str/includes? (name k)
-                                                                   pattern))))
-                                     first))
+  [:div.grid.grid-cols-1.md:grid-cols-2.lg:grid-cols-3.gap-4
+   (for [entity paginated-entities]
+     (let [;; Find key fields
+           label-key         (keyword entity-str "label")
+           label-value       (get entity label-key)
+           entity-id         (:xt/id entity)
 
-        ;; Find field formatter for a given field key
-        get-field-formatter   (fn [field-key]
-                                (when field-key
-                                  (let [field-info (->> display-fields
-                                                        (filter #(= (:field-key
-                                                                     %)
-                                                                    field-key))
-                                                        first)]
-                                    (when field-info
-                                      (:input-type field-info)))))]
+           ;; Find timestamp field
+           timestamp-field   (find-field-by-pattern entity entity-str "timestamp")
+           timestamp-key     (first timestamp-field)
+           timestamp-value   (second timestamp-field)
+           timestamp-type    (get-field-formatter timestamp-key display-fields)
+           timestamp-instant (as-instant timestamp-value)
 
-    [:div.grid.grid-cols-1.md:grid-cols-2.lg:grid-cols-3.gap-4
-     (for [entity paginated-entities]
-       (let [;; Find key fields
-             label-key         (keyword entity-str "label")
-             label-value       (get entity label-key)
-             entity-id         (:xt/id entity)
+           ;; Find beginning and end fields
+           beginning-field   (find-field-by-pattern entity entity-str "beginning")
+           beginning-key     (first beginning-field)
+           beginning-value   (second beginning-field)
+           beginning-type    (get-field-formatter beginning-key display-fields)
+           beginning-instant (as-instant beginning-value)
 
-             ;; Find timestamp field
-             timestamp-field   (find-field-by-pattern entity "timestamp")
-             timestamp-key     (first timestamp-field)
-             timestamp-value   (second timestamp-field)
-             timestamp-type    (get-field-formatter timestamp-key)
+           end-field         (find-field-by-pattern entity entity-str "end")
+           end-key           (first end-field)
+           end-value         (second end-field)
+           end-type          (get-field-formatter end-key display-fields)
+           end-instant       (as-instant end-value)
 
-             ;; Find beginning and end fields
-             beginning-field   (find-field-by-pattern entity "beginning")
-             beginning-key     (first beginning-field)
-             beginning-value   (second beginning-field)
-             beginning-type    (get-field-formatter beginning-key)
+           ;; Calculate duration if beginning and end exist
+           duration          (when (and beginning-instant end-instant)
+                               (format-duration beginning-instant end-instant))
 
-             end-field         (find-field-by-pattern entity "end")
-             end-key           (first end-field)
-             end-value         (second end-field)
-             end-type          (get-field-formatter end-key)
+           ;; Find notes field if available
+           notes-field       (find-field-by-pattern entity entity-str "notes")
+           notes-key         (first notes-field)
+           notes-value       (second notes-field)]
 
-             ;; Calculate duration if beginning and end exist
-             duration          (when (and beginning-value end-value)
-                                 (format-duration beginning-value
-                                                  end-value))
+       ;; Wrapper div for entire card - clickable area
+       [:div.bg-white.rounded-lg.shadow-sm.border.border-gray-100.flex.flex-col.relative.group.overflow-hidden.hover:shadow-md.transition-all.duration-200
+        {:key (str entity-id)}
+        
+        ;; Entity type tag (subtle)
+        [:div.absolute.top-2.left-2.text-xs.text-gray-400.font-light.px-1.py-0.5.rounded.bg-gray-50.opacity-60
+         entity-str]
 
-             ;; Find notes field if available
-             notes-field       (find-field-by-pattern entity "notes")
-             notes-key         (first notes-field)
-             notes-value       (second notes-field)]
+        ;; Subtle entity ID display in top-right corner
+        [:div.absolute.top-2.right-2.text-xs.text-gray-400.opacity-60.font-mono
+         (str (subs (str entity-id) 0 8) "...")]
 
-         ;; Wrapper div for entire card - not clickable itself, but
-         ;; contains clickable areas
-         [:div.p-4.bg-white.rounded-lg.shadow-md.border.border-gray-200.flex.flex-col.relative.group
-          {:key (str entity-id)}
+        ;; Main card content area - clickable for edit
+        [:a.flex-grow.flex.flex-col.p-4.relative.z-10
+         {:href (str "/app/crud/form/" entity-str "/edit/" entity-id),
+          :class "focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-inset",
+          :aria-label (str "Edit " (or label-value entity-str)),
+          :role "button"}
 
-          ;; Subtle entity ID display in top-right corner
-          [:div.absolute.top-1.right-2.text-xs.text-gray-400.opacity-70.font-mono
-           (str (subs (str entity-id) 0 8) "...")]
+         ;; Card header with label
+         [:div.mb-4
+          [:h3.text-lg.font-medium.text-gray-800
+           (or label-value "Unnamed")]]
 
-          ;; Main card content area - clickable for edit
-          [:a.flex-grow.flex.flex-col.p-2.rounded-md.relative.z-10
-           {:href (str "/app/crud/form/" entity-str "/edit/" entity-id),
-            :class
-            "hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-300",
-            :aria-label (str "Edit " (or label-value entity-str)),
-            :role "button"}
+         ;; Main content section
+         [:div.flex-grow.space-y-3
 
-           ;; Card header with label
-           [:div.mb-3
-            [:h3.text-lg.font-semibold.text-center
-             (or label-value (str entity-str))]]
+          ;; Timestamp with relative time
+          (when timestamp-value
+            [:div.flex.justify-between.items-baseline
+             [:div
+              [:span.text-sm.font-medium.text-gray-500
+               (str (str/capitalize (name timestamp-key)) ":")]
+              [:span.ml-1.text-sm
+               (if timestamp-type
+                 (format-cell-value timestamp-type timestamp-value ctx)
+                 (str timestamp-value))]]
+             (when timestamp-instant
+               [:span.text-xs.text-gray-500.bg-gray-50.px-2.py-0.5.rounded
+                (format-relative-time timestamp-instant)])])
 
-           ;; Main content section
-           [:div.flex-grow
+          ;; Beginning and End with duration (if both exist)
+          (when (or beginning-value end-value)
+            [:div.bg-gray-50.p-2.rounded
+             (when beginning-value
+               [:div
+                [:span.text-sm.font-medium.text-gray-500
+                 (str (str/capitalize (name beginning-key)) ":")]
+                [:span.ml-1.text-sm
+                 (if beginning-type
+                   (format-cell-value beginning-type beginning-value ctx)
+                   (str beginning-value))]])
 
-            ;; Timestamp with relative time
-            (when timestamp-value
-              [:div.mb-3
-               [:div.text-sm.font-medium.text-blue-600
-                (str (str/capitalize (name timestamp-key)) ":")]
-               [:div.ml-1.flex.items-center.justify-between
+             (when end-value
+               [:div.mt-1
+                [:span.text-sm.font-medium.text-gray-500
+                 (str (str/capitalize (name end-key)) ":")]
+                [:span.ml-1.text-sm
+                 (if end-type
+                   (format-cell-value end-type end-value ctx)
+                   (str end-value))]])
+
+             ;; Duration display if we have both beginning and end
+             (when duration
+               [:div.mt-2.flex.items-center.justify-end
+                [:span.text-xs.font-medium.px-2.py-0.5.bg-blue-100.text-blue-800.rounded-full
+                 (str "Duration: " duration)]])])
+
+          ;; Notes section
+          (when notes-value
+            [:div
+             [:span.text-sm.font-medium.text-gray-500
+              (str (str/capitalize (name notes-key)) ":")]
+             [:div.text-sm.text-gray-600.line-clamp-2
+              {:title notes-value}
+              (str notes-value)]])
+
+          ;; Additional fields section
+          (let [important-fields
+                (->> display-fields
+                     (filter #(not (or
+                                    (= (:field-key %) label-key)
+                                    (= (:field-key %) timestamp-key)
+                                    (= (:field-key %) beginning-key)
+                                    (= (:field-key %) end-key)
+                                    (= (:field-key %) notes-key))))
+                     (take 3))]
+            [:div.mt-2.space-y-1
+             (for [{:keys [field-key input-type input-label]}
+                   important-fields]
+               [:div.text-sm {:key (name field-key)}
+                [:span.text-gray-500.font-medium (str input-label ": ")]
                 [:span
-                 (if timestamp-type
-                   (format-cell-value timestamp-type timestamp-value ctx)
-                   (str timestamp-value))]
-                [:span.text-xs.text-gray-500.ml-2
-                 (format-relative-time timestamp-value)]]])
+                 (format-cell-value input-type
+                                    (get entity field-key)
+                                    ctx)]])])]
 
-            ;; Beginning and End with duration (if both exist)
-            (when (or beginning-value end-value)
-              [:div.mb-3
-               (when beginning-value
-                 [:div
-                  [:span.text-sm.font-medium.text-blue-600
-                   (str (str/capitalize (name beginning-key)) ":")]
-                  [:div.ml-1
-                   (if beginning-type
-                     (format-cell-value beginning-type beginning-value ctx)
-                     (str beginning-value))]])
+         ;; Small icon to indicate card is clickable
+         [:div.absolute.bottom-3.right-3.text-gray-400.opacity-0.group-hover:opacity-100.transition-opacity
+          [:svg.h-4.w-4
+           {:xmlns   "http://www.w3.org/2000/svg",
+            :viewBox "0 0 20 20",
+            :fill    "currentColor"}
+           [:path
+            {:fill-rule "evenodd",
+             :d
+             "M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z",
+             :clip-rule "evenodd"}]]]]
 
-               (when end-value
-                 [:div.mt-1
-                  [:span.text-sm.font-medium.text-blue-600
-                   (str (str/capitalize (name end-key)) ":")]
-                  [:div.ml-1
-                   (if end-type
-                     (format-cell-value end-type end-value ctx)
-                     (str end-value))]])
-
-               ;; Duration display if we have both beginning and end
-               (when duration
-                 [:div.mt-1.flex.items-center
-                  [:span.text-sm.font-medium.text-blue-600 "Duration:"]
-                  [:span.ml-1.px-2.py-0.5.text-xs.font-medium.bg-blue-100.text-blue-800.rounded-full
-                   duration]])])
-
-            ;; Notes section
-            (when notes-value
-              [:div.mb-3
-               [:span.text-sm.font-medium.text-gray-500
-                (str (str/capitalize (name notes-key)) ":")]
-               [:div.ml-1.text-sm.text-gray-600
-                {:class "line-clamp-2", :title notes-value}
-                (str notes-value)]])
-
-            ;; Additional fields section
-            (let [important-fields
-                  (->> display-fields
-                       (filter #(not (or
-                                      (= (:field-key %) label-key)
-                                      (= (:field-key %) timestamp-key)
-                                      (= (:field-key %) beginning-key)
-                                      (= (:field-key %) end-key)
-                                      (= (:field-key %) notes-key))))
-                       (take 3))]
-              [:div.mt-2.space-y-1
-               (for [{:keys [field-key input-type input-label]}
-                     important-fields]
-                 [:div.text-sm {:key (name field-key)}
-                  [:span.text-gray-500.font-medium (str input-label ": ")]
-                  [:span
-                   (format-cell-value input-type
-                                      (get entity field-key)
-                                      ctx)]])])]
-
-           ;; Small icon to indicate card is clickable
-           [:div.absolute.bottom-2.right-2.text-gray-400.opacity-0.group-hover:opacity-100
-            [:svg.h-4.w-4
-             {:xmlns   "http://www.w3.org/2000/svg",
-              :viewBox "0 0 20 20",
-              :fill    "currentColor"}
-             [:path
-              {:fill-rule "evenodd",
-               :d
-               "M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z",
-               :clip-rule "evenodd"}]]]]
-
-          ;; Delete button - separate from the main clickable area
-          [:div.mt-3.border-t.border-gray-100.pt-2.flex.justify-end
-           (biff/form
-            {:action (str "/app/crud/" entity-str "/" entity-id "/delete"),
-             :method "post",
-             :class "inline",
-             :onsubmit
-             "return confirm('Are you sure you want to delete this item? This action cannot be undone.');"}
-            [:button.text-red-600.hover:text-red-900.text-xs.font-medium.px-2.py-1.border.border-red-200.rounded.hover:bg-red-50.focus:outline-none.focus:ring-2.focus:ring-red-300
-             {:type       "submit",
-              :aria-label (str "Delete " (or label-value entity-str))}
-             "Delete"])]]))]))
+        ;; Delete button - small icon at the bottom-left
+        [:div.absolute.bottom-3.left-3.z-20
+         (biff/form
+          {:action (str "/app/crud/" entity-str "/" entity-id "/delete"),
+           :method "post",
+           :class "inline",
+           :onsubmit
+           "return confirm('Are you sure you want to delete this item? This action cannot be undone.');"}
+          [:button.text-gray-400.hover:text-red-600.transition-colors
+           {:type       "submit",
+            :aria-label (str "Delete " (or label-value entity-str))}
+           [:svg.h-4.w-4 
+            {:xmlns "http://www.w3.org/2000/svg", 
+             :viewBox "0 0 20 20", 
+             :fill "currentColor"}
+            [:path 
+             {:fill-rule "evenodd", 
+              :d "M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z",
+              :clip-rule "evenodd"}]]])]]))])
 
 ;; List view implementation
 (defn render-list-view
