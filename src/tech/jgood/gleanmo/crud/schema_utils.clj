@@ -101,6 +101,7 @@
       (= "tech.jgood.gleanmo.schema" n)
       (= "tech.jgood.gleanmo.schema.meta" n)
       (= "airtable" n)
+
       ;; Hide option exclusion
       (:hide opts)))))
 

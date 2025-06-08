@@ -1,5 +1,6 @@
 (ns tech.jgood.gleanmo.schema.meditation-schema
-  (:require [tech.jgood.gleanmo.schema.meta :as sm]))
+  (:require
+   [tech.jgood.gleanmo.schema.meta :as sm]))
 
 (def meditation
   (-> [:map {:closed true}
@@ -12,10 +13,10 @@
        [:meditation/notes {:optional true} :string]]
       (concat sm/legacy-meta)
       ;; DEPRECATED
-      (concat [[:meditation/name {:optional true} :string]
-               [:meditation-type/name {:optional true} :string]
-               [:meditation-type/label {:optional true} :string]
-               [:meditation-type/notes {:optional true} :string]])
+      (concat [[:meditation/name {:optional true, :hide true} :string]
+               [:meditation-type/name {:optional true, :hide true} :string]
+               [:meditation-type/label {:optional true, :hide true} :string]
+               [:meditation-type/notes {:optional true, :hide true} :string]])
       vec))
 
 (def meditation-log
@@ -28,7 +29,8 @@
        [:meditation-log/location-id :location/id]
        [:meditation-log/beginning :instant]
        [:meditation-log/end {:optional true} :instant]
-       [:meditation-log/position [:enum :sitting :lying :walking :standing :moving]]
+       [:meditation-log/position
+        [:enum :sitting :lying :walking :standing :moving]]
        [:meditation-log/guided :boolean]
        [:meditation-log/type-id :meditation/id]
        [:meditation-log/interrupted :boolean]

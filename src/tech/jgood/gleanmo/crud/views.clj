@@ -17,12 +17,8 @@
   [schema]
   (->> (schema-utils/extract-schema-fields schema)
        (map schema-utils/prepare-field)
-       ;; remove internal fields
-       (remove (fn [{:keys [field-key]}]
-                 (let [n (namespace field-key)]
-                   (or (= :xt/id field-key)
-                       (= "tech.jgood.gleanmo.schema" n)
-                       (= "tech.jgood.gleanmo.schema.meta" n)))))))
+       ;; remove system, user, and deprecated fields
+       (remove schema-utils/should-remove-system-or-user-field?)))
 
 (defn render-table
   [{:keys [paginated-entities display-fields entity-str]} ctx]
