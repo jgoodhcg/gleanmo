@@ -423,26 +423,142 @@
 ;; List view implementation
 (defn render-list-view
   [{:keys [paginated-entities display-fields entity-str]} ctx]
-  [:div.divide-y.divide-gray-200
+  [:div.divide-y.divide-gray-200.bg-white.rounded-md.shadow-sm.border.border-gray-100
    (for [entity paginated-entities]
-     [:div.py-4.flex.justify-between.items-center
-      {:key (str (:xt/id entity))}
-      [:div.flex-1
-       [:div.font-medium "List View - Entity ID: "
-        (str (subs (str (:xt/id entity)) 0 8) "...")]]
-      [:div.flex.space-x-2
-       [:a.text-blue-600.hover:text-blue-900
-        {:href (str "/app/crud/form/" entity-str "/edit/" (:xt/id entity))}
-        "Edit"]
-       (biff/form
-        {:action (str "/app/crud/" entity-str "/" (:xt/id entity) "/delete"),
-         :method "post",
-         :class "inline",
-         :onsubmit
-         "return confirm('Are you sure you want to delete this item? This action cannot be undone.');"}
-        [:button.text-red-600.hover:text-red-900
-         {:type "submit"}
-         "Delete"])]])])
+     (let [;; Find key fields
+           entity-id         (:xt/id entity)
+
+           ;; Check for label field
+           label-key         (keyword entity-str "label")
+           label-value       (get entity label-key)
+           label-in-schema?  (field-exists-in-schema? label-key display-fields)
+
+           ;; Find timestamp field
+           timestamp-field   (find-field-by-pattern entity entity-str "timestamp")
+           timestamp-key     (first timestamp-field)
+           timestamp-value   (second timestamp-field)
+           timestamp-type    (get-field-formatter timestamp-key display-fields)
+           timestamp-instant (as-instant timestamp-value)
+
+           ;; Find beginning and end fields
+           beginning-field   (find-field-by-pattern entity entity-str "beginning")
+           beginning-key     (first beginning-field)
+           beginning-value   (second beginning-field)
+           beginning-type    (get-field-formatter beginning-key display-fields)
+           beginning-instant (as-instant beginning-value)
+
+           end-field         (find-field-by-pattern entity entity-str "end")
+           end-key           (first end-field)
+           end-value         (second end-field)
+           end-type          (get-field-formatter end-key display-fields)
+           end-instant       (as-instant end-value)
+
+           ;; Calculate duration if beginning and end exist
+           duration          (when (and beginning-instant end-instant)
+                               (format-duration beginning-instant end-instant))
+
+           ;; Get primary information to display
+           display-title     (cond
+                               ;; If label exists in schema but is nil
+                               (and label-in-schema? (nil? label-value))
+                               [:span.text-gray-400.italic "No Label"]
+
+                               ;; If label has a value
+                               label-value
+                               label-value
+
+                               ;; If label doesn't exist, use entity type
+                               :else
+                               entity-str)
+
+           ;; Get secondary information (timestamp or beginning/end)
+           timestamp-display (when timestamp-value
+                               (if timestamp-type
+                                 (format-cell-value timestamp-type timestamp-value ctx)
+                                 (str timestamp-value)))
+
+           time-display      (cond
+                               ;; Show timestamp with relative time if available
+                               timestamp-instant
+                               [:div.flex.items-center.gap-2
+                                [:span timestamp-display]
+                                [:span.text-xs.text-gray-500.bg-gray-50.px-1.py-0.5.rounded
+                                 (format-relative-time timestamp-instant)]]
+
+                               ;; Show beginning/end with duration if available
+                               (and beginning-value end-value)
+                               [:div.flex.items-center.gap-2
+                                [:span (if beginning-type
+                                         (format-cell-value beginning-type beginning-value ctx)
+                                         (str beginning-value))]
+                                [:span.text-gray-400 "→"]
+                                [:span (if end-type
+                                         (format-cell-value end-type end-value ctx)
+                                         (str end-value))]
+                                (when duration
+                                  [:span.text-xs.text-gray-500.bg-gray-50.px-1.py-0.5.rounded
+                                   duration])]
+
+                               ;; Show just beginning if that's all we have
+                               beginning-value
+                               [:span (if beginning-type
+                                        (format-cell-value beginning-type beginning-value ctx)
+                                        (str beginning-value))]
+
+                               ;; Show nothing if no time information
+                               :else
+                               nil)]
+
+       [:div.group.hover:bg-gray-50.transition-colors.duration-150
+        {:key (str entity-id)}
+
+        ;; Main row content - clickable for edit
+        [:a.flex.items-center.justify-between.py-4.px-4.relative
+         {:href (str "/app/crud/form/" entity-str "/edit/" entity-id)
+          :class "focus:outline-none focus:bg-blue-50"
+          :aria-label (str "Edit " (or label-value entity-str))
+          :role "button"}
+
+         ;; Left side - main content
+         [:div.flex-1.min-w-0
+          ;; Title and subtle entity type indicator
+          [:div.flex.items-baseline.gap-2
+           [:h3.text-base.font-medium.text-gray-900.truncate
+            display-title]
+           [:div.text-xs.text-gray-400.hidden.sm:block
+            entity-str]]
+
+          ;; Timestamp/duration info
+          (when time-display
+            [:div.text-sm.text-gray-500.mt-1
+             time-display])
+
+          ;; Subtle entity ID display
+          [:div.mt-1.text-xs.text-gray-400.font-mono
+           (str "ID: " (subs (str entity-id) 0 8) "...")]]
+
+         ;; Right side - actions
+         [:div.flex.items-center.space-x-4.opacity-0.group-hover:opacity-100.transition-opacity
+          ;; Edit button (duplicate, whole row already clickable)
+          [:div.text-blue-600.hover:text-blue-800
+           [:svg.h-4.w-4 {:xmlns "http://www.w3.org/2000/svg" :viewBox "0 0 20 20" :fill "currentColor"}
+            [:path {:d "M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"}]]]
+
+          ;; Delete button wrapper (to stop click propagation)
+          [:div {:onClick "event.stopPropagation();"}
+           (biff/form
+            {:action (str "/app/crud/" entity-str "/" entity-id "/delete")
+             :method "post"
+             :class "inline"
+             :onsubmit "event.stopPropagation(); return confirm('Are you sure you want to delete this item? This action cannot be undone.');"}
+            [:button.text-gray-400.hover:text-red-600.transition-colors.focus:outline-none
+             {:type "submit"
+              :aria-label (str "Delete " (or label-value entity-str))
+              :onClick "event.stopPropagation();"}
+             [:svg.h-4.w-4 {:xmlns "http://www.w3.org/2000/svg" :viewBox "0 0 20 20" :fill "currentColor"}
+              [:path {:fill-rule "evenodd"
+                      :d "M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                      :clip-rule "evenodd"}]]])]]]]))])
 
 ;; View type selector component
 (defn view-selector
@@ -490,7 +606,7 @@
         {:user/keys [email]} (db/get-entity-by-id db user-id)
         entity-type-str    (name entity-key)
         ;; Get view type from query param or default to "table"
-        view-type          (or (:view params) "table")
+        view-type          (or (:view params) "list")
         ;; Parse pagination parameters safely
         default-limit      15
         offset-str         (:offset params)
