@@ -50,10 +50,6 @@ clj -M:dev test tech.jgood.gleanmo.test.crud.handlers-test
 
 Tests use an in-memory XTDB database via `test-xtdb-node` from the Biff framework, making them fast and isolated from the development database.
 
-Current test coverage:
-- `tech.jgood.gleanmo.db` namespaces (queries and mutations)
-- `tech.jgood.gleanmo.crud` namespaces (handlers, etc.)
-
 ## License
 
 All rights reserved. This code is shared for demonstration and educational purposes.
