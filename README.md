@@ -43,7 +43,7 @@ To run all tests:
 clj -M:dev test
 ```
 
-To run a specific test namespace:
+To run a specific test namespace just provide the namespace as the next argument:
 ```bash
 clj -M:dev test tech.jgood.gleanmo.test.crud.handlers-test
 ```
