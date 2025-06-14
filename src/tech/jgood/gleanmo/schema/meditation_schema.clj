@@ -35,6 +35,7 @@
        [:meditation-log/type-id :meditation/id]
        [:meditation-log/interrupted :boolean]
        [:meditation-log/notes {:optional true} :string]
-       [:meditation-log/time-zone :string]]
+       [:meditation-log/time-zone :string]
+       [:meditation-log/sequence-completed {:optional true} :boolean]]
       (concat sm/legacy-meta)
       vec))
