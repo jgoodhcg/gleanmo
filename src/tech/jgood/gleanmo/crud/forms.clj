@@ -43,13 +43,13 @@
                            :hx-select (str "#" form-id),
                            :id        form-id}
                           [:div
-                           [:h2.text-base.font-semibold.leading-7.text-gray-900
+                           [:h2.form-header
                             (str "New " (str/capitalize entity-str))]
-                           [:p.mt-1.text-sm.leading-6.text-gray-600
+                           [:p.form-subheader
                             (str "Create a new " entity-str)]]
                           [:div.grid.grid-cols-1.gap-y-6
                            (doall (schema->form schema ctx))
-                           [:button {:type "submit"} "Create"]])])])))
+                           [:button.form-button-primary {:type "submit"} "Create"]])])])))
 
 (defn schema->form-with-values
   "Similar to schema->form but includes entity values in input fields"
@@ -80,14 +80,14 @@
           :hx-select (str "#" form-id),
           :id        form-id}
          [:div
-          [:h1.text-xl.font-bold.mb-4
+          [:h1.form-header
            (str "Edit " (str/capitalize entity-str))]
-          [:p.mt-1.text-sm.leading-6.text-gray-600
+          [:p.form-subheader
            (str "Edit this " entity-str)]]
          [:div.grid.grid-cols-1.gap-y-6
           (doall (schema->form-with-values schema entity ctx))
           [:div.flex.justify-between.mt-4
-           [:a.inline-flex.items-center.px-4.py-2.bg-gray-200.text-gray-800.rounded-md.hover:bg-gray-300
+           [:a.form-button-secondary
             {:href (str "/app/crud/" entity-str)} "Cancel"]
-           [:button.inline-flex.items-center.px-4.py-2.bg-blue-600.text-white.rounded-md.hover:bg-blue-700
+           [:button.form-button-primary
             {:type "submit"} "Save Changes"]]])])])))

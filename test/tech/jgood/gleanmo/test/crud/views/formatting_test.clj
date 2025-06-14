@@ -19,8 +19,8 @@
 (deftest format-cell-value-string-test
   (testing "format-cell-value for :string type"
     (testing "handles nil or blank value"
-      (is (= [:span.text-gray-400 "—"] (fmt/format-cell-value :string nil {})))
-      (is (= [:span.text-gray-400 "—"] (fmt/format-cell-value :string "" {}))))
+      (is (= [:span.text-secondary "—"] (fmt/format-cell-value :string nil {})))
+      (is (= [:span.text-secondary "—"] (fmt/format-cell-value :string "" {}))))
 
     (testing "displays short string without truncation"
       (let [result (fmt/format-cell-value :string "Short text" {})]
@@ -39,16 +39,20 @@
   (testing "format-cell-value for :boolean type"
     (testing "displays green checkmark for true"
       (let [result (fmt/format-cell-value :boolean true {})]
-        (is (= [:span.text-green-600 "✓"] result))))
+        (is (= [:span.text-green-500.flex.items-center
+                [:svg.h-4.w-4 {:xmlns "http://www.w3.org/2000/svg" :viewBox "0 0 20 20" :fill "currentColor"}
+                 [:path {:fill-rule "evenodd" :d "M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" :clip-rule "evenodd"}]]] result))))
 
     (testing "displays red X for false"
       (let [result (fmt/format-cell-value :boolean false {})]
-        (is (= [:span.text-red-600 "✗"] result))))))
+        (is (= [:span.text-red-500.flex.items-center
+                [:svg.h-4.w-4 {:xmlns "http://www.w3.org/2000/svg" :viewBox "0 0 20 20" :fill "currentColor"}
+                 [:path {:fill-rule "evenodd" :d "M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" :clip-rule "evenodd"}]]] result))))))
 
 (deftest format-cell-value-number-test
   (testing "format-cell-value for :number type"
     (testing "handles nil value"
-      (is (= [:span.text-gray-400 "—"] (fmt/format-cell-value :number nil {}))))
+      (is (= [:span.text-secondary "—"] (fmt/format-cell-value :number nil {}))))
 
     (testing "displays number as string"
       (is (= [:span "42"] (fmt/format-cell-value :number 42 {})))
@@ -57,7 +61,7 @@
 (deftest format-cell-value-float-test
   (testing "format-cell-value for :float type"
     (testing "handles nil value"
-      (is (= [:span.text-gray-400 "—"] (fmt/format-cell-value :float nil {}))))
+      (is (= [:span.text-secondary "—"] (fmt/format-cell-value :float nil {}))))
 
     (testing "formats float with two decimal places"
       ;; Cast to float because convert-field-value parses to float
@@ -103,7 +107,7 @@
           (let [result (fmt/format-cell-value :single-relationship
                                               uuid
                                               {:biff/db mock-db})]
-            (is (= [:span.text-blue-600 "John Doe"] result)))))
+            (is (= [:span.text-relationship "John Doe"] result)))))
 
       (testing "displays ID truncated when no label available"
         (with-redefs [db/get-entity-by-id (constantly {:xt/id uuid
@@ -111,7 +115,7 @@
           (let [result (fmt/format-cell-value :single-relationship
                                               uuid
                                               {:biff/db mock-db})]
-            (is (= [:span.text-blue-600 "11111111..."] result))))))))
+            (is (= [:span.text-relationship "11111111..."] result))))))))
 
 (deftest format-cell-value-many-relationship-test
   (testing "format-cell-value for :many-relationship type"
@@ -121,14 +125,14 @@
           uuid3   #uuid "33333333-3333-3333-3333-333333333333"]
 
       (testing "handles nil value"
-        (is (= [:span.text-gray-400 "—"]
+        (is (= [:span.text-secondary "—"]
                (fmt/format-cell-value :many-relationship
                                       nil
                                       {:biff/db mock-db}))))
 
       (testing "handles empty set"
         (is
-         (= [:span.text-gray-400 "Empty set"]
+         (= [:span.text-secondary "Empty set"]
             (fmt/format-cell-value :many-relationship [] {:biff/db mock-db}))))
 
       (testing "displays labels with comma separation"
@@ -169,13 +173,13 @@
 (deftest format-cell-value-enum-test
   (testing "format-cell-value for :enum type"
     (testing "handles nil value"
-      (is (= [:span.text-gray-400 "—"] (fmt/format-cell-value :enum nil {}))))
+      (is (= [:span.text-secondary "—"] (fmt/format-cell-value :enum nil {}))))
 
     (testing "displays enum value in badge style"
       (let [result (fmt/format-cell-value :enum :admin {})]
         (is
          (=
-          :span.bg-purple-100.text-purple-800.text-xs.font-medium.px-2.py-0.5.rounded-full
+          :span.bg-enum.text-white.text-xs.font-medium.px-2.py-0.5.rounded-full
           (first result)))
         (is (= "admin" (last result)))))))
 

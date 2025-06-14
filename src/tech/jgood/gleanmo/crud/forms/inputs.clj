@@ -27,10 +27,10 @@
     (cond
       (str/includes? input-name "label")
       [:div
-       [:label.block.text-sm.font-medium.leading-6.text-gray-900
+       [:label.form-label
         {:for input-name} input-label]
        [:div.mt-2
-        [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+        [:input.form-input
          (cond-> {:type         "text",
                   :name         input-name,
                   :required     input-required,
@@ -39,10 +39,10 @@
 
       (str/includes? input-name "time-zone")
       [:div
-       [:label.block.text-sm.font-medium.leading-6.text-gray-900
+       [:label.form-label
         {:for input-name} input-label]
        [:div.mt-2
-        [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+        [:select.form-select
          {:name         input-name,
           :required     input-required,
           :autocomplete "off"}
@@ -53,10 +53,10 @@
             zoneId])]]]
       :else
       [:div
-       [:label.block.text-sm.font-medium.leading-6.text-gray-900
+       [:label.form-label
         {:for input-name} input-label]
        [:div.mt-2
-        [:textarea.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+        [:textarea.form-textarea
          (cond-> {:name         input-name,
                   :rows         3,
                   :required     input-required,
@@ -71,12 +71,12 @@
                 value]}
         field]
     [:div.flex.items-center
-     [:input.rounded.shadow-sm.mr-2.text-indigo-600.focus:ring-blue-500.focus:border-indigo-500
+     [:input.mr-2
       (cond-> {:type         "checkbox",
                :name         input-name,
                :autocomplete "off"}
         value (assoc :checked "checked"))]
-     [:label.text-sm.font-medium.leading-6.text-gray-900 {:for input-name}
+     [:label.form-label {:for input-name}
       input-label]]))
 
 (defmethod render :number
@@ -87,10 +87,10 @@
                 value]}
         field]
     [:div
-     [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for input-name}
+     [:label.form-label {:for input-name}
       input-label]
      [:div.mt-2
-      [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+      [:input.form-input
        (cond-> {:type         "number",
                 :step         "any",
                 :name         input-name,
@@ -106,10 +106,10 @@
                 value]}
         field]
     [:div
-     [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for input-name}
+     [:label.form-label {:for input-name}
       input-label]
      [:div.mt-2
-      [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+      [:input.form-input
        (cond-> {:type         "number",
                 :step         "1",
                 :name         input-name,
@@ -125,10 +125,10 @@
                 value]}
         field]
     [:div
-     [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for input-name}
+     [:label.form-label {:for input-name}
       input-label]
      [:div.mt-2
-      [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+      [:input.form-input
        (cond-> {:type         "number",
                 :step         "0.001",
                 :name         input-name,
@@ -162,10 +162,10 @@
                          :else
                          nil)]
     [:div
-     [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for input-name}
+     [:label.form-label {:for input-name}
       input-label]
      [:div.mt-2
-      [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+      [:input.form-input
        (cond-> {:type     "datetime-local",
                 :name     input-name,
                 :required input-required}
@@ -187,9 +187,9 @@
                                          ctx)
                      (map (fn [e] {:id (id-key e), :label (label-key e)})))]
     [:div
-     [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for input-name}
+     [:label.form-label {:for input-name}
       input-label]
-     [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+     [:select.form-select
       {:name     input-name,
        :required input-required}
       (for [{:keys [id label]} options]
@@ -212,9 +212,9 @@
                      (map (fn [e] {:id (id-key e), :label (label-key e)})))
         value-set (when value (set (map str value)))]
     [:div
-     [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for input-name}
+     [:label.form-label {:for input-name}
       input-label]
-     [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+     [:select.form-select
       {:name     input-name,
        :multiple true,
        :required input-required}
@@ -233,10 +233,10 @@
                 value]}
         field]
     [:div
-     [:label.block.text-sm.font-medium.leading-6.text-gray-900 {:for input-name}
+     [:label.form-label {:for input-name}
       input-label]
      [:div.mt-2
-      [:select.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+      [:select.form-select
        {:name     input-name,
         :required input-required}
        (for [opt enum-options]

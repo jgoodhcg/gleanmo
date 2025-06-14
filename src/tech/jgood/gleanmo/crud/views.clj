@@ -53,35 +53,34 @@
                                        (assoc field :input-label "User")
                                        field))
                                    sorted-fields)]
-    [:div.overflow-x-auto
-     [:table.min-w-full.divide-y.divide-gray-200.table-fixed
+    [:div.table-container
+     [:table.min-w-full.table-fixed
       {:style {:table-layout "fixed"}} ;; Ensures fixed width columns
-      [:thead.bg-gray-50
+      [:thead.table-header
        [:tr
         (for [{:keys [field-key input-label]} processed-fields]
-          [:th.px-6.py-3.text-left.text-xs.font-medium.text-gray-500.uppercase.tracking-wider
+          [:th.table-header-cell
            {:key   (str (name field-key)),
             :style {:max-width "250px",
                     :overflow  "hidden"}}
            input-label])
         ;; Add actions column header
-        [:th.px-6.py-3.text-right.text-xs.font-medium.text-gray-500.uppercase.tracking-wider
+        [:th.table-header-cell.text-right
          "Actions"]]]
-      [:tbody.bg-white.divide-y.divide-gray-200
+      [:tbody.table-body
        (map-indexed
         (fn [idx entity]
-          [:tr
-           {:key   idx,
-            :class (when (odd? idx) "bg-gray-50")}
+          [:tr.table-row
+           {:key   idx}
            (for [{:keys [field-key input-type type]} processed-fields]
-             [:td.px-6.py-4.text-sm.text-gray-900
+             [:td.table-cell
               {:key   (str (name field-key)),
                :style {:max-width "250px",
                        :overflow  "hidden"}}
               (cond
                  ;; Special case for user/id
                 (= field-key :user/id)
-                [:span.text-gray-600
+                [:span.text-secondary
                  (str (some-> entity
                               (get field-key)
                               str
@@ -92,9 +91,9 @@
                 :else
                 (format-cell-value input-type (get entity field-key) ctx))])
             ;; Add edit link cell
-           [:td.px-6.py-4.whitespace-nowrap.text-right.text-sm.font-medium
+           [:td.table-cell.whitespace-nowrap.text-right.font-medium
             [:div.flex.justify-end.space-x-4
-             [:a.text-blue-600.hover:text-blue-900
+             [:a.link
               {:href (str "/app/crud/form/" entity-str
                           "/edit/" (:xt/id entity))}
               "Edit"]
@@ -104,7 +103,7 @@
                :method "post",
                :onsubmit
                "return confirm('Are you sure you want to delete this item? This action cannot be undone.');"}
-              [:button.text-red-600.hover:text-red-900
+              [:button.link
                {:type "submit"}
                "Delete"])]]])
         paginated-entities)]]]))
@@ -277,19 +276,19 @@
            notes-in-schema?  (and notes-key (field-exists-in-schema? notes-key display-fields))]
 
        ;; Wrapper div for entire card - clickable area
-       [:div.bg-white.rounded-lg.shadow-sm.border.border-gray-100.flex.flex-col.relative.group.overflow-hidden.hover:shadow-md.transition-all.duration-200
+       [:div.card-container.group
         {:key (str entity-id)}
 
         ;; Entity type tag (subtle)
-        [:div.absolute.top-2.left-2.text-xs.text-gray-400.font-light.px-1.py-0.5.rounded.bg-gray-50.opacity-60
+        [:div.absolute.top-2.left-2.card-tag.font-light
          entity-str]
 
         ;; Subtle entity ID display in top-right corner
-        [:div.absolute.top-2.right-2.text-xs.text-gray-400.opacity-60.font-mono
+        [:div.card-tag.font-mono
          (str (subs (str entity-id) 0 8) "...")]
 
-        ;; Main card content area - clickable for edit
-        [:a.flex-grow.flex.flex-col.p-4.relative.z-10
+        ;; Main card content area - clickable for edit  
+        [:a.flex-grow.flex.flex-col.pt-8.pb-4.px-4.relative.z-10
          {:href (str "/app/crud/form/" entity-str "/edit/" entity-id),
           :class
           "focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-inset",
@@ -298,11 +297,11 @@
 
          ;; Card header with label
          [:div.mb-4
-          [:h3.text-lg.font-medium.text-gray-800
+          [:h3.card-header
            (cond
              ;; If label exists in schema but is nil, show message
              (and label-in-schema? (nil? label-value))
-             [:span.text-gray-400.italic "No Label"]
+             [:span.text-secondary.italic "No Label"]
 
              ;; If label has a value, show it
              label-value
@@ -319,33 +318,33 @@
           (when timestamp-value
             [:div.flex.justify-between.items-baseline
              [:div
-              [:span.text-sm.font-medium.text-gray-500
+              [:span.card-text-secondary.font-medium
                (str (str/capitalize (name timestamp-key)) ":")]
-              [:span.ml-1.text-sm
+              [:span.ml-1.card-text
                (if timestamp-type
                  (format-cell-value timestamp-type timestamp-value ctx)
                  (str timestamp-value))]]
              (when timestamp-instant
-               [:span.text-xs.text-gray-500.bg-gray-50.px-2.py-0.5.rounded
+               [:span.card-tag.px-2.py-0.5
                 (format-relative-time timestamp-instant)])])
 
           ;; Beginning and End with duration (if both exist)
           (when (or beginning-value end-value)
-            [:div.bg-gray-50.p-2.rounded
+            [:div.bg-dark.p-2.rounded
              (when beginning-value
                [:div
-                [:span.text-sm.font-medium.text-gray-500
+                [:span.card-text-secondary.font-medium
                  (str (str/capitalize (name beginning-key)) ":")]
-                [:span.ml-1.text-sm
+                [:span.ml-1.card-text
                  (if beginning-type
                    (format-cell-value beginning-type beginning-value ctx)
                    (str beginning-value))]])
 
              (when end-value
                [:div.mt-1
-                [:span.text-sm.font-medium.text-gray-500
+                [:span.card-text-secondary.font-medium
                  (str (str/capitalize (name end-key)) ":")]
-                [:span.ml-1.text-sm
+                [:span.ml-1.card-text
                  (if end-type
                    (format-cell-value end-type end-value ctx)
                    (str end-value))]])
@@ -353,19 +352,19 @@
              ;; Duration display if we have both beginning and end
              (when duration
                [:div.mt-2.flex.items-center.justify-end
-                [:span.text-xs.font-medium.px-2.py-0.5.bg-blue-100.text-blue-800.rounded-full
+                [:span.card-tag.font-medium.px-2.py-0.5.rounded-full
                  (str "Duration: " duration)]])])
 
           ;; Notes section - only show if in schema (even if nil)
           (when notes-in-schema?
             [:div
-             [:span.text-sm.font-medium.text-gray-500
+             [:span.text-sm.font-medium.card-text-secondary
               (str (str/capitalize (name notes-key)) ":")]
              (if notes-value
-               [:div.text-sm.text-gray-600.line-clamp-2
+               [:div.text-sm.card-text.line-clamp-2
                 {:title notes-value}
                 (str notes-value)]
-               [:span.text-sm.text-gray-400.italic "No notes"])])
+               [:span.text-sm.text-secondary.italic "No notes"])])
 
           ;; Additional fields section
           (let [important-fields
@@ -382,13 +381,13 @@
                    important-fields]
                (let [value (get entity field-key)]
                  [:div.text-sm {:key (name field-key)}
-                  [:span.text-gray-500.font-medium (str input-label ": ")]
+                  [:span.card-text-secondary.font-medium (str input-label ": ")]
                   (if (nil? value)
-                    [:span.text-gray-400.italic "None"]
+                    [:span.text-secondary.italic "None"]
                     [:span (format-cell-value input-type value ctx)])]))])]
 
          ;; Small icon to indicate card is clickable
-         [:div.absolute.bottom-3.right-3.text-gray-400.opacity-0.group-hover:opacity-100.transition-opacity
+         [:div.absolute.bottom-3.right-3.text-secondary.opacity-0.group-hover:opacity-100.transition-opacity
           [:svg.h-4.w-4
            {:xmlns   "http://www.w3.org/2000/svg",
             :viewBox "0 0 20 20",
@@ -407,7 +406,7 @@
            :class "inline",
            :onsubmit
            "return confirm('Are you sure you want to delete this item? This action cannot be undone.');"}
-          [:button.text-gray-400.hover:text-red-600.transition-colors
+          [:button.text-secondary.hover:text-red-600.transition-colors
            {:type       "submit",
             :aria-label (str "Delete " (or label-value entity-str))}
            [:svg.h-4.w-4
@@ -423,7 +422,7 @@
 ;; List view implementation
 (defn render-list-view
   [{:keys [paginated-entities display-fields entity-str]} ctx]
-  [:div.divide-y.divide-gray-200.bg-white.rounded-md.shadow-sm.border.border-gray-100
+  [:div.list-container
    (for [entity paginated-entities]
      (let [;; Find key fields
            entity-id         (:xt/id entity)
@@ -461,7 +460,7 @@
            display-title     (cond
                                ;; If label exists in schema but is nil
                                (and label-in-schema? (nil? label-value))
-                               [:span.text-gray-400.italic "No Label"]
+                               [:span.text-secondary.italic "No Label"]
 
                                ;; If label has a value
                                label-value
@@ -482,7 +481,7 @@
                                timestamp-instant
                                [:div.flex.items-center.gap-2
                                 [:span timestamp-display]
-                                [:span.text-xs.text-gray-500.bg-gray-50.px-1.py-0.5.rounded
+                                [:span.card-tag.px-1.py-0.5.rounded
                                  (format-relative-time timestamp-instant)]]
 
                                ;; Show beginning/end with duration if available
@@ -491,12 +490,12 @@
                                 [:span (if beginning-type
                                          (format-cell-value beginning-type beginning-value ctx)
                                          (str beginning-value))]
-                                [:span.text-gray-400 "→"]
+                                [:span.text-secondary "→"]
                                 [:span (if end-type
                                          (format-cell-value end-type end-value ctx)
                                          (str end-value))]
                                 (when duration
-                                  [:span.text-xs.text-gray-500.bg-gray-50.px-1.py-0.5.rounded
+                                  [:span.card-tag.px-1.py-0.5.rounded
                                    duration])]
 
                                ;; Show just beginning if that's all we have
@@ -509,13 +508,13 @@
                                :else
                                nil)]
 
-       [:div.group.hover:bg-gray-50.transition-colors.duration-150
+       [:div.list-item.group
         {:key (str entity-id)}
 
         ;; Main row content - clickable for edit
         [:a.flex.items-center.justify-between.py-4.px-4.relative
          {:href (str "/app/crud/form/" entity-str "/edit/" entity-id)
-          :class "focus:outline-none focus:bg-blue-50"
+          :class "focus:outline-none"
           :aria-label (str "Edit " (or label-value entity-str))
           :role "button"}
 
@@ -523,24 +522,24 @@
          [:div.flex-1.min-w-0
           ;; Title and subtle entity type indicator
           [:div.flex.items-baseline.gap-2
-           [:h3.text-base.font-medium.text-gray-900.truncate
+           [:h3.list-title.truncate
             display-title]
-           [:div.text-xs.text-gray-400.hidden.sm:block
+           [:div.card-tag.hidden.sm:block
             entity-str]]
 
           ;; Timestamp/duration info
           (when time-display
-            [:div.text-sm.text-gray-500.mt-1
+            [:div.card-text-secondary.mt-1
              time-display])
 
           ;; Subtle entity ID display
-          [:div.mt-1.text-xs.text-gray-400.font-mono
+          [:div.mt-1.card-tag.font-mono
            (str "ID: " (subs (str entity-id) 0 8) "...")]]
 
          ;; Right side - actions
          [:div.flex.items-center.space-x-4.opacity-0.group-hover:opacity-100.transition-opacity
           ;; Edit button (duplicate, whole row already clickable)
-          [:div.text-blue-600.hover:text-blue-800
+          [:div.text-primary
            [:svg.h-4.w-4 {:xmlns "http://www.w3.org/2000/svg" :viewBox "0 0 20 20" :fill "currentColor"}
             [:path {:d "M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"}]]]
 
@@ -551,7 +550,7 @@
              :method "post"
              :class "inline"
              :onsubmit "event.stopPropagation(); return confirm('Are you sure you want to delete this item? This action cannot be undone.');"}
-            [:button.text-gray-400.hover:text-red-600.transition-colors.focus:outline-none
+            [:button.text-secondary.hover:text-red-600.transition-colors.focus:outline-none
              {:type "submit"
               :aria-label (str "Delete " (or label-value entity-str))
               :onClick "event.stopPropagation();"}
@@ -564,30 +563,24 @@
 (defn view-selector
   [{:keys [entity-str view-type offset limit]}]
   [:div.flex.space-x-2.mb-4
-   [:a.px-3.py-1.rounded.border
-    {:class (if (= view-type "table")
-              "bg-blue-500 text-white"
-              "bg-gray-100 hover:bg-gray-200"),
+   [:a.view-selector-button
+    {:class (when (= view-type "table") "active"),
      :href  (str "/app/crud/" entity-str
                  "?view=table"
                  (when (or offset limit)
                    (str "&offset=" (or offset 0)
                         "&limit="  (or limit 15))))}
     "Table"]
-   [:a.px-3.py-1.rounded.border
-    {:class (if (= view-type "card")
-              "bg-blue-500 text-white"
-              "bg-gray-100 hover:bg-gray-200"),
+   [:a.view-selector-button
+    {:class (when (= view-type "card") "active"),
      :href  (str "/app/crud/" entity-str
                  "?view=card"
                  (when (or offset limit)
                    (str "&offset=" (or offset 0)
                         "&limit="  (or limit 15))))}
     "Cards"]
-   [:a.px-3.py-1.rounded.border
-    {:class (if (= view-type "list")
-              "bg-blue-500 text-white"
-              "bg-gray-100 hover:bg-gray-200"),
+   [:a.view-selector-button
+    {:class (when (= view-type "list") "active"),
      :href  (str "/app/crud/" entity-str
                  "?view=list"
                  (when (or offset limit)
@@ -636,12 +629,12 @@
       (side-bar
        (pot/map-of email)
        [:div.p-4
-        [:h1.text-2xl.font-bold.mb-4
+        [:h1.form-header
          (str/capitalize plural-str)]
 
           ;; New entity button
         [:div.mb-4
-         [:a.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded
+         [:a.form-button-primary
           {:href (str "/app/crud/form/" entity-str "/new")}
           (str "New " entity-str)]]
 
@@ -656,7 +649,7 @@
           [:div
              ;; Pagination summary
            [:div.flex.items-center.justify-between.mb-4
-            [:p.text-sm.text-gray-600
+            [:p.text-sm.text-secondary
              (str "Showing "
                   (inc offset)
                   "-"
@@ -669,10 +662,8 @@
 
               ;; Pagination controls with view type preserved
             [:div.flex.items-center.gap-2
-             [:a.px-3.py-1.rounded.border
-              {:class (if (> offset 0)
-                        "bg-blue-500 text-white"
-                        "bg-gray-100 text-gray-400"),
+             [:a.pagination-button
+              {:class (if (> offset 0) "active" "disabled"),
                :href  (if (> offset 0)
                         (str "/app/crud/" entity-str
                              "?view="     view-type
@@ -680,7 +671,7 @@
                              "&limit="    limit)
                         "#")}
               "Previous"]
-             [:a.px-3.py-1.rounded.border.bg-blue-500.text-white
+             [:a.pagination-button
               {:href  (if (< (+ offset (count paginated-entities))
                              total-count)
                         (str "/app/crud/" entity-str
@@ -689,9 +680,7 @@
                              "&limit="    limit)
                         "#"),
                :class (if (< (+ offset (count paginated-entities))
-                             total-count)
-                        "bg-blue-500 text-white"
-                        "bg-gray-100 text-gray-400")}
+                             total-count) "active" "disabled")}
               "Next"]]]
 
              ;; View based on selected view-type

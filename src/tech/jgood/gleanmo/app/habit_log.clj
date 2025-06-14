@@ -85,7 +85,6 @@
         has-predictions (and predictions (seq predictions))
         base-url        "/app/dv/habit-dates"]
     ;; Render the page with list of dates when habit was logged
-    (pprint (pot/map-of all-habits))
     (ui/page
      {}
      (side-bar

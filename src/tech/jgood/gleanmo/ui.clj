@@ -62,7 +62,7 @@
 (defn page [ctx & body]
   (base
    ctx
-   [:.min-h-screen.w-full.font-sans.text-primary
+   [:.min-h-screen.w-full.font-sans
     (when (bound? #'csrf/*anti-forgery-token*)
       {:hx-headers (cheshire/generate-string
                     {:x-csrf-token csrf/*anti-forgery-token*})})

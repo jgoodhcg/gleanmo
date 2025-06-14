@@ -136,8 +136,10 @@
      {}
      [:div
       (side-bar (pot/map-of email)
-                [:div.flex.flex-col.md:flex-row.justify-center
-                 [:h1.text-3xl.font-bold "App Root Page!"]])])))
+                [:div.flex.flex-col.justify-center.space-y-4
+                 [:h1.text-3xl.font-bold.text-primary "App Root Page!"]
+                 [:div.rgb-test.rgb-glow 
+                  "🚀 RGB Glow Test - This should have animated rainbow borders!"]])])))
 
 (def module
   {:static {"/about/" about-page}

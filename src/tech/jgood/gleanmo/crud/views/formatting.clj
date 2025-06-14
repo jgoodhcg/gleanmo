@@ -11,7 +11,7 @@
 (defmethod format-cell-value :string
   [_ value _]
   (if (or (nil? value) (str/blank? value))
-    [:span.text-gray-400 "—"]
+    [:span.text-secondary "—"]
     (let [str-value    (str value)
           truncated?   (> (count str-value) 50)
           display-text (if truncated?
@@ -25,19 +25,23 @@
 (defmethod format-cell-value :boolean
   [_ value _]
   (if value
-    [:span.text-green-600 "✓"]
-    [:span.text-red-600 "✗"]))
+    [:span.text-green-500.flex.items-center
+     [:svg.h-4.w-4 {:xmlns "http://www.w3.org/2000/svg" :viewBox "0 0 20 20" :fill "currentColor"}
+      [:path {:fill-rule "evenodd" :d "M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" :clip-rule "evenodd"}]]]
+    [:span.text-red-500.flex.items-center
+     [:svg.h-4.w-4 {:xmlns "http://www.w3.org/2000/svg" :viewBox "0 0 20 20" :fill "currentColor"}
+      [:path {:fill-rule "evenodd" :d "M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" :clip-rule "evenodd"}]]]))
 
 (defmethod format-cell-value :number
   [_ value _]
   (if (nil? value)
-    [:span.text-gray-400 "—"]
+    [:span.text-secondary "—"]
     [:span (str value)]))
 
 (defmethod format-cell-value :float
   [_ value _]
   (if (nil? value)
-    [:span.text-gray-400 "—"]
+    [:span.text-secondary "—"]
     [:span (format "%.2f" value)]))
 
 (defmethod format-cell-value :int
@@ -58,9 +62,9 @@
   (if (nil? value)
     [:span.text-gray-400 "—"]
     (let [entity      (db/get-entity-by-id db value)
-          entity-type (or (-> entity
-                              ::sm/type
-                              name)
+          entity-type (or (some-> entity
+                                   ::sm/type
+                                   name)
                           (some-> entity
                                   keys
                                   first
@@ -69,13 +73,13 @@
           label       (if (and label-key (contains? entity label-key))
                         (get entity label-key)
                         (str (subs (str value) 0 8) "..."))]
-      [:span.text-blue-600 label])))
+      [:span.text-relationship label])))
 
 (defmethod format-cell-value :many-relationship
   [_ values {:keys [biff/db]}]
   (cond
-    (nil? values) [:span.text-gray-400 "—"]
-    (empty? values) [:span.text-gray-400 "Empty set"]
+    (nil? values) [:span.text-secondary "—"]
+    (empty? values) [:span.text-secondary "Empty set"]
     :else
     (let [labels         (for [value values]
                            (let [entity      (db/get-entity-by-id db value)
@@ -104,8 +108,8 @@
 (defmethod format-cell-value :enum
   [_ value _]
   (if (nil? value)
-    [:span.text-gray-400 "—"]
-    [:span.bg-purple-100.text-purple-800.text-xs.font-medium.px-2.py-0.5.rounded-full
+    [:span.text-secondary "—"]
+    [:span.bg-enum.text-white.text-xs.font-medium.px-2.py-0.5.rounded-full
      (name value)]))
 
 (defmethod format-cell-value :default
