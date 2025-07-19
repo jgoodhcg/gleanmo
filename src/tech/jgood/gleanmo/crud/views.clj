@@ -279,10 +279,6 @@
        [:div.card-container.group
         {:key (str entity-id)}
 
-        ;; Entity type tag (subtle)
-        [:div.absolute.top-2.left-2.card-tag.font-light
-         entity-str]
-
         ;; Subtle entity ID display in top-right corner
         [:div.card-tag.font-mono
          (str (subs (str entity-id) 0 8) "...")]
@@ -384,22 +380,10 @@
                   [:span.card-text-secondary.font-medium (str input-label ": ")]
                   (if (nil? value)
                     [:span.text-secondary.italic "None"]
-                    [:span (format-cell-value input-type value ctx)])]))])]
-
-         ;; Small icon to indicate card is clickable
-         [:div.absolute.bottom-3.right-3.text-secondary.opacity-0.group-hover:opacity-100.transition-opacity
-          [:svg.h-4.w-4
-           {:xmlns   "http://www.w3.org/2000/svg",
-            :viewBox "0 0 20 20",
-            :fill    "currentColor"}
-           [:path
-            {:fill-rule "evenodd",
-             :d
-             "M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z",
-             :clip-rule "evenodd"}]]]]
+                    [:span (format-cell-value input-type value ctx)])]))])]]
 
         ;; Delete button - small icon at the bottom-left
-        [:div.absolute.bottom-3.left-3.z-20
+        [:div.absolute.bottom-3.right-3.z-20
          (biff/form
           {:action (str "/app/crud/" entity-str "/" entity-id "/delete"),
            :method "post",
@@ -524,9 +508,7 @@
           ;; Title and subtle entity type indicator
           [:div.flex.items-baseline.gap-2
            [:h3.list-title.truncate
-            display-title]
-           [:div.card-tag.hidden.sm:block
-            entity-str]]
+            display-title]]
 
           ;; Timestamp/duration info
           (when time-display
@@ -539,11 +521,6 @@
 
          ;; Right side - actions
          [:div.flex.items-center.space-x-4.opacity-0.group-hover:opacity-100.transition-opacity
-          ;; Edit button (duplicate, whole row already clickable)
-          [:div.text-primary
-           [:svg.h-4.w-4 {:xmlns "http://www.w3.org/2000/svg" :viewBox "0 0 20 20" :fill "currentColor"}
-            [:path {:d "M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"}]]]
-
           ;; Delete button wrapper (to stop click propagation)
           [:div {:onClick "event.stopPropagation();"}
            (biff/form
