@@ -12,6 +12,8 @@
    [tech.jgood.gleanmo.app.meditation-log :as meditation-log]
    [tech.jgood.gleanmo.app.meditation :as meditation]
    [tech.jgood.gleanmo.app.bm-log :as bm-log]
+   [tech.jgood.gleanmo.app.medication :as medication]
+   [tech.jgood.gleanmo.app.medication-log :as med-log]
    [tech.jgood.gleanmo.app.shared :refer [side-bar]]
    [tech.jgood.gleanmo.app.user :as user]
    [tech.jgood.gleanmo.middleware :as mid]
@@ -33,6 +35,8 @@
     :meditation
     :meditation-log
     :bm-log
+    :medication
+    :medication-log
     :location
     :ical-url
     :cruddy})
@@ -155,6 +159,8 @@
             meditation/crud-routes
             meditation-log/crud-routes
             bm-log/crud-routes
+            medication/crud-routes
+            med-log/crud-routes
 
             ;; Main app and DB visualization
             [""    {:get root}]

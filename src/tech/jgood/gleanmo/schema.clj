@@ -8,6 +8,7 @@
             [tech.jgood.gleanmo.schema.meditation-schema :as ms]
             [tech.jgood.gleanmo.schema.exercise-schema :as es]
             [tech.jgood.gleanmo.schema.bm-schema :as bs]
+            [tech.jgood.gleanmo.schema.medication-schema :as meds]
             [tech.jgood.gleanmo.schema.cruddy :as cs]))
 
 ;; all glenamo/type attributes are the schema key
@@ -25,6 +26,8 @@
    :meditation/id       :uuid
    :meditation-log/id   :uuid
    :bm-log/id           :uuid
+   :medication/id       :uuid
+   :medication-log/id   :uuid
    :ical-url/id         :uuid
    :user                us/user
    :habit               hs/habit
@@ -33,6 +36,8 @@
    :meditation          ms/meditation
    :meditation-log      ms/meditation-log
    :bm-log              bs/bm-log
+   :medication          meds/medication
+   :medication-log      meds/medication-log
    :ical-url            is/ical-url
    :exercise            es/exercise
    :exercise-session    es/exercise-session
