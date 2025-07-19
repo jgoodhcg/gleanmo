@@ -423,6 +423,7 @@
 (defn render-list-view
   [{:keys [paginated-entities display-fields entity-str]} ctx]
   [:div.list-container
+   {:style {:list-style "none"}}
    (for [entity paginated-entities]
      (let [;; Find key fields
            entity-id         (:xt/id entity)
@@ -562,25 +563,31 @@
 ;; View type selector component
 (defn view-selector
   [{:keys [entity-str view-type offset limit]}]
-  [:div.flex.space-x-2.mb-4
-   [:a.view-selector-button
-    {:class (when (= view-type "table") "active"),
+  [:div.flex.space-x-4.mb-4
+   [:a.text-sm.transition-colors
+    {:class (if (= view-type "table") 
+              "text-primary font-medium" 
+              "text-secondary hover:text-primary"),
      :href  (str "/app/crud/" entity-str
                  "?view=table"
                  (when (or offset limit)
                    (str "&offset=" (or offset 0)
                         "&limit="  (or limit 15))))}
     "Table"]
-   [:a.view-selector-button
-    {:class (when (= view-type "card") "active"),
+   [:a.text-sm.transition-colors
+    {:class (if (= view-type "card") 
+              "text-primary font-medium" 
+              "text-secondary hover:text-primary"),
      :href  (str "/app/crud/" entity-str
                  "?view=card"
                  (when (or offset limit)
                    (str "&offset=" (or offset 0)
                         "&limit="  (or limit 15))))}
     "Cards"]
-   [:a.view-selector-button
-    {:class (when (= view-type "list") "active"),
+   [:a.text-sm.transition-colors
+    {:class (if (= view-type "list") 
+              "text-primary font-medium" 
+              "text-secondary hover:text-primary"),
      :href  (str "/app/crud/" entity-str
                  "?view=list"
                  (when (or offset limit)
@@ -661,17 +668,17 @@
                   (when (not= 1 total-count) "s"))]
 
               ;; Pagination controls with view type preserved
-            [:div.flex.items-center.gap-2
-             [:a.pagination-button
-              {:class (if (> offset 0) "active" "disabled"),
+            [:div.flex.items-center.gap-4
+             [:a.text-sm.text-secondary.hover:text-primary.transition-colors
+              {:class (when (<= offset 0) "opacity-50 pointer-events-none"),
                :href  (if (> offset 0)
                         (str "/app/crud/" entity-str
                              "?view="     view-type
                              "&offset="   (max 0 (- offset limit))
                              "&limit="    limit)
                         "#")}
-              "Previous"]
-             [:a.pagination-button
+              "← Previous"]
+             [:a.text-sm.text-secondary.hover:text-primary.transition-colors
               {:href  (if (< (+ offset (count paginated-entities))
                              total-count)
                         (str "/app/crud/" entity-str
@@ -679,9 +686,9 @@
                              "&offset="   (+ offset limit)
                              "&limit="    limit)
                         "#"),
-               :class (if (< (+ offset (count paginated-entities))
-                             total-count) "active" "disabled")}
-              "Next"]]]
+               :class (when (>= (+ offset (count paginated-entities)) total-count)
+                        "opacity-50 pointer-events-none")}
+              "Next →"]]]
 
              ;; View based on selected view-type
            [:div.mb-6
