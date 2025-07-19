@@ -40,10 +40,12 @@
     [:hr.border-dark]
     [:a.link {:href "/app/crud/form/habit-log/new"} "add habit-log"]
     [:a.link {:href "/app/crud/form/meditation-log/new"} "add meditation-log"]
+    [:a.link {:href "/app/crud/form/bm-log/new"} "add bm-log"]
     [:hr.border-dark]
     ;; CRUD
     [:a.link {:href "/app/crud/habit"} "habits"]
     [:a.link {:href "/app/crud/habit-log"} "habit-logs"]
+    [:a.link {:href "/app/crud/bm-log"} "bm-logs"]
     [:a.link {:href "/app/crud/location"} "locations"]
     [:a.link {:href "/app/crud/meditation"} "meditations"]
     [:a.link {:href "/app/crud/meditation-log"} "meditation-logs"]
