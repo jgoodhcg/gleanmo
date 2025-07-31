@@ -368,12 +368,21 @@
             (is (= 1 (count result)))
             (is (= (:normal entity-ids) (:xt/id (first result))))))
 
-        (testing "should respect sensitive param"
-          (let [result (queries/all-for-user-query
-                         {:entity-type-str "cruddy",
-                          :schema mock-schema,
-                          :filter-references true}
-                         (assoc-in request-ctx [:params :sensitive] "true"))]
+        (testing "should respect user sensitive setting"
+          ;; Create user settings to show sensitive entities
+          (let [_           (mutations/create-entity!
+                              ctx
+                              {:entity-key :user-settings,
+                               :data       {:user/id                     user-id,
+                                            :user-settings/show-sensitive true}})
+                ;; Refresh the db reference to see the new settings
+                updated-db  (xt/db node)
+                updated-ctx (assoc request-ctx :biff/db updated-db)
+                result      (queries/all-for-user-query
+                              {:entity-type-str "cruddy",
+                               :schema mock-schema,
+                               :filter-references true}
+                              updated-ctx)]
             ;; Should include sensitive entities
             (is (= 2 (count result)))
             (is (some #(= (:sensitive entity-ids) (:xt/id %)) result))

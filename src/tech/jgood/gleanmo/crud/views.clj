@@ -580,7 +580,6 @@
     :as   args}
    {:keys [session biff/db params], :as ctx}]
   (let [user-id            (:uid session)
-        {:user/keys [email]} (db/get-entity-by-id db user-id)
         entity-type-str    (name entity-key)
         ;; Get view type from query param or default to "table"
         view-type          (or (:view params) "list")
@@ -611,7 +610,7 @@
      {}
      [:div
       (side-bar
-       (pot/map-of email)
+       ctx
        [:div.p-4
         [:h1.form-header
          (str/capitalize plural-str)]

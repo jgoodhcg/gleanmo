@@ -37,3 +37,48 @@
                ::sm/deleted-at (t/now)}]
     (biff/submit-tx ctx [tx-op])
     entity-id))
+
+(defn update-user!
+  "Update user entity with provided data."
+  [ctx user-id user-data]
+  (let [tx-data (merge {:db/op       :update
+                        :db/doc-type :user
+                        :xt/id       user-id}
+                       user-data)]
+    (biff/submit-tx ctx [tx-data])
+    user-id))
+
+(defn upsert-user-settings!
+  "Upsert user settings with defaults merged in.
+   Creates new settings if none exist, updates existing ones otherwise."
+  [ctx user-id settings-map]
+  (let [{:keys [biff/db]} ctx
+        default-settings {:user/id                      user-id
+                          :user-settings/show-sensitive false
+                          ;; Add more default settings here as they grow
+                          }
+        merged-settings (merge default-settings settings-map)
+        ;; Check if user settings already exist
+        existing-settings (first (biff/q db
+                                    {:find  '(pull ?e [*]),
+                                     :where ['[?e :user/id user-id]
+                                             ['?e ::sm/type :user-settings]
+                                             '(not [?e ::sm/deleted-at])],
+                                     :in    ['user-id]}
+                                    user-id))]
+    (if existing-settings
+      ;; Update existing settings
+      (let [tx-doc (merge {:db/op       :update
+                           :db/doc-type :user-settings
+                           :xt/id       (:xt/id existing-settings)}
+                          merged-settings)]
+        (biff/submit-tx ctx [tx-doc]))
+      ;; Create new settings
+      (let [tx-doc (merge {:db/op          :create
+                           :db/doc-type    :user-settings
+                           :xt/id          (random-uuid)
+                           ::sm/type       :user-settings
+                           ::sm/created-at (t/now)}
+                          merged-settings)]
+        (biff/submit-tx ctx [tx-doc])))
+    user-id))

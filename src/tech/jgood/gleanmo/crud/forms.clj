@@ -31,11 +31,10 @@
   [{:keys [schema entity-str]}
    {:keys [session biff/db], :as ctx}]
   (let [user-id (:uid session)
-        {:user/keys [email]} (db/get-entity-by-id db user-id)
         form-id (str entity-str "-new-form")]
     (ui/page {}
              [:div
-              (side-bar (pot/map-of email)
+              (side-bar ctx
                         [:div.w-full.md:w-96.space-y-8
                          (biff/form
                           {:hx-post   (str "/app/crud/" entity-str),
@@ -64,7 +63,6 @@
   "Render an edit form for an existing entity"
   [{:keys [schema entity-str entity-key]} {:keys [session biff/db path-params], :as ctx}]
   (let [user-id   (:uid session)
-        {:user/keys [email]} (db/get-entity-by-id db user-id)
         entity-id (java.util.UUID/fromString (:id path-params))
         entity    (db/get-entity-for-user db entity-id user-id entity-key)
         form-id   (str entity-str "-edit-form")]
@@ -72,7 +70,7 @@
      {}
      [:div
       (side-bar
-       (pot/map-of email)
+       ctx
        [:div.w-full.md:w-96.space-y-8
         (biff/form
          {:hx-post   (str "/app/crud/" entity-str "/" entity-id),

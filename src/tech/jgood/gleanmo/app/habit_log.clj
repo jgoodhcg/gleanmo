@@ -27,8 +27,9 @@
   [{:keys [session biff/db params],
     :as   context}]
   ;; Retrieve the user entity, including the time zone
-  (let [{:user/keys [email time-zone]}
-        (xt/entity db (:uid session))
+  (let [user-id         (:uid session)
+        {:user/keys [time-zone]}
+        (xt/entity db user-id)
         sensitive       (some-> params
                                 :sensitive
                                 param-true?)
@@ -88,7 +89,7 @@
     (ui/page
      {}
      (side-bar
-      (pot/map-of email)
+      context
       [:div.flex.flex-col
        [:h1.text-2xl.font-bold.mb-4 "Habit Log Dates"]
 
@@ -221,8 +222,9 @@
   [{:keys [session biff/db params],
     :as   context}]
   ;; Retrieve the user entity, including the time zone
-  (let [{:user/keys [email time-zone]}
-        (xt/entity db (:uid session))
+  (let [user-id         (:uid session)
+        {:user/keys [time-zone]}
+        (xt/entity db user-id)
         sensitive       (some-> params
                                 :sensitive
                                 param-true?)
@@ -291,7 +293,7 @@
     (ui/page
      {::ui/cal-heatmap true}
      (side-bar
-      (pot/map-of email)
+      context
       [:div.flex.flex-col
        [:a.link {:href (str base-url)} "clear filters"]
        (if sensitive

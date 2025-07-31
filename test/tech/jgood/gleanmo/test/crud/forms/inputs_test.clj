@@ -314,9 +314,8 @@
       (testing "renders select with enum options"
         (let [result  (inputs/render field ctx)
               select  (find-element result :select)
-              ;; assume options vec is third element after keyword and map
-              options (-> select
-                          (nth 2))]
+              ;; get all children from index 2 onwards, filter out nil values
+              options (filter some? (drop 2 select))]
           (is (vector? result))
           (is (= :div (first result)))
           (is (some? select))
@@ -327,7 +326,7 @@
       (testing "selects current value when provided"
         (let [result       (inputs/render (assoc field :value :admin) ctx)
               select       (find-element result :select)
-              admin-option (->> (nth select 2)
+              admin-option (->> (filter some? (drop 2 select))
                                 (filter #(and (= :option (first %))
                                               (= "admin" (get-attr % :value))))
                                 first)]

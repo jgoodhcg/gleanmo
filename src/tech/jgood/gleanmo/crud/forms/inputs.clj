@@ -236,17 +236,18 @@
      [:label.form-label {:for input-name}
       input-label]
      [:div.mt-2
-      [:select.form-select
-       {:name     input-name,
-        :required input-required}
-       ;; Add empty option for optional fields
-       (when-not input-required
-         [:option {:value "", :selected (nil? value)} "-- Select --"])
-       (for [opt enum-options]
-         [:option
-          {:value    (name opt),
-           :selected (= (keyword opt) value)}
-          (name opt)])]]]))
+      (into
+        [:select.form-select
+         {:name     input-name,
+          :required input-required}
+         ;; Add empty option for optional fields
+         (when-not input-required
+           [:option {:value "", :selected (nil? value)} "-- Select --"])]
+        (for [opt enum-options]
+          [:option
+           {:value    (name opt),
+            :selected (= (keyword opt) value)}
+           (name opt)]))]]))
 
 (defmethod render :default
   [field _]

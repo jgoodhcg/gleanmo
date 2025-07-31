@@ -6,6 +6,24 @@
     [tech.jgood.gleanmo.crud.schema-utils :as schema-utils]
     [tech.jgood.gleanmo.schema.meta :as sm]))
 
+(defn get-user-settings
+  "Get user settings for a given user ID. Returns nil if no settings exist."
+  [db user-id]
+  (first (q db
+            {:find  '(pull ?e [*]),
+             :where ['[?e :user/id user-id]
+                     ['?e ::sm/type :user-settings]
+                     '(not [?e ::sm/deleted-at])],
+             :in    ['user-id]}
+            user-id)))
+
+(defn get-show-sensitive-setting
+  "Get the show-sensitive setting for a user. Defaults to false if no setting exists."
+  [db user-id]
+  (if-let [settings (get-user-settings db user-id)]
+    (boolean (:user-settings/show-sensitive settings))
+    false))
+
 (defn get-entity-by-id
   "Get a single entity by ID.
    Returns the first result or nil if not found."
@@ -112,15 +130,15 @@
       :always (reverse))))
 
 (defn all-for-user-query
-  "Get all entities for a user with include/exclude options from request params.
+  "Get all entities for a user with include/exclude options from user settings.
    This function is a higher-level wrapper around all-entities-for-user that handles
-   params for including sensitive entities, archived entities, and related entity filtering."
+   user settings for including sensitive entities, archived entities, and related entity filtering."
   [{:keys [entity-type-str schema filter-references]}
    {:keys [biff/db session params]}]
   (let [user-id             (:uid session)
-        sensitive           (some-> params
-                                    :sensitive
-                                    param-true?)
+        ;; Get user's preferences from settings, with secure defaults
+        sensitive           (get-show-sensitive-setting db user-id)
+        ;; For now, keep archived handling via params (could be moved to settings later)
         archived            (some-> params
                                     :archived
                                     param-true?)

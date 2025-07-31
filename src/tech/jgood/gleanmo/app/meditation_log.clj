@@ -39,7 +39,7 @@
 (defn meditation-stats
   [{:keys [session biff/db params],
     :as   context}]
-  (let [{:user/keys [email]} (db/get-entity-by-id db (:uid session))
+  (let [user-id              (:uid session)
         time-zone            (get-user-time-zone context)
         zone-id              (ZoneId/of (or time-zone "US/Eastern"))
         start-date-str       (:start-date params)
@@ -114,7 +114,7 @@
     (ui/page
      {}
      (side-bar
-      (pot/map-of email)
+      context
       [:div.flex.flex-col
        [:h1.text-2xl.font-bold.mb-4 "Meditation Statistics"]
 
