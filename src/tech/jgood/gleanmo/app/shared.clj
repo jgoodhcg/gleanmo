@@ -1,10 +1,9 @@
 (ns tech.jgood.gleanmo.app.shared
   (:require
    [clojure.string :as str]
-   [com.biffweb    :as    biff
-    :refer [q]]
-   [tick.core      :as t]
-   [xtdb.api       :as xt])
+   [com.biffweb    :as biff]
+   [tech.jgood.gleanmo.db.queries :as query]
+   [tick.core      :as t])
   (:import
    [java.time ZoneId]
    [java.time LocalDateTime]
@@ -33,43 +32,35 @@
    Takes a boolean show-sensitive parameter and user-id for the form action."
   [show-sensitive user-id]
   (when show-sensitive
-    [:div.mb-2.p-2.bg-gray-100.border.border-gray-300.rounded.text-sm
-     [:span.text-gray-700.text-xs "Sensitive items visible"]
-     (biff/form
-      {:action (str "/app/users/" user-id "/settings/turn-off-sensitive"),
-       :method "post",
-       :class  "inline ml-2"}
-      [:button.text-xs.bg-gray-200.hover:bg-gray-300.px-2.py-1.rounded.transition-colors.text-gray-600
-       {:type    "submit",
-        :onclick "return confirm('Turn off sensitive item display?')",
-        :title   "Click to hide all sensitive items"}
-       "Hide"])]))
+    (biff/form
+     {:action (str "/app/users/" user-id "/settings/turn-off-sensitive"),
+      :method "post",
+      :class  "inline"}
+     [:button.mb-3.p-3.bg-dark-surface.border.border-neon-pink.rounded-lg.shadow-sm.w-full.transition-all.duration-200.hover:bg-dark.hover:shadow-lg
+      {:style {:box-shadow "0 0 8px rgba(236, 72, 153, 0.2)"}}
+      [:div.flex.items-center.justify-between
+       [:div.flex.items-center.gap-2
+        [:span.font-medium.text-md.text-neon-pink "🔒 Sensitive"]]]])))
+
+(defn turn-off-archived-button
+  "Show a button to turn off archived display when archived mode is enabled.
+   Takes a boolean show-archived parameter and user-id for the form action."
+  [show-archived user-id]
+  (when show-archived
+    (biff/form
+     {:action (str "/app/users/" user-id "/settings/turn-off-archived"),
+      :method "post",
+      :class  "inline"}
+     [:button.mb-3.p-3.bg-dark-surface.border.border-neon-cyan.rounded-lg.shadow-sm.w-full.transition-all.duration-200.hover:bg-dark.hover:shadow-lg
+      {:style {:box-shadow "0 0 8px rgba(6, 182, 212, 0.2)"}}
+      [:div.flex.items-center.justify-between
+       [:div.flex.items-center.gap-2
+        [:span.font-medium.text-md.text-neon-cyan "📦 Archived"]]]])))
 
 (defn side-bar
   [{:keys [biff/db session], :as ctx} & content]
-  (let
-   [user-id (:uid session)
-    {:user/keys [email]} (when user-id
-                           (first (q db
-                                     {:find  '(pull ?e [:user/email]),
-                                      :where [['?e :xt/id user-id]],
-                                      :in    ['user-id]}
-                                     user-id)))
-    show-sensitive
-    (when user-id
-      (if-let
-       [settings
-        (first
-         (q db
-            {:find '(pull ?e [*]),
-             :where
-             ['[?e :user/id user-id]
-              '[?e :tech.jgood.gleanmo.schema.meta/type :user-settings]
-              '(not [?e :tech.jgood.gleanmo.schema.meta/deleted-at])],
-             :in ['user-id]}
-            user-id))]
-        (boolean (:user-settings/show-sensitive settings))
-        false))]
+  (let [user-id (:uid session)
+        {:keys [email show-sensitive show-archived]} (query/get-user-settings db user-id)]
     [:div.flex.min-h-screen
      ;; Sidebar
      [:div#sidebar.hidden.md:flex.flex-col.space-y-4.bg-dark-surface.p-4.z-50.border-r.border-dark.w-64.flex-shrink-0
@@ -77,6 +68,8 @@
       [:a.link {:href "/app/my-user"} email]
       ;; Turn off sensitive button (when sensitive mode is on)
       (turn-off-sensitive-button show-sensitive user-id)
+      ;; Turn off archived button (when archived mode is on)
+      (turn-off-archived-button show-archived user-id)
       ;; Navigation links
       [:a.link {:href "/app"} "home"]
       [:hr.border-dark]
@@ -153,12 +146,8 @@
   "Takes biff context (db, session) and queries for user time zone. If it doesn't exist returns UTC. All returns are Strings."
   [{:keys [biff/db session]}]
   (let [user-id (:uid session)]
-    (or (first (first (q db
-                         '{:find  [?tz],
-                           :where [[?user :xt/id user-id]
-                                   [?user :user/time-zone ?tz]],
-                           :in    [user-id]}
-                         user-id)))
+    (or (-> (query/get-entity-by-id db user-id)
+            :user/time-zone)
         "UTC")))
 
 (defn ensure-vector
@@ -182,13 +171,6 @@
   [{:keys [href label]}]
   [:a.form-button-primary.font-bold.py-2.px-4.rounded.w-full.md:w-96.mt-6
    {:href href} label])
-
-(defn get-last-tx-time
-  [{:keys [biff/db xt/id]}]
-  (let [history (xt/entity-history db id :desc)]
-    (-> history
-        first
-        :xtdb.api/tx-time)))
 
 (defn time-zone-select
   [time-zone]

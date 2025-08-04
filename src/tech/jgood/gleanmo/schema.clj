@@ -9,7 +9,6 @@
             [tech.jgood.gleanmo.schema.exercise-schema :as es]
             [tech.jgood.gleanmo.schema.bm-schema :as bs]
             [tech.jgood.gleanmo.schema.medication-schema :as meds]
-            [tech.jgood.gleanmo.schema.user-settings-schema :as uss]
             [tech.jgood.gleanmo.schema.cruddy :as cs]))
 
 ;; all glenamo/type attributes are the schema key
@@ -30,7 +29,6 @@
    :medication/id       :uuid
    :medication-log/id   :uuid
    :ical-url/id         :uuid
-   :user-settings/id    :uuid
    :user                us/user
    :habit               hs/habit
    :habit-log           hs/habit-log
@@ -45,7 +43,6 @@
    :exercise-session    es/exercise-session
    :exercise-log        es/exercise-log
    :exercise-set        es/exercise-set
-   :user-settings       uss/user-settings
    :cruddy              cs/cruddy})
 
 (def module

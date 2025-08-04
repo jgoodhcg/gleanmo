@@ -9,6 +9,8 @@
        [:user/joined-at :instant]
        [:user/email :string]
        [:user/time-zone {:optional true} :string]
+       [:user/show-sensitive {:optional true} :boolean]
+       [:user/show-archived {:optional true} :boolean]
        [:authz/super-user {:optional true} :boolean]
        [::sm/deleted-at {:optional true} :instant]]
       (concat sm/legacy-meta)

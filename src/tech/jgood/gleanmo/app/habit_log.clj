@@ -7,13 +7,12 @@
    [potpuri.core :as pot]
    [tech.jgood.gleanmo.app.shared :refer [param-true? side-bar]]
    [tech.jgood.gleanmo.crud.routes :as crud]
-   [tech.jgood.gleanmo.db.queries :as db]
+   [tech.jgood.gleanmo.db.queries :as queries]
    [tech.jgood.gleanmo.prediction.heuristics :as pred]
    [tech.jgood.gleanmo.schema :refer [schema]]
    [tech.jgood.gleanmo.schema.habit-schema :as hc]
    [tech.jgood.gleanmo.ui :as ui]
-   [tick.core :as t]
-   [xtdb.api :as xt])
+   [tick.core :as t])
   (:import
    [java.util UUID]))
 
@@ -29,7 +28,7 @@
   ;; Retrieve the user entity, including the time zone
   (let [user-id         (:uid session)
         {:user/keys [time-zone]}
-        (xt/entity db user-id)
+        (queries/get-entity-by-id db user-id)
         sensitive       (some-> params
                                 :sensitive
                                 param-true?)
@@ -39,8 +38,8 @@
         habit-id        (when-not (str/blank? (:habit-id params))
                           (UUID/fromString (:habit-id params)))
         habit           (when habit-id
-                          (xt/entity db habit-id))
-        all-habit-logs  (->> (db/all-for-user-query
+                          (queries/get-entity-by-id db habit-id))
+        all-habit-logs  (->> (queries/all-for-user-query
                               {:entity-type-str "habit-log",
                                :schema hc/habit-log,
                                :filter-references true}
@@ -51,7 +50,7 @@
                                          (contains? (:habit-log/habit-ids log)
                                                     habit-id))))
                              reverse)
-        all-habits      (->> (db/all-for-user-query
+        all-habits      (->> (queries/all-for-user-query
                               {:entity-type-str "habit",
                                :schema hc/habit,
                                :filter-references false}
@@ -224,7 +223,7 @@
   ;; Retrieve the user entity, including the time zone
   (let [user-id         (:uid session)
         {:user/keys [time-zone]}
-        (xt/entity db user-id)
+        (queries/get-entity-by-id db user-id)
         sensitive       (some-> params
                                 :sensitive
                                 param-true?)
@@ -242,14 +241,14 @@
                                       (UUID/fromString s))))
                              (remove nil?)
                              set)
-        all-habit-logs  (->> (db/all-for-user-query
+        all-habit-logs  (->> (queries/all-for-user-query
                               {:entity-type-str "habit-log",
                                :schema hc/habit-log,
                                :filter-references true}
                               (merge context (pot/map-of sensitive archived)))
                              (sort-by :habit-log/timestamp)
                              reverse)
-        all-habits      (->> (db/all-for-user-query
+        all-habits      (->> (queries/all-for-user-query
                               {:entity-type-str "habit",
                                :schema hc/habit,
                                :filter-references false}

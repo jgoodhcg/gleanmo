@@ -21,8 +21,7 @@
    [tech.jgood.gleanmo.middleware :as mid]
    [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.settings :as settings]
-   [tech.jgood.gleanmo.ui :as ui]
-   [xtdb.api :as xt]))
+   [tech.jgood.gleanmo.ui :as ui]))
 
 (def about-page
   (ui/page
@@ -46,7 +45,7 @@
 (defn db-viz
   [{:keys [session biff/db path-params params], :as ctx}]
   (let [user-id          (:uid session)
-        {:authz/keys [super-user]} (xt/entity db user-id)
+        {:keys [super-user]} (db/get-user-authz db user-id)
         type             (->> path-params
                               :type
                               keyword
@@ -120,7 +119,7 @@
         ;; items
       (if (some? type)
         (let [query-result
-              (->> (q db query [type filter-email]))
+              (db/db-viz-query db query type filter-email)
               all-entities
               (->> query-result
                    (map first)
@@ -208,6 +207,9 @@
             ["/users/:id/settings/turn-off-sensitive"
              {:middleware [mid/wrap-user-authz],
               :post       user/turn-off-sensitive!}]
+            ["/users/:id/settings/turn-off-archived"
+             {:middleware [mid/wrap-user-authz],
+              :post       user/turn-off-archived!}]
 
             ;;
             ;; data viz

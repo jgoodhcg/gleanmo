@@ -369,12 +369,17 @@
             (is (= (:normal entity-ids) (:xt/id (first result))))))
 
         (testing "should respect user sensitive setting"
-          ;; Create user settings to show sensitive entities
+          ;; Create user first, then update to show sensitive entities  
           (let [_           (mutations/create-entity!
                               ctx
-                              {:entity-key :user-settings,
-                               :data       {:user/id                     user-id,
-                                            :user-settings/show-sensitive true}})
+                              {:entity-key :user,
+                               :data       {:user/email "test@example.com"
+                                            :user/joined-at (t/now)
+                                            :xt/id user-id}})
+                _           (mutations/update-user!
+                              ctx
+                              user-id
+                              {:user/show-sensitive true})
                 ;; Refresh the db reference to see the new settings
                 updated-db  (xt/db node)
                 updated-ctx (assoc request-ctx :biff/db updated-db)
@@ -388,13 +393,232 @@
             (is (some #(= (:sensitive entity-ids) (:xt/id %)) result))
             (is (some #(= (:normal entity-ids) (:xt/id %)) result))))
 
-        (testing "should respect archived param"
-          (let [result (queries/all-for-user-query
-                         {:entity-type-str "cruddy",
-                          :schema mock-schema,
-                          :filter-references true}
-                         (assoc-in request-ctx [:params :archived] "true"))]
+        (testing "should respect user archived setting"
+          ;; Create a fresh user and set archived setting
+          (let [archived-user-id (UUID/randomUUID)
+                _               (mutations/create-entity!
+                                  ctx
+                                  {:entity-key :user,
+                                   :data       {:user/email "test-archived@example.com"
+                                                :user/joined-at (t/now)
+                                                :user/show-archived true
+                                                :xt/id archived-user-id}})
+                ;; Create test entities for this user
+                archived-entity-ids (create-test-entities ctx archived-user-id)
+                ;; Refresh the db reference and create new request context for this user
+                updated-db  (xt/db node)
+                archived-ctx {:biff/db db,
+                              :session {:uid archived-user-id},
+                              :params  {}}
+                result      (queries/all-for-user-query
+                              {:entity-type-str "cruddy",
+                               :schema mock-schema,
+                               :filter-references true}
+                              (assoc archived-ctx :biff/db updated-db))]
             ;; Should include archived entities
             (is (= 2 (count result)))
-            (is (some #(= (:archived entity-ids) (:xt/id %)) result))
-            (is (some #(= (:normal entity-ids) (:xt/id %)) result))))))))
+            (is (some #(= (:archived archived-entity-ids) (:xt/id %)) result))
+            (is (some #(= (:normal archived-entity-ids) (:xt/id %)) result))))))))
+
+(deftest all-for-user-query-user-settings-integration-test
+  (testing "all-for-user-query integration with user settings"
+    (with-open [node (test-xtdb-node [])]
+      (let [ctx         (get-context node)
+            user-id     (UUID/randomUUID)
+            entity-ids  (create-test-entities ctx user-id)
+            mock-schema [:map {:closed true}
+                         [:cruddy/single-relation :habit/id]
+                         [:cruddy/another-single-relation :location/id]
+                         [:cruddy/set-relation [:set :habit/id]]]]
+        
+        (testing "should default to hiding sensitive and archived when user has no settings"
+          ;; Create user without any settings fields
+          (let [_           (mutations/create-entity!
+                              ctx
+                              {:entity-key :user,
+                               :data       {:user/email     "test@example.com"
+                                            :user/joined-at (t/now)
+                                            :xt/id          user-id}})
+                updated-db  (xt/db node)
+                request-ctx {:biff/db updated-db,
+                             :session {:uid user-id},
+                             :params  {}}
+                result      (queries/all-for-user-query
+                              {:entity-type-str "cruddy",
+                               :schema mock-schema,
+                               :filter-references true}
+                              request-ctx)]
+            
+            ;; Should only show normal entity (hide sensitive and archived)
+            (is (= 1 (count result)))
+            (is (= (:normal entity-ids) (:xt/id (first result))))))
+        
+        (testing "should show sensitive entities when user setting is true"
+          (let [_           (mutations/update-user!
+                              ctx
+                              user-id
+                              {:user/show-sensitive true})
+                updated-db  (xt/db node)
+                request-ctx {:biff/db updated-db,
+                             :session {:uid user-id},
+                             :params  {}}
+                result      (queries/all-for-user-query
+                              {:entity-type-str "cruddy",
+                               :schema mock-schema,
+                               :filter-references true}
+                              request-ctx)]
+            
+            ;; Should show normal + sensitive (still hide archived)
+            (is (= 2 (count result)))
+            (is (some #(= (:normal entity-ids) (:xt/id %)) result))
+            (is (some #(= (:sensitive entity-ids) (:xt/id %)) result))))
+        
+        (testing "should show archived entities when user setting is true"
+          (let [_           (mutations/update-user!
+                              ctx
+                              user-id
+                              {:user/show-sensitive false  ; Turn off sensitive
+                               :user/show-archived  true}) ; Turn on archived
+                updated-db  (xt/db node)
+                request-ctx {:biff/db updated-db,
+                             :session {:uid user-id},
+                             :params  {}}
+                result      (queries/all-for-user-query
+                              {:entity-type-str "cruddy",
+                               :schema mock-schema,
+                               :filter-references true}
+                              request-ctx)]
+            
+            ;; Should show normal + archived (hide sensitive)
+            (is (= 2 (count result)))
+            (is (some #(= (:normal entity-ids) (:xt/id %)) result))
+            (is (some #(= (:archived entity-ids) (:xt/id %)) result))))
+        
+        (testing "should show all entities when both settings are true"
+          (let [_           (mutations/update-user!
+                              ctx
+                              user-id
+                              {:user/show-sensitive true
+                               :user/show-archived  true})
+                updated-db  (xt/db node)
+                request-ctx {:biff/db updated-db,
+                             :session {:uid user-id},
+                             :params  {}}
+                result      (queries/all-for-user-query
+                              {:entity-type-str "cruddy",
+                               :schema mock-schema,
+                               :filter-references true}
+                              request-ctx)]
+            
+            ;; Should show all entities
+            (is (= 3 (count result)))
+            (is (some #(= (:normal entity-ids) (:xt/id %)) result))
+            (is (some #(= (:sensitive entity-ids) (:xt/id %)) result))
+            (is (some #(= (:archived entity-ids) (:xt/id %)) result))))
+        
+        (testing "should ignore query parameters (params no longer control filtering)"
+          (let [_           (mutations/update-user!
+                              ctx
+                              user-id
+                              {:user/show-sensitive false
+                               :user/show-archived  false})
+                updated-db  (xt/db node)
+                ;; Try to override with params (should be ignored)
+                request-ctx {:biff/db updated-db,
+                             :session {:uid user-id},
+                             :params  {:sensitive "true"  ; These should be ignored
+                                       :archived  "true"}}
+                result      (queries/all-for-user-query
+                              {:entity-type-str "cruddy",
+                               :schema mock-schema,
+                               :filter-references true}
+                              request-ctx)]
+            
+            ;; Should still only show normal entity (params ignored)
+            (is (= 1 (count result)))
+            (is (= (:normal entity-ids) (:xt/id (first result))))))
+        
+        (testing "should handle user with missing settings gracefully"
+          (let [missing-user-id (UUID/randomUUID)
+                _               (create-test-entities ctx missing-user-id)
+                _               (mutations/create-entity!
+                                  ctx
+                                  {:entity-key :user,
+                                   :data       {:user/email     "missing-test@example.com"
+                                                :user/joined-at (t/now)
+                                                :xt/id          missing-user-id}})
+                updated-db      (xt/db node)
+                request-ctx     {:biff/db updated-db,
+                                 :session {:uid missing-user-id},
+                                 :params  {}}
+                result          (queries/all-for-user-query
+                                  {:entity-type-str "cruddy",
+                                   :schema mock-schema,
+                                   :filter-references true}
+                                  request-ctx)]
+            
+            ;; Missing fields should be treated as false (show only normal)
+            (is (= 1 (count result)))))))))
+
+(deftest get-user-settings-test
+  (testing "get-user-settings function - consolidated user settings query"
+    (with-open [node (test-xtdb-node [])]
+      (let [ctx (get-context node)
+            db  (xt/db node)]
+        
+        (testing "should return nil when user-id is nil"
+          (let [result (queries/get-user-settings db nil)]
+            (is (nil? result))))
+        
+        (testing "should return default values when user doesn't exist"
+          (let [non-existent-user-id (UUID/randomUUID)
+                result               (queries/get-user-settings db non-existent-user-id)]
+            (is (= {:email           nil
+                    :show-sensitive  false
+                    :show-archived   false} result))))
+        
+        (testing "should return all user settings when user exists with all fields"
+          (let [user-id (UUID/randomUUID)
+                _       (mutations/create-entity!
+                          ctx
+                          {:entity-key :user,
+                           :data       {:user/email          "complete@example.com"
+                                        :user/joined-at      (t/now)
+                                        :user/show-sensitive true
+                                        :user/show-archived  false
+                                        :xt/id               user-id}})
+                updated-db (xt/db node)
+                result     (queries/get-user-settings updated-db user-id)]
+            (is (= {:email           "complete@example.com"
+                    :show-sensitive  true
+                    :show-archived   false} result))))
+        
+        (testing "should return false for missing optional boolean fields"
+          (let [user-id (UUID/randomUUID)
+                _       (mutations/create-entity!
+                          ctx
+                          {:entity-key :user,
+                           :data       {:user/email     "minimal@example.com"
+                                        :user/joined-at (t/now)
+                                        :xt/id          user-id}})
+                updated-db (xt/db node)
+                result     (queries/get-user-settings updated-db user-id)]
+            (is (= {:email           "minimal@example.com"
+                    :show-sensitive  false
+                    :show-archived   false} result))))
+        
+        (testing "should handle mixed true/false boolean values"
+          (let [user-id (UUID/randomUUID)
+                _       (mutations/create-entity!
+                          ctx
+                          {:entity-key :user,
+                           :data       {:user/email          "mixed@example.com"
+                                        :user/joined-at      (t/now)
+                                        :user/show-sensitive false
+                                        :user/show-archived  true
+                                        :xt/id               user-id}})
+                updated-db (xt/db node)
+                result     (queries/get-user-settings updated-db user-id)]
+            (is (= {:email           "mixed@example.com"
+                    :show-sensitive  false
+                    :show-archived   true} result))))))))
