@@ -112,6 +112,22 @@
     [:span.bg-enum.text-white.text-xs.font-medium.px-2.py-0.5.rounded-full
      (name value)]))
 
+(defmethod format-cell-value :set-of-maps
+  [_ value _]
+  (cond
+    (nil? value) [:span.text-secondary "—"]
+    (empty? value) [:span.text-secondary "Empty"]
+    :else
+    (let [items (vec value)
+          display-items (take 2 items)
+          more-count (- (count items) 2)]
+      [:div.text-xs.text-gray-500
+       (for [item display-items]
+         [:div.truncate {:style {:max-width "200px"}}
+          (str (:uid item) (when (:title item) (str " - " (:title item))))])
+       (when (pos? more-count)
+         [:div.text-gray-400 (str "+" more-count " more")])])))
+
 (defmethod format-cell-value :default
   [_ value _]
   (if (nil? value)

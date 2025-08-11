@@ -1,5 +1,8 @@
 (ns tech.jgood.gleanmo.crud.forms.converters
   (:require
+   [cheshire.core]
+   [clojure.string :as str]
+   [clojure.walk]
    [tech.jgood.gleanmo.app.shared :refer [get-user-time-zone str->instant!]])
   (:import
    [java.time ZoneId]))
@@ -88,6 +91,32 @@
 (defmethod convert-field-value :enum
   [_ value _]
   (when (not-empty value) (keyword value)))
+
+(defmethod convert-field-value :set-of-maps
+  [_ value _]
+  ;; Value comes in as a map of indexed entries like:
+  ;; {"0" {"uid" "abc", "title" "My Page"}, "1" {"uid" "def", "title" "Other"}}
+  ;; We need to convert this to a set of maps
+  (when (and value (map? value))
+    (let [;; Extract and process the indexed items
+          items (->> value
+                     ;; Sort by numeric key to maintain order
+                     (sort-by (fn [[k _]] (try (Integer/parseInt k)
+                                              (catch Exception _ 0))))
+                     ;; Get just the values (the actual maps)
+                     (map second)
+                     ;; Filter out empty entries
+                     (filter #(and (map? %) 
+                                  (not (str/blank? (get % "uid")))))
+                     ;; Convert to keyword keys
+                     (map (fn [item]
+                            (let [uid (get item "uid")
+                                  title (get item "title")]
+                              (cond-> {:uid uid}
+                                (not (str/blank? title)) (assoc :title title)))))
+                     ;; Convert to set
+                     set)]
+      (when (seq items) items))))
 
 (defmethod convert-field-value :default
   [type value _]

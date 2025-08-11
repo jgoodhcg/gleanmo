@@ -40,6 +40,15 @@
      :enum-options nil
      :related-entity-str (-> type second namespace)}
     
+    (and (vector? type)
+         (= :set (first type))
+         (let [elem (second type)]
+           (and (vector? elem) (= :map (first elem)))))
+    {:input-type :set-of-maps
+     :enum-options nil
+     :related-entity-str nil
+     :map-schema (second type)}
+    
     (and (keyword? type) (= "id" (name type)))
     {:input-type :single-relationship
      :enum-options nil

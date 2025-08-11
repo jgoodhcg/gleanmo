@@ -10,12 +10,22 @@
 (defn form->schema
   "Convert form params to schema-compatible data structure"
   [form-fields schema ctx]
-  (let [fields (schema-utils/extract-schema-fields schema)]
-    (-> form-fields
+  (let [fields (schema-utils/extract-schema-fields schema)
+        ;; Pre-process params to group nested array fields
+        processed-params (reduce (fn [acc [k v]]
+                                  (let [k-str (name k)]
+                                    ;; Check if this is a nested array field like "project/roam-pages[0][uid]"
+                                    (if-let [[_ field-name idx subfield] (re-matches #"([^\[]+)\[(\d+)\]\[([^\]]+)\]" k-str)]
+                                      ;; Group nested fields together
+                                      (assoc-in acc [(keyword field-name) idx subfield] v)
+                                      ;; Regular field
+                                      (assoc acc (keyword k) v))))
+                                {}
+                                form-fields)]
+    (-> processed-params
         (dissoc :__anti-forgery-token)
         (->> (reduce (fn [acc [k v]]
-                       (let [k          (keyword k)
-                             field-info (schema-utils/get-field-info schema k)
+                       (let [field-info (schema-utils/get-field-info schema k)
                              optional?  (get-in field-info [:opts :optional])
                              type       (:type field-info)
                              {:keys [input-type]}

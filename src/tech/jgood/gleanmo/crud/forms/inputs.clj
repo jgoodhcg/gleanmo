@@ -1,6 +1,8 @@
 (ns tech.jgood.gleanmo.crud.forms.inputs
   (:require
+   [cheshire.core]
    [clojure.string :as str]
+   [clojure.walk]
    [tech.jgood.gleanmo.app.shared :refer
     [format-date-time-local
      get-user-time-zone]]
@@ -248,6 +250,84 @@
            {:value    (name opt),
             :selected (= (keyword opt) value)}
            (name opt)]))]]))
+
+(defmethod render :set-of-maps
+  [field _]
+  (let [{:keys [input-name
+                input-label
+                input-required
+                value]}
+        field
+        ;; Convert set to indexed vector for form handling
+        items (vec (or value []))]
+    [:div
+     [:label.form-label input-label]
+     [:div.mt-2.space-y-2
+      {:id (str input-name "-container")}
+      ;; Render existing items
+      (for [[idx item] (map-indexed vector items)]
+        [:div.flex.gap-2.items-end
+         {:key idx}
+         [:div.flex-1
+          [:input.form-input
+           {:type "text"
+            :name (str input-name "[" idx "][uid]")
+            :placeholder "Roam Page UID"
+            :value (:uid item)
+            :required input-required}]]
+         [:div.flex-1
+          [:input.form-input
+           {:type "text"
+            :name (str input-name "[" idx "][title]")
+            :placeholder "Optional Title"
+            :value (:title item "")}]]
+         [:button.form-button-secondary
+          {:type "button"
+           :onclick (str "this.parentElement.remove(); return false;")}
+          "Remove"]])
+      ;; Empty state - always show at least one input
+      (when (empty? items)
+        [:div.flex.gap-2.items-end
+         [:div.flex-1
+          [:input.form-input
+           {:type "text"
+            :name (str input-name "[0][uid]")
+            :placeholder "Roam Page UID"
+            :required false}]]
+         [:div.flex-1
+          [:input.form-input
+           {:type "text"
+            :name (str input-name "[0][title]")
+            :placeholder "Optional Title"}]]
+         [:button.form-button-secondary
+          {:type "button"
+           :onclick "this.parentElement.remove(); return false;"}
+          "Remove"]])]
+     ;; Add button
+     [:button.form-button-secondary.mt-2
+      {:type "button"
+       :onclick (str "
+         const container = document.getElementById('" input-name "-container');
+         const count = container.children.length;
+         const newRow = document.createElement('div');
+         newRow.className = 'flex gap-2 items-end';
+         newRow.innerHTML = `
+           <div class='flex-1'>
+             <input type='text' name='" input-name "[' + count + '][uid]' 
+                    placeholder='Roam Page UID' class='form-input' />
+           </div>
+           <div class='flex-1'>
+             <input type='text' name='" input-name "[' + count + '][title]' 
+                    placeholder='Optional Title' class='form-input' />
+           </div>
+           <button type='button' class='form-button-secondary' 
+                   onclick='this.parentElement.remove(); return false;'>Remove</button>
+         `;
+         container.appendChild(newRow);
+         return false;")}
+      "+ Add Roam Page"]
+     [:p.text-xs.text-gray-500.mt-1
+      "Link this project to Roam pages by their UIDs"]]))
 
 (defmethod render :default
   [field _]

@@ -1,22 +1,21 @@
-# Gleanmo Project Integration Requirements
+# Gleanmo Project Integration Requirements (Refined)
 
-## Project Overview
+## Scope
 
-Gleanmo is a personal tracking and analytics application built in Clojure that helps users track habits, meditation, exercise, medications, and other life metrics. The goal of this project integration feature is to connect Gleanmo with Roam Research to create a unified project tracking and time management system.
+Foundation to: (a) show basic activity from Roam notes, and (b) capture time entries in this app via existing CRUD. This sets the stage for later graphs and user stories without dictating UI specifics now.
 
-## Goals
+## Goals (near-term)
 
-1. **Project Definition**: Create projects in Gleanmo that can be associated with one or more Roam Research pages
-2. **Roam Metrics Integration**: Pull metrics from Roam pages (todo counts, recent activity, word counts) to track project health
-3. **Time Tracking**: Link existing time tracking capabilities to projects for comprehensive project analytics
-4. **Dashboard View**: Provide a consolidated view showing project status, recent activity, and time investment
-5. **Motivation Enhancement**: Surface meaningful metrics to maintain momentum on projects
+1. Link Gleanmo projects to Roam pages via Roam UIDs (not titles).
+2. Pull minimal activity signals from linked Roam pages: tag counts and last edit recency (optionally words over 7d).
+3. Capture project time by creating project-log entries with start and end timestamps (CRUD-based; no timer UI yet).
+4. Provide a simple list/dashboard that shows per-project: recent activity snapshot and recent time investment.
 
-## Technical Approach
+## Schemas
 
-### Schemas
+Note: Keep schemas small and UID-based where Roam is involved. Titles can change; UIDs do not. Relationship naming pattern: use :user/id for user ownership; for other relations use child-namespaced -id fields (e.g., :time-entry/project-id), not bare :project/id at the top level.
 
-#### Project Schema
+### Project
 ```clojure
 (def project
   (-> [:map {:closed true}
@@ -26,14 +25,17 @@ Gleanmo is a personal tracking and analytics application built in Clojure that h
        [::sm/deleted-at {:optional true} :instant]
        [:user/id :user/id]
        [:project/label :string]
-       [:project/roam-pages [:set :string]]  ; multiple roam page titles
+       ;; Linked Roam pages by UID, with optional cached title for display
+       [:project/roam-pages [:set [:map
+                                   [:uid :string]
+                                   [:title {:optional true} :string]]]]
        [:project/archived {:optional true} :boolean]
+       [:project/sensitive {:optional true} :boolean]
        [:project/notes {:optional true} :string]]
-      (concat sm/legacy-meta)
       vec))
 ```
 
-#### Roam Metric Schema
+### Roam Metric (per page snapshot)
 ```clojure
 (def roam-metric
   (-> [:map {:closed true}
@@ -42,56 +44,45 @@ Gleanmo is a personal tracking and analytics application built in Clojure that h
        [::sm/created-at :instant]
        [::sm/deleted-at {:optional true} :instant]
        [:user/id :user/id]
-       [:project/id :project/id]
-       [:roam-metric/roam-page :string]      ; specific page this metric is for
+       [:roam-metric/project-id :project/id]
+       [:roam-metric/page-uid :string]
+       [:roam-metric/page-title {:optional true} :string] ; cached, may change in Roam
        [:roam-metric/fetched-at :instant]
-       [:roam-metric/counts [:map
-                             [:todo :int]
-                             [:might :int]
-                             [:breadcrumb :int]
-                             [:dogfood :int]
-                             [:feedback :int]]]
+       ;; counts are flexible; implementation may hardcode an initial set of tags
+       [:roam-metric/counts [:map-of :keyword :int]]
        [:roam-metric/last-edit {:optional true} :instant]
        [:roam-metric/words-7d {:optional true} :int]]
-      (concat sm/legacy-meta)
       vec))
 ```
 
-#### Project Time Schema
+### Project Log (CRUD-based time capture)
 ```clojure
-(def project-time
+(def project-log
   (-> [:map {:closed true}
-       [:xt/id :project-time/id]
-       [::sm/type [:enum :project-time]]
+       [:xt/id :project-log/id]
+       [::sm/type [:enum :project-log]]
        [::sm/created-at :instant]
        [::sm/deleted-at {:optional true} :instant]
        [:user/id :user/id]
-       [:project/id {:optional true} :project/id]  ; nullable for unlinked entries
-       [:project-time/beginning :instant]
-       [:project-time/end {:optional true} :instant]
-       [:project-time/source [:enum :manual :import :timer]]
-       [:project-time/notes {:optional true} :string]]
-      (concat sm/legacy-meta)
+       [:project-log/project-id :project/id]
+       [:project-log/beginning :instant]
+       [:project-log/end :instant]
+       [:project-log/notes {:optional true} :string]]
       vec))
 ```
 
-## Roam Research Integration
+## Roam Integration (minimal)
 
-### API Access
-- Use Roam's `/q` endpoint with datalog queries
-- Authentication via API token
-- Query strategy: Fetch all blocks with specific tags per project page
+- Identify Roam pages by UID; store title only as cached display.
+- Fetch per-page signals: counts for tags (todo, might, breadcrumb, dogfood, feedback), last edit, optional 7d word count.
+- Store each fetch as a snapshot (roam-metric) and show the latest per page.
 
-### Data Collection
-- **Tag Counts**: Count blocks tagged with `#todo`, `#might`, `#breadcrumb`, `#dogfood`, `#feedback`
-- **Activity Metrics**: Track last edit time and recent word count (7-day window)
-- **Caching Strategy**: Store results in `roam-metric` entities, refresh nightly + on-demand
-
-### Example Datalog Query
+Example query shape using UIDs (pseudocode):
 ```clojure
 [:find ?block-uid ?content ?tags
+ :in $ ?page-uid
  :where
- [?page :node/title "Project Page Title"]
+ [?page :node/uid ?page-uid]
  [?block :block/page ?page]
  [?block :block/uid ?block-uid]
  [?block :block/string ?content]
@@ -100,41 +91,28 @@ Gleanmo is a personal tracking and analytics application built in Clojure that h
  [(contains? #{"todo" "might" "breadcrumb" "dogfood" "feedback"} ?tags)]]
 ```
 
-## Implementation Phases
+## Implementation Phases (focused)
 
-### Phase 1: Core Schemas & CRUD
-- [ ] Add project, roam-metric, and project-time schemas to schema registry
-- [ ] Leverage existing CRUD abstraction for basic project management
-- [ ] Create project list view with basic information
+### Phase 0: Time + Projects (no Roam yet)
+- [ ] Add project-log schema and CRUD routes (create with beginning/end timestamps, required project).
+- [ ] Basic list/detail for projects and time entries.
 
-### Phase 2: Roam Integration
-- [ ] Implement Roam API client with authentication
-- [ ] Create datalog queries for tag counting and activity metrics
-- [ ] Build metric fetching and caching system
-- [ ] Add on-demand refresh capability
+### Phase 1: Roam Activity Snapshots (UID-based)
+- [ ] Link projects to Roam page UIDs (with optional cached titles).
+- [ ] Fetch and store per-page activity snapshots (counts, last edit, optional 7d words). Initially hardcode the tag set in code; schema supports arbitrary tags.
+- [ ] Show latest snapshot per linked page on the project view; simple refresh action.
 
-### Phase 3: Time Integration
-- [ ] Link existing time tracking to projects
-- [ ] Support regex-based project linking via `[[roam-page]]` references in notes
-- [ ] Add project selection dropdown for manual time entries
+### Phase 2: Simple Dashboard
+- [ ] Project list shows: recent activity at-a-glance and recent time totals (e.g., this week).
+- [ ] Optional nightly refresh for Roam snapshots.
 
-### Phase 4: Dashboard & Analytics
-- [ ] Create project dashboard showing:
-  - Project status (todo/might counts)
-  - Recent activity (last edit, words added)
-  - Time investment (hours this week/month)
-- [ ] Add basic charts and trend visualization
+## Success (near-term)
 
-## Success Metrics
+- Can create time entries with start/end via CRUD and see them grouped by project.
+- Can link a project to one or more Roam UIDs and see basic activity from those pages.
+- Can view a simple project list/dashboard that surfaces recent activity and time.
 
-1. **Instant Feedback**: Metrics update within minutes of Roam changes
-2. **Low Maintenance**: Automated syncing with minimal manual intervention
-3. **Motivation Boost**: Clear visibility into project progress and time investment
-4. **Extensibility**: Easy to add new metrics or integrate additional data sources
+## Notes for later
 
-## Technical Benefits
-
-- **Leverages Existing Infrastructure**: Uses established Malli schemas and CRUD patterns
-- **Minimal Complexity**: Simple caching layer avoids complex real-time synchronization
-- **Incremental Development**: Each phase delivers immediate value
-- **Future-Proof**: Schema design supports additional Roam pages and metric types
+- Timers/active sessions, goals, streaks, and richer graphs come after this foundation.
+- Roam page titles may change; UIDs ensure stable linkage.
