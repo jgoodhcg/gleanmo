@@ -5,7 +5,8 @@
    [clojure.java.io :as io]
    [clojure.string :as str]
    [clojure.tools.cli :refer [parse-opts]]
-   [potpuri.core :as pot]))
+   [potpuri.core :as pot])
+  (:import (java.net URLEncoder)))
 
 (def table-ids {:activity     "tbleuZF29AmzFiWUw"
                 :activity-log "tblmfUTKwMIGQnNLC"})
@@ -18,8 +19,9 @@
       (:body)
       (json/parse-string)))
 
-(defn get-all-records [{:keys [api-key base-id table-id]} writer]
-  (let [url (str "https://api.airtable.com/v0/" base-id "/" table-id)]
+(defn get-all-records [{:keys [api-key base-id table-id table-name]} writer]
+  (let [table-path (or table-id (some-> table-name (URLEncoder/encode "UTF-8")))
+        url        (str "https://api.airtable.com/v0/" base-id "/" table-path)]
     (loop [response (get-page url api-key)
            page-num 1]
       (println (str "Getting page: " page-num))
@@ -61,7 +63,9 @@
                         "_"
                         (timestamp)
                         ".edn")
-        options    (merge options (pot/map-of table-id))]
+        options    (cond-> options
+                      table-id   (assoc :table-id table-id)
+                      (and (nil? table-id) table-name) (assoc :table-name table-name))]
     (with-open [writer (io/writer file-name)]
       #_(.write writer "[\n")
       (get-all-records options writer)
