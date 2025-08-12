@@ -93,6 +93,7 @@
       [:a.link {:href "/app/dv/habit-logs"} "habit-logs data viz"]
       [:a.link {:href "/app/dv/habit-dates"} "habit-logs predictions"]
       [:a.link {:href "/app/dv/meditation-stats"} "mediation-logs stats"]
+      [:a.link {:href "/app/dv/bm-stats"} "bm-logs stats"]
 
       ;; Subtle Sign out button
       (biff/form

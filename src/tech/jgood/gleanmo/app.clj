@@ -220,5 +220,6 @@
             ["/dv/meditation-stats"
              {:get  meditation-log/meditation-stats,
               :post meditation-log/meditation-stats}]
+            ["/dv/bm-stats" {:get bm-log/bm-stats}]
             ;;
             ]})
