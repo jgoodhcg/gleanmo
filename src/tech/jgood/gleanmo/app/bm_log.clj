@@ -82,7 +82,22 @@
 
         bristol-7          (get-bristol-counts logs-7)
         bristol-14         (get-bristol-counts logs-14)
-        bristol-28         (get-bristol-counts logs-28)]
+        bristol-28         (get-bristol-counts logs-28)
+
+        ;; All-time calculations
+        count-all          (count all-bm-logs)
+        bristol-all        (get-bristol-counts all-bm-logs)
+        
+        ;; Calculate time span representation for all-time data
+        time-span-repr     (when (seq all-bm-logs)
+                             (let [oldest-log (last all-bm-logs)
+                                   oldest-timestamp (:bm-log/timestamp oldest-log)
+                                   days-span (t/days (t/between oldest-timestamp now))]
+                               (cond
+                                 (< days-span 7) (str days-span " days")
+                                 (< days-span 30) (str (Math/round (/ days-span 7.0)) " weeks")
+                                 (< days-span 365) (str (Math/round (/ days-span 30.4)) " months")
+                                 :else (str (format "%.1f" (/ days-span 365.0)) " years"))))]
 
     (ui/page
      {}
@@ -94,7 +109,7 @@
          ;; Simple Frequency Statistics
        [:div.mb-8
         [:h2.text-xl.font-semibold.mb-4.text-neon "BM Log Frequency"]
-        [:div.grid.grid-cols-1.md:grid-cols-3.gap-4
+        [:div.grid.grid-cols-1.md:grid-cols-2.lg:grid-cols-4.gap-4
 
          [:div.bg-dark-light.p-4.rounded-lg.border.border-neon
           [:h3.text-lg.font-medium.text-neon "Last 7 Days"]
@@ -115,7 +130,14 @@
           [:p.text-3xl.font-bold.text-white count-28]
           [:p.text-sm.text-gray-400
            (str (format "%.1f" (/ count-28 28.0)) " per day")]
-          (bristol-chart bristol-28)]]]
+          (bristol-chart bristol-28)]
+
+         [:div.bg-dark-light.p-4.rounded-lg.border.border-neon
+          [:h3.text-lg.font-medium.text-neon "All Time"]
+          [:p.text-3xl.font-bold.text-white count-all]
+          [:p.text-sm.text-gray-400
+           (or time-span-repr "No data")]
+          (bristol-chart bristol-all)]]]
 
          ;; Link to CRUD interface
        [:div.mt-8
