@@ -4,36 +4,41 @@
 
 (def bm-log
   (-> [:map {:closed true}
-       [:xt/id :bm-log/id]
+       [:xt/id :uuid]
        [::sm/type [:enum :bm-log]]
        [::sm/deleted-at {:optional true} :instant]
        [::sm/created-at :instant]
-       [:user/id :user/id]
+       [:user/id :uuid]
        [:bm-log/timestamp :instant]
        [:bm-log/bristol
-        [:enum :b1-hard-clumps :b2-lumpy-log :b3-cracked-log 
-               :b4-smooth-log :b5-soft-blobs :b6-mushy-ragged :b7-liquid]]
+        [:enum :b1-hard-clumps :b2-lumpy-log :b3-cracked-log
+         :b4-smooth-log :b5-soft-blobs :b6-mushy-ragged :b7-liquid :n-a]]
        [:bm-log/pace
-        [:enum :quick :typical :long]]
+        [:enum :quick :typical :long :n-a]]
        [:bm-log/color
-        [:enum :brown :yellow :green :black :red :grey]]
+        [:enum :brown :yellow :green :black :red :grey :n-a]]
        [:bm-log/blood
-        [:enum :none :trace :visible :lots]]
-       [:bm-log/mucus :boolean]
+        [:enum :none :trace :visible :lots :n-a]]
+       [:bm-log/mucus [:or :boolean [:enum :n-a]]]
        [:bm-log/urgency
-        [:enum :none :mild :moderate :severe]]
-       [:bm-log/incontinence :boolean]
-       [:bm-log/straining :boolean]
+        [:enum :none :mild :moderate :severe :n-a]]
+       [:bm-log/incontinence [:or :boolean [:enum :n-a]]]
+       [:bm-log/straining [:or :boolean [:enum :n-a]]]
        [:bm-log/odor
-        [:enum :normal :foul :metallic :sweet :sour]]
+        [:enum :normal :foul :metallic :sweet :sour :n-a]]
        [:bm-log/size
-        [:enum :small :medium :large]]
+        [:enum :small :medium :large :n-a]]
        [:bm-log/notes {:optional true} :string]
        [:bm-log/anxiety
-        [:enum :none :mild :moderate :severe]]
+        [:enum :none :mild :moderate :severe :n-a]]
        [:bm-log/feeling-of-completeness
-        [:enum :complete :incomplete :unsure]]
+        [:enum :complete :incomplete :unsure :n-a]]
        [:bm-log/ease-of-passage
-        [:enum :easy :normal :difficult :very-difficult]]]
+        [:enum :easy :normal :difficult :very-difficult :n-a]]
+       ;; Airtable import keys
+       [:bm-log/airtable-id {:optional true} :string]
+       [:bm-log/airtable-created-time {:optional true} :instant]]
       (concat sm/legacy-meta)
       vec))
+
+
