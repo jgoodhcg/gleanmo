@@ -249,6 +249,35 @@
             :selected (= (keyword opt) value)}
            (name opt)]))]]))
 
+(defmethod render :boolean-or-enum
+  [field _]
+  (let [{:keys [enum-options
+                input-name
+                input-label
+                input-required
+                value]}
+        field
+        options (concat [:yes :no] enum-options)]
+    [:div
+     [:label.form-label {:for input-name}
+      input-label]
+     [:div.mt-2
+      (into
+        [:select.form-select
+         {:name     input-name,
+          :required input-required}
+         ;; Add empty option for optional fields
+         (when-not input-required
+           [:option {:value "", :selected (nil? value)} "-- Select --"])]
+        (for [opt options]
+          [:option
+           {:value    (name opt),
+            :selected (cond
+                        (boolean? value) (= (if value :yes :no) opt)
+                        (keyword? value) (= value opt)
+                        :else false)}
+           (name opt)]))]]))
+
 (defmethod render :default
   [field _]
   [:div "Unsupported field type: " (pr-str field)])

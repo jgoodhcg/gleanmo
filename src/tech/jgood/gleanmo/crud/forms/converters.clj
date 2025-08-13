@@ -89,6 +89,14 @@
   [_ value _]
   (when (not-empty value) (keyword value)))
 
+(defmethod convert-field-value :boolean-or-enum
+  [_ value _]
+  (when (not-empty value)
+    (case value
+      "yes" true
+      "no" false
+      (keyword value))))
+
 (defmethod convert-field-value :default
   [type value _]
   (throw (ex-info (str "Unknown field type for conversion: " type)

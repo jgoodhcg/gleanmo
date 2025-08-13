@@ -24,13 +24,27 @@
 
 (defn determine-input-type
   "Determines the input type based on the field type definition.
-   Handles enum fields, relationships, and primitive types."
+   Handles enum fields, relationships, or-types, and primitive types."
   [type]
   (cond
     (and (vector? type) (= :enum (first type)))
     {:input-type :enum
      :enum-options (vec (rest type))
      :related-entity-str nil}
+    
+    ;; Handle :or types - for bm-log fields like [:or :boolean [:enum :n-a]]
+    (and (vector? type) (= :or (first type)))
+    (let [options (rest type)
+          has-boolean (some #(= :boolean %) options)
+          enum-option (some #(when (and (vector? %) (= :enum (first %))) %) options)]
+      (if (and has-boolean enum-option)
+        {:input-type :boolean-or-enum
+         :enum-options (vec (rest enum-option))
+         :related-entity-str nil}
+        ;; Fallback to first non-enum type for other :or combinations
+        {:input-type (first (remove #(and (vector? %) (= :enum (first %))) options))
+         :enum-options nil
+         :related-entity-str nil}))
     
     (and (vector? type) 
          (= :set (first type))
@@ -90,9 +104,11 @@
    - User ID fields (:user/id)
    - Schema namespace fields (tech.jgood.gleanmo.schema/*)
    - Airtable namespace fields (airtable/*)
+   - Airtable-related fields (*/airtable-*)
    - Fields with {:hide true} option"
   [{:keys [field-key opts]}]
-  (let [n (namespace field-key)]
+  (let [n (namespace field-key)
+        field-name (name field-key)]
     (boolean
      (or
       ;; System and namespace-based exclusions
@@ -101,6 +117,9 @@
       (= "tech.jgood.gleanmo.schema" n)
       (= "tech.jgood.gleanmo.schema.meta" n)
       (= "airtable" n)
+
+      ;; Airtable-related fields in any namespace
+      (.startsWith field-name "airtable-")
 
       ;; Hide option exclusion
       (:hide opts)))))
