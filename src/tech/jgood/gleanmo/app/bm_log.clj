@@ -19,21 +19,32 @@
 (defn bristol-chart
   "Renders a simple bar chart for Bristol type counts with stacked segments"
   [bristol-counts]
-  (let [types [[:b1 "1"] [:b2 "2"] [:b3 "3"] [:b4 "4"] [:b5 "5"] [:b6 "6"] [:b7 "7"]]
-        segment-height 8]  ; Height per occurrence in pixels
+  (let [types          [[:b1 "1"] [:b2 "2"] [:b3 "3"] [:b4 "4"] [:b5 "5"]
+                        [:b6 "6"] [:b7 "7"]]
+        segment-height 8 ; Height per occurrence in pixels
+        bristol-colors {:b1 "bg-neon-azure",
+                        :b2 "bg-neon-azure",
+                        :b3 "bg-neon-azure",
+                        :b4 "bg-neon-lime",
+                        :b5 "bg-neon-azure",
+                        :b6 "bg-neon-azure",
+                        :b7 "bg-neon-pink"}]
     [:div.mt-3
      [:p.text-xs.text-gray-400.mb-1 "Bristol Types:"]
-     [:div.flex.gap-1.items-end.h-32
+     [:div
+      {:class "flex gap-1 items-end", :style {:min-height "8rem"}}
       (for [[type-key label] types]
-        (let [count (get bristol-counts type-key 0)]
+        (let [count (get bristol-counts type-key 0)
+              color (get bristol-colors type-key "bg-gray-400")]
           [:div.flex-1.flex.flex-col.items-center.justify-end
            {:key type-key}
            ;; Stack of segments for each occurrence
            [:div.w-full.flex.flex-col-reverse.gap-1
             (for [i (range count)]
-              [:div.w-full.bg-neon-azure.opacity-70.h-1
-               {:key i}])]
-           [:p.text-xs.text-gray-500.mt-1 label]]))]]))
+              [:div.w-full.opacity-70.h-1
+               {:key i, :class color}])]
+           [:p.text-xs.text-gray-500.mt-1
+            label]]))]]))
 
 (defn bm-stats
   [{:keys [session biff/db], :as context}]
@@ -87,19 +98,37 @@
         ;; All-time calculations
         count-all          (count all-bm-logs)
         bristol-all        (get-bristol-counts all-bm-logs)
-        
-        ;; Calculate time span representation and per-day average for all-time data
+
+        ;; Calculate time span representation and per-day average for
+        ;; all-time data
         all-time-data      (when (seq all-bm-logs)
-                             (let [oldest-log (last all-bm-logs)
-                                   oldest-timestamp (:bm-log/timestamp oldest-log)
-                                   days-span (t/days (t/between oldest-timestamp now))
-                                   per-day (if (> days-span 0) (double (/ count-all days-span)) 0.0)]
+                             (let [oldest-log       (last all-bm-logs)
+                                   oldest-timestamp (:bm-log/timestamp
+                                                     oldest-log)
+                                   days-span        (t/days (t/between
+                                                             oldest-timestamp
+                                                             now))
+                                   per-day          (if (> days-span 0)
+                                                      (double (/ count-all
+                                                                 days-span))
+                                                      0.0)]
                                {:time-span-repr (cond
-                                                  (< days-span 7) (str days-span " days")
-                                                  (< days-span 30) (str (Math/round (/ days-span 7.0)) " weeks")
-                                                  (< days-span 365) (str (Math/round (/ days-span 30.4)) " months")
-                                                  :else (str (format "%.1f" (/ days-span 365.0)) " years"))
-                                :per-day (format "%.2f" per-day)}))]
+                                                  (< days-span 7) (str days-span
+                                                                       " days")
+                                                  (< days-span 30)
+                                                  (str (Math/round
+                                                        (/ days-span 7.0))
+                                                       " weeks")
+                                                  (< days-span 365)
+                                                  (str (Math/round
+                                                        (/ days-span 30.4))
+                                                       " months")
+                                                  :else (str (format "%.1f"
+                                                                     (/
+                                                                      days-span
+                                                                      365.0))
+                                                             " years")),
+                                :per-day        (format "%.2f" per-day)}))]
 
     (ui/page
      {}
@@ -111,7 +140,7 @@
          ;; Simple Frequency Statistics
        [:div.mb-8
         [:h2.text-xl.font-semibold.mb-4.text-neon "BM Log Frequency"]
-        ;; First row: 7, 14, 28 days
+          ;; First row: 7, 14, 28 days
         [:div.grid.grid-cols-1.md:grid-cols-3.gap-4.mb-4
 
          [:div.bg-dark-light.p-4.rounded-lg.border.border-neon
@@ -135,7 +164,7 @@
            (str (format "%.1f" (/ count-28 28.0)) " per day")]
           (bristol-chart bristol-28)]]
 
-        ;; Second row: All Time (larger card)
+          ;; Second row: All Time (larger card)
         [:div.grid.grid-cols-1.lg:grid-cols-2.gap-4
          [:div.bg-dark-light.p-6.rounded-lg.border.border-neon.lg:col-span-2
           [:h3.text-xl.font-medium.text-neon "All Time"]

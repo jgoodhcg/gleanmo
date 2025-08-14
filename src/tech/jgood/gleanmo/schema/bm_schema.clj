@@ -35,9 +35,15 @@
         [:enum :complete :incomplete :unsure :n-a]]
        [:bm-log/ease-of-passage
         [:enum :easy :normal :difficult :very-difficult :n-a]]
-       ;; Airtable import keys
-       [:bm-log/airtable-id {:optional true} :string]
-       [:bm-log/airtable-created-time {:optional true} :instant]]
+       
+       ;; Airtable import keys - proper namespace
+       [:airtable/id {:optional true} :string]
+       [:airtable/created-time {:optional true} :instant]
+       
+       ;; DEPRECATED - incorrectly namespaced airtable fields (mistake during initial implementation)
+       ;; These should be migrated to the properly namespaced versions above
+       [:bm-log/airtable-id {:optional true :hide true} :string]
+       [:bm-log/airtable-created-time {:optional true :hide true} :instant]]
       (concat sm/legacy-meta)
       vec))
 
