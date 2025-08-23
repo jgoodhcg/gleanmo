@@ -12,6 +12,7 @@
    [tech.jgood.gleanmo.schema :refer [schema]]
    [tech.jgood.gleanmo.schema.habit-schema :as hc]
    [tech.jgood.gleanmo.ui :as ui]
+   [tech.jgood.gleanmo.viz.routes :as viz-routes]
    [tick.core :as t])
   (:import
    [java.util UUID]))
@@ -217,7 +218,8 @@
             "No log entries found for this habit."
             "Please select a habit to view log dates.")])]))))
 
-(defn data-viz
+;; REMOVED: Old CalHeatmap data-viz function - replaced by generic viz system
+#_(defn data-viz
   [{:keys [session biff/db params],
     :as   context}]
   ;; Retrieve the user entity, including the time zone
@@ -347,12 +349,13 @@
                            (when archived "&archived=true"))}
                name])))]
          ;; Container for the heatmap
-       [:div#cal-heatmap.my-4]
-         ;; Hidden data element for heatmap data
-       [:div#cal-heatmap-data.hidden
-        (json/generate-string counts-per-day {:pretty true})]
-         ;; Script to initialize heatmap rendering
-       [:script "renderCalHeatmap();"]
 
        #_(for [item all-items]
            (habit-log/list-item item))]))))
+
+;; Generate visualization routes
+(def viz-routes
+  (viz-routes/gen-routes {:entity-key :habit-log
+                          :entity-schema hc/habit-log  
+                          :entity-str "habit-log"
+                          :plural-str "habit-logs"}))

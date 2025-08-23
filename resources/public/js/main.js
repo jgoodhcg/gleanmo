@@ -1,5 +1,136 @@
 // When plain htmx isn't quite enough, you can stick some custom JS here.
 
+function renderEChart(elementId, options) {
+  const chartElement = document.getElementById(elementId);
+  if (!chartElement) {
+    console.error('Chart element not found:', elementId);
+    return;
+  }
+  
+  if (typeof echarts === 'undefined') {
+    console.error('ECharts library not loaded');
+    return;
+  }
+  
+  const chart = echarts.init(chartElement);
+  chart.setOption(options);
+  
+  // Handle window resize
+  window.addEventListener('resize', () => {
+    chart.resize();
+  });
+  
+  return chart;
+}
+
+function renderEChartFromData(chartElementId, dataElementId) {
+  const dataElement = document.getElementById(dataElementId);
+  if (!dataElement) {
+    console.error('Data element not found:', dataElementId);
+    return;
+  }
+  
+  const dataJson = dataElement.textContent || dataElement.innerText;
+  
+  try {
+    const options = JSON.parse(dataJson);
+    
+    // Add custom styling and tooltip for calendar heatmaps
+    if (options.calendar && options.series && options.series[0].type === 'heatmap') {
+      
+      // Theme constants for easy customization
+      const THEME = {
+        primaryColor: '#32cd32',        // Neon lime - single color for all activity levels
+        backgroundColor: '#0d1117',     // Dark background
+        surfaceColor: '#161b22',        // Dark surface
+        borderColor: '#30363d',         // Dark border
+        textColor: '#c9d1d9',          // Light text
+        textSecondary: '#8b949e',       // Secondary text
+        accentColor: '#ffd400'          // Gold for highlights/hover
+      };
+      
+      // Single color with opacity variations for activity levels
+      const getActivityColor = (count) => {
+        if (count === 0) return THEME.surfaceColor;  // No activity
+        const opacity = Math.min(0.3 + (count * 0.2), 1.0);  // 0.3 to 1.0 opacity
+        return THEME.primaryColor + Math.floor(opacity * 255).toString(16).padStart(2, '0');
+      };
+      
+      // Apply colors to data
+      if (options.series[0].data) {
+        options.series[0].data = options.series[0].data.map(item => ({
+          value: item,
+          itemStyle: {
+            color: getActivityColor(item[1])
+          }
+        }));
+      }
+      
+      // Enhanced tooltip
+      options.tooltip = {
+        formatter: function(params) {
+          const date = new Date(params.value[0]);
+          const count = params.value[1];
+          const entityLabels = params.value[2] || {};  // Now expects an object grouped by relationship type
+          const entityType = params.value[3] || 'entity';  // Get entity type from data
+          
+          const dateStr = date.toLocaleDateString('en-US', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          });
+          
+          // Create readable entity name (convert habit-log to habit logs)
+          const readableEntityType = entityType.replace('-', ' ') + (count === 1 ? '' : 's');
+          
+          let tooltip = `<div style="padding: 8px;"><strong>${dateStr}</strong><br/>${count} ${readableEntityType}`;
+          
+          // Check if we have grouped relationship data (object) or old format (array)
+          if (entityLabels && typeof entityLabels === 'object' && !Array.isArray(entityLabels)) {
+            // New grouped format - show each relationship type separately
+            const groupKeys = Object.keys(entityLabels);
+            if (groupKeys.length > 0) {
+              tooltip += '<br/>';
+              groupKeys.forEach(groupName => {
+                const labels = entityLabels[groupName];
+                if (labels && labels.length > 0) {
+                  tooltip += `<br/><strong>${groupName}:</strong><br/>`;
+                  tooltip += labels.map(label => `• ${label}`).join('<br/>');
+                }
+              });
+            }
+          } else if (entityLabels && Array.isArray(entityLabels) && entityLabels.length > 0) {
+            // Backward compatibility for old flat array format
+            const labelSectionName = entityType.replace('-log', '').replace('-', ' ') + 's';
+            const capitalizedLabel = labelSectionName.charAt(0).toUpperCase() + labelSectionName.slice(1);
+            tooltip += `<br/><br/><strong>${capitalizedLabel}:</strong><br/>`;
+            tooltip += entityLabels.map(label => `• ${label}`).join('<br/>');
+          }
+          
+          tooltip += '</div>';
+          return tooltip;
+        }
+      };
+    }
+    
+    return renderEChart(chartElementId, options);
+  } catch (error) {
+    console.error('Failed to parse chart options:', error);
+    console.error('Raw data was:', dataJson);
+  }
+}
+
+// Auto-initialize any charts on page load
+document.addEventListener('DOMContentLoaded', function() {
+  // Check for chart elements with data-chart-data attribute
+  const chartElements = document.querySelectorAll('[data-chart-data]');
+  chartElements.forEach(element => {
+    const dataElementId = element.getAttribute('data-chart-data');
+    renderEChartFromData(element.id, dataElementId);
+  });
+});
+
 function copyToClipboard(text) {
   if (navigator.clipboard) {
     navigator.clipboard.writeText(text)
@@ -38,155 +169,4 @@ function setURLParameter(paramName, value) {
   window.history.pushState({}, null, url.toString());
 }
 
-function renderCalHeatmap() {
-
-  // Retrieve the data from the hidden element
-  const dataElement = document.getElementById('cal-heatmap-data');
-  const dataJson = dataElement.textContent || dataElement.innerText;
-  const data = JSON.parse(dataJson);
-
-  // Ensure data is available
-  if (data.length === 0) {
-    console.warn('No data available for the heatmap.');
-    return;
-  }
-
-  // Determine the earliest and latest dates from the data
-  const dates = data.map(item => new Date(item.date));
-  const earliestDate = new Date(Math.min(...dates));
-  const latestDate = new Date(Math.max(...dates));
-  const startOfLastMonth = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1);
-
-  // Compute the start date (first day of the earliest month)
-  const startDate = new Date(earliestDate.getFullYear(), earliestDate.getMonth(), 1);
-
-  // Calculate the number of months to display
-  const endDate = new Date(latestDate.getFullYear(), latestDate.getMonth(), 1);
-  const monthsDiff =
-    (endDate.getFullYear() - startDate.getFullYear()) * 12 +
-    (endDate.getMonth() - startDate.getMonth()) + 1; // +1 to include the end month
-
-  // Determine the maximum value from the data
-  const values = data.map(item => item.value);
-  const maxValue = Math.max(1, ...values); // Ensure maxValue is at least 1
-
-  // Compute thresholds for the color scale
-  let thresholds;
-  if (maxValue <= 3) {
-    thresholds = [1, 2, 3];
-  } else if (maxValue <= 10) {
-    thresholds = [3, 6, 9];
-  } else {
-    const step = Math.ceil(maxValue / 4);
-    thresholds = [step, step * 2, step * 3];
-  }
-
-  const bluesColors = ['#c6dbef', '#6baed6', '#2171b5', '#08306b'];
-
-  // Initialize the heatmap with the data
-  const cal = new CalHeatmap();
-  cal.paint(
-    {
-      itemSelector: '#cal-heatmap',
-      domain: {
-        type: 'month',
-        gutter: 4,
-        label: { text: 'MMM-YY', textAlign: 'start', position: 'top' },
-      },
-      subDomain: {
-        type: 'ghDay',
-        radius: 2,
-        width: 11,
-        height: 11,
-        gutter: 4,
-      },
-      range: monthsDiff,
-      // date: { start: startOfLastMonth },
-      date: { start: earliestDate },
-      scale: {
-        color: {
-          type: 'threshold',
-          range: bluesColors,
-          domain: thresholds,
-        },
-      },
-      data: {
-        source: data,
-        x: 'date',
-        y: 'value',
-      },
-    },
-    [
-      [
-        Tooltip,
-        {
-          text: function (date, value, dayjsDate) {
-            return (
-              (value ? value : 'No') +
-              ' habit logs on ' +
-              dayjsDate.format('dddd, MMMM D, YYYY')
-            );
-          },
-        },
-      ],
-      [
-        LegendLite,
-        {
-          includeBlank: true,
-          itemSelector: '#cal-heatmap-legend',
-          radius: 2,
-          width: 11,
-          height: 11,
-          gutter: 4,
-        },
-      ],
-      [
-        CalendarLabel,
-        {
-          width: 30,
-          textAlign: 'start',
-          text: () => dayjs.weekdaysShort().map((d, i) => (i % 2 === 0 ? '' : d)),
-          padding: [25, 0, 0, 0],
-        },
-      ],
-    ]
-  );
-
-// Retrieve the container for the heatmap
-  const heatmapContainer = document.getElementById('cal-heatmap');
-
-  // Create the button container
-  const buttonContainer = document.createElement('div');
-  buttonContainer.style.marginTop = '2em';
-  buttonContainer.style.marginBottom = '1em';
-
-  const buttonStyle = ' text-blue-500 outline outline-blue-500 outline-2 font-bold py-2 px-4 rounded m-6';
-
-  // Create the "Previous" button
-  const prevButton = document.createElement('a');
-  prevButton.href = '#';
-  prevButton.textContent = '← Previous';
-  prevButton.style.marginRight = '1em';
-  prevButton.className = buttonStyle;
-  prevButton.onclick = function (e) {
-    e.preventDefault();
-    cal.previous();
-  };
-
-  // Create the "Next" button
-  const nextButton = document.createElement('a');
-  nextButton.href = '#';
-  nextButton.textContent = 'Next →';
-  nextButton.className = buttonStyle;
-  nextButton.onclick = function (e) {
-    e.preventDefault();
-    cal.next();
-  };
-
-  // Append buttons to the button container
-  buttonContainer.appendChild(prevButton);
-  buttonContainer.appendChild(nextButton);
-
-  // Insert the button container after the heatmap
-  heatmapContainer.parentNode.insertBefore(buttonContainer, heatmapContainer.nextSibling);
-}
+// REMOVED: Old CalHeatmap function - replaced by generic ECharts system

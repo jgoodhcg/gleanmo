@@ -17,6 +17,7 @@
    [tech.jgood.gleanmo.app.meditation-log :as meditation-log]
    [tech.jgood.gleanmo.app.shared :refer [side-bar]]
    [tech.jgood.gleanmo.app.user :as user]
+   [tech.jgood.gleanmo.app.visualizations :as visualizations]
    [tech.jgood.gleanmo.db.queries :as db]
    [tech.jgood.gleanmo.middleware :as mid]
    [tech.jgood.gleanmo.schema.meta :as sm]
@@ -174,15 +175,21 @@
    :routes ["/app" {:middleware [mid/wrap-signed-in]}
 
             cruddy/crud-routes
+            cruddy/viz-routes
             habit/crud-routes
             habit-log/crud-routes
+            habit-log/viz-routes
             ;; ical-url/crud-routes
             location/crud-routes
             meditation/crud-routes
             meditation-log/crud-routes
+            meditation-log/viz-routes
             bm-log/crud-routes
+            bm-log/viz-routes
+            visualizations/routes
             medication/crud-routes
             med-log/crud-routes
+            med-log/viz-routes
 
             ;; Main app and DB visualization
             ["" {:get root}]
@@ -215,7 +222,6 @@
             ;; data viz
             ;;
 
-            ["/dv/habit-logs" {:get habit-log/data-viz}]
             ["/dv/habit-dates" {:get habit-log/habit-dates}]
             ["/dv/meditation-stats"
              {:get  meditation-log/meditation-stats,

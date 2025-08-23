@@ -23,7 +23,7 @@
     (str "/js/main.js?t=" last-modified)
     "/js/main.js"))
 
-(defn base [{:keys [::recaptcha ::cal-heatmap] :as ctx} & body]
+(defn base [{:keys [::recaptcha ::echarts] :as ctx} & body]
   (apply
    biff/base-html
    (-> ctx
@@ -48,15 +48,9 @@
                               (concat
                                [[:script {:src   "https://www.google.com/recaptcha/api.js"
                                           :async "async" :defer "defer"}]])
-                              (true? cal-heatmap)
+                              (true? echarts)
                               (concat
-                               [[:script {:src "https://d3js.org/d3.v7.min.js"}]
-                                [:script {:src "https://unpkg.com/@popperjs/core@2"}]
-                                [:script {:src "https://unpkg.com/cal-heatmap/dist/plugins/Tooltip.min.js"}]
-                                [:script {:src "https://unpkg.com/cal-heatmap/dist/plugins/CalendarLabel.min.js"}]
-                                [:script {:src "https://unpkg.com/cal-heatmap/dist/cal-heatmap.min.js"}]
-                                [:script {:src "https://unpkg.com/cal-heatmap/dist/plugins/LegendLite.min.js"}]
-                                [:link {:rel "stylesheet" :href "https://unpkg.com/cal-heatmap/dist/cal-heatmap.css"}]])))))
+                               [[:script {:src "https://cdn.jsdelivr.net/npm/echarts@6.0.0/dist/echarts.min.js"}]])))))
    body))
 
 (defn page [ctx & body]

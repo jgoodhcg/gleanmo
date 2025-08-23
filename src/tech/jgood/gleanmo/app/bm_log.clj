@@ -8,6 +8,7 @@
    [tech.jgood.gleanmo.schema :refer [schema]]
    [tech.jgood.gleanmo.schema.bm-schema :as bm-schema]
    [tech.jgood.gleanmo.ui :as ui]
+   [tech.jgood.gleanmo.viz.routes :as viz-routes]
    [tick.core :as t]))
 
 (def crud-routes
@@ -15,6 +16,13 @@
                     :entity-str "bm-log",
                     :plural-str "bm logs",
                     :schema     schema}))
+
+;; Generate visualization routes  
+(def viz-routes
+  (viz-routes/gen-routes {:entity-key :bm-log
+                          :entity-schema bm-schema/bm-log
+                          :entity-str "bm-log" 
+                          :plural-str "bm-logs"}))
 
 (defn bristol-chart
   "Renders a simple bar chart for Bristol type counts with stacked segments"

@@ -18,6 +18,7 @@
    [:a.link {:href "/app/habit-logs"} "habit-logs"]
    [:a.link {:href "/app/locations"} "locations"]
    [:a.link {:href "/app/meditations"} "meditations"]
+   [:a.link {:href "/app/visualizations"} "visualizations"]
    [:a.link {:href "/app/meditation-logs"} "meditation-logs"]
    [:a.link {:href "/app/ical-urls"} "ical-urls"]
    [:a.link {:href "/app/dv/habit-logs"} "habit-logs data viz"]
@@ -70,30 +71,49 @@
       (turn-off-sensitive-button show-sensitive user-id)
       ;; Turn off archived button (when archived mode is on)
       (turn-off-archived-button show-archived user-id)
-      ;; Navigation links
+      
+      ;; Navigation
       [:a.link {:href "/app"} "home"]
       [:hr.border-dark]
-      [:a.link {:href "/app/crud/form/habit-log/new"} "add habit-log"]
-      [:a.link {:href "/app/crud/form/meditation-log/new"} "add meditation-log"]
-      [:a.link {:href "/app/crud/form/bm-log/new"} "add bm-log"]
-      [:a.link {:href "/app/crud/form/medication-log/new"} "add medication-log"]
+      
+      ;; Quick Add
+      [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Quick Add"]
+      [:a.link {:href "/app/crud/form/habit-log/new"} "habit log"]
+      [:a.link {:href "/app/crud/form/meditation-log/new"} "meditation log"]
+      [:a.link {:href "/app/crud/form/bm-log/new"} "bm log"]
+      [:a.link {:href "/app/crud/form/medication-log/new"} "medication log"]
       [:hr.border-dark]
-      ;; CRUD
+      
+      ;; Main Entities
+      [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Entities"]
       [:a.link {:href "/app/crud/habit"} "habits"]
-      [:a.link {:href "/app/crud/habit-log"} "habit-logs"]
-      [:a.link {:href "/app/crud/bm-log"} "bm-logs"]
-      [:a.link {:href "/app/crud/medication"} "medications"]
-      [:a.link {:href "/app/crud/medication-log"} "medication-logs"]
-      [:a.link {:href "/app/crud/location"} "locations"]
       [:a.link {:href "/app/crud/meditation"} "meditations"]
-      [:a.link {:href "/app/crud/meditation-log"} "meditation-logs"]
-      ;; [:a.link {:href "/app/crud/ical-url"} "ical-urls"]
-      ;; Insight
+      [:a.link {:href "/app/crud/medication"} "medications"]
+      [:a.link {:href "/app/crud/location"} "locations"]
       [:hr.border-dark]
-      [:a.link {:href "/app/dv/habit-logs"} "habit-logs data viz"]
-      [:a.link {:href "/app/dv/habit-dates"} "habit-logs predictions"]
-      [:a.link {:href "/app/dv/meditation-stats"} "mediation-logs stats"]
-      [:a.link {:href "/app/dv/bm-stats"} "bm-logs stats"]
+      
+      ;; Activity Logs
+      [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Activity Logs"]
+      [:a.link {:href "/app/crud/habit-log"} "habit logs"]
+      [:a.link {:href "/app/crud/meditation-log"} "meditation logs"]
+      [:a.link {:href "/app/crud/bm-log"} "bm logs"]
+      [:a.link {:href "/app/crud/medication-log"} "medication logs"]
+      [:hr.border-dark]
+      
+      ;; Visualizations
+      [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Visualizations"]
+      [:a.link {:href "/app/visualizations"} "dashboard"]
+      [:a.link {:href "/app/viz/habit-log"} "habit calendar"]
+      [:a.link {:href "/app/viz/meditation-log"} "meditation calendar"]
+      [:a.link {:href "/app/viz/bm-log"} "bm calendar"]
+      [:a.link {:href "/app/viz/medication-log"} "medication calendar"]
+      [:hr.border-dark]
+      
+      ;; Analytics & Stats
+      [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Analytics"]
+      [:a.link {:href "/app/dv/habit-dates"} "habit predictions"]
+      [:a.link {:href "/app/dv/meditation-stats"} "meditation stats"]
+      [:a.link {:href "/app/dv/bm-stats"} "bm stats"]
 
       ;; Subtle Sign out button
       (biff/form

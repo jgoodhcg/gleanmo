@@ -1,94 +1,55 @@
-# Gleanmo Future Features & Ideas
+# Future Improvements
 
-## Generic Data Visualizations
+## Visualization Enhancements
 
-### Concept
-Build reusable visualizations leveraging consistent timestamp patterns across entities, similar to the CRUD abstraction. Use Apache ECharts for implementation.
+### Clickable Calendar Navigation
+- **Goal**: Make calendar heatmap dates clickable to show filtered entity lists
+- **Details**: Click on a calendar date to route to filtered CRUD view showing only entities from that specific date
+- **Considerations**:
+  - Route structure (extend existing CRUD vs new routes)
+  - Generic implementation across all temporal entities
+  - Date filtering integration with existing CRUD system
+  - Back navigation from filtered view to calendar
+  - URL format for date parameters
 
-### Temporal Patterns Identified
+### Additional Chart Types
+- **Timeline View**: For interval entities (meditation sessions, exercise)
+- **Activity by Day of Week**: Bar chart showing patterns
+- **Habit Streaks**: Show consecutive days of habit completion
+- **Time of Day Patterns**: When activities typically happen
 
-**Single Timestamps** (point events):
-- `habit-log/timestamp`, `bm-log/timestamp`, `medication-log/timestamp`
+## Generic Viz System Extensions
+- **Multi-entity dashboards**: Combine multiple entity types in single view
+- **Custom date ranges**: User-configurable time periods
+- **Data export**: Export chart data or images
+- **Real-time updates**: Live updating charts
 
-**Intervals** (duration events):
-- `meditation-log/beginning|end`, `exercise-session/beginning|end`, `exercise-log.interval/beginning|end`
+### Generic Reference Resolution for Visualizations
+- **Problem**: Currently hardcoding entity reference queries (habit-log/habit-ids → habit/label, meditation-log/meditation-id → meditation/label)
+- **Solution**: Leverage existing CRUD system's generic reference resolution
+- **Implementation**:
+  - Detect reference fields automatically from schema (fields ending with -id/-ids)
+  - Use generic entity lookup to resolve references to labels
+  - Make tooltip entity labels work for any temporal entity without hardcoding
+- **Benefits**: Eliminates entity-specific code in visualization system
 
-### High-Value Generic Visualizations
+### User Settings Compliance in Visualizations
+- **Problem**: Visualization queries don't respect user sensitive/archived settings like CRUD does
+- **Current behavior**: Shows all data regardless of user's show-sensitive or show-archived preferences
+- **Solution**: Integrate user settings filtering into visualization data queries
+- **Implementation**:
+  - Check user settings (show-sensitive, show-archived) in visualization routes
+  - Filter entity data based on these settings before generating charts
+  - Consistent behavior with CRUD list views
+- **Benefits**: Maintains user privacy preferences across all parts of the application
 
-#### 1. Calendar Heatmap (Priority #1)
-**Why**: Perfect for habit tracking, shows streaks/gaps, patterns over months
-- Color intensity = frequency/count per day
-- Works for both timestamps and intervals (count activities per day)
-- ECharts calendar component handles this beautifully
-- **Use cases**: Meditation streaks, workout consistency, medication adherence
+## Roam Integration (Planned)
+- **Project schemas**: Connect projects with Roam pages
+- **Metrics collection**: Pull todo counts, activity from Roam
+- **Time tracking**: Link time tracking to projects
+- **Dashboard integration**: Unified project tracking view
 
-#### 2. Activity Timeline (Priority #2)
-**Why**: See daily rhythms, overlapping activities, time-of-day patterns
-- Gantt-style chart showing intervals as bars
-- Point events as markers
-- Zoom/brush for different time ranges
-- **Use cases**: Daily schedule view, see if meditation timing affects other activities
-
-#### 3. Frequency Distribution Charts
-**Why**: Identify patterns - what days/times are you most active?
-- Bar charts: activity count by hour/day-of-week/month
-- Line charts: trends over time
-- **Use cases**: "I meditate most on Tuesdays", "Exercise peaks at 6pm"
-
-#### 4. Duration Analysis (intervals only)
-**Why**: Track efficiency, spot outliers
-- Box plots or violin plots showing duration distributions
-- Trend lines for average duration over time
-- **Use cases**: Meditation session lengths, workout duration trends
-
-#### 5. Multi-Metric Correlation Dashboard
-**Why**: See relationships between tracked metrics
-- Small multiples showing different entities side-by-side
-- Synchronized time axes for comparison
-- **Use cases**: "Do longer meditations correlate with better BM logs?"
-
-### Recommended Starting Point
-
-**Calendar Heatmap** + **Activity Timeline** combo would provide immediate value:
-
-```javascript
-// Generic calendar config
-const calendarConfig = {
-  type: 'heatmap',
-  calendar: {
-    range: ['2024-01-01', '2024-12-31'],
-    cellSize: ['auto', 'auto']
-  },
-  visualMap: {
-    type: 'piecewise',
-    orient: 'horizontal'
-  }
-}
-
-// Generic timeline config  
-const timelineConfig = {
-  type: 'custom',
-  renderItem: (params, api) => {
-    // Render bars for intervals, dots for timestamps
-  },
-  dataZoom: [{ type: 'slider' }]
-}
-```
-
-### Implementation Approach
-
-1. **Generic Chart Namespace**: Create `tech.jgood.gleanmo.charts` similar to CRUD
-2. **Chart Type Detection**: Automatically determine chart type based on entity schema
-3. **Configuration Abstraction**: Generic configs that adapt to different entities
-4. **Data Transformation**: Generic functions to transform entity data into chart-ready format
-
-### Benefits
-
-- **Immediate Value**: Works across all existing entities with timestamp patterns
-- **Consistent UX**: Same visualization patterns for similar data types
-- **Low Maintenance**: Add new entities, get charts automatically
-- **Extensible**: Easy to add new chart types or customize for specific entities
-
-## Other Future Ideas
-
-(Add other future features here as they come up)
+## Data-Driven Pattern Improvements
+- **Chart configuration validation**: Schema validation for chart configs
+- **Performance optimization**: Lazy loading for large datasets
+- **Chart lifecycle management**: Proper cleanup and memory management

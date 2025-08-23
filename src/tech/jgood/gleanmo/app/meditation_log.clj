@@ -8,6 +8,7 @@
    [tech.jgood.gleanmo.schema :refer [schema]]
    [tech.jgood.gleanmo.schema.meditation-schema :as mc]
    [tech.jgood.gleanmo.ui :as ui]
+   [tech.jgood.gleanmo.viz.routes :as viz-routes]
    [tick.core :as t])
   (:import
    [java.time ZoneId]))
@@ -17,6 +18,13 @@
                     :entity-str "meditation-log",
                     :plural-str "meditation logs",
                     :schema     schema}))
+
+;; Generate visualization routes
+(def viz-routes
+  (viz-routes/gen-routes {:entity-key :meditation-log
+                          :entity-schema mc/meditation-log  
+                          :entity-str "meditation-log"
+                          :plural-str "meditation-logs"}))
 
 (defn- date-str->instant
   "Convert a date string (YYYY-MM-DD) to an instant at the start of that day in the given time zone"
@@ -125,39 +133,39 @@
          :hx-target "#meditation-stats-container",
          :hx-select "#meditation-stats-container",
          :id        "meditation-stats-form",
-         :class     "bg-white p-6 rounded-lg shadow mb-6"}
+         :class     "bg-dark-surface p-6 rounded-lg border border-dark mb-6"}
         [:div.flex.flex-col.space-y-4
          [:h2.text-lg.font-semibold "Filter by Date Range"]
 
          [:div.grid.grid-cols-1.md:grid-cols-2.gap-4
              ;; Start Date input
           [:div
-           [:label.block.text-sm.font-medium.leading-6.text-gray-900
+           [:label.block.text-sm.font-medium.leading-6.text-gray-300
             {:for "start-date"} "Start Date"]
            [:div.mt-2
-            [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+            [:input.rounded-md.block.w-full.border.border-dark.bg-dark.text-gray-100.py-1.5.px-3.focus:ring-2.focus:ring-neon.focus:border-neon
              {:type "date", :name "start-date", :value start-date-str}]]]
 
              ;; End Date input
           [:div
-           [:label.block.text-sm.font-medium.leading-6.text-gray-900
+           [:label.block.text-sm.font-medium.leading-6.text-gray-300
             {:for "end-date"} "End Date"]
            [:div.mt-2
-            [:input.rounded-md.shadow-sm.block.w-full.border-0.py-1.5.text-gray-900.focus:ring-2.focus:ring-blue-600
+            [:input.rounded-md.block.w-full.border.border-dark.bg-dark.text-gray-100.py-1.5.px-3.focus:ring-2.focus:ring-neon.focus:border-neon
              {:type "date", :name "end-date", :value end-date-str}]]]]
 
             ;; Submit and Clear buttons
          [:div.flex.space-x-4
-          [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded
+          [:button.bg-neon.hover:bg-neon-bright.text-dark.font-bold.py-2.px-4.rounded
            {:type "submit"} "Apply Filter"]
-          [:a.bg-gray-300.hover:bg-gray-400.text-black.font-bold.py-2.px-4.rounded.text-center
+          [:a.bg-dark.hover:bg-dark-light.text-gray-300.border.border-dark.font-bold.py-2.px-4.rounded.text-center
            {:href "/app/dv/meditation-stats"} "Clear Filter"]]])
 
-       [:div#meditation-stats-container
+       [:div#meditation-stats-container.mt-8
           ;; Filter status indicator
         (when filtering-active?
-          [:div.bg-blue-50.border-l-4.border-blue-400.p-4.mb-6
-           [:p.text-blue-700
+          [:div.bg-dark-surface.border-l-4.border-neon.p-4.mb-6
+           [:p.text-neon
             "Showing statistics for "
             (cond
               (and start-date-str end-date-str) (str "period from "
@@ -169,21 +177,21 @@
               :else          "")]])
 
         [:div.grid.grid-cols-1.gap-4.md:grid-cols-4.mb-6
-         [:div.bg-white.p-6.rounded-lg.shadow
-          [:h3.text-sm.font-medium.text-gray-500 "Total Meditation Logs"]
-          [:p.text-3xl.font-bold total-logs]]
+         [:div.bg-dark-surface.p-6.rounded-lg.border.border-dark
+          [:h3.text-sm.font-medium.text-gray-400 "Total Meditation Logs"]
+          [:p.text-3xl.font-bold.text-white total-logs]]
 
-         [:div.bg-white.p-6.rounded-lg.shadow
-          [:h3.text-sm.font-medium.text-gray-500 "Completed Meditation Logs"]
-          [:p.text-3xl.font-bold completed-count]]
+         [:div.bg-dark-surface.p-6.rounded-lg.border.border-dark
+          [:h3.text-sm.font-medium.text-gray-400 "Completed Meditation Logs"]
+          [:p.text-3xl.font-bold.text-white completed-count]]
 
-         [:div.bg-white.p-6.rounded-lg.shadow
-          [:h3.text-sm.font-medium.text-gray-500 "Average Duration"]
-          [:p.text-3xl.font-bold avg-duration]]
+         [:div.bg-dark-surface.p-6.rounded-lg.border.border-dark
+          [:h3.text-sm.font-medium.text-gray-400 "Average Duration"]
+          [:p.text-3xl.font-bold.text-neon avg-duration]]
 
-         [:div.bg-white.p-6.rounded-lg.shadow
-          [:h3.text-sm.font-medium.text-gray-500 "Daily Average"]
+         [:div.bg-dark-surface.p-6.rounded-lg.border.border-dark
+          [:h3.text-sm.font-medium.text-gray-400 "Daily Average"]
           [:div.flex.flex-col
-           [:p.text-3xl.font-bold avg-daily-duration]
+           [:p.text-3xl.font-bold.text-neon avg-daily-duration]
            (when days-display
-             [:p.text-sm.text-gray-500 days-display])]]]]]))))
+             [:p.text-sm.text-gray-400 days-display])]]]]]))))
