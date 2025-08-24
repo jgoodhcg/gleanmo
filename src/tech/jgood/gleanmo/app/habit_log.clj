@@ -95,9 +95,9 @@
 
          ;; Habit selection dropdown
        [:div.mb-6
-        [:label.block.text-sm.font-medium.text-gray-700 "Select a habit:"]
+        [:label.block.text-sm.font-medium.text-gray-400 "Select a habit:"]
         [:div.mt-1
-         [:select.block.w-full.rounded-md.border-gray-300.shadow-sm.focus:border-blue-500.focus:ring.focus:ring-blue-500.focus:ring-opacity-50
+         [:select.form-select
           {:onchange "window.location.href=this.value;"}
           [:option {:value (str base-url)} "-- Select habit --"]
           (for [{id :xt/id, name :habit/label} all-habits]
@@ -117,43 +117,43 @@
 
          ;; Statistics and Predictions
        (when (and habit-id has-predictions)
-         [:div.bg-gray-50.rounded-lg.p-4.mb-6
-          [:h3.text-lg.font-medium.text-gray-900.mb-3 "Predicted Next Dates"]
+         [:div.bg-dark-surface.rounded-lg.p-4.mb-6.border.border-dark
+          [:h3.text-lg.font-medium.text-white.mb-3 "Predicted Next Dates"]
 
           [:div.space-y-3
            (for [{:keys [date description]} predictions]
-             [:div.border-l-4.border-blue-500.pl-4.py-2.bg-blue-50.rounded-r-md
-              [:p.text-sm.font-medium.text-blue-800 date]
-              [:p.text-xs.text-gray-600 description]])]
+             [:div.border-l-4.border-neon-lime.pl-4.py-2.bg-dark-light.rounded-r-md
+              [:p.text-sm.font-medium.text-neon-lime date]
+              [:p.text-xs.text-gray-400 description]])]
 
-          [:h3.text-log.font-medium.text-gray-800.my-2 "Habit Statistics"]
+          [:h3.text-lg.font-medium.text-white.my-2 "Habit Statistics"]
           (let [avg-interval (pred/calculate-average-interval dates-only)
                 most-common  (pred/calculate-most-common-interval dates-only)
                 weekly-day   (pred/detect-weekly-pattern dates-only)
                 monthly-day  (pred/detect-monthly-pattern dates-only)]
             [:div.grid.grid-cols-1.gap-3.md:grid-cols-2
              (when avg-interval
-               [:div.bg-white.p-3.rounded.shadow-sm
-                [:p.text-xs.uppercase.text-gray-500 "Average Interval"]
-                [:p.text-lg.font-medium
+               [:div.bg-dark-surface.p-3.rounded.border.border-dark
+                [:p.text-xs.uppercase.text-gray-400 "Average Interval"]
+                [:p.text-lg.font-medium.text-white
                  (if (= 1 avg-interval)
                    "Daily"
                    (if (= 7 avg-interval)
                      "Weekly"
                      (str avg-interval " days")))]])
              (when most-common
-               [:div.bg-white.p-3.rounded.shadow-sm
-                [:p.text-xs.uppercase.text-gray-500 "Most Frequent Interval"]
-                [:p.text-lg.font-medium
+               [:div.bg-dark-surface.p-3.rounded.border.border-dark
+                [:p.text-xs.uppercase.text-gray-400 "Most Frequent Interval"]
+                [:p.text-lg.font-medium.text-white
                  (if (= 1 most-common)
                    "Daily"
                    (if (= 7 most-common)
                      "Weekly"
                      (str most-common " days")))]])
              (when weekly-day
-               [:div.bg-white.p-3.rounded.shadow-sm
-                [:p.text-xs.uppercase.text-gray-500 "Weekly Pattern"]
-                [:p.text-lg.font-medium
+               [:div.bg-dark-surface.p-3.rounded.border.border-dark
+                [:p.text-xs.uppercase.text-gray-400 "Weekly Pattern"]
+                [:p.text-lg.font-medium.text-white
                  (case (.getValue weekly-day)
                    1 "Every Monday"
                    2 "Every Tuesday"
@@ -163,16 +163,16 @@
                    6 "Every Saturday"
                    7 "Every Sunday")]])
              (when monthly-day
-               [:div.bg-white.p-3.rounded.shadow-sm
-                [:p.text-xs.uppercase.text-gray-500 "Monthly Pattern"]
-                [:p.text-lg.font-medium
+               [:div.bg-dark-surface.p-3.rounded.border.border-dark
+                [:p.text-xs.uppercase.text-gray-400 "Monthly Pattern"]
+                [:p.text-lg.font-medium.text-white
                  (str "Day " monthly-day " of each month")]])])])
 
          ;; Copy dates button (only visible when habit is selected and
          ;; dates exist)
        (when (and habit-id (seq habit-log-dates))
          [:div.mb-4
-          [:button.bg-blue-500.hover:bg-blue-700.text-white.font-bold.py-2.px-4.rounded.flex.items-center
+          [:button.bg-neon-cyan.hover:bg-opacity-80.text-black.font-bold.py-2.px-4.rounded.flex.items-center
            {:id      "copy-dates-btn",
             :onclick (str "copyToClipboard(`" dates-only-text "`)")}
            [:svg.w-4.h-4.mr-2
@@ -195,25 +195,23 @@
 
          ;; List of dates
        (if (and habit-id (seq habit-log-dates))
-         [:div.border.rounded-lg.overflow-hidden
-          [:table.min-w-full.divide-y.divide-gray-200
-           [:thead.bg-gray-50
+         [:div.table-container
+          [:table.min-w-full.table-fixed
+           [:thead.table-header
             [:tr
-             [:th.px-6.py-3.text-left.text-xs.font-medium.text-gray-500.uppercase.tracking-wider
-              "Date"]
-             [:th.px-6.py-3.text-left.text-xs.font-medium.text-gray-500.uppercase.tracking-wider
-              "Action"]]]
-           [:tbody.bg-white.divide-y.divide-gray-200
+             [:th.table-header-cell "Date"]
+             [:th.table-header-cell "Action"]]]
+           [:tbody.table-body
             (for [{:keys [date id]} habit-log-dates]
-              [:tr.hover:bg-gray-50
-               [:td.px-6.py-4.whitespace-nowrap.text-sm.text-gray-900 date]
-               [:td.px-6.py-4.whitespace-nowrap.text-sm.font-medium
-                [:a.text-blue-600.hover:text-blue-900
+              [:tr.table-row
+               [:td.table-cell date]
+               [:td.table-cell
+                [:a.text-neon-cyan.hover:text-white
                  {:href (str "/app/crud/form/habit-log/edit/" id)}
                  "View Details"]]])]]]
 
            ;; No habit selected or no dates found
-         [:div.text-center.py-8.text-gray-500
+         [:div.text-center.py-8.text-gray-400
           (if habit-id
             "No log entries found for this habit."
             "Please select a habit to view log dates.")])]))))
