@@ -102,7 +102,6 @@
       
       ;; Visualizations
       [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Visualizations"]
-      [:a.link {:href "/app/visualizations"} "dashboard"]
       [:a.link {:href "/app/viz/habit-log"} "habit calendar"]
       [:a.link {:href "/app/viz/meditation-log"} "meditation calendar"]
       [:a.link {:href "/app/viz/bm-log"} "bm calendar"]

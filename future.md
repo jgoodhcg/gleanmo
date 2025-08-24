@@ -24,24 +24,6 @@
 - **Data export**: Export chart data or images
 - **Real-time updates**: Live updating charts
 
-### Generic Reference Resolution for Visualizations
-- **Problem**: Currently hardcoding entity reference queries (habit-log/habit-ids → habit/label, meditation-log/meditation-id → meditation/label)
-- **Solution**: Leverage existing CRUD system's generic reference resolution
-- **Implementation**:
-  - Detect reference fields automatically from schema (fields ending with -id/-ids)
-  - Use generic entity lookup to resolve references to labels
-  - Make tooltip entity labels work for any temporal entity without hardcoding
-- **Benefits**: Eliminates entity-specific code in visualization system
-
-### User Settings Compliance in Visualizations
-- **Problem**: Visualization queries don't respect user sensitive/archived settings like CRUD does
-- **Current behavior**: Shows all data regardless of user's show-sensitive or show-archived preferences
-- **Solution**: Integrate user settings filtering into visualization data queries
-- **Implementation**:
-  - Check user settings (show-sensitive, show-archived) in visualization routes
-  - Filter entity data based on these settings before generating charts
-  - Consistent behavior with CRUD list views
-- **Benefits**: Maintains user privacy preferences across all parts of the application
 
 ## Roam Integration (Planned)
 - **Project schemas**: Connect projects with Roam pages

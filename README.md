@@ -54,35 +54,51 @@ Tests use an in-memory XTDB database via `test-xtdb-node` from the Biff framewor
 
 ## Overview
 
-Gleanmo uses a **declarative chart initialization pattern** that separates data generation (Clojure) from presentation (JavaScript) while avoiding inline script issues common with server-side rendering.
+Charts are configured in Clojure and rendered with ECharts. Chart options are generated as JSON and auto-discovered by JavaScript.
 
-## How It Works
+## Pattern Implementation
 
-### 1. Generate Chart Data in Clojure
+### 1. Clojure Chart Configuration
+
+From `src/tech/jgood/gleanmo/viz/routes.clj` - Calendar heatmap generation:
 
 ```clojure
-(defn habit-frequency-chart [ctx habit-logs]
-  (let [chart-options {:title {:text "Daily Habit Completion"}
-                       :xAxis {:type "category"
-                               :data (map :habit-log/date habit-logs)}
-                       :yAxis {:type "value"}
-                       :series [{:data (map :habit-log/count habit-logs)
-                                :type "bar"}]}]
-    (ui/page
-     (assoc ctx ::ui/echarts true)
-     [:div
-      [:h2 "Habit Tracking Dashboard"]
-      ;; Chart container with data reference
-      [:div#habit-chart {:style {:height "400px"} 
-                         :data-chart-data "habit-chart-data"}]
-      ;; Hidden data element
-      [:div#habit-chart-data.hidden
-       (json/generate-string chart-options {:pretty true})]])))
+(defn render-chart-section
+  "Render a chart section with title and chart container."
+  [chart-id title chart-config]
+  [:div.mb-8
+   [:h2.text-xl.font-bold.mb-4 title]
+   [:div {:id chart-id 
+          :style {:height "300px" :width "100%"}
+          :data-chart-data (str chart-id "-data")}]
+   [:div {:id (str chart-id "-data") :class "hidden"}
+    (json/generate-string chart-config {:pretty true})]])
+
+(defn generate-calendar-heatmap-config
+  "Generate ECharts calendar heatmap configuration with entity details."
+  [temporal-pattern data ctx entity-key entity-schema entity-str]
+  (let [current-year (str (java.time.Year/now))
+        chart-data (map (fn [[date-str count entity-labels]] 
+                          [date-str count entity-labels entity-str]) grouped-data)]
+    {:backgroundColor "#0d1117"
+     :title {:text "Activity Calendar"
+             :left "center"
+             :textStyle {:color "#c9d1d9"}}
+     :tooltip {:backgroundColor "rgba(22, 27, 34, 0.95)"
+               :borderColor "#30363d"}
+     :calendar {:range current-year
+                :cellSize [18, 18]
+                :itemStyle {:color "#161b22"
+                            :borderWidth 1
+                            :borderColor "#30363d"}}
+     :series [{:type "heatmap"
+               :coordinateSystem "calendar"
+               :data chart-data}]}))
 ```
 
 ### 2. JavaScript Auto-Discovery
 
-The `main.js` file automatically finds and renders charts on page load:
+From `resources/public/js/main.js` - Automatic chart initialization:
 
 ```javascript
 // Auto-initialize any charts on page load
@@ -93,86 +109,73 @@ document.addEventListener('DOMContentLoaded', function() {
     renderEChartFromData(element.id, dataElementId);
   });
 });
-```
 
-### 3. Multiple Charts Per Page
-
-Create dashboards by adding multiple chart/data pairs:
-
-```clojure
-(defn meditation-dashboard [ctx meditation-logs bm-logs]
-  (let [meditation-chart {:title {:text "Meditation Sessions This Month"}
-                          :xAxis {:type "category" 
-                                  :data (map #(-> % :meditation-log/beginning str) meditation-logs)}
-                          :series [{:data (map :meditation-log/duration meditation-logs)
-                                   :type "line"}]}
-        bm-chart {:title {:text "Daily BM Tracking"}
-                  :xAxis {:type "category"
-                          :data (map :bm-log/timestamp bm-logs)}
-                  :series [{:data (map :bm-log/bristol-scale bm-logs)
-                           :type "scatter"}]}]
-    (ui/page
-     (assoc ctx ::ui/echarts true)
-     [:div.grid.grid-cols-2.gap-4
-      ;; Meditation chart
-      [:div
-       [:h3 "Meditation Progress"]
-       [:div#meditation-chart {:style {:height "300px"} 
-                               :data-chart-data "meditation-data"}]]
-      ;; BM tracking chart  
-      [:div
-       [:h3 "Health Metrics"]
-       [:div#bm-chart {:style {:height "300px"}
-                       :data-chart-data "bm-data"}]]
-      ;; Hidden data elements
-      [:div#meditation-data.hidden (json/generate-string meditation-chart)]
-      [:div#bm-data.hidden (json/generate-string bm-chart)]])))
-```
-
-## Pattern Benefits
-
-### ✅ **No Build Step Required**
-- Pure vanilla JavaScript with ECharts CDN
-- No webpack, rollup, or compilation needed
-- Immediate development feedback
-
-### ✅ **Reliable Rendering** 
-- Avoids Rum/Hiccup inline JavaScript encoding issues
-- No HTML entity problems (`&amp;` vs `&`)
-- Clean separation between data and presentation
-
-### ✅ **Type-Safe Data Generation**
-- Chart options defined in Clojure data structures
-- Compile-time validation of data shapes
-- JSON generation handled automatically
-
-### ✅ **Reusable Across Entity Types**
-- Same pattern works for habit-logs, meditation-logs, bm-logs, etc.
-- Easy to add new chart types by extending JavaScript functions
-- Consistent developer experience
-
-## Adding New Chart Types
-
-1. **Add rendering function to main.js:**
-```javascript
-function renderTimelineChart(elementId, options) {
-  const chart = echarts.init(document.getElementById(elementId));
-  // Timeline-specific configuration
-  chart.setOption({
-    timeline: options.timeline,
-    // ... timeline options
-  });
-  return chart;
+function renderEChartFromData(chartElementId, dataElementId) {
+  const dataElement = document.getElementById(dataElementId);
+  const dataJson = dataElement.textContent || dataElement.innerText;
+  
+  try {
+    const options = JSON.parse(dataJson);
+    
+    // Apply theme and tooltip customizations for calendar heatmaps
+    if (options.calendar && options.series && options.series[0].type === 'heatmap') {
+      // Custom tooltip with grouped relationship data
+      options.tooltip = {
+        formatter: function(params) {
+          const entityLabels = params.value[2] || {};
+          // Show grouped relationships (e.g., "Meditation: • Mindfulness", "Location: • Living Room")
+          // ...tooltip formatting logic
+        }
+      };
+    }
+    
+    return renderEChart(chartElementId, options);
+  } catch (error) {
+    console.error('Failed to parse chart options:', error);
+  }
 }
 ```
 
-2. **Use in Clojure with data-driven approach:**
+### 3. Page Integration
+
+From `src/tech/jgood/gleanmo/viz/routes.clj` - How charts are embedded in pages:
+
 ```clojure
-[:div#exercise-timeline {:data-chart-data "timeline-data"}]
-[:div#timeline-data.hidden (json/generate-string timeline-options)]
+(defn viz-page
+  "Generate visualization page for an entity."
+  [ctx entity-key entity-schema entity-str plural-str]
+  (let [temporal-pattern (detect-temporal-pattern entity-schema)
+        entity-data (queries/all-for-user-query
+                     {:entity-type-str entity-str
+                      :schema entity-schema
+                      :filter-references true} ctx)
+        calendar-config (generate-calendar-heatmap-config 
+                         temporal-pattern entity-data ctx entity-key entity-schema entity-str)]
+    (ui/page
+     (assoc ctx ::ui/echarts true)  ; Include ECharts CDN
+     (side-bar ctx
+       [:div.container.mx-auto.p-6
+        [:h1.text-3xl.font-bold.mb-6 (str "Visualizations - " (str/capitalize entity-str))]
+        (render-chart-section "calendar-heatmap" "Activity Calendar" calendar-config)]))))
 ```
 
-This pattern scales naturally as you add more entity types and visualization needs to your tracking application.
+## Generic Visualization System
+
+Add to any entity namespace:
+
+```clojure
+(def viz-routes
+  (viz-routes/gen-routes {:entity-key :habit-log
+                          :entity-schema habit-schema/habit-log
+                          :entity-str "habit-log"
+                          :plural-str "habit-logs"}))
+```
+
+Features:
+- Temporal pattern detection (point events vs intervals)
+- Generic relationship resolution for tooltips  
+- User privacy settings compliance
+- Consistent theming
 
 ## License
 

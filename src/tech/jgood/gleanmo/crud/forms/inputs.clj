@@ -69,13 +69,15 @@
   (let [{:keys [input-name
                 input-label
                 value]}
-        field]
+        field
+        ;; Default to false when value is nil OR missing
+        default-value (if (contains? field :value) value false)]
     [:div.flex.items-center
      [:input.mr-2
       (cond-> {:type         "checkbox",
                :name         input-name,
                :autocomplete "off"}
-        value (assoc :checked "checked"))]
+        default-value (assoc :checked "checked"))]
      [:label.form-label {:for input-name}
       input-label]]))
 
@@ -257,6 +259,8 @@
                 input-required
                 value]}
         field
+        ;; Default to :no when value is nil OR missing
+        default-value (if (contains? field :value) value :no)
         options (concat [:yes :no] enum-options)]
     [:div
      [:label.form-label {:for input-name}
@@ -265,17 +269,15 @@
       (into
         [:select.form-select
          {:name     input-name,
-          :required input-required}
-         ;; Add empty option for optional fields
-         (when-not input-required
-           [:option {:value "", :selected (nil? value)} "-- Select --"])]
+          :required input-required}]
         (for [opt options]
           [:option
-           {:value    (name opt),
-            :selected (cond
-                        (boolean? value) (= (if value :yes :no) opt)
-                        (keyword? value) (= value opt)
-                        :else false)}
+           (cond-> {:value (name opt)}
+             (cond
+               (boolean? default-value) (= (if default-value :yes :no) opt)
+               (keyword? default-value) (= default-value opt)
+               :else false)
+             (assoc :selected true))
            (name opt)]))]]))
 
 (defmethod render :default
