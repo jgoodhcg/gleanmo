@@ -7,6 +7,7 @@
    [potpuri.core :as pot]
    [tech.jgood.gleanmo.app.bm-log :as bm-log]
    [tech.jgood.gleanmo.app.cruddy :as cruddy]
+   [tech.jgood.gleanmo.app.dashboards :as dashboards]
    [tech.jgood.gleanmo.app.habit :as habit]
    [tech.jgood.gleanmo.app.habit-log :as habit-log]
    [tech.jgood.gleanmo.app.ical-url :as ical-url]
@@ -187,6 +188,9 @@
             medication/crud-routes
             med-log/crud-routes
             med-log/viz-routes
+            
+            ;; Dashboard routes
+            dashboards/routes
 
             ;; Main app and DB visualization
             ["" {:get root}]

@@ -84,35 +84,11 @@
       [:a.link {:href "/app/crud/form/medication-log/new"} "medication log"]
       [:hr.border-dark]
       
-      ;; Main Entities
-      [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Entities"]
-      [:a.link {:href "/app/crud/habit"} "habits"]
-      [:a.link {:href "/app/crud/meditation"} "meditations"]
-      [:a.link {:href "/app/crud/medication"} "medications"]
-      [:a.link {:href "/app/crud/location"} "locations"]
-      [:hr.border-dark]
-      
-      ;; Activity Logs
-      [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Activity Logs"]
-      [:a.link {:href "/app/crud/habit-log"} "habit logs"]
-      [:a.link {:href "/app/crud/meditation-log"} "meditation logs"]
-      [:a.link {:href "/app/crud/bm-log"} "bm logs"]
-      [:a.link {:href "/app/crud/medication-log"} "medication logs"]
-      [:hr.border-dark]
-      
-      ;; Visualizations
-      [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Visualizations"]
-      [:a.link {:href "/app/viz/habit-log"} "habit calendar"]
-      [:a.link {:href "/app/viz/meditation-log"} "meditation calendar"]
-      [:a.link {:href "/app/viz/bm-log"} "bm calendar"]
-      [:a.link {:href "/app/viz/medication-log"} "medication calendar"]
-      [:hr.border-dark]
-      
-      ;; Analytics & Stats
-      [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Analytics"]
-      [:a.link {:href "/app/dv/habit-dates"} "habit predictions"]
-      [:a.link {:href "/app/dv/meditation-stats"} "meditation stats"]
-      [:a.link {:href "/app/dv/bm-stats"} "bm stats"]
+      ;; Dashboards
+      [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Dashboards"]
+      [:a.link {:href "/app/dashboards/entities"} "📦 manage entities"]
+      [:a.link {:href "/app/dashboards/activity-logs"} "📋 activity logs"]
+      [:a.link {:href "/app/dashboards/analytics"} "📊 analytics & insights"]
 
       ;; Subtle Sign out button
       (biff/form
