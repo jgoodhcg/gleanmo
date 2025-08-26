@@ -36,4 +36,68 @@
 - **Performance optimization**: Lazy loading for large datasets
 - **Chart lifecycle management**: Proper cleanup and memory management
 
-### db table dark themed
+### Dark-themed Database Tables
+- **Goal**: Make database visualization tables match the dark theme
+- **Details**: Update table styling to use dark backgrounds and appropriate contrast
+
+## Big Calendar / Vacation Planning Features
+
+### Google Calendar Sync via iCal URLs
+- **Goal**: Integrate with existing iCal URL system for calendar synchronization
+- **Questions**: 
+  - Pull-only or bidirectional sync?
+  - Specific event types to prioritize (vacations, travel, appointments)?
+- **Implementation**: Extend existing ical-url entity to display events on big calendar
+
+### Simple Event Creation
+- **Goal**: Click on calendar day to create vacation/travel events
+- **Questions**:
+  - Simple text input modal or inline editing?
+  - Event categories/colors (vacation, travel, personal)?
+  - Store in database or prepare for calendar sync?
+- **Implementation**: Add event entity and click handlers to calendar cells
+
+### Time & Context Features
+
+#### Past Days Indication
+- **Goal**: Visually distinguish past dates from future dates
+- **Questions**: 
+  - Dimmed/faded text or different background opacity?
+  - Subtle or obvious distinction?
+- **Implementation**: Compare each date with today and apply styling
+
+#### Relative Today Positioning
+- **Goal**: Center calendar view around today for better context
+- **Questions**:
+  - Show 6 months before/after today dynamically?
+  - Or full year starting from specific month relative to today?
+- **Implementation**: Modify year calculation and month range
+
+### Natural Events & Indicators
+
+#### Solar Events (Equinox/Solstice)
+- **Goal**: Mark seasonal transitions for vacation planning
+- **Questions**: 
+  - Small icons, text labels, or special highlighting?
+  - Prominent or subtle indicators?
+- **Implementation**: Calculate solar event dates and add indicators
+
+#### First/Last Frost Dates
+- **Goal**: Show gardening/outdoor activity relevant dates
+- **Questions**:
+  - Specific location/hardiness zone configuration?
+  - Configurable or default location?
+- **Implementation**: Location-based frost date calculation
+
+#### Moon Phases
+- **Goal**: Add lunar cycle information
+- **Questions**:
+  - Small moon icons in corners or background treatment?
+  - All phases or just major ones (new, full)?
+- **Implementation**: Calculate lunar phases and display indicators
+
+### Priority Implementation Order
+1. Simple event creation (core vacation planning functionality)
+2. Past days indication (immediate visual improvement)
+3. One natural indicator (solar events or moon phases)
+4. Google calendar sync (integration with existing systems)
