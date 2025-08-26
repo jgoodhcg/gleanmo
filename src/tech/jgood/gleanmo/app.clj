@@ -173,23 +173,36 @@
      (side-bar
       ctx
       [:div.w-full.p-4
-       [:div.year-calendar.space-y-2
+       [:div.year-calendar
         (for [month months]
           (let [first-day (t/date (str year "-" (format "%02d" month) "-01"))
                 month-name (t/format (t/formatter "MMM") first-day)
                 last-day (t/last-day-of-month first-day)
                 days-in-month (t/day-of-month last-day)
-                days (range 1 (inc days-in-month))]
+                days (range 1 (inc days-in-month))
+                ;; Calculate next month's days to determine which cells need bottom borders
+                next-month-days (if (< month 12)
+                                 (let [next-first-day (t/date (str year "-" (format "%02d" (inc month)) "-01"))
+                                       next-last-day (t/last-day-of-month next-first-day)]
+                                   (t/day-of-month next-last-day))
+                                 0)] ; December has no next month
             [:div.month-row.flex.items-center.w-full {:key month}
              [:div.month-label.w-24.flex-shrink-0.text-white.font-medium.mr-4 month-name]
              [:div.days-container.flex
               (for [day days]
-                [:div.day-cell.border.border-gray-600.hover:border-gray-500.text-gray-500.text-xs.cursor-pointer.relative
-                 {:key (str month "-" day)
-                  :title (str month-name " " day ", " year)
-                  :style {:width cell-width
-                          :aspect-ratio "3/4"}}
-                 [:div.absolute.top-1.left-1 day]])]]))]]))))
+                (let [is-last-day (= day days-in-month)
+                      is-last-month (= month 12)
+                      needs-bottom-border (or is-last-month (> day next-month-days))
+                      border-classes (str "border-t border-l border-gray-600"
+                                         (when is-last-day " border-r")
+                                         (when needs-bottom-border " border-b"))]
+                  [:div.day-cell.hover:border-gray-500.text-gray-500.text-xs.cursor-pointer.relative
+                   {:key (str month "-" day)
+                    :title (str month-name " " day ", " year)
+                    :class border-classes
+                    :style {:width cell-width
+                            :aspect-ratio "3/4"}}
+                   [:div.absolute.top-1.left-1 day]]))]]))]]))))
 
 (defn root
   [{:keys [session biff/db], :as ctx}]
