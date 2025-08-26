@@ -101,3 +101,34 @@
 2. Past days indication (immediate visual improvement)
 3. One natural indicator (solar events or moon phases)
 4. Google calendar sync (integration with existing systems)
+
+### Calendar Statistics & Analytics
+- **Goal**: Provide insights and time-based calculations for vacation/time planning
+- **Vacation Analytics**:
+  - Time to next weekend (days/hours remaining)
+  - Time until next vacation event
+  - Total vacations taken this year (count)
+  - Mandatory work vacations remaining (requires event type/mandatory field)
+  - PTO days taken/remaining (requires PTO day tracking)
+- **Temporal Insights**:
+  - Time until end of year
+  - Time to next holiday
+  - Time to next solar/lunar event
+- **Implementation**: Dashboard widget or sidebar stats section
+
+### Holiday Management
+- **Goal**: Track and highlight personal holidays and celebrations
+- **Approach Options**:
+  - Events with special `:event/holiday` boolean flag
+  - Separate holiday entity type
+  - User-configurable holiday calendar
+- **Holiday Types**:
+  - Personal holidays (birthdays, anniversaries)
+  - Cultural/religious holidays (user-specific)
+  - National holidays (location-based)
+  - Work holidays/company closures
+- **Features**:
+  - Countdown to next holiday
+  - Holiday highlighting on calendar
+  - Holiday categories/types
+- **Implementation**: Extend event schema or create holiday entity with user preferences

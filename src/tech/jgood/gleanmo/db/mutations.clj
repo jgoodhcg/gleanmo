@@ -48,3 +48,9 @@
     (biff/submit-tx ctx [tx-data])
     user-id))
 
+(defn create-event!
+  "Create a new calendar event."
+  [ctx event-data]
+  (create-entity! ctx {:entity-key :event
+                       :data event-data}))
+

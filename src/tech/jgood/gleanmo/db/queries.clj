@@ -4,6 +4,7 @@
     :refer [q]]
    [tech.jgood.gleanmo.crud.schema-utils :as schema-utils]
    [tech.jgood.gleanmo.schema.meta :as sm]
+   [tick.core :as t]
    [xtdb.api :as xt]))
 
 (defn get-entity-by-id
@@ -172,3 +173,20 @@
     (-> history
         first
         :xtdb.api/tx-time)))
+
+(defn get-events-for-user-year
+  "Get all events for a user within a specific year, using user's timezone."
+  [db user-id year user-timezone]
+  (let [year-start (t/instant (t/zoned-date-time year 1 1 0 0 0 user-timezone))
+        year-end (t/instant (t/zoned-date-time year 12 31 23 59 59 user-timezone))]
+    (->> (q db
+            {:find  '(pull ?e [*])
+             :where '[[?e :xt/id ?id]
+                      [?e ::sm/type :event]
+                      [?e :user/id ?user-id]
+                      [(missing? ?e ::sm/deleted-at)]
+                      [?e :event/dtstart ?dtstart]
+                      [(<= ?year-start ?dtstart ?year-end)]]
+             :in '[?user-id ?year-start ?year-end]}
+            user-id year-start year-end)
+         (map first))))
