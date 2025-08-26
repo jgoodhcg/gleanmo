@@ -190,16 +190,25 @@
              [:div.month-label.w-24.flex-shrink-0.text-white.font-medium.mr-4 month-name]
              [:div.days-container.flex
               (for [day days]
-                (let [is-last-day (= day days-in-month)
+                (let [current-date (t/date (str year "-" (format "%02d" month) "-" (format "%02d" day)))
+                      today (t/today)
+                      day-of-week (t/int (t/day-of-week current-date))
+                      is-today (= current-date today)
+                      is-weekend (or (= day-of-week 6) (= day-of-week 7)) ; Saturday = 6, Sunday = 7
+                      is-last-day (= day days-in-month)
                       is-last-month (= month 12)
                       needs-bottom-border (or is-last-month (> day next-month-days))
                       border-classes (str "border-t border-l border-gray-600"
                                          (when is-last-day " border-r")
-                                         (when needs-bottom-border " border-b"))]
+                                         (when needs-bottom-border " border-b"))
+                      bg-class (cond
+                                is-today "bg-blue-800"
+                                is-weekend "bg-gray-800"
+                                :else "")]
                   [:div.day-cell.hover:border-gray-500.text-gray-500.text-xs.cursor-pointer.relative
                    {:key (str month "-" day)
                     :title (str month-name " " day ", " year)
-                    :class border-classes
+                    :class (str border-classes " " bg-class)
                     :style {:width cell-width
                             :aspect-ratio "3/4"}}
                    [:div.absolute.top-1.left-1 day]]))]]))]]))))
