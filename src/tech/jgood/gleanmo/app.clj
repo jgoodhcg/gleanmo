@@ -22,7 +22,8 @@
    [tech.jgood.gleanmo.middleware :as mid]
    [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.settings :as settings]
-   [tech.jgood.gleanmo.ui :as ui]))
+   [tech.jgood.gleanmo.ui :as ui]
+   [tick.core :as t]))
 
 (def about-page
   (ui/page
@@ -158,6 +159,38 @@
          [:span "Unsupported type, must be one of: "
           (str db-viz-supported-types)]])))))
 
+(defn year-calendar
+  [ctx]
+  (let [current-year (t/year (t/today))
+        year (t/int current-year)
+        months (range 1 13)
+        ;; Calculate available width for days (screen width minus sidebar and month label)
+        max-days 31 ; Maximum days in any month
+        cell-width "calc((100vw - 16rem - 6rem - 2rem) / 31)" ; sidebar + month-label + padding
+        ]
+    (ui/page
+     {}
+     (side-bar
+      ctx
+      [:div.w-full.p-4
+       [:div.year-calendar.space-y-2
+        (for [month months]
+          (let [first-day (t/date (str year "-" (format "%02d" month) "-01"))
+                month-name (t/format (t/formatter "MMM") first-day)
+                last-day (t/last-day-of-month first-day)
+                days-in-month (t/day-of-month last-day)
+                days (range 1 (inc days-in-month))]
+            [:div.month-row.flex.items-center.w-full {:key month}
+             [:div.month-label.w-24.flex-shrink-0.text-white.font-medium.mr-4 month-name]
+             [:div.days-container.flex
+              (for [day days]
+                [:div.day-cell.border.border-gray-600.hover:border-gray-500.text-gray-500.text-xs.cursor-pointer.relative
+                 {:key (str month "-" day)
+                  :title (str month-name " " day ", " year)
+                  :style {:width cell-width
+                          :aspect-ratio "3/4"}}
+                 [:div.absolute.top-1.left-1 day]])]]))]]))))
+
 (defn root
   [{:keys [session biff/db], :as ctx}]
   (ui/page
@@ -228,5 +261,8 @@
              {:get  meditation-log/meditation-stats,
               :post meditation-log/meditation-stats}]
             ["/dv/bm-stats" {:get bm-log/bm-stats}]
+            
+            ;; Calendar views
+            ["/big-calendar" {:get year-calendar}]
             ;;
             ]})

@@ -35,3 +35,5 @@
 - **Chart configuration validation**: Schema validation for chart configs
 - **Performance optimization**: Lazy loading for large datasets
 - **Chart lifecycle management**: Proper cleanup and memory management
+
+### db table dark themed
