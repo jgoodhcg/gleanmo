@@ -11,7 +11,7 @@ module.exports = {
         // Custom neon colors from CSS variables
         'neon-gold': 'var(--gold)',
         'neon-azure': 'var(--azure)', 
-        'neon-slate': 'var(--medium-slate-blue)',
+        'neon-violet': 'var(--neon-violet)',
         'neon-cyan': 'var(--pacific-cyan)',
         'neon-amber': 'var(--gamboge)',
         'neon-pink': 'var(--rose-bonbon)',

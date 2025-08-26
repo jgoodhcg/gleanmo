@@ -1,16 +1,13 @@
 (ns tech.jgood.gleanmo.app
   (:require
-   [clojure.pprint :refer [pprint]]
    [clojure.string :as str]
-   [com.biffweb :as    biff
-    :refer [q]]
-   [potpuri.core :as pot]
    [tech.jgood.gleanmo.app.bm-log :as bm-log]
+   [tech.jgood.gleanmo.app.calendar :as calendar]
+   [tech.jgood.gleanmo.app.calendar-event :as calendar-event]
    [tech.jgood.gleanmo.app.cruddy :as cruddy]
    [tech.jgood.gleanmo.app.dashboards :as dashboards]
    [tech.jgood.gleanmo.app.habit :as habit]
    [tech.jgood.gleanmo.app.habit-log :as habit-log]
-   [tech.jgood.gleanmo.app.ical-url :as ical-url]
    [tech.jgood.gleanmo.app.location :as location]
    [tech.jgood.gleanmo.app.medication :as medication]
    [tech.jgood.gleanmo.app.medication-log :as med-log]
@@ -41,6 +38,7 @@
     :medication-log
     :location
     :ical-url
+    :calendar-event
     :cruddy})
 
 (defn db-viz
@@ -141,22 +139,27 @@
                           all-attributes))
                    all-entities)]
           [:div.my-4
-           [:h2.text-lg.font-bold.mb-2 type]
-           [:table.w-full.rounded-lg.overflow-hidden.bg-white.shadow-md
-            [:thead.bg-gray-100
-             [:tr
-              (for [attr all-attributes]
-                [:th.py-2.px-4.text-left.text-gray-600.border-b
-                 (str attr)])]]
-            [:tbody
-             (for [row table-rows]
-               [:tr.hover:bg-gray-50
-                (for [attr-val row]
-                  [:td.py-2.px-4.border-b.text-gray-900
-                   (str attr-val)])])]]])
+           [:h2.form-header (str (name type) " entities")]
+           [:div.table-container
+            [:table.min-w-full.table-fixed {:style {:table-layout "fixed"}}
+             [:thead.table-header
+              [:tr
+               (for [attr all-attributes]
+                 [:th.table-header-cell {:key (str attr)
+                                         :style {:max-width "250px" :overflow "hidden"}}
+                  (str attr)])]]
+             [:tbody.table-body
+              (map-indexed
+               (fn [idx row]
+                 [:tr.table-row {:key idx}
+                  (for [attr-val row]
+                    [:td.table-cell {:style {:max-width "250px" :overflow "hidden"}}
+                     (str attr-val)])])
+               table-rows)]]]])
         [:div.my-4
          [:span "Unsupported type, must be one of: "
           (str db-viz-supported-types)]])))))
+
 
 (defn root
   [{:keys [session biff/db], :as ctx}]
@@ -170,11 +173,13 @@
       [:div.rgb-test.rgb-glow
        "🚀 RGB Glow Test - This should have animated rainbow borders!"]])]))
 
+
 (def module
   {:static {"/about/" about-page},
    :routes ["/app" {:middleware [mid/wrap-signed-in]}
 
             cruddy/crud-routes
+            calendar-event/crud-routes
             habit/crud-routes
             habit-log/crud-routes
             habit-log/viz-routes
@@ -228,5 +233,10 @@
              {:get  meditation-log/meditation-stats,
               :post meditation-log/meditation-stats}]
             ["/dv/bm-stats" {:get bm-log/bm-stats}]
+            
+            ;; Calendar views
+            ["/big-calendar" {:get calendar/year-calendar}]
+            ["/big-calendar/event-form" {:get calendar/big-calendar-event-form}]
+            ["/big-calendar/events" {:post calendar/big-calendar-create-event!}]
             ;;
             ]})

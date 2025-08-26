@@ -5,7 +5,7 @@
 :root {
   --gold: #ffd400;
   --azure: #3b82f6;
-  --medium-slate-blue: #8b5cf6;
+  --neon-violet: #8b5cf6;
   --pacific-cyan: #06b6d4;
   --gamboge: #f59e0b;
   --rose-bonbon: #ec4899;
@@ -29,8 +29,8 @@
     box-shadow: 0 0 8px var(--azure), 0 0 16px rgba(59, 130, 246, 0.4);
   }
   28% { 
-    border-color: var(--medium-slate-blue);
-    box-shadow: 0 0 8px var(--medium-slate-blue), 0 0 16px rgba(139, 92, 246, 0.4);
+    border-color: var(--neon-violet);
+    box-shadow: 0 0 8px var(--neon-violet), 0 0 16px rgba(139, 92, 246, 0.4);
   }
   42% { 
     border-color: var(--pacific-cyan);
@@ -64,8 +64,8 @@
     box-shadow: 0 0 0 2px var(--azure), 0 0 8px rgba(59, 130, 246, 0.4);
   }
   28% { 
-    outline-color: var(--medium-slate-blue);
-    box-shadow: 0 0 0 2px var(--medium-slate-blue), 0 0 8px rgba(139, 92, 246, 0.4);
+    outline-color: var(--neon-violet);
+    box-shadow: 0 0 0 2px var(--neon-violet), 0 0 8px rgba(139, 92, 246, 0.4);
   }
   42% { 
     outline-color: var(--pacific-cyan);
@@ -91,10 +91,10 @@
 
 @keyframes rotating-gradient-outline {
   0% {
-    background: conic-gradient(from 0deg, var(--gold), var(--azure), var(--medium-slate-blue), var(--pacific-cyan), var(--gamboge), var(--rose-bonbon), var(--lime-green), var(--gold));
+    background: conic-gradient(from 0deg, var(--gold), var(--azure), var(--neon-violet), var(--pacific-cyan), var(--gamboge), var(--rose-bonbon), var(--lime-green), var(--gold));
   }
   100% {
-    background: conic-gradient(from 360deg, var(--gold), var(--azure), var(--medium-slate-blue), var(--pacific-cyan), var(--gamboge), var(--rose-bonbon), var(--lime-green), var(--gold));
+    background: conic-gradient(from 360deg, var(--gold), var(--azure), var(--neon-violet), var(--pacific-cyan), var(--gamboge), var(--rose-bonbon), var(--lime-green), var(--gold));
   }
 }
 
@@ -174,7 +174,7 @@
     position: absolute;
     inset: 0;
     padding: 2px;
-    background: conic-gradient(from 0deg, var(--gold), var(--azure), var(--medium-slate-blue), var(--pacific-cyan), var(--gamboge), var(--rose-bonbon), var(--lime-green), var(--gold));
+    background: conic-gradient(from 0deg, var(--gold), var(--azure), var(--neon-violet), var(--pacific-cyan), var(--gamboge), var(--rose-bonbon), var(--lime-green), var(--gold));
     border-radius: inherit;
     mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     mask-composite: exclude;
@@ -529,7 +529,7 @@
   }
   
   .text-enum {
-    color: var(--medium-slate-blue);
+    color: var(--neon-violet);
   }
   
   .text-enum:hover {
@@ -541,7 +541,7 @@
   }
   
   .bg-enum {
-    background-color: var(--medium-slate-blue);
+    background-color: var(--neon-violet);
   }
 }
 

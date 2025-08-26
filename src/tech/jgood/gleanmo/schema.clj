@@ -9,6 +9,7 @@
             [tech.jgood.gleanmo.schema.exercise-schema :as es]
             [tech.jgood.gleanmo.schema.bm-schema :as bs]
             [tech.jgood.gleanmo.schema.medication-schema :as meds]
+            [tech.jgood.gleanmo.schema.calendar-event-schema :as ces]
             [tech.jgood.gleanmo.schema.cruddy :as cs]))
 
 ;; all glenamo/type attributes are the schema key
@@ -29,6 +30,7 @@
    :medication/id       :uuid
    :medication-log/id   :uuid
    :ical-url/id         :uuid
+   :calendar-event/id   :uuid
    :user                us/user
    :habit               hs/habit
    :habit-log           hs/habit-log
@@ -39,6 +41,7 @@
    :medication          meds/medication
    :medication-log      meds/medication-log
    :ical-url            is/ical-url
+   :calendar-event      ces/calendar-event
    :exercise            es/exercise
    :exercise-session    es/exercise-session
    :exercise-log        es/exercise-log

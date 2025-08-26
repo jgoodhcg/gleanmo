@@ -1,9 +1,12 @@
 (ns tech.jgood.gleanmo.db.queries
   (:require
+   [clojure.tools.logging :as log]
    [com.biffweb :as    biff
     :refer [q]]
+   [potpuri.core :as pot]
    [tech.jgood.gleanmo.crud.schema-utils :as schema-utils]
    [tech.jgood.gleanmo.schema.meta :as sm]
+   [tick.core :as t]
    [xtdb.api :as xt]))
 
 (defn get-entity-by-id
@@ -24,13 +27,12 @@
   [db user-id]
   (when user-id
     (if-let [user (get-entity-by-id db user-id)]
-      {:email (:user/email user)
-       :show-sensitive (boolean (:user/show-sensitive user))
-       :show-archived (boolean (:user/show-archived user))}
-      {:email nil
-       :show-sensitive false
-       :show-archived false})))
-
+      {:email          (:user/email user),
+       :show-sensitive (boolean (:user/show-sensitive user)),
+       :show-archived  (boolean (:user/show-archived user))}
+      {:email          nil,
+       :show-sensitive false,
+       :show-archived  false})))
 
 (defn get-entity-for-user
   "Get a single entity by ID that belongs to a specific user.
@@ -172,3 +174,36 @@
     (-> history
         first
         :xtdb.api/tx-time)))
+
+(defn get-events-for-user-year
+  "Get all events for a user within a specific year, using user's timezone.
+   Note: Performs date-range filtering in application code to avoid complex
+   Datalog predicates on Instants."
+  [db user-id year user-timezone]
+  (let [zone       (java.time.ZoneId/of (or user-timezone "UTC"))
+        year-start (-> (t/date (str year "-01-01"))
+                       (t/at (t/time "00:00"))
+                       (t/in zone)
+                       (t/instant))
+        year-end   (-> (t/date (str year "-12-31"))
+                       (t/at (t/time "23:59:59"))
+                       (t/in zone)
+                       (t/instant))
+        results    (q db
+                      {:find  '(pull ?e [*]),
+                       :where '[[?e :xt/id ?id]
+                                [?e ::sm/type :calendar-event]
+                                [?e :user/id ?user-id]
+                                (not [?e ::sm/deleted-at])],
+                       :in    '[?user-id]}
+                      user-id)]
+
+    (->> results
+         (filter (fn [e]
+                   (let [dt (:calendar-event/beginning e)]
+                     (if (some? dt)
+                       ;; If event has a dtstart, filter by year
+                       (and (t/>= dt year-start)
+                            (t/<= dt year-end))
+                       ;; If no dtstart, include it (events without dates)
+                       true)))))))
