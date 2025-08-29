@@ -235,8 +235,8 @@
             ["/dv/bm-stats" {:get bm-log/bm-stats}]
             
             ;; Calendar views
-            ["/big-calendar" {:get calendar/year-calendar}]
-            ["/big-calendar/event-form" {:get calendar/big-calendar-event-form}]
-            ["/big-calendar/events" {:post calendar/big-calendar-create-event!}]
+            ["/calendar/year" {:get calendar/year-calendar}]
+            ["/calendar/event-form" {:get calendar/big-calendar-event-form}]
+            ["/calendar/events" {:post calendar/big-calendar-create-event!}]
             ;;
             ]})

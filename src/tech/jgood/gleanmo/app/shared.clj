@@ -87,7 +87,7 @@
       
       ;; Calendar
       [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Calendar"]
-      [:a.link {:href "/app/big-calendar"} "📅 year view"]
+      [:a.link {:href "/app/calendar/year"} "📅 calendar (year)"]
       [:hr.border-dark]
       
       ;; Dashboards

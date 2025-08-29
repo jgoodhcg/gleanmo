@@ -1,10 +1,9 @@
 (ns tech.jgood.gleanmo.crud.forms
   (:require
-   [clojure.string        :as str]
-   [com.biffweb           :as biff]
-   [potpuri.core          :as pot]
-   [tech.jgood.gleanmo.app.shared :refer
-    [side-bar]]
+   [clojure.string :as str]
+   [com.biffweb :as biff]
+   [potpuri.core :as pot]
+   [tech.jgood.gleanmo.app.shared :refer [side-bar]]
    [tech.jgood.gleanmo.crud.forms.inputs :as inputs]
    [tech.jgood.gleanmo.crud.schema-utils :as schema-utils]
    [tech.jgood.gleanmo.db.queries :as db]
@@ -48,7 +47,8 @@
                             (str "Create a new " entity-str)]]
                           [:div.grid.grid-cols-1.gap-y-6
                            (doall (schema->form schema ctx))
-                           [:button.form-button-primary {:type "submit"} "Create"]])])])))
+                           [:button.form-button-primary {:type "submit"}
+                            "Create"]])])])))
 
 (defn schema->form-with-values
   "Similar to schema->form but includes entity values in input fields"
@@ -61,7 +61,8 @@
 
 (defn edit-form
   "Render an edit form for an existing entity"
-  [{:keys [schema entity-str entity-key]} {:keys [session biff/db path-params], :as ctx}]
+  [{:keys [schema entity-str entity-key]}
+   {:keys [session biff/db path-params], :as ctx}]
   (let [user-id   (:uid session)
         entity-id (java.util.UUID/fromString (:id path-params))
         entity    (db/get-entity-for-user db entity-id user-id entity-key)
@@ -78,14 +79,20 @@
           :hx-select (str "#" form-id),
           :id        form-id}
          [:div
-          [:h1.form-header
-           (str "Edit " (str/capitalize entity-str))]
-          [:p.form-subheader
-           (str "Edit this " entity-str)]]
+          [:h1.form-header (str "Edit " (str/capitalize entity-str))]
+          [:p.form-subheader (str "Edit this " entity-str)]]
          [:div.grid.grid-cols-1.gap-y-6
           (doall (schema->form-with-values schema entity ctx))
           [:div.flex.justify-between.mt-4
-           [:a.form-button-secondary
-            {:href (str "/app/crud/" entity-str)} "Cancel"]
-           [:button.form-button-primary
-            {:type "submit"} "Save Changes"]]])])])))
+           [:a.form-button-secondary {:href (str "/app/crud/" entity-str)}
+            "Cancel"]
+           [:button.form-button-primary {:type "submit"} "Save Changes"]]])
+        [:div.mt-4.text-right
+         (biff/form
+          {:action (str "/app/crud/" entity-str "/" entity-id "/delete"),
+           :method "post",
+           :onsubmit
+           "return confirm('Are you sure you want to delete this item? This action cannot be undone.');"}
+          [:button.link.text-secondary
+           {:type "submit", :aria-label "Delete this item"}
+           "Delete"])]])])))

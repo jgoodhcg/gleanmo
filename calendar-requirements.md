@@ -136,10 +136,35 @@
 18. Holiday display
 19. Lunar/solar phase indicators
 
-### 🔮 Phase 3: Advanced Features (FUTURE)
-20. Google calendar integration
-21. Recurring events
-22. Event templates
-23. Advanced categorization
-24. Multi-timezone support
-25. Seasonal/astronomical data
+### 🔮 Phase 3: External Calendar Integration (FUTURE)
+
+#### iCal Read Sync (Import External Calendars)
+- **Google Calendar iCal URLs** - Read-only import via public/private iCal feeds
+- **Hey Calendar iCal** - Import events from Hey's calendar export
+- **User-triggered sync** - Manual sync button or automatic on page load
+- **Event deduplication** - Prevent duplicate imports using external IDs
+- **Source tracking** - Mark imported events as `:google-cal`, `:hey-cal`, etc.
+- **Read-only imported events** - External events locked from editing in Gleanmo
+- **Schema updates** - Add `:calendar-event/external-id` and `:calendar-event/sync-url` fields
+
+#### Google Calendar API Integration (Bidirectional Sync)
+- **OAuth 2.0 authentication** - One-time setup per user
+- **Bidirectional sync** - Create, read, update, delete events in Google Calendar
+- **Real-time updates** - Webhook notifications for external changes
+- **Event linking** - Maintain relationship between Gleanmo and Google events
+- **Conflict resolution** - Handle simultaneous edits in both systems
+- **Bulk operations** - Efficient multi-event sync
+
+#### Email Export (Alternative Write Method)
+- **iCal attachment emails** - Generate RFC5545 .ics files and email to target calendars
+- **Universal compatibility** - Works with Google, Outlook, Apple Calendar, Hey
+- **User friction trade-off** - Requires manual "Add to Calendar" action per event
+- **No update capability** - Each email creates new event (cannot update existing)
+- **Good for one-time exports** - Suitable for sharing events rather than ongoing sync
+
+### 🔮 Phase 4: Advanced Features (FUTURE)
+26. Recurring events
+27. Event templates
+28. Advanced categorization
+29. Multi-timezone support
+30. Seasonal/astronomical data

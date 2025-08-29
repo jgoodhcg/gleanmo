@@ -121,7 +121,7 @@ Production-like environment with scheduled screenshot capture
 {:routes [
   {:path "/app" :auth true :name "dashboard"}
   {:path "/app/habits" :auth true :name "habits"}
-  {:path "/app/big-calendar" :auth true :name "calendar"}
+  {:path "/app/calendar/year" :auth true :name "calendar"}
   ;; ...
 ]}
 ```
@@ -235,7 +235,7 @@ SCREENSHOT_NOTIFY_WEBHOOK=https://hooks.slack.com/...
       "exclude_mobile": false
     },
     {
-      "path": "/app/big-calendar",
+      "path": "/app/calendar/year",
       "name": "calendar",
       "auth": true,
       "setup_data": "create-sample-events"

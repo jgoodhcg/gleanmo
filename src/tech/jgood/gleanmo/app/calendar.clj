@@ -43,9 +43,10 @@
         date-str            (str year
                                  "-" (format "%02d" month)
                                  "-" (format "%02d" day))
-        border-classes      (str (if is-today "border-2 border-neon-gold" "border-t border-l border-gray-600")
+        border-classes      (str (if is-today "border-2 border-neon-gold" "border-t border-l border-dark")
                                  (when (and is-last-day (not is-today)) " border-r")
                                  (when (and needs-bottom-border (not is-today)) " border-b"))
+        ;; Background: weekends get subtle surface; weekdays transparent
         bg-class            (cond
                               is-weekend "bg-dark-surface"
                               :else      "")
@@ -58,7 +59,7 @@
      {:key       (str month "-" day),
       :title     (str month-name " " day ", " year),
       :class     (str border-classes " " bg-class " " text-classes " " past-classes),
-      :hx-get    (str "/app/big-calendar/event-form?date=" date-str),
+      :hx-get    (str "/app/calendar/event-form?date=" date-str),
       :hx-target "#bc-modal",
       :hx-swap   "innerHTML",
       :style     {:width        cell-width,
@@ -121,10 +122,10 @@
                             (t/day-of-month next-last-day))
                           0)] ; December has no next month
     [:div.month-row.flex.items-center.w-full {:key month}
-     [:div.month-label.w-8.px-1.mx-2.flex-shrink-0.text-primary.font-medium.text-sm.text-right.uppercase
+     [:div.month-label.w-8.px-1.mx-0.flex-shrink-0.text-primary.font-medium.text-sm.text-right.uppercase
       {:title month-name}
       month-name]
-     [:div.days-container.flex
+     [:div.days-container.flex.border.border-transparent.hover:border-gray-600.rounded-md.transition-colors
       (for [day days]
         (calendar-day-cell year
                            month
@@ -190,23 +191,23 @@
       ;; Desktop calendar (hidden on mobile)
       [:div.hidden.md:block
        ;; Top navigation bar (full-width at top)
-       [:div.fixed.top-0.inset-x-0.z-40.bg-dark-surface.py-3.px-4
+       [:div.fixed.top-0.inset-x-0.z-40.bg-dark-surface.border-b.border-dark.py-2.px-3
         [:div.flex.items-center.justify-between
          [:a.link.text-sm {:href "/app"} "← Home"]
-         [:div.flex.items-center.space-x-4
+         [:div.flex.items-center.space-x-2
           [:a.link.text-sm
-           {:href (str "/app/big-calendar?year=" (dec year))}
+           {:href (str "/app/calendar/year?year=" (dec year))}
            (str "← " (dec year))]
           [:h1.text-xl.font-bold.text-primary (str year " Calendar")]
           [:a.link.text-sm
-           {:href (str "/app/big-calendar?year=" (inc year))}
+           {:href (str "/app/calendar/year?year=" (inc year))}
            (str (inc year) " →")]]]]
 
        ;; Desktop content offset for fixed header
-       [:div.mt-16.pl-0.pr-4.-ml-4
+       [:div.mt-12.pl-0.pr-4.-ml-4
          ;; Hidden element to handle calendar refresh
-         [:div#calendar-refresh-trigger.hidden
-         {:hx-get (str "/app/big-calendar?year=" year)
+        [:div#calendar-refresh-trigger.hidden
+         {:hx-get (str "/app/calendar/year?year=" year)
           :hx-trigger "eventCreated from:body"
           :hx-select "#calendar-content"
           :hx-target "#calendar-content"
@@ -242,7 +243,7 @@
 
      (biff/form
       {:id        "bc-event-form",
-       :hx-post   "/app/big-calendar/events",
+       :hx-post   "/app/calendar/events",
        :hx-target "#bc-modal",
        :hx-swap   "innerHTML"}
 
@@ -313,7 +314,7 @@
            "✕"]]
          [:div.text-sm.mb-3.text-secondary error]
          (biff/form
-          {:hx-get    (str "/app/big-calendar/event-form?date=" date),
+          {:hx-get    (str "/app/calendar/event-form?date=" date),
            :hx-target "#bc-modal",
            :hx-swap   "innerHTML"}
           [:button.form-button-secondary "Back"])])
@@ -356,7 +357,7 @@
                "✕"]]
              [:div.text-sm.mb-3.text-secondary error]
              (biff/form
-              {:hx-get    (str "/app/big-calendar/event-form?date=" date),
+              {:hx-get    (str "/app/calendar/event-form?date=" date),
                :hx-target "#bc-modal",
                :hx-swap   "innerHTML"}
               [:button.form-button-secondary "Back"])]))))))
