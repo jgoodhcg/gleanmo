@@ -20,7 +20,8 @@
       vec))
 
 (def meditation-log
-  (-> [:map {:closed true}
+  (-> [:map {:closed true
+             :timer/primary-rel :meditation-log/type-id}
        [:xt/id :meditation-log/id]
        [::sm/type [:enum :meditation-log]]
        [::sm/deleted-at {:optional true} :instant]

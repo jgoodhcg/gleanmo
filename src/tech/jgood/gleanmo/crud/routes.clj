@@ -1,13 +1,17 @@
 (ns tech.jgood.gleanmo.crud.routes
-  (:require [potpuri.core :as pot]
-            [tech.jgood.gleanmo.crud.forms :as forms]
+  (:require [tech.jgood.gleanmo.crud.forms :as forms]
             [tech.jgood.gleanmo.crud.handlers :as handlers]
             [tech.jgood.gleanmo.crud.views :as views]))
 
 (defn gen-routes
   [{:keys [entity-key schema plural-str entity-str]}]
-  (let [schema (entity-key schema)
-        args   (pot/map-of entity-key schema plural-str entity-str)]
+  (let [schema-map schema
+        entity-schema (entity-key schema-map)
+        args   {:entity-key entity-key
+                :schema     entity-schema
+                :schema-map schema-map
+                :plural-str plural-str
+                :entity-str entity-str}]
     ["/crud" {}
      ;; Form routes - grouped under /form
      ["/form" {}

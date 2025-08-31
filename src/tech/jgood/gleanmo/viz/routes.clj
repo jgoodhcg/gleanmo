@@ -3,7 +3,7 @@
    [cheshire.core :as json]
    [clojure.string :as str]
    [tech.jgood.gleanmo.app.shared :refer [side-bar]]
-   [tech.jgood.gleanmo.crud.schema-utils :as schema-utils]
+   [tech.jgood.gleanmo.schema.utils :as schema-utils]
    [tech.jgood.gleanmo.db.queries :as queries]
    [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.ui :as ui]))

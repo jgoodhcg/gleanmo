@@ -177,6 +177,138 @@ Features:
 - User privacy settings compliance
 - Consistent theming
 
+# Adding New Entities
+
+## Complete Entity Creation Process
+
+To add a new entity with full CRUD and visualization support:
+
+### 1. Create Schema File
+
+Create `src/tech/jgood/gleanmo/schema/[entity]_schema.clj`:
+
+```clojure
+(ns tech.jgood.gleanmo.schema.entity-schema
+  (:require [tech.jgood.gleanmo.schema.meta :as sm]))
+
+(def entity
+  [:map {:closed true}
+   [:xt/id :entity/id]
+   [::sm/type [:enum :entity]]
+   [::sm/created-at :instant]
+   [::sm/deleted-at {:optional true} :instant]
+   [:user/id :user/id]
+   [:entity/label :string]
+   ;; Add entity-specific fields
+   ])
+```
+
+### 2. Register Schema
+
+Add to `src/tech/jgood/gleanmo/schema.clj`:
+
+```clojure
+;; In require section
+[tech.jgood.gleanmo.schema.entity-schema :as es]
+
+;; In schema map - add ID types
+:entity/id :uuid
+
+;; In schema map - add entity schemas  
+:entity es/entity
+```
+
+### 3. Create App Route Files
+
+**For base entity** - `src/tech/jgood/gleanmo/app/entity.clj`:
+```clojure
+(ns tech.jgood.gleanmo.app.entity
+  (:require
+   [tech.jgood.gleanmo.crud.routes :as crud]
+   [tech.jgood.gleanmo.schema      :refer [schema]]))
+
+(def crud-routes
+  (crud/gen-routes {:entity-key :entity,
+                    :entity-str "entity",
+                    :plural-str "entities",
+                    :schema     schema}))
+```
+
+**For log entity** - `src/tech/jgood/gleanmo/app/entity_log.clj`:
+```clojure
+(ns tech.jgood.gleanmo.app.entity-log
+  (:require
+   [tech.jgood.gleanmo.crud.routes :as crud]
+   [tech.jgood.gleanmo.viz.routes :as viz-routes]
+   [tech.jgood.gleanmo.schema      :refer [schema]]
+   [tech.jgood.gleanmo.schema.entity-schema :as es]))
+
+(def crud-routes
+  (crud/gen-routes {:entity-key :entity-log,
+                    :entity-str "entity-log", 
+                    :plural-str "entity-logs",
+                    :schema     schema}))
+
+(def viz-routes
+  (viz-routes/gen-routes {:entity-key :entity-log
+                          :entity-schema es/entity-log
+                          :entity-str "entity-log"
+                          :plural-str "entity-logs"}))
+```
+
+### 4. Register Routes
+
+Add to `src/tech/jgood/gleanmo/app.clj`:
+
+```clojure
+;; In require section
+[tech.jgood.gleanmo.app.entity :as entity]
+[tech.jgood.gleanmo.app.entity-log :as entity-log]
+
+;; In db-viz-supported-types set
+:entity
+:entity-log
+
+;; In routes section
+entity/crud-routes
+entity-log/crud-routes
+entity-log/viz-routes
+```
+
+### 5. Add Dashboard Links
+
+Add to `src/tech/jgood/gleanmo/app/dashboards.clj`:
+
+```clojure
+;; In entities-dashboard
+(dashboard-card "Entities" "Description" 
+                "/app/crud/entity" "🔗" "neon-color")
+
+;; In activity-logs-dashboard  
+(dashboard-card "Entity Logs" "Log description"
+                "/app/crud/entity-log" "📊" "neon-color")
+
+;; In analytics-dashboard (if temporal)
+(dashboard-card "Entity Calendar" "Calendar description"
+                "/app/viz/entity-log" "🗓️" "neon-color")
+```
+
+### 6. Add Quick Add (Optional)
+
+Add to `src/tech/jgood/gleanmo/app/shared.clj` in Quick Add section:
+
+```clojure
+[:a.link {:href "/app/crud/form/entity-log/new"} "entity log"]
+```
+
+This process gives you:
+- Full CRUD operations (`/app/crud/entity`, `/app/crud/entity-log`)
+- Automatic form generation with validation
+- Calendar heatmap visualization (`/app/viz/entity-log`) 
+- Database inspection (`/app/db/entity`, `/app/db/entity-log`)
+- Dashboard navigation
+- Quick-add sidebar links
+
 ## License
 
 All rights reserved. This code is shared for demonstration and educational purposes.

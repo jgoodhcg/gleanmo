@@ -83,6 +83,7 @@
       [:a.link {:href "/app/crud/form/meditation-log/new"} "meditation log"]
       [:a.link {:href "/app/crud/form/bm-log/new"} "bm log"]
       [:a.link {:href "/app/crud/form/medication-log/new"} "medication log"]
+      [:a.link {:href "/app/crud/form/project-log/new"} "project log"]
       [:hr.border-dark]
       
       ;; Calendar
@@ -95,6 +96,7 @@
       [:a.link {:href "/app/dashboards/entities"} "📦 manage entities"]
       [:a.link {:href "/app/dashboards/activity-logs"} "📋 activity logs"]
       [:a.link {:href "/app/dashboards/analytics"} "📊 analytics & insights"]
+      [:a.link {:href "/app/timers"} "⏱️ timers"]
 
       ;; Subtle Sign out button
       (biff/form

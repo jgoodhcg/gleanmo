@@ -2,7 +2,7 @@
   (:require [clojure.string :as str]
             [tech.jgood.gleanmo.app.shared :refer [get-user-time-zone]]
             [tech.jgood.gleanmo.crud.forms.converters :refer [convert-field-value]]
-            [tech.jgood.gleanmo.crud.schema-utils :as schema-utils]
+            [tech.jgood.gleanmo.schema.utils :as schema-utils]
             [tech.jgood.gleanmo.db.mutations :as mutations]
             [tech.jgood.gleanmo.db.queries :as db]))
 
@@ -15,18 +15,21 @@
         (dissoc :__anti-forgery-token)
         (->> (reduce (fn [acc [k v]]
                        (let [k          (keyword k)
-                             field-info (schema-utils/get-field-info schema k)
-                             optional?  (get-in field-info [:opts :optional])
-                             type       (:type field-info)
-                             {:keys [input-type]}
-                             (schema-utils/determine-input-type type)]
-                         ;; Skip empty values for optional fields, otherwise
-                         ;; convert
-                         (if (and optional? (or (nil? v) (str/blank? v)))
-                           acc ; Skip this field
-                           (let [converted-value
-                                 (convert-field-value input-type v ctx)]
-                             (assoc acc k converted-value)))))
+                             field-info (schema-utils/get-field-info schema k)]
+                         ;; Skip fields that don't exist in the schema
+                         (if (nil? field-info)
+                           acc
+                           (let [optional?  (get-in field-info [:opts :optional])
+                                 type       (:type field-info)
+                                 {:keys [input-type]}
+                                 (schema-utils/determine-input-type type)]
+                             ;; Skip empty values for optional fields, otherwise
+                             ;; convert
+                             (if (and optional? (or (nil? v) (str/blank? v)))
+                               acc ; Skip this field
+                               (let [converted-value
+                                     (convert-field-value input-type v ctx)]
+                                 (assoc acc k converted-value)))))))
                      ;; Start with defaults for missing boolean fields
                      (reduce (fn [acc field]
                                (let [[field-key opts type] (if (map? (second field))
@@ -46,10 +49,12 @@
 (defn create-entity!
   "Handle entity creation from form submission"
   [{:keys [schema entity-key entity-str]}
-   {:keys [session biff/db params], :as ctx}]
+   {:keys [session biff/db params headers], :as ctx}]
   (let [user-id        (:uid session)
         user           (db/get-entity-by-id db user-id)
-        data           (form->schema params schema ctx)
+        redirect-url   (or (get params "redirect") (get params :redirect))
+        schema-params  (dissoc params :__anti-forgery-token :redirect "redirect")
+        data           (form->schema schema-params schema ctx)
         ;; Add user ID to data
         data-with-user (assoc data :user/id (:xt/id user))
         ;; Check if time zone is being updated
@@ -72,16 +77,23 @@
         :entity-id  user-id,
         :data       {:user/time-zone time-zone}}))
 
-    ;; Return redirect response
-    {:status  303,
-     :headers {"location" (str "/app/crud/form/" entity-str "/new")}}))
+    ;; Return redirect response (use custom redirect if provided)
+    (let [default-redirect (str "/app/crud/form/" entity-str "/new")
+          final-redirect (or redirect-url default-redirect)
+          is-htmx?       (some? (get headers "hx-request"))]
+      (if is-htmx?
+        {:status  200
+         :headers {"HX-Redirect" final-redirect}}
+        {:status  303,
+         :headers {"location" final-redirect}}))))
 
 (defn update-entity!
   "Handle entity update from form submission"
   [{:keys [schema entity-key entity-str]}
-   {:keys [session params path-params biff/db] :as ctx}]
+   {:keys [session params path-params biff/db headers] :as ctx}]
   (let [user-id        (:uid session)
         entity-id      (java.util.UUID/fromString (:id path-params))
+        redirect-url   (or (get params "redirect") (get params :redirect))
         ;; Get current entity data to compare with
         current-entity (db/get-entity-for-user db entity-id user-id entity-key)
         
@@ -127,9 +139,14 @@
         :data       {:user/time-zone time-zone}}))
     
     ;; Return redirect response
-    {:status  303,
-     :headers {"location"
-               (str "/app/crud/form/" entity-str "/edit/" entity-id)}}))
+    (let [default-redirect (str "/app/crud/form/" entity-str "/edit/" entity-id)
+          final-redirect   (or redirect-url default-redirect)
+          is-htmx?         (some? (get headers "hx-request"))]
+      (if is-htmx?
+        {:status  200
+         :headers {"HX-Redirect" final-redirect}}
+        {:status  303,
+         :headers {"location" final-redirect}}))))
 
 (defn delete-entity!
   "Soft-delete an entity by setting its deleted-at timestamp"

@@ -13,7 +13,10 @@
    [tech.jgood.gleanmo.app.medication-log :as med-log]
    [tech.jgood.gleanmo.app.meditation :as meditation]
    [tech.jgood.gleanmo.app.meditation-log :as meditation-log]
+   [tech.jgood.gleanmo.app.project :as project]
+   [tech.jgood.gleanmo.app.project-log :as project-log]
    [tech.jgood.gleanmo.app.shared :refer [side-bar]]
+   [tech.jgood.gleanmo.app.timers :as timers]
    [tech.jgood.gleanmo.app.user :as user]
    [tech.jgood.gleanmo.db.queries :as db]
    [tech.jgood.gleanmo.middleware :as mid]
@@ -39,6 +42,8 @@
     :location
     :ical-url
     :calendar-event
+    :project
+    :project-log
     :cruddy})
 
 (defn db-viz
@@ -193,9 +198,17 @@
             medication/crud-routes
             med-log/crud-routes
             med-log/viz-routes
+            project/crud-routes
+            project-log/crud-routes
+            project-log/viz-routes
+            project-log/timer-routes
+            meditation-log/timer-routes
             
             ;; Dashboard routes
             dashboards/routes
+
+            ;; Timers
+            timers/routes
 
             ;; Main app and DB visualization
             ["" {:get root}]

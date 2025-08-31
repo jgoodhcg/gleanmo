@@ -9,6 +9,7 @@
    [tech.jgood.gleanmo.schema.meditation-schema :as mc]
    [tech.jgood.gleanmo.ui :as ui]
    [tech.jgood.gleanmo.viz.routes :as viz-routes]
+   [tech.jgood.gleanmo.timer.routes :as timer-routes]
    [tick.core :as t])
   (:import
    [java.time ZoneId]))
@@ -25,6 +26,12 @@
                           :entity-schema mc/meditation-log  
                           :entity-str "meditation-log"
                           :plural-str "meditation-logs"}))
+
+(def timer-routes
+  (timer-routes/gen-routes {:entity-key    :meditation-log
+                            :entity-str    "meditation-log"
+                            :entity-schema mc/meditation-log
+                            :schema-map    schema}))
 
 (defn- date-str->instant
   "Convert a date string (YYYY-MM-DD) to an instant at the start of that day in the given time zone"

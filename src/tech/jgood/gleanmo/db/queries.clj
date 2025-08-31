@@ -4,7 +4,7 @@
    [com.biffweb :as    biff
     :refer [q]]
    [potpuri.core :as pot]
-   [tech.jgood.gleanmo.crud.schema-utils :as schema-utils]
+   [tech.jgood.gleanmo.schema.utils :as schema-utils]
    [tech.jgood.gleanmo.schema.meta :as sm]
    [tick.core :as t]
    [xtdb.api :as xt]))

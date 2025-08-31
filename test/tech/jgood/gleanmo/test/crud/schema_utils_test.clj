@@ -1,7 +1,8 @@
 (ns tech.jgood.gleanmo.test.crud.schema-utils-test
   (:require
    [clojure.test :refer [deftest is testing]]
-   [tech.jgood.gleanmo.crud.schema-utils :as schema-utils]))
+   [tech.jgood.gleanmo.schema.utils :as schema-utils]
+   [tech.jgood.gleanmo.schema :refer [schema]]))
 
 (deftest parse-field-test
   (testing "parse-field function"
@@ -143,6 +144,39 @@
         (is (= "Meditation Type" (:input-label result)))
         (is (true? (:input-required result)))))))
 
+(deftest entity-schema-test
+  (testing "entity-schema helper"
+    (is (vector? (schema-utils/entity-schema :project-log)))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"Unknown entity schema"
+                          (schema-utils/entity-schema :unknown)))))
+
+
+(deftest ensure-interval-fields-test
+  (testing "ensure-interval-fields validates required keys"
+    (let [schema (schema-utils/entity-schema :project-log)]
+      (is (= #{:beginning-field :end-field}
+             (-> (schema-utils/ensure-interval-fields {:entity-schema schema
+                                                       :entity-str "project-log"})
+                 keys set)))))
+
+  (testing "missing beginning throws"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"beginning"
+                          (schema-utils/ensure-interval-fields
+                           {:entity-schema [:test
+                                            [:test/end :instant]]
+                            :entity-str "test"}))))
+
+  (testing "missing end throws"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"end"
+                          (schema-utils/ensure-interval-fields
+                           {:entity-schema [:test
+                                            [:test/beginning :instant]]
+                            :entity-str "test"}))))
+)
+
 (deftest prepare-field-test
   (testing "prepare-field function"
     (testing "prepares field with all transformations"
@@ -230,7 +264,7 @@
               result (schema-utils/extract-relationship-fields schema-with-system :remove-system-fields true)]
           (is (= 1 (count result)))
           (is (= :habit/user (:field-key (first result))))
-          (is (= :single-relationship (:input-type (first result)))))))))
+          (is (= :single-relationship (:input-type (first result))))))))
 
 (deftest get-field-info-test
   (testing "get-field-info function"
@@ -257,3 +291,4 @@
       
       (testing "returns nil for non-existent fields"
         (is (nil? (schema-utils/get-field-info schema :user/non-existent)))))))
+)

@@ -35,7 +35,9 @@
       (dashboard-card "Medications" "Medications and dosages" 
                       "/app/crud/medication" "💊" "neon-pink")
       (dashboard-card "Locations" "Places where activities happen" 
-                      "/app/crud/location" "📍" "neon-azure")]])))
+                      "/app/crud/location" "📍" "neon-azure")
+      (dashboard-card "Projects" "Time tracking projects" 
+                      "/app/crud/project" "🚀" "neon-yellow")]])))
 
 (defn activity-logs-dashboard
   "Dashboard for viewing activity logs"
@@ -56,7 +58,9 @@
       (dashboard-card "Health Logs" "Health tracking entries" 
                       "/app/crud/bm-log" "🩺" "neon-azure")
       (dashboard-card "Medication Logs" "Medication intake records" 
-                      "/app/crud/medication-log" "📊" "neon-pink")]])))
+                      "/app/crud/medication-log" "📊" "neon-pink")
+      (dashboard-card "Project Logs" "Time tracking entries" 
+                      "/app/crud/project-log" "⏰" "neon-yellow")]])))
 
 (defn analytics-dashboard
   "Dashboard for visualizations and analytics"
@@ -82,6 +86,8 @@
                       "/app/viz/bm-log" "🗓️" "neon-azure")
       (dashboard-card "Medication Calendar" "Medication intake calendar" 
                       "/app/viz/medication-log" "🗓️" "neon-pink")
+      (dashboard-card "Project Calendar" "Time tracking calendar" 
+                      "/app/viz/project-log" "🗓️" "neon-yellow")
       
       ;; Analytics
       [:div.lg:col-span-3.mt-8

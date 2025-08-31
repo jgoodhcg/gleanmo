@@ -5,7 +5,8 @@
     [format-date-time-local
      get-user-time-zone]]
    [tech.jgood.gleanmo.db.queries :refer [all-for-user-query]]
-   [tech.jgood.gleanmo.schema :as schema]
+   [tech.jgood.gleanmo.schema :as schema-registry]
+   [tech.jgood.gleanmo.schema.utils :as schema-utils]
    [tick.core :as t])
   (:import
    [java.time ZoneId]))
@@ -145,20 +146,33 @@
                 input-required
                 value]}
         field
-        time-zone (get-user-time-zone ctx)
-        time-zone (if (some? time-zone) time-zone "US/Eastern")
+        ;; Determine timezone with proper fallback hierarchy:
+        ;; 1. Query parameter timezone (for pre-population)
+        ;; 2. Entity timezone (for editing existing entities)
+        ;; 3. User's saved timezone setting
+        ;; 4. Default fallback
+        query-tz (get-in ctx [:params "timezone"])
+        entity-tz (when-let [entity (:entity ctx)]
+                    (or (get entity (keyword (str (:entity-str ctx) "/time-zone")))
+                        (:time-zone entity)))
+        user-tz (get-user-time-zone ctx)
+        time-zone (or query-tz entity-tz user-tz "UTC")
         ;; Only default to now if it's a beginning timestamp or value is
         ;; already set
         formatted-time (cond
-                         ;; Use existing value if provided
+                         ;; Use existing value if provided (could be from query params or entity)
                          value
-                         (format-date-time-local value time-zone)
+                         (if (string? value)
+                           ;; Parse string instant and format for user's timezone
+                           (format-date-time-local (t/instant value) time-zone)
+                           ;; Already an instant
+                           (format-date-time-local value time-zone))
 
                          ;; Set default now value only for beginning fields
                          (and (string? input-name)
                               (or (str/includes? input-name "beginning")
                                   (str/includes? input-name "timestamp")))
-                         (format-date-time-local (t/now) time-zone)
+                         (format-date-time-local (t/in (t/now) (ZoneId/of time-zone)) time-zone)
 
                          ;; Otherwise, leave empty
                          :else
@@ -183,9 +197,10 @@
         field
         label-key (keyword related-entity-str "label")
         id-key :xt/id
-        entity-schema (get schema/schema (keyword related-entity-str))
-        options (->> (all-for-user-query {:entity-type-str related-entity-str,
-                                          :schema entity-schema}
+        schema-map (or (:schema-map ctx) schema-registry/schema)
+        entity-schema (schema-utils/entity-schema schema-map (keyword related-entity-str))
+        options (->> (all-for-user-query {:entity-type-str related-entity-str
+                                          :schema         entity-schema}
                                          ctx)
                      (map (fn [e] {:id (id-key e), :label (label-key e)})))]
     [:div
@@ -207,9 +222,10 @@
         field
         label-key (keyword related-entity-str "label")
         id-key :xt/id
-        entity-schema (get schema/schema (keyword related-entity-str))
-        options (->> (all-for-user-query {:entity-type-str related-entity-str,
-                                          :schema entity-schema}
+        schema-map (or (:schema-map ctx) schema-registry/schema)
+        entity-schema (schema-utils/entity-schema schema-map (keyword related-entity-str))
+        options (->> (all-for-user-query {:entity-type-str related-entity-str
+                                          :schema         entity-schema}
                                          ctx)
                      (map (fn [e] {:id (id-key e), :label (label-key e)})))
         value-set (when value (set (map str value)))]

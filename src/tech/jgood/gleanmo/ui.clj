@@ -72,3 +72,15 @@
             (if (= status 404)
               "Page not found."
               "Something went wrong.")]))})
+
+(defn fragment
+  "Render a partial HTML snippet, typically for HTMX responses. Mirrors `page`
+  by accepting an unused `ctx` argument for future hooks, but can also be
+  called with just the component."
+  ([component]
+   (fragment {} component))
+  ([ctx & body]
+   (let [content (if (> (count body) 1)
+                   (into [:<>] body)
+                   (first body))]
+     (rum/render-static-markup content))))

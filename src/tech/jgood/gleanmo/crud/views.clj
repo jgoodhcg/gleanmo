@@ -6,7 +6,7 @@
    [potpuri.core :as pot]
    [tech.jgood.gleanmo.app.shared :refer
     [side-bar]]
-   [tech.jgood.gleanmo.crud.schema-utils :as schema-utils]
+   [tech.jgood.gleanmo.schema.utils :as schema-utils]
    [tech.jgood.gleanmo.crud.views.formatting :refer [format-cell-value]]
    [tech.jgood.gleanmo.db.queries :as db]
    [tech.jgood.gleanmo.ui :as ui]
