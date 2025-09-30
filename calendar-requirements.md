@@ -82,6 +82,14 @@
 - **Recurring Events**: Repeat functionality
 - **Event Templates**: Quick creation from templates
 
+### Recurring Events Architecture
+- **Data Model**: Keep one `calendar-event` namespace, adding a `series` entity that carries recurrence metadata (RRULE, EXDATE/EXRULE, `DTSTART`) and an `instance` entity for concrete occurrences with per-event overrides; single events stay as detached instances for a uniform rendering path.
+- **RRULE Storage**: Persist RFC5545 rule strings alongside a parsed form so we remain compatible with external calendar sync while still enabling fast, in-app evaluation.
+- **Expansion Strategy**: Expand lazily for the visible window (month/year) via a pure helper that accepts the rule, timezone, and date bounds; cache per user/session and only materialize overrides when an occurrence is edited.
+- **Exception Handling**: Support edit-this-only (detached instance), edit-this-and-following (split series by cloning with a new `DTSTART`), and delete-this (record EXDATE); keep shared metadata (title, color, icon) on the series to avoid duplication.
+- **UI/HTMX**: Reuse the existing modal flow with an additional recurrence section and partial HTMX updates so only affected cells refresh; render expanded occurrences through the current event view model.
+- **Testing**: Add property-style coverage around the recurrence expander (DST boundaries, rule edge cases) and extend integration tests to assert user scoping, timezone handling, and detached-instance regressions.
+
 ## TECHNICAL IMPLEMENTATION NOTES
 
 ### Schema Extensions Needed

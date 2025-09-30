@@ -2,7 +2,8 @@
   (:require [com.biffweb :as biff]
             [muuntaja.middleware :as muuntaja]
             [ring.middleware.anti-forgery :as csrf]
-            [ring.middleware.defaults :as rd])
+            [ring.middleware.defaults :as rd]
+            [tech.jgood.gleanmo.observability :as obs])
   (:import [java.util UUID]))
 
 (defn wrap-redirect-signed-in [handler]
@@ -74,4 +75,5 @@
       biff/wrap-resource
       biff/wrap-internal-error
       biff/wrap-ssl
-      biff/wrap-log-requests))
+      biff/wrap-log-requests
+      obs/wrap-request-profiling))

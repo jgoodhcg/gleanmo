@@ -10,6 +10,7 @@
    [tech.jgood.gleanmo :as main]
    [tech.jgood.gleanmo.schema.bm-schema :as bs]
    [tech.jgood.gleanmo.schema.meta :as sm]
+   [tech.jgood.gleanmo.observability :as obs]
    [tick.core          :as t]
    [xtdb.api           :as xt]))
 
@@ -474,3 +475,23 @@
 
 ;;
   )
+;;; Observability helpers ----------------------------------------------------
+
+(defn profile-smoke
+  "Run a trivial profiled block to confirm Tufte is wired up."
+  []
+  (obs/profile-block :repl/smoke
+    (Thread/sleep 10)
+    :ok))
+
+(defn dump-profiling-snapshot
+  "Return the current accumlated profiling snapshot map (and reset buffer)."
+  []
+  (obs/aggregator-snapshot))
+
+(comment 
+  (profile-smoke)
+  (dump-profiling-snapshot)
+  ;;
+  )
+

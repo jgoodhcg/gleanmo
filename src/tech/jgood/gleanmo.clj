@@ -11,6 +11,7 @@
    [tech.jgood.gleanmo.email :as email]
    [tech.jgood.gleanmo.home :as home]
    [tech.jgood.gleanmo.middleware :as mid]
+   [tech.jgood.gleanmo.observability :as observability]
    [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.schema :as schema]
    [tech.jgood.gleanmo.ui :as ui]
@@ -20,6 +21,7 @@
 
 (def modules
   [app/module
+   observability/module
    (biff/authentication-module
     {:biff.auth/new-user-tx
      (fn [ctx email]
@@ -78,6 +80,7 @@
    biff/use-queues
    biff/use-xtdb-tx-listener
    biff/use-htmx-refresh
+   observability/use-observability
    biff/use-jetty
    biff/use-chime
    biff/use-beholder])

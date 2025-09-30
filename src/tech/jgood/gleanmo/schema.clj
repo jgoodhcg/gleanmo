@@ -11,7 +11,8 @@
             [tech.jgood.gleanmo.schema.medication-schema :as meds]
             [tech.jgood.gleanmo.schema.calendar-event-schema :as ces]
             [tech.jgood.gleanmo.schema.project-schema :as ps]
-            [tech.jgood.gleanmo.schema.cruddy :as cs]))
+            [tech.jgood.gleanmo.schema.cruddy :as cs]
+            [tech.jgood.gleanmo.schema.performance-schema :as perf]))
 
 ;; all glenamo/type attributes are the schema key
 (def schema
@@ -51,7 +52,8 @@
    :exercise-set        es/exercise-set
    :project             ps/project
    :project-log         ps/project-log
-   :cruddy              cs/cruddy})
+   :cruddy              cs/cruddy
+   :performance-report  perf/performance-report})
 
 (def module
   {:schema schema})

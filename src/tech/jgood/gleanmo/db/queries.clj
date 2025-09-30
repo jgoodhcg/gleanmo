@@ -7,9 +7,10 @@
    [tech.jgood.gleanmo.schema.utils :as schema-utils]
    [tech.jgood.gleanmo.schema.meta :as sm]
    [tick.core :as t]
-   [xtdb.api :as xt]))
+   [xtdb.api :as xt]
+   [taoensso.tufte :refer [defnp defnp-]]))
 
-(defn get-entity-by-id
+(defnp get-entity-by-id
   "Get a single entity by ID.
    Returns the first result or nil if not found."
   [db entity-id]
@@ -34,7 +35,7 @@
        :show-sensitive false,
        :show-archived  false})))
 
-(defn get-entity-for-user
+(defnp get-entity-for-user
   "Get a single entity by ID that belongs to a specific user.
    Returns the first result or nil if not found."
   [db entity-id user-id entity-type]
@@ -51,7 +52,7 @@
       (-> result
           first))))
 
-(defn- should-remove-related-entity
+(defnp- should-remove-related-entity
   "Check if an entity has related entities that should be removed based on sensitivity or archive settings.
    Returns true if any related entity matches removal criteria."
   [entity relationship-fields db remove-sensitive remove-archived]
@@ -80,7 +81,7 @@
                   related-entities)))))
     relationship-fields)))
 
-(defn all-entities-for-user
+(defnp all-entities-for-user
   "Get all entities of a specific type that belong to a user.
    Optionally includes or removes entities based on sensitivity, archive status, and related entities."
   [db user-id entity-type &
@@ -126,7 +127,7 @@
       :always (sort-by #(or (time-stamp-key %) (::sm/created-at %)))
       :always (reverse))))
 
-(defn all-for-user-query
+(defnp all-for-user-query
   "Get all entities for a user with include/exclude options from user settings.
    This function is a higher-level wrapper around all-entities-for-user that handles
    user settings for including sensitive entities, archived entities, and related entity filtering."
@@ -163,7 +164,7 @@
     (when-let [user (get-entity-by-id db user-id)]
       {:super-user (boolean (:authz/super-user user))})))
 
-(defn db-viz-query
+(defnp db-viz-query
   "Execute a database visualization query with type and filter parameters."
   [db query type filter-email]
   (q db query [type filter-email]))
@@ -175,7 +176,7 @@
         first
         :xtdb.api/tx-time)))
 
-(defn get-events-for-user-year
+(defnp get-events-for-user-year
   "Get all events for a user within a specific year, using user's timezone.
    Note: Performs date-range filtering in application code to avoid complex
    Datalog predicates on Instants."

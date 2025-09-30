@@ -1,5 +1,6 @@
 (ns tech.jgood.gleanmo.app
   (:require
+   [com.biffweb :as biff]
    [clojure.string :as str]
    [tech.jgood.gleanmo.app.bm-log :as bm-log]
    [tech.jgood.gleanmo.app.calendar :as calendar]
@@ -18,11 +19,13 @@
    [tech.jgood.gleanmo.app.shared :refer [side-bar]]
    [tech.jgood.gleanmo.app.timers :as timers]
    [tech.jgood.gleanmo.app.user :as user]
+   [tech.jgood.gleanmo.observability :as obs]
    [tech.jgood.gleanmo.db.queries :as db]
    [tech.jgood.gleanmo.middleware :as mid]
    [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.settings :as settings]
-   [tech.jgood.gleanmo.ui :as ui]))
+   [tech.jgood.gleanmo.ui :as ui]
+   [xtdb.api :as xt]))
 
 (def about-page
   (ui/page
@@ -179,6 +182,175 @@
        "🚀 RGB Glow Test - This should have animated rainbow borders!"]])]))
 
 
+(defn- super-user?
+  [db user-id]
+  (true? (:super-user (db/get-user-authz db user-id))))
+
+(def window-options
+  [{:label "1 minute"  :dur (java.time.Duration/ofMinutes 1)}
+   {:label "5 minutes" :dur (java.time.Duration/ofMinutes 5)}
+   {:label "15 minutes" :dur (java.time.Duration/ofMinutes 15)}
+   {:label "30 minutes" :dur (java.time.Duration/ofMinutes 30)}
+   {:label "45 minutes" :dur (java.time.Duration/ofMinutes 45)}
+   {:label "1 hour"  :dur (java.time.Duration/ofHours 1)}
+   {:label "3 hours" :dur (java.time.Duration/ofHours 3)}
+   {:label "6 hours" :dur (java.time.Duration/ofHours 6)}
+   {:label "12 hours" :dur (java.time.Duration/ofHours 12)}
+   {:label "24 hours" :dur (java.time.Duration/ofHours 24)}
+   {:label "7 days"   :dur (java.time.Duration/ofDays 7)}
+   {:label "All time" :dur nil}])
+
+(defn- now-inst [] (java.time.Instant/now))
+
+(defn load-performance-history
+  [db instance-id {:keys [dur]}]
+  (let [doc-id (keyword "performance-report" instance-id)
+        history (xt/entity-history db doc-id :desc {:with-docs? true})
+        cutoff  (when dur (.minus (now-inst) dur))]
+    (->> history
+         (keep (fn [{:keys [xtdb.api/doc xtdb.api/tx-time]}]
+                 (let [generated (:performance-report/generated-at doc)
+                       include? (or (nil? cutoff)
+                                    (and generated (not (.isBefore generated cutoff))))]
+                   (when include?
+                     {:doc doc :generated generated :tx-time tx-time})))))))
+
+(defn format-duration
+  [nanos]
+  (cond
+    (nil? nanos) "0ns"
+    (>= nanos 1e9) (format "%.2fs" (/ nanos 1e9))
+    (>= nanos 1e6) (format "%.2fms" (/ nanos 1e6))
+    (>= nanos 1e3) (format "%.2fµs" (/ nanos 1e3))
+    :else (str nanos "ns")))
+
+(defn aggregate-metric
+  [existing metrics]
+  (let [n-a (:n existing 0)
+        n-b (:n metrics 0)
+        sum-a (:sum existing 0.0)
+        sum-b (:sum metrics 0.0)
+        n (+ n-a n-b)
+        sum (+ sum-a sum-b)
+        min-val (cond
+                  (and (:min existing) (:min metrics)) (min (:min existing) (:min metrics))
+                  (:min existing) (:min existing)
+                  :else (:min metrics))
+        max-val (cond
+                  (and (:max existing) (:max metrics)) (max (:max existing) (:max metrics))
+                  (:max existing) (:max existing)
+                  :else (:max metrics))]
+    {:n n
+     :sum sum
+     :mean (if (pos? n) (/ sum n) 0)
+     :min min-val
+     :max max-val}))
+
+(defn aggregate-route
+  [route-acc {:keys [clock stats]}]
+  (let [total (+ (:clock-total route-acc 0) (get-in clock [:total] 0))
+        aggregated-stats (reduce-kv
+                           (fn [acc pid metrics]
+                             (update acc pid aggregate-metric metrics))
+                           (:stats route-acc {})
+                           stats)]
+    {:clock-total total
+     :stats aggregated-stats}))
+
+(defn merge-pstats
+  [entries]
+  (reduce
+   (fn [acc {:keys [doc]}]
+     (reduce-kv
+      (fn [acc2 route data]
+        (update acc2 route aggregate-route data))
+      acc
+      (:performance-report/pstats doc)))
+   {}
+   entries))
+
+(defn build-summary
+  [_ {:keys [clock-total stats]}]
+  (let [header (format "%-55s %8s %10s %10s %10s %10s"
+                       "Span" "Calls" "Mean" "Total" "Min" "Max")
+        lines  (for [[pid {:keys [n mean sum min max]}] stats]
+                 (format "%-55s %8d %10s %10s %10s %10s"
+                         (name pid)
+                         n
+                         (format-duration mean)
+                         (format-duration sum)
+                         (format-duration min)
+                         (format-duration max)))]
+    (str/join "\n" (concat [header] lines [(str "Clock total: " (format-duration clock-total))]))))
+
+(defn performance-instance-dashboard
+  [{:keys [session biff/db params] :as ctx}]
+  (let [user-id (:uid session)]
+    (if-not (super-user? db user-id)
+      (ui/page
+       {:status 403}
+       (side-bar
+        ctx
+        [:div.max-w-xl.mx-auto.space-y-4
+         [:h1.text-2xl.font-semibold "Access Restricted"]
+         [:p "This page is limited to super users. Contact an administrator if you need access."]]))
+      (let [selected-label (or (:window params) "1 hour")
+            window         (some #(when (= (:label %) selected-label) %) window-options)
+            instance-id    (obs/current-instance-id)
+            all-history    (load-performance-history db instance-id {:dur nil})
+            entries        (if (:dur window)
+                             (load-performance-history db instance-id window)
+                             all-history)
+            merged-stats   (merge-pstats entries)
+            latest-doc     (some-> entries first :doc)
+            latest-generated (some-> entries first :generated)]
+        (ui/page
+         {}
+         (side-bar
+          ctx
+          [:div.max-w-5xl.mx-auto.space-y-6
+           [:h1.text-2xl.font-semibold "Performance Dashboard (This Instance)"]
+           [:div.grid.grid-cols-1.md:grid-cols-4.gap-4
+            [:div.bg-dark-surface.p-4.rounded
+             [:dt.text-xs.text-gray-400.uppercase "Instance"]
+             [:dd.font-mono.break-all (str instance-id)]]
+            [:div.bg-dark-surface.p-4.rounded
+             [:dt.text-xs.text-gray-400.uppercase "Git SHA"]
+             [:dd.font-mono (or (:performance-report/git-sha latest-doc) "unknown")]]
+            [:div.bg-dark-surface.p-4.rounded
+             [:dt.text-xs.text-gray-400.uppercase "Total Snapshots"]
+             [:dd.font-mono (str (count all-history))]]
+            [:div.bg-dark-surface.p-4.rounded
+             [:dt.text-xs.text-gray-400.uppercase "Latest Snapshot"]
+             [:dd.font-mono (or (some-> (:performance-report/generated-at latest-doc) str)
+                                "n/a")]]]
+           [:form.mb-4 {:method "get"}
+            [:label.mr-2 "Window:"]
+            [:select.bg-dark-surface.text-white.rounded.px-2.py-1
+             {:name "window"
+              :onchange "this.form.submit()"}
+             (for [{:keys [label]} window-options]
+               [:option {:value label
+                         :selected (= label selected-label)}
+                label])]]
+           [:div.grid.grid-cols-1.md:grid-cols-3.gap-4
+            [:div.bg-dark-surface.p-4.rounded
+             [:dt.text-xs.text-gray-400.uppercase "Window"]
+             [:dd.font-mono selected-label]]
+            [:div.bg-dark-surface.p-4.rounded
+             [:dt.text-xs.text-gray-400.uppercase "Snapshots in Window"]
+             [:dd.font-mono (str (count entries))]]
+            [:div.bg-dark-surface.p-4.rounded
+             [:dt.text-xs.text-gray-400.uppercase "Latest in Window"]
+             [:dd.font-mono (or (some-> latest-generated str) "n/a")]]]
+           (if (seq merged-stats)
+             (for [[k aggregated] (sort-by first merged-stats)]
+               [:article.bg-dark-surface.p-4.rounded
+                [:h2.font-mono.text-sm.mb-2 (name k)]
+                [:pre.text-xs.whitespace-pre-wrap (build-summary k aggregated)]])
+             [:p.text-sm.text-gray-400 "No metrics captured in this window."])]))))))
+
+
 (def module
   {:static {"/about/" about-page},
    :routes ["/app" {:middleware [mid/wrap-signed-in]}
@@ -215,6 +387,7 @@
 
             ["/db" {:get db-viz}]
             ["/db/:type" {:get db-viz}]
+            ["/monitoring/performance" {:get performance-instance-dashboard}]
 
             ;; user
             ["/my-user" {:get user/my-user}]
