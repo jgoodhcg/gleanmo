@@ -74,13 +74,31 @@
 - **Navigation Flow**: Seamless movement between calendar views
 
 ## 🔮 FUTURE FEATURES
-- **Google Calendar Sync**: Via iCal URLs
-- **Past Days Visual**: Different styling for past dates  
-- **Relative Positioning**: 6 months before/after today
+
+### External Calendar Integration
+- **Google Calendar Sync**: Via iCal URLs (pull-only or bidirectional)
+- **iCal URL Integration**: Extend existing ical-url entity to display events
+- **Event deduplication**: Prevent duplicate imports using external IDs
+- **Source tracking**: Mark imported events with source (`:google-cal`, `:hey-cal`, etc.)
+
+### Calendar Enhancements
+- **Past Days Visual**: Dimmed/faded styling to distinguish past from future dates
+- **Relative Positioning**: Center view around today (6 months before/after)
 - **Advanced Timezone**: Multi-timezone support
 - **Event Categories**: Enhanced categorization system
 - **Recurring Events**: Repeat functionality
 - **Event Templates**: Quick creation from templates
+
+### Natural Events & Indicators
+- **Holidays**: Display and manage personal/cultural/national holidays
+- **Moon Phases**: Lunar cycle indicators (icons or background treatment)
+- **Solar Events**: Equinox/solstice markers for seasonal transitions
+- **Frost Dates**: First/last frost dates for gardening (location-based)
+
+### Calendar Analytics
+- **Vacation Analytics**: Time to next weekend/vacation, PTO tracking
+- **Temporal Insights**: Time until end of year, next holiday, next solar/lunar event
+- **Event Statistics**: Total vacations/events by type, patterns over time
 
 ### Recurring Events Architecture
 - **Data Model**: Keep one `calendar-event` namespace, adding a `series` entity that carries recurrence metadata (RRULE, EXDATE/EXRULE, `DTSTART`) and an `instance` entity for concrete occurrences with per-event overrides; single events stay as detached instances for a uniform rendering path.

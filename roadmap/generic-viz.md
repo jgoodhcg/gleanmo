@@ -134,9 +134,28 @@ tech.jgood.gleanmo.viz
 
 ## Future Expansion Opportunities
 
-- **Multi-Entity Dashboards**: Combine multiple entity types in single visualizations
-- **Correlation Analysis**: Overlay different entity types to find patterns
+### Multi-Entity Dashboards
+- Combine multiple entity types in single visualizations
+- Correlation analysis: Overlay different entity types to find patterns
+- Custom layouts and widget arrangements
+
+### Additional Chart Types
+- **Timeline View**: For interval entities (meditation sessions, exercise)
+- **Activity by Day of Week**: Bar chart showing patterns
+- **Habit Streaks**: Show consecutive days of habit completion
+- **Time of Day Patterns**: When activities typically happen
+
+### Clickable Calendar Navigation
+- Make calendar heatmap dates clickable to show filtered entity lists
+- Click date → route to filtered CRUD view showing entities from that date
+- Generic implementation across all temporal entities
+- Integration with existing CRUD filtering system
+
+### Data & Interaction
 - **Export Functionality**: Generate visualization images or data exports
 - **Real-time Updates**: Live updating charts via WebSocket or polling
 - **Custom Date Ranges**: User-configurable time period filtering
 - **Pattern Recognition**: AI-driven insight generation from temporal patterns
+- **Chart configuration validation**: Schema validation for chart configs
+- **Performance optimization**: Lazy loading for large datasets
+- **Chart lifecycle management**: Proper cleanup and memory management
