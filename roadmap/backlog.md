@@ -49,4 +49,10 @@ Reusable search component with fuzzy matching for entity selection across forms 
 
 ### Meditation Timer
 - **Form pre-population bug**: Creating a timer for a specific meditation doesn't prefill the meditation selection in the form
+  - Root cause: `start-timer-card` constructs query param as `meditation-log/meditation-id` but actual field is `meditation-log/type-id`
+  - Fix: Use `relationship-key` from config instead of constructing field name from `parent-entity-key`
+  - See: `MEDITATION_TIMER_FIXES.md` for detailed analysis
 - **Visual issue**: Timer labels are rendering outside the card container
+  - Needs investigation: Check DOM structure and container divs
+  - Likely: Section headers (h2) need proper container wrapping
+  - See: `MEDITATION_TIMER_FIXES.md` for investigation steps

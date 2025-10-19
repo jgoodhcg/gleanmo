@@ -77,22 +77,23 @@
 
 (defn start-timer-card
   "Render a start button for a parent entity."
-  [parent {:keys [entity-str parent-entity-key]}]
+  [parent {:keys [entity-str parent-entity-key relationship-key]}]
   (let [label-key (schema-utils/entity-attr-key parent-entity-key "label")
         notes-key (schema-utils/entity-attr-key parent-entity-key "notes")]
     [:div.bg-dark-surface.rounded-lg.p-4.border.border-dark.transition-all.duration-300.hover:shadow-lg.hover:border-neon-yellow
-     [:div.flex.items-center.justify-between
-      [:div
-       [:div
-        [:h3.text-lg.font-semibold.text-white (or (get parent label-key) "Unnamed")]
-        (when-let [notes (get parent notes-key)]
-          [:p.text-sm.text-gray-400.truncate notes])]]
-      [:a.bg-neon-yellow.bg-opacity-20.text-neon-yellow.px-3.py-2.rounded.text-sm.font-medium.hover:bg-opacity-30.transition-all.no-underline
+[:div.flex.items-center.justify-between
+       [:div.flex-1.min-w-0
+        [:div
+         [:h3.text-lg.font-semibold.text-white (or (get parent label-key) "Unnamed")]
+         (when-let [notes (get parent notes-key)]
+           [:p.text-sm.text-gray-400.truncate notes])]]
+       [:a.bg-neon-yellow.bg-opacity-20.text-neon-yellow.px-3.py-2.rounded.text-sm.font-medium.hover:bg-opacity-30.transition-all.no-underline
        {:href (str "/app/crud/form/" entity-str
-                   "/new?"       entity-str
-                   "/"           (name parent-entity-key)
-                   "-id="        (:xt/id parent)
-                   "&"           entity-str
+                   "/new?"
+                   (namespace relationship-key) "/"
+                   (name relationship-key) "="
+                   (:xt/id parent)
+                   "&" entity-str
                    "/beginning=" (java.net.URLEncoder/encode (str (t/now))
                                                              "UTF-8")
                    "&redirect="  (java.net.URLEncoder/encode (str "/app/timer/"
@@ -115,14 +116,14 @@
         elapsed-str     (str elapsed-hours "h " elapsed-minutes "m")
         timer-notes     (get timer notes-key)]
     [:div.bg-dark-surface.rounded-lg.p-4.border.border-neon-cyan.transition-all.duration-300.hover:shadow-lg
-     [:div.flex.items-center.justify-between
-      [:div.flex-1
-       [:div
-        [:h3.text-lg.font-semibold.text-white parent-name]
-        [:p.text-sm.text-neon-cyan (str "Running for " elapsed-str)]
-        (when timer-notes
-          [:p.text-sm.text-gray-400.truncate timer-notes])]]
-      [:div.flex.gap-2
+[:div.flex.items-center.justify-between
+       [:div.flex-1.min-w-0
+        [:div
+         [:h3.text-lg.font-semibold.text-white parent-name]
+         [:p.text-sm.text-neon-cyan (str "Running for " elapsed-str)]
+         (when timer-notes
+           [:p.text-sm.text-gray-400.truncate timer-notes])]]
+       [:div.flex.gap-2
        [:a.bg-red-500.bg-opacity-20.text-red-400.px-3.py-2.rounded.text-sm.font-medium.hover:bg-opacity-30.transition-all.no-underline
         {:href (str "/app/timer/" entity-str "/" (:xt/id timer) "/stop")}
         "Stop Timer"]
@@ -142,34 +143,34 @@
         active-timers (fetch-active-timers ctx config)]
     (ui/page
      ctx
-     (side-bar
-      ctx
-      [:div.container.mx-auto.p-6
-       [:h1.text-3xl.font-bold.mb-6.text-white "⏱️ Time Tracker"]
+      (side-bar
+       ctx
+       [:div.container.mx-auto.p-6.space-y-8
+        [:h1.text-3xl.font-bold.text-white "⏱️ Time Tracker"]
 
-         ;; Active Timers Section
-       [:div.mb-8
-        {:id "active-timers-section"
-         :hx-get (str "/app/timer/" entity-str "/active")
-         :hx-trigger "every 30s"
-         :hx-swap "outerHTML"}
-        (when (seq active-timers)
+;; Active Timers Section
+         [:div.mb-8
+          [:h2.text-xl.font-semibold.mb-4.text-neon-cyan "Active Timers"]
           [:div
-           [:h2.text-xl.font-semibold.mb-4.text-neon-cyan "Active Timers"]
-           [:div.space-y-4
-            (for [timer active-timers]
-              ^{:key (:xt/id timer)}
-              (active-timer-card timer parents ctx config))]])]
+           {:id "active-timers-section"
+            :hx-get (str "/app/timer/" entity-str "/active")
+            :hx-trigger "every 30s"
+            :hx-swap "outerHTML"}
+           (when (seq active-timers)
+             [:div.space-y-4
+              (for [timer active-timers]
+                ^{:key (:xt/id timer)}
+                (active-timer-card timer parents ctx config))])]]
 
-       [:div.mb-8
-        [:h2.text-xl.font-semibold.mb-4.text-neon-yellow "Start Timer"]
-        (if (seq parents)
-          [:div.grid.grid-cols-1.md:grid-cols-2.gap-4
-           (for [parent parents]
-             ^{:key (:xt/id parent)}
-             (start-timer-card parent config))]
-          [:p.text-gray-400
-           (str "No " parent-entity-str "s found. Create some first!")])]]))))
+[:div.mb-8
+          [:h2.text-xl.font-semibold.mb-4.text-neon-yellow "Start Timer"]
+          (if (seq parents)
+            [:div.grid.grid-cols-1.md:grid-cols-2.gap-4
+             (for [parent parents]
+               ^{:key (:xt/id parent)}
+               (start-timer-card parent config))]
+            [:p.text-gray-400
+             (str "No " parent-entity-str "s found. Create some first!")])]]))))
 
 (defn active-timers-section
   "Return HTML for the active timers section"
@@ -179,18 +180,16 @@
     {:status 200
      :headers {"Content-Type" "text/html"}
      :body (ui/fragment
-            [:div.mb-8
+            [:div
              {:id "active-timers-section"
               :hx-get (str "/app/timer/" entity-str "/active")
               :hx-trigger "every 30s"
               :hx-swap "outerHTML"}
              (when (seq active-timers)
-               [:div
-                [:h2.text-xl.font-semibold.mb-4.text-neon-cyan "Active Timers"]
-                [:div.space-y-4
+[:div.space-y-4
                  (for [timer active-timers]
                    ^{:key (:xt/id timer)}
-                   (active-timer-card timer parents ctx config))]])])}))
+                   (active-timer-card timer parents ctx config))])])}))
 
 (defn stop-timer
   "Stop an active timer by setting the end time"

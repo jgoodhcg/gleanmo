@@ -249,26 +249,15 @@ Timer "Start Timer" buttons link to:
 - Beginning time pre-population works with proper timezone handling
 
 **❌ Issues Found:**
-1. **Stop Timer button doesn't work**
-   - URL: `/app/timer/:id/stop` 
-   - Issue: Route may not be properly registered or handler has runtime error
-
-2. **Form redirect after creating timer doesn't work**
-   - Expected: After submitting new timer form, redirect to `/app/timer/project-log`
-   - Current: Redirect parameter appears to be ignored in create handler
-   - Investigation needed: Check if redirect logic in create handler is working
-
-3. **Edit button needs redirect enhancement**
-   - Current: Edit button goes to `/app/crud/form/project-log/edit/:id`
-   - Problem: After editing timer, user stays on edit page instead of returning to timer page
-   - **Required**: Extend redirect functionality to update/edit handler (currently only exists for create handler)
-   - **Solution**: Update edit button URL to include redirect parameter
-
-**🔧 Next Steps:**
-1. Debug stop timer route registration and handler
-2. Investigate why create form redirect isn't working  
-3. Add redirect support to CRUD edit/update handlers
-4. Update edit button to use redirect parameter
+1. **Timer auto-update without refresh**
+   - Issue: Timer elapsed time display is static - requires manual page refresh to see updated time
+   - Current: Shows elapsed time calculated at page load (e.g., "Running for 2h 15m")
+   - Expected: Timer should automatically update every second/minute to show current elapsed time
+   - Implementation options:
+     - JavaScript setInterval to update DOM elements
+     - HTMX polling for periodic page sections updates
+     - WebSocket connection for real-time updates
+   - Location: `active-timer-card` function in `src/tech/jgood/gleanmo/timer/routes.clj`
 
 **Technical Decisions Made:**
 - Used proper instant timestamps instead of magic "now" strings in URLs
@@ -280,27 +269,8 @@ Timer "Start Timer" buttons link to:
 
 ## Outstanding Issues (Current)
 
-### Timer Page Redirect Issues
-1. **Stop timer button redirect problem**
-   - Issue: After stopping a timer, user doesn't return to timer page properly
-   - Location: Stop timer functionality in timer routes
-   - Expected: Should redirect back to `/app/timer/project-log` after stopping
-
-2. **Edit button redirect problem**
-   - Issue: Edit button doesn't redirect back to timer page after form submission
-   - Current: Edit button goes to `/app/crud/form/project-log/edit/:id`
-   - Problem: After editing timer, user stays on edit page instead of returning to timer page
-   - Solution needed: Add redirect parameter to edit button URL and ensure edit handler supports it
-
-### Code Quality Issues
-3. **Refactor declare usage**
-   - Issue: `(declare active-timer-card)` usage in timer routes should be eliminated
-   - Problem: Forward declarations indicate poor function organization
-   - Solution: Reorganize function definitions so no forward references are needed
-   - Location: `src/tech/jgood/gleanmo/timer/routes.clj`
-
 ### User Experience Issues
-4. **Timer auto-update without refresh**
+1. **Timer auto-update without refresh**
    - Issue: Timer elapsed time display is static - requires manual page refresh to see updated time
    - Current: Shows elapsed time calculated at page load (e.g., "Running for 2h 15m")
    - Expected: Timer should automatically update every second/minute to show current elapsed time
