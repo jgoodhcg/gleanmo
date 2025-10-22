@@ -1,34 +1,35 @@
 # Postgres Migration Roadmap
 
 ## Overview & Goals
-- Replace XTDB 1 with Postgres (JSONB doc store + append-only event log) to simplify ops and accelerate visualization delivery.
-- Keep migration lightweight: idempotent data port, direct code cutover, downtime acceptable.
-- Preserve flexibility to reintroduce XTDB 2 or other temporal stores by retaining a full history event log.
+- Why now: XTDB’s temporal features are barely used, the immutable history adds friction, the app needs faster iteration plus easier inspection in standard Postgres tools and BI clients, and moving off Neon/AWS reduces dependency risk while cutting monthly costs with a DigitalOcean managed Postgres instance.
+- Replace XTDB 1 with Postgres using a single `entities` JSONB table to reduce friction and speed up dashboard delivery.
+- Keep the cutover lightweight: idempotent data port of latest entity state, direct code swap, downtime acceptable.
+- Preserve optional paths to richer history (event log, typed projections) only if future requirements demand them.
 
 ## Target Architecture
-- **event_log**: append-only table storing complete entity snapshots per write; indexed by `entity_id`, `entity_type`, `user_id`, and `tx_time` for replay or temporal queries.
-- **entities**: current-state table keyed by `entity_id` with JSONB `doc`, soft delete via `deleted_at`, and GIN index for fast attribute lookups.
-- **Read path**: default queries read from `entities` (real-time). Optional materialized views provide accelerators for charts that outgrow the baseline performance.
-- **Write path**: each transaction inserts into `event_log` then upserts into `entities`, both wrapped in a single Postgres transaction.
+- **entities**: single table keyed by `entity_id` with `user_id`, `entity_type`, `doc` (JSONB), `created_at`, `updated_at`, and `deleted_at` (soft delete). Add a GIN index on `doc` plus btree indexes on lookup columns.
+- **Materialized views**: opt-in accelerators for heavy analytics (e.g., monthly habit aggregates). Refresh ad hoc or on a scheduled job as patterns emerge.
+- **Read path**: default queries load JSONB documents from `entities`, falling back to MVs when the UI needs pre-aggregated slices.
+- **Write path**: each transaction upserts into `entities`, updating `updated_at` and clearing `deleted_at` as needed.
 
 ## Implementation Phases
 1. **Database & Schema Setup**
    - Provision Postgres (Neon prod + local container) and capture connection details in config/env.
-   - Create `event_log` and `entities` tables with primary keys, required columns, GIN index on `entities.doc`, and supporting secondary indexes.
+   - Create `entities` table, required indexes, and a minimal migrations file so schema is reproducible.
 2. **Migration Utility**
-   - Build an idempotent script that exports XTDB history, bulk-inserts into `event_log`, derives `entities`, and can resume safely (checkpoint on `entity_id` + `tx_time`).
-   - Provide a dry-run mode and simple row-count validation so you can re-run until satisfied.
+   - Export the latest XTDB entity documents and bulk-insert into `entities`.
+   - Provide a dry-run mode plus row-count validation so the script can rerun safely.
 3. **Application Refactor**
    - Swap `db.queries` and `db.mutations` to use next.jdbc/HoneySQL against Postgres while keeping Malli validation untouched.
-   - Remove XTDB-specific helpers (e.g., `xt/entity-history`); rewrite the small set of call sites to use event log queries when needed.
+   - Remove XTDB-specific helpers (e.g., `xt/entity-history`) and refactor the few call sites that referenced historical state.
    - Update Biff components to initialize the Postgres datasource and inject it via `:biff/db`.
 4. **Verification & Cutover**
-   - Run migration script, spot-check entity counts and a handful of critical records.
+   - Run the migration script, spot-check entity counts and a handful of critical records.
    - Flip environment config to Postgres, deploy, and archive the XTDB storage directory for contingency.
    - Once stable, eliminate unused XTDB dependencies/config from the project.
 
 ## Active Workstream: Dev Branch Setup
-- Create a feature branch and sketch the initial Postgres schema (`event_log`, `entities`) plus a minimal `migrations.sql` so the app can start against Postgres quickly.
+- Create a feature branch, define the `entities` schema, and add a lightweight `migrations.sql`.
 - Follow Jacob O'Bryant's Postgres guide to add a `use-postgres` component, replacing `biff/use-xtdb` in `src/tech/jgood/gleanmo.clj`; document any gaps since we haven't built custom Biff components before.
 - Stub or short-circuit XTDB-dependent call sites (queries, mutations, calendar flows) so the dev system boots even if functionality is incomplete; note every temporary stub in this doc for follow-up.
 - Keep tests light: disable XTDB-specific fixtures for now and collect a list of suites that need dependency injection or pure-unit refactors.
@@ -47,12 +48,12 @@
 4. Monitor logs for errors; keep XTDB snapshot available for 90 days before final decommissioning.
 
 ## Follow-ups & Tripwires
-- Introduce materialized views only when specific chart queries exceed latency goals; each MV can double as a typed view for external tools.
+- Introduce materialized views when specific dashboard queries need sub-second responses; document refresh cadence per view.
 - Add lightweight monitoring (slow query log, MV refresh durations) after cutover.
-- Revisit architecture if temporal/as-of requirements grow, if MV refresh time exceeds five minutes, or if data volume crosses approximately one million events.
-- Maintain export tooling (EDN/JSON dumps) to honor privacy and local-first workflows.
+- Revisit architecture if temporal/as-of requirements grow, if MV refresh time exceeds five minutes, or if data volume crosses approximately one million entities.
+- Maintain export tooling (EDN/JSON dumps) to honor privacy and local-first workflows; consider adding an append-only change log only if real audit requirements surface.
 
 ## Future Scalability
-- **Partitioning:** Keep tables unpartitioned initially; plan to partition `event_log` (e.g., by month or quarter) and, if needed, `entities` (by entity type or hashed user buckets) once row counts exceed ~10 M or MV refreshes approach multi-minute runtimes.
-- **Typed projections:** When growth or analytics demands outpace JSONB + GIN, backfill typed read-model tables from the append-only log, dual-write during transition, and migrate hot queries first.
-- **Scale-out playbook:** Pair partitioning with autovacuum tuning, introduce read replicas or dedicated analytics nodes, and evaluate hybrid read models (e.g., XTDB 2) if temporal queries become common.
+- **Partitioning:** Keep the `entities` table unpartitioned initially; evaluate partitioning or table sharding once row counts exceed ~10 M or MV refreshes approach multi-minute runtimes.
+- **Typed projections:** When growth or analytics demands outpace JSONB + GIN, backfill typed read-model tables or additional MVs from `entities`, dual-write during transition, and migrate hot queries first.
+- **Scale-out playbook:** Pair partitioning with autovacuum tuning, introduce read replicas or dedicated analytics nodes, and revisit hybrid read models (e.g., XTDB 2, event logs) if temporal queries become common.
