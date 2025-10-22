@@ -28,12 +28,12 @@
        [::sm/created-at :instant]
        [:user/id :user/id]
        [:meditation-log/location-id :location/id]
-       [:meditation-log/beginning :instant]
-       [:meditation-log/end {:optional true} :instant]
-       [:meditation-log/position
-        [:enum :sitting :lying :walking :standing :moving]]
-       [:meditation-log/guided :boolean]
-       [:meditation-log/type-id :meditation/id]
+[:meditation-log/beginning {:crud/priority 1} :instant]
+        [:meditation-log/end {:optional true :crud/priority 2} :instant]
+        [:meditation-log/position
+         [:enum :sitting :lying :walking :standing :moving]]
+        [:meditation-log/guided :boolean]
+        [:meditation-log/type-id {:crud/priority 3 :crud/label "Meditation"} :meditation/id]
        [:meditation-log/interrupted :boolean]
        [:meditation-log/notes {:optional true} :string]
        [:meditation-log/time-zone :string]

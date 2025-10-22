@@ -21,9 +21,9 @@
        [::sm/deleted-at {:optional true} :instant]
        [::sm/created-at :instant]
        [:user/id :user/id]
-       [:medication-log/timestamp :instant]
-       [:medication-log/medication-id :medication/id]
-       [:medication-log/dosage :float]
+[:medication-log/timestamp {:crud/priority 1} :instant]
+   [:medication-log/medication-id {:crud/priority 2 :crud/label "Medication"} :medication/id]
+   [:medication-log/dosage {:crud/priority 3} :float]
        [:medication-log/unit
         [:enum :mg :g :glob :sprays :mcg :capsule]]
        [:medication-log/notes {:optional true} :string]

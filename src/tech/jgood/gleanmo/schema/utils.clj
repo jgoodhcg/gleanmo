@@ -125,21 +125,25 @@
 (defn add-input-name-label
   [{:keys [field-key opts], :as field}]
   (let [n        (ns-keyword->input-name field-key)
-        l        (cond
-                   (= field-key :meditation-log/type-id) "Meditation Type"
-                   (and (str/ends-with? (name field-key) "/id")
-                        (not= (name field-key) "id"))
-                   (-> (namespace field-key)
-                       (str/split #"-")
-                       (->> (map str/capitalize))
-                       (->> (str/join " ")))
-                   :else
-                   (-> field-key
-                       name
-                       (str/split #"-")
-                       (->> (map str/capitalize))
-                       (->> (str/join " "))))
-        required (not (:optional opts))]
+         l        (or
+                    ;; Check for explicit crud/label override first
+                    (:crud/label opts)
+                    ;; Fall back to existing logic
+                    (cond
+                      (= field-key :meditation-log/type-id) "Meditation Type"
+                      (and (str/ends-with? (name field-key) "/id")
+                           (not= (name field-key) "id"))
+                      (-> (namespace field-key)
+                          (str/split #"-")
+                          (->> (map str/capitalize))
+                          (->> (str/join " ")))
+                      :else
+                      (-> field-key
+                          name
+                          (str/split #"-")
+                          (->> (map str/capitalize))
+                          (->> (str/join " ")))))
+         required (not (:optional opts))]
     (merge field
            {:input-name     n,
             :input-label    l,

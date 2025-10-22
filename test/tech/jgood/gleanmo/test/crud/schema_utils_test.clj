@@ -199,6 +199,18 @@
         (is (= "user" (:related-entity-str result)))
         (is (= "habit/user" (:input-name result)))
         (is (= "User" (:input-label result)))
+        (is (true? (:input-required result)))))
+    
+    (testing "preserves crud metadata in options"
+      (let [field-entry [:test-field {:crud/priority 1 :crud/label "Custom Label"} :string]
+            result (schema-utils/prepare-field field-entry)]
+        (is (= :test-field (:field-key result)))
+        (is (= {:crud/priority 1 :crud/label "Custom Label"} (:opts result)))
+        (is (= 1 (:crud/priority (:opts result))))
+        (is (= "Custom Label" (:crud/label (:opts result))))
+        (is (= :string (:type result)))
+        (is (= "test-field" (:input-name result)))
+        (is (= "Custom Label" (:input-label result))) ; Should use crud/label override
         (is (true? (:input-required result)))))))
 
 (deftest should-remove-system-or-user-field?-test
@@ -291,4 +303,78 @@
       
       (testing "returns nil for non-existent fields"
         (is (nil? (schema-utils/get-field-info schema :user/non-existent)))))))
+
+(deftest crud-priority-metadata-test
+  (testing "CRUD priority metadata handling"
+    (testing "prepare-field preserves crud priority metadata"
+      (let [field-entry [:test-field {:crud/priority 1} :string]
+            result (schema-utils/prepare-field field-entry)]
+        (is (= 1 (:crud/priority (:opts result))))
+        (is (= :test-field (:field-key result)))
+        (is (= :string (:type result)))))
+    
+    (testing "prepare-field preserves crud label metadata"
+      (let [field-entry [:test-field {:crud/label "Custom Label"} :string]
+            result (schema-utils/prepare-field field-entry)]
+        (is (= "Custom Label" (:crud/label (:opts result))))
+        (is (= :test-field (:field-key result)))
+        (is (= :string (:type result)))))
+    
+    (testing "prepare-field preserves both crud priority and label metadata"
+      (let [field-entry [:test-field {:crud/priority 2 :crud/label "Important Field"} :string]
+            result (schema-utils/prepare-field field-entry)]
+        (is (= 2 (:crud/priority (:opts result))))
+        (is (= "Important Field" (:crud/label (:opts result))))
+        (is (= :test-field (:field-key result)))
+        (is (= :string (:type result)))))
+    
+    (testing "prepare-field handles fields without crud metadata"
+      (let [field-entry [:test-field {:optional true} :string]
+            result (schema-utils/prepare-field field-entry)]
+        (is (nil? (:crud/priority (:opts result))))
+        (is (nil? (:crud/label (:opts result))))
+        (is (= {:optional true} (:opts result)))
+        (is (= :test-field (:field-key result)))
+        (is (= :string (:type result)))))
+    
+    (testing "real schema example - habit schema priority metadata"
+      (let [habit-schema (schema-utils/entity-schema :habit)
+            fields (map schema-utils/prepare-field 
+                       (schema-utils/extract-schema-fields habit-schema))
+            label-field (some #(= (:field-key %) :habit/label) fields)]
+        (is (not (nil? label-field)) "Habit schema should have a label field")
+        (is (= 1 (:crud/priority (:opts label-field))) "Habit label should have priority 1")
+        (is (= "Habit" (:crud/label (:opts label-field))) "Habit label should have custom label")))
+    
+    (testing "real schema example - habit-log schema priority metadata"
+      (let [habit-log-schema (schema-utils/entity-schema :habit-log)
+            fields (map schema-utils/prepare-field 
+                       (schema-utils/extract-schema-fields habit-log-schema))
+            timestamp-field (some #(= (:field-key %) :habit-log/timestamp) fields)
+            habit-ids-field (some #(= (:field-key %) :habit-log/habit-ids) fields)
+            notes-field (some #(= (:field-key %) :habit-log/notes) fields)]
+        (is (not (nil? timestamp-field)) "Habit-log schema should have timestamp field")
+        (is (= 1 (:crud/priority (:opts timestamp-field))) "Timestamp should have priority 1")
+        
+        (is (not (nil? habit-ids-field)) "Habit-log schema should have habit-ids field")
+        (is (= 1 (:crud/priority (:opts habit-ids-field))) "Habit-ids should have priority 1")
+        (is (= "Habits" (:crud/label (:opts habit-ids-field))) "Habit-ids should have custom label")
+        
+        (is (not (nil? notes-field)) "Habit-log schema should have notes field")
+        (is (= 2 (:crud/priority (:opts notes-field))) "Notes should have priority 2")
+        (is (= "Notes" (:crud/label (:opts notes-field))) "Notes should have custom label")))
+    
+    (testing "priority metadata extraction for sorting"
+      (let [test-fields [[:field-a {:crud/priority 3} :string]
+                         [:field-b {:crud/priority 1} :string]
+                         [:field-c {:crud/priority 2} :string]
+                         [:field-d {} :string]  ; no priority
+                         [:field-e {:optional true} :string]]  ; no priority
+            prepared-fields (map schema-utils/prepare-field test-fields)
+            priorities (map #(get-in % [:opts :crud/priority]) prepared-fields)]
+        (is (= [3 1 2 nil nil] priorities) "Should extract priority values correctly")
+        
+        ;; Test that fields without priority return nil (not 99)
+        (let [field-without-priority (some #(nil? (get-in % [:opts :crud/priority])) prepared-fields)]
+          (is (not (nil? field-without-priority)) "Should have fields without priority metadata"))))))
 )

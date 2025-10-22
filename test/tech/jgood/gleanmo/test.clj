@@ -6,6 +6,7 @@
    [tech.jgood.gleanmo.test.crud.forms.inputs-test]
    [tech.jgood.gleanmo.test.crud.handlers-test]
    [tech.jgood.gleanmo.test.crud.schema-utils-test]
+   [tech.jgood.gleanmo.test.crud.views-test]
    [tech.jgood.gleanmo.test.crud.views.formatting-test]
    [tech.jgood.gleanmo.test.db.mutations-test]
    [tech.jgood.gleanmo.test.db.queries-test]

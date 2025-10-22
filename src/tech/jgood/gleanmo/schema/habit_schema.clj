@@ -1,5 +1,6 @@
 (ns tech.jgood.gleanmo.schema.habit-schema
-  (:require [tech.jgood.gleanmo.schema.meta :as sm]))
+  (:require
+   [tech.jgood.gleanmo.schema.meta :as sm]))
 
 (def habit
   (-> [:map {:closed true}
@@ -8,7 +9,7 @@
        [::sm/deleted-at {:optional true} :instant]
        [::sm/created-at :instant]
        [:user/id :user/id]
-       [:habit/label :string]
+       [:habit/label {:crud/priority 1 :crud/label "Habit"} :string]
        [:habit/sensitive {:optional true} :boolean]
        [:habit/notes {:optional true} :string]
        [:habit/archived {:optional true} :boolean]
@@ -17,7 +18,7 @@
       (concat sm/legacy-meta)
       ;; DEPRECATED
       (concat
-       [[:habit/name {:optional true :hide true} :string]])
+       [[:habit/name {:optional true, :hide true} :string]])
       vec))
 
 (def habit-log
@@ -27,9 +28,11 @@
        [::sm/deleted-at {:optional true} :instant]
        [::sm/created-at :instant]
        [:user/id :user/id]
-       [:habit-log/timestamp :instant]
-       [:habit-log/time-zone :string]
-       [:habit-log/habit-ids [:set :habit/id]]
-       [:habit-log/notes {:optional true} :string]]
+       [:habit-log/timestamp {:crud/priority 1} :instant]
+       [:habit-log/time-zone  :string]
+       [:habit-log/habit-ids {:crud/priority 1, :crud/label "Habits"}
+        [:set :habit/id]]
+       [:habit-log/notes {:optional true, :crud/priority 2 :crud/label "Notes"}
+        :string]]
       (concat sm/legacy-meta)
       vec))

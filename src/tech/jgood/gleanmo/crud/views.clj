@@ -20,6 +20,47 @@
        ;; remove system, user, and deprecated fields
        (remove schema-utils/should-remove-system-or-user-field?)))
 
+(defn get-field-priority
+  "Get the priority of a field from its schema definition.
+   Returns 99 if no priority is specified (lowest priority)."
+  [field]
+  (or (:crud/priority (:opts field)) 99))
+
+(defn sort-by-priority-then-arbitrary
+  "Sort fields so that any fields with explicit priority rankings come first
+  (ordered by their numerical priority value), followed by all other fields
+  in arbitrary order. Returns all fields, just reordered."
+  [display-fields]
+  (let [;; Separate fields with explicit priority (not the default 99) from those without
+        fields-with-priority (filter #(< (get-field-priority %) 99) display-fields)
+        fields-without-priority (filter #(>= (get-field-priority %) 99) display-fields)
+        
+        ;; Sort priority fields by their priority value (lower = higher priority)
+        sorted-priority-fields (sort-by get-field-priority fields-with-priority)]
+    
+    (log/info "Priority sorting - Fields with priority:" 
+               (clojure.string/join ", " 
+                                     (map (fn [field] 
+                                            (str (name (:field-key field)) 
+                                                 "(priority:" (get-field-priority field) ")"))
+                                          sorted-priority-fields)))
+    (log/info "Priority sorting - Fields without priority:" 
+               (clojure.string/join ", " 
+                                     (map (fn [field] 
+                                            (str (name (:field-key field)) 
+                                                 "(priority:" (get-field-priority field) ")"))
+                                          fields-without-priority)))
+    
+    ;; Combine prioritized fields with remaining fields in arbitrary order
+    (let [result (concat sorted-priority-fields fields-without-priority)]
+      (log/info "Priority sorting - Final order:" 
+                 (clojure.string/join ", " 
+                                       (map (fn [field] 
+                                              (str (name (:field-key field)) 
+                                                   "(priority:" (get-field-priority field) ")"))
+                                            result)))
+      result)))
+
 (defn render-table
   [{:keys [paginated-entities display-fields entity-str]} ctx]
   (let [;; Sort function that places label field first, then alphabetically
@@ -43,7 +84,8 @@
                                     ;; Otherwise just sort alphabetically
                                     (sort-by (comp name :field-key) fields))))
 
-        sorted-fields         (sort-with-label-first display-fields)
+        priority-sorted-fields (sort-by-priority-then-arbitrary display-fields)
+        sorted-fields         (sort-with-label-first priority-sorted-fields)
         ;; Process fields to adjust labels and handle special cases
         processed-fields      (map (fn [{:keys [field-key input-label],
                                          :as   field}]
@@ -291,22 +333,6 @@
           :aria-label (str "Edit " (or label-value entity-str)),
           :role "button"}
 
-         ;; Card header with label
-         [:div.mb-4
-          [:h3.card-header
-           (cond
-             ;; If label exists in schema but is nil, show message
-             (and label-in-schema? (nil? label-value))
-             [:span.text-secondary.italic "No Label"]
-
-             ;; If label has a value, show it
-             label-value
-             label-value
-
-             ;; If label doesn't exist in schema or is absent, show entity type
-             :else
-             entity-str)]]
-
          ;; Main content section
          [:div.flex-grow.space-y-3
 
@@ -351,27 +377,27 @@
                 [:span.card-tag.font-medium.px-2.py-0.5.rounded-full
                  (str "Duration: " duration)]])])
 
-          ;; Notes section - only show if in schema (even if nil)
-          (when notes-in-schema?
-            [:div
-             [:span.text-sm.font-medium.card-text-secondary
-              (str (str/capitalize (name notes-key)) ":")]
-             (if notes-value
-               [:div.text-sm.card-text.line-clamp-2
-                {:title notes-value}
-                (str notes-value)]
-               [:span.text-sm.text-secondary.italic "No notes"])])
-
-          ;; Additional fields section
-          (let [important-fields
-                (->> display-fields
+           ;; Additional fields section
+           (let [all-sorted-fields (sort-by-priority-then-arbitrary display-fields)
+                 _ (log/info "Card view - All sorted fields for entity" entity-id ":" 
+                            (clojure.string/join ", " 
+                                                  (map (fn [field] 
+                                                         (str (name (:field-key field)) 
+                                                              "(priority:" (get-field-priority field) ")"))
+                                                       all-sorted-fields)))
+                 important-fields
+                  (->> all-sorted-fields
                      (filter #(not (or
-                                    (= (:field-key %) label-key)
                                     (= (:field-key %) timestamp-key)
                                     (= (:field-key %) beginning-key)
-                                    (= (:field-key %) end-key)
-                                    (= (:field-key %) notes-key))))
-                     (take 3))]
+                                    (= (:field-key %) end-key))))
+                     (take 3))
+                 _ (log/info "Card view - Important fields (after filtering/take-3) for entity" entity-id ":"
+                            (clojure.string/join ", " 
+                                                  (map (fn [field] 
+                                                         (str (name (:field-key field)) 
+                                                              "(priority:" (get-field-priority field) ")"))
+                                                       important-fields)))]
             [:div.mt-2.space-y-1
              (for [{:keys [field-key input-type input-label]}
                    important-fields]
