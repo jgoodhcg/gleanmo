@@ -34,6 +34,15 @@ To run the development environment:
 clj -M:dev dev
 ```
 
+### Local Postgres (WIP)
+
+Migration work is introducing a local Postgres instance for development:
+
+1. Copy `resources/config.template.env` to `config.env` (if you haven't already) and adjust the `POSTGRES_*` values as needed.
+2. Start Postgres with Docker Compose: `docker compose -f dev/docker-compose.yml up -d postgres`.
+3. Run migrations: `clj -M:dev migrate-postgres` (optionally provide a filename to run just one script).
+4. Connect from the REPL or scripts using the values in `config.env` (database `gleanmo_dev`, user `gleanmo_app` by default).
+
 ### Running Tests
 
 The project uses the Clojure CLI with a custom test runner defined in `dev/tasks.clj`. Tests are organized under the `tech.jgood.gleanmo.test` namespace.
