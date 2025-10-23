@@ -2,6 +2,8 @@
  :deps  {com.biffweb/biff                    {:git/url "https://github.com/jacobobryant/biff"
                                               :git/tag "v1.8.27", :git/sha "94eb24d"}
          camel-snake-kebab/camel-snake-kebab {:mvn/version "0.4.3"}
+         com.github.seancorfield/honeysql    {:mvn/version "2.7.1350"}
+         com.github.seancorfield/next.jdbc   {:mvn/version "1.3.1070"}
          metosin/muuntaja                    {:mvn/version "0.6.8"}
          ring/ring-defaults                  {:mvn/version "0.3.4"}
          com.rpl/specter                     {:mvn/version "1.1.4"}
@@ -17,7 +19,8 @@
          org.mnode.ical4j/ical4j             {:mvn/version "4.0.2"}
          clj-http/clj-http                   {:mvn/version "3.13.0"}
          cheshire/cheshire                   {:mvn/version "5.13.0"}
-         com.taoensso/tufte                  {:mvn/version "2.5.0"}}
+         com.taoensso/tufte                  {:mvn/version "2.5.0"}
+         org.postgresql/postgresql           {:mvn/version "42.7.4"}}
  :aliases
  {:dev  {:extra-deps  {com.biffweb/tasks {:git/url   "https://github.com/jacobobryant/biff"
                                           :git/tag   "v1.8.10", :git/sha "146f2b1"
