@@ -29,12 +29,13 @@
    - Once stable, eliminate unused XTDB dependencies/config from the project.
 
 ## Active Workstream: Dev Branch Setup
-- Create a feature branch, define the `entities` schema, and add a lightweight `migrations.sql`.
+- Create a feature branch, define the `entities` schema, and add a lightweight `migrations.sql`. ✅ `resources/migrations/001_init.sql` establishes `schema_migrations` and `entities`.
 - Follow Jacob O'Bryant's Postgres guide to add a `use-postgres` component, replacing `biff/use-xtdb` in `src/tech/jgood/gleanmo.clj`; document any gaps since we haven't built custom Biff components before.
 - Stub or short-circuit XTDB-dependent call sites (queries, mutations, calendar flows) so the dev system boots even if functionality is incomplete; note every temporary stub in this doc for follow-up.
 - Keep tests light: disable XTDB-specific fixtures for now and collect a list of suites that need dependency injection or pure-unit refactors.
 - Decide how to handle background jobs and observability later—log current assumptions and confirm whether to port them once the core read/write paths work.
-- Capture quick-start instructions (Docker/Postgres commands, env vars) in the repo once the environment stabilizes to speed up future sessions.
+- Capture quick-start instructions (Docker/Postgres commands, env vars) in the repo once the environment stabilizes to speed up future sessions. ✅ Added Docker Compose service and README notes.
+- Next steps: add JSON encode/decode helpers for namespaced entity maps, wire a dev `next.jdbc` datasource, and smoke-test round-tripping before refactoring queries.
 
 ## Local Development Setup
 - Run Postgres locally in Docker (e.g., `docker compose up postgres`) with a named volume so the dev database persists between sessions.
