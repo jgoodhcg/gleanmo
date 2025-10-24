@@ -250,7 +250,7 @@
   [route-acc {:keys [clock stats]}]
   (let [total (+ (:clock-total route-acc 0) (get-in clock [:total] 0))
         aggregated-stats (reduce-kv
-                           (fn [acc pid metrics]
+                          (fn [acc pid metrics]
                              (update acc pid aggregate-metric metrics))
                            (:stats route-acc {})
                            stats)]
@@ -269,19 +269,42 @@
    {}
    entries))
 
+(defn id->label
+  [id]
+  (cond
+    (instance? clojure.lang.Named id) (name id)
+    (string? id) id
+    :else (pr-str id)))
+
 (defn build-summary
   [_ {:keys [clock-total stats]}]
   (let [header (format "%-55s %8s %10s %10s %10s %10s"
                        "Span" "Calls" "Mean" "Total" "Min" "Max")
         lines  (for [[pid {:keys [n mean sum min max]}] stats]
                  (format "%-55s %8d %10s %10s %10s %10s"
-                         (name pid)
+                         (id->label pid)
                          n
                          (format-duration mean)
                          (format-duration sum)
                          (format-duration min)
                          (format-duration max)))]
     (str/join "\n" (concat [header] lines [(str "Clock total: " (format-duration clock-total))]))))
+
+(defn persist-performance-snapshot
+  [{:keys [session biff/db] :as ctx}]
+  (let [user-id (:uid session)]
+    (if-not (super-user? db user-id)
+      (ui/page
+       {:status 403}
+       (side-bar
+        ctx
+        [:div.max-w-xl.mx-auto.space-y-4
+         [:h1.text-2xl.font-semibold "Access Restricted"]
+         [:p "This action is limited to super users."]]))
+      (let [result (obs/persist-instance-snapshot! ctx)
+            status (if result "ok" "empty")]
+        {:status 303
+         :headers {"location" (str "/app/monitoring/performance?persist=" status)}}))))
 
 (defn performance-instance-dashboard
   [{:keys [session biff/db params] :as ctx}]
@@ -295,6 +318,10 @@
          [:h1.text-2xl.font-semibold "Access Restricted"]
          [:p "This page is limited to super users. Contact an administrator if you need access."]]))
       (let [selected-label (or (:window params) "1 hour")
+            persist-status (:persist params)
+            live-doc       (obs/current-metrics)
+            live-merged    (when live-doc
+                             (merge-pstats [{:doc live-doc}]))
             window         (some #(when (= (:label %) selected-label) %) window-options)
             instance-id    (obs/current-instance-id)
             all-history    (load-performance-history db instance-id {:dur nil})
@@ -310,6 +337,12 @@
           ctx
           [:div.max-w-5xl.mx-auto.space-y-6
            [:h1.text-2xl.font-semibold "Performance Dashboard (This Instance)"]
+           (when persist-status
+             [:div.bg-dark-surface.border.border-dark.rounded.px-4.py-3.text-sm
+              (case persist-status
+                "ok" "Snapshot persisted and profiler reset."
+                "empty" "No metrics were available to persist."
+                persist-status)])
            [:div.grid.grid-cols-1.md:grid-cols-4.gap-4
             [:div.bg-dark-surface.p-4.rounded
              [:dt.text-xs.text-gray-400.uppercase "Instance"]
@@ -324,6 +357,26 @@
              [:dt.text-xs.text-gray-400.uppercase "Latest Snapshot"]
              [:dd.font-mono (or (some-> (:performance-report/generated-at latest-doc) str)
                                 "n/a")]]]
+           (biff/form
+            {:method "post"
+             :action "/app/monitoring/performance"
+             :class "inline-block"}
+            [:button.form-button-primary {:type "submit"} "Persist & Reset Metrics"])
+
+           [:section.space-y-4
+            [:h2.text-xl.font-semibold "Live Metrics (since last persist)"]
+            (if (and live-doc (seq live-merged))
+              (let [generated (:performance-report/generated-at live-doc)]
+                (into
+                 [:div.space-y-4
+                  [:p.text-sm.text-gray-400
+                   (str "Snapshot taken at " (or (some-> generated str) "n/a") ".")]]
+                (for [[k aggregated] (sort-by (comp id->label first) live-merged)]
+                  [:article.bg-dark-surface.p-4.rounded
+                    [:h2.font-mono.text-sm.mb-2 (id->label k)]
+                    [:pre.text-xs.whitespace-pre-wrap (build-summary k aggregated)]])))
+              [:p.text-sm.text-gray-500 "No live metrics captured yet."])]
+
            [:form.mb-4 {:method "get"}
             [:label.mr-2 "Window:"]
             [:select.bg-dark-surface.text-white.rounded.px-2.py-1
@@ -344,9 +397,9 @@
              [:dt.text-xs.text-gray-400.uppercase "Latest in Window"]
              [:dd.font-mono (or (some-> latest-generated str) "n/a")]]]
            (if (seq merged-stats)
-             (for [[k aggregated] (sort-by first merged-stats)]
-               [:article.bg-dark-surface.p-4.rounded
-                [:h2.font-mono.text-sm.mb-2 (name k)]
+            (for [[k aggregated] (sort-by (comp id->label first) merged-stats)]
+              [:article.bg-dark-surface.p-4.rounded
+                [:h2.font-mono.text-sm.mb-2 (id->label k)]
                 [:pre.text-xs.whitespace-pre-wrap (build-summary k aggregated)]])
              [:p.text-sm.text-gray-400 "No metrics captured in this window."])]))))))
 
@@ -387,7 +440,9 @@
 
             ["/db" {:get db-viz}]
             ["/db/:type" {:get db-viz}]
-            ["/monitoring/performance" {:get performance-instance-dashboard}]
+            ["/monitoring/performance"
+             {:get  performance-instance-dashboard
+              :post persist-performance-snapshot}]
 
             ;; user
             ["/my-user" {:get user/my-user}]

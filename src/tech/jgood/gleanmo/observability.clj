@@ -7,6 +7,7 @@
    [com.biffweb           :as biff]
    [taoensso.encore       :as enc]
    [taoensso.tufte        :as tufte]
+   [taoensso.tufte.impl   :as timpl]
    [tech.jgood.gleanmo.schema.meta :as sm]))
 
 (defonce ^:private profiling-initialized? (atom false))
@@ -39,6 +40,19 @@
   ;; capture startup instant for easier correlation across deploys
   (java.time.Instant/now))
 
+(defonce ^:private accumulated-pstats (atom {}))
+
+(defn- id->string
+  [id]
+  (cond
+    (instance? clojure.lang.Named id) (name id)
+    (string? id) id
+    :else (pr-str id)))
+
+(def ^:private uuid-pattern #"(?i)[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}")
+(def ^:private compact-uuid-pattern #"(?i)[0-9a-f]{32}")
+(def ^:private numeric-id-pattern #"[0-9]{6,}")
+
 (defn current-instance-id
   []
   instance-id)
@@ -51,6 +65,15 @@
   []
   git-sha)
 
+(def ^:private handler-config
+  {:handler-id :gleanmo.accumulator
+   :ns-pattern "*"})
+
+(defn- register-accumulator!
+  []
+  (reset! stats-accumulator
+          (tufte/add-accumulating-handler! handler-config)))
+
 (defn init!
   "Idempotently configure tufte for the application.
 
@@ -58,57 +81,95 @@
   - Captures per-process metadata for inclusion in persisted snapshots."
   []
   (when-not @profiling-initialized?
-    (reset! stats-accumulator
-            (tufte/add-accumulating-handler!
-             {:handler-id :gleanmo.accumulator,
-              :ns-pattern "*"}))
+    (register-accumulator!)
     (reset! profiling-initialized? true)
     (log/info "Tufte profiling initialized for instance" instance-id
               "started" instance-started-at)))
 
+(defn- normalize-token
+  [token]
+  (let [s (-> token id->string str/lower-case)]
+    (-> s
+        (str/replace uuid-pattern "uuid")
+        (str/replace compact-uuid-pattern "uuid")
+        (str/replace numeric-id-pattern "num")
+        (str/replace #"uuid+" "uuid")
+        (str/replace #"num+" "num")
+        (str/replace #"-{2,}" "-")
+        (str/replace #"/{2,}" "/"))))
+
+(defn group-id->keyword
+  [id]
+  (cond
+    (keyword? id)
+    (let [ns-part (some-> (namespace id) normalize-token)
+          name-part (normalize-token (name id))]
+      (if ns-part
+        (keyword ns-part name-part)
+        (keyword name-part)))
+
+    (string? id)
+    (keyword (normalize-token id))
+
+    (sequential? id)
+    (let [segments (map normalize-token id)
+          joined (str/join "/" segments)]
+      (keyword joined))
+
+    :else
+    (keyword (normalize-token id))))
+
+(defn format-pstats+
+  [pstats]
+  (let [formatted (tufte/format-pstats pstats {:columns [:n :mean :total :min :max]})]
+    formatted))
+
 (defn aggregator-snapshot
-  "Flush and return the aggregated metrics map.
-   Callers are responsible for persisting the result and, if desired, resetting the aggregator state."
+  "Return a snapshot of the current metrics. When `reset?` is true, the accumulator
+   is cleared after the snapshot is taken."
+  ([] (aggregator-snapshot {:reset? false}))
+  ([{:keys [reset?] :or {reset? false}}]
+   (when-not @profiling-initialized?
+     (init!))
+   (let [delta (when-let [sacc @stats-accumulator]
+                 (not-empty @sacc))]
+     (when (seq delta)
+       (swap! accumulated-pstats
+              (fn [current]
+                (reduce-kv
+                 (fn [acc id pstats]
+                   (let [kid (group-id->keyword id)]
+                     (update acc kid
+                           (fn [existing]
+                             (if existing
+                               (timpl/merge-pstats existing pstats)
+                               pstats)))))
+                 current
+                 delta)))))
+   (let [aggregate @accumulated-pstats]
+     (when (seq aggregate)
+       (let [report {:performance-report/instance-id instance-id,
+                     :performance-report/instance-started-at instance-started-at,
+                     :performance-report/generated-at (java.time.Instant/now),
+                     :performance-report/git-sha git-sha,
+                     :performance-report/pstats
+                     (reduce-kv
+                      (fn [m id pstats]
+                        (let [realized (enc/force-ref pstats)]
+                          (assoc m id {:clock   (:clock realized)
+                                       :stats   (:stats realized)
+                                       :summary (format-pstats+ realized)})))
+                      {}
+                      aggregate)}]
+         (when reset?
+           (reset! accumulated-pstats {}))
+         report)))))
+
+(defn current-metrics
+  "Return the latest metrics snapshot without mutating the accumulator.
+   Returns nil if no profiling data has been captured yet."
   []
-  (when-not @profiling-initialized?
-    (init!))
-  (when-let [acc @stats-accumulator]
-    (when-let [grouped (not-empty @acc)]
-      {:performance-report/instance-id instance-id,
-       :performance-report/instance-started-at instance-started-at,
-       :performance-report/generated-at (java.time.Instant/now),
-       :performance-report/git-sha git-sha,
-       :performance-report/pstats
-       (reduce-kv
-        (fn [m group-id pstats]
-          (let [key       (cond
-                            (keyword? group-id) group-id
-                            (and (vector? group-id)
-                                 (keyword? (second group-id)))
-                            (second group-id)
-                            (coll? group-id)
-                            (keyword (str/join "/"
-                                               (map #(if (keyword? %)
-                                                       (name %)
-                                                       (str %))
-                                                    group-id)))
-                            :else
-                            (keyword (str group-id)))
-                realized  (enc/force-ref pstats)
-                {:keys [clock stats]} realized
-                formatted (tufte/format-pstats realized
-                                               {:columns [:n :mean :total
-                                                          :min :max]})
-                stats-map (into {}
-                                (map (fn [[pid entry]]
-                                       [pid (into {} entry)]))
-                                stats)]
-            (assoc m
-                   key {:clock   clock,
-                        :stats   stats-map,
-                        :summary formatted})))
-        {}
-        grouped)})))
+  (aggregator-snapshot))
 
 (defn- instance-doc-id
   []
@@ -118,7 +179,7 @@
   "Flush accumulated metrics and persist them to XTDB.
    Returns the document that was written, or nil if no metrics were available."
   [ctx]
-  (when-let [snapshot (aggregator-snapshot)]
+  (when-let [snapshot (aggregator-snapshot {:reset? true})]
     (let [doc (merge {:xt/id          (instance-doc-id),
                       :db/doc-type    :performance-report,
                       ::sm/type       :performance-report,
@@ -126,10 +187,6 @@
                      snapshot)]
       (biff/submit-tx ctx [doc])
       doc)))
-
-(defn every-n-seconds
-  [n]
-  (iterate #(biff/add-seconds % n) (java.util.Date.)))
 
 (defn profile-request
   "Wrap an arbitrary thunk in a tufte profile block keyed by a readable descriptor."
@@ -188,16 +245,5 @@
                 ;; Ensure we don't leave buffered metrics on shutdown.
                 (aggregator-snapshot)))))
 
-(defn persist-task
-  [ctx]
-  (if-let [doc (persist-instance-snapshot! ctx)]
-    (log/info "Persisted performance snapshot for instance"
-              instance-id
-              {:git git-sha, :pstats (keys (:performance-report/pstats doc))})
-    (log/info "No performance metrics captured for instance"
-              instance-id
-              "yet")))
-
 (def module
-  {:tasks [{:task     #'persist-task,
-            :schedule #(every-n-seconds 60)}]})
+  {})

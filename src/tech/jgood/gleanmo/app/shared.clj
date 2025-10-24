@@ -61,7 +61,9 @@
 (defn side-bar
   [{:keys [biff/db session], :as ctx} & content]
   (let [user-id (:uid session)
-        {:keys [email show-sensitive show-archived]} (query/get-user-settings db user-id)]
+        {:keys [email show-sensitive show-archived]} (query/get-user-settings db user-id)
+        {:keys [super-user]} (query/get-user-authz db user-id)
+        super-user? (true? super-user)]
     [:div.flex.min-h-screen
      ;; Sidebar
      [:div#sidebar.hidden.md:flex.flex-col.space-y-4.bg-dark-surface.p-4.z-50.border-r.border-dark.w-64.flex-shrink-0
@@ -97,6 +99,8 @@
       [:a.link {:href "/app/dashboards/activity-logs"} "📋 activity logs"]
       [:a.link {:href "/app/dashboards/analytics"} "📊 analytics & insights"]
       [:a.link {:href "/app/timers"} "⏱️ timers"]
+      (when super-user?
+        [:a.link {:href "/app/monitoring/performance"} "🛡️ monitoring"])
 
       ;; Subtle Sign out button
       (biff/form
