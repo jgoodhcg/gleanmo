@@ -61,3 +61,9 @@ Reusable search component with fuzzy matching for entity selection across forms 
   - **Desired behavior**: Stop timer should navigate to edit form with current time as end time
   - **Benefits**: Allows user to add notes, adjust duration, and complete the meditation session properly
   - **Implementation**: Modify stop timer action to redirect to `/app/crud/form/meditation-log/edit/{id}` with end-time parameter
+
+## ✅ Implementation Update (2025-10-23)
+- **Database tables restyled**: The `/app/db/*` visualizations now pick up the dark theme gradients, borders, and hover states, matching the design language requested for the backlog item.
+- **Timer form prefill fixed**: The generic timer routes use schema metadata to populate relationship fields correctly, so meditation timers open with the selected meditation already chosen and timestamps pre-loaded.
+- **Timer cards polished**: Updated card layout keeps labels and controls inside their containers and adds HTMX-driven refresh, addressing the earlier visual issue.
+- **Still pending**: Medication log unit additions and the stop-timer redirect-to-edit experience remain outstanding.

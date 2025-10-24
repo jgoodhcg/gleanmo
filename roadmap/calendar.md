@@ -194,3 +194,9 @@
 28. Advanced categorization
 29. Multi-timezone support
 30. Seasonal/astronomical data
+
+## ✅ Implementation Update (2025-10-23)
+- **Fixed header navigation**: Desktop view now keeps year navigation and home link in a persistent top bar so the user never has to scroll to switch years or exit the calendar.
+- **Clickable event tiles**: Events rendered inside day cells link straight to the CRUD edit form and stop the day-level click handler, enabling in-place edits without extra steps.
+- **Past-day emphasis**: Historical dates automatically dim via opacity/text changes while keeping weekends highlighted, giving clear temporal context when scanning the grid.
+- **HTMX refresh hook**: Successful event submissions emit an `eventCreated` trigger that re-requests the year grid, so newly created events appear immediately without a manual reload.

@@ -259,6 +259,8 @@ Timer "Start Timer" buttons link to:
      - WebSocket connection for real-time updates
    - Location: `active-timer-card` function in `src/tech/jgood/gleanmo/timer/routes.clj`
 
+> Update 2025-10-23: HTMX polling now handles the auto-refresh requirement; archive this issue once remaining timer polish ships.
+
 **Technical Decisions Made:**
 - Used proper instant timestamps instead of magic "now" strings in URLs
 - Implemented timezone hierarchy: query params → entity timezone → user timezone → UTC fallback
@@ -279,3 +281,11 @@ Timer "Start Timer" buttons link to:
      - HTMX polling for periodic page sections updates
      - WebSocket connection for real-time updates
    - Location: `active-timer-card` function in `src/tech/jgood/gleanmo/timer/routes.clj`
+
+## ✅ Implementation Update (2025-10-23)
+- **Timer auto-refresh shipped**: The active timer panel now uses an HTMX poll (`every 30s`) so elapsed durations stay accurate without forcing the user to reload the page.
+- **Schema-driven start links**: The generic timer configuration pulls the correct relationship key from Malli metadata, so pre-populated project/meditation relationships no longer break when field names change.
+- **CRUD redirect support**: Timer flows rely on the CRUD redirect parameter that now propagates through create/edit handlers, returning the user directly to the timer dashboard once a log entry is saved.
+- **Multi-entity timer routing**: `timer.routes/gen-routes` generates timer pages for any interval entity, and both project logs and meditation logs are already wired up to the new system.
+- **Still open**: The stop-timer action continues to redirect back to the timer list instead of dropping the user into the edit form with the end-time prefilled; keep that enhancement on the backlog.
+

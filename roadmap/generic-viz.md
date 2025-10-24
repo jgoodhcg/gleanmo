@@ -159,3 +159,9 @@ tech.jgood.gleanmo.viz
 - **Chart configuration validation**: Schema validation for chart configs
 - **Performance optimization**: Lazy loading for large datasets
 - **Chart lifecycle management**: Proper cleanup and memory management
+
+## ✅ Implementation Update (2025-10-23)
+- **Core engine live**: `viz.routes` now detects timestamp vs interval schemas, builds ECharts calendar configs, and exposes a reusable `gen-routes` helper mirroring CRUD generation.
+- **Responsive calendar heatmaps**: Both desktop and mobile layouts are emitted, including grouped relationship tooltips so users can see which projects, habits, or medications contributed to a day.
+- **Entity rollout complete**: Habit logs, meditation logs, BM logs, medication logs, and project logs all mount the generated viz routes, with shortcuts surfaced on the analytics dashboard.
+- **Next focus**: Timeline/Gantt views and richer filtering remain future work; leave the route skeleton ready for additional chart types.
