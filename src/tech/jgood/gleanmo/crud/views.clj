@@ -619,20 +619,22 @@
         limit              (try (Integer/parseInt limit-str)
                                 (catch Exception _ default-limit))
         filter-references  true
-        ;; Query with pagination at the database level (+1 sentinel to detect more pages)
+        ;; Query with pagination at the database level
         order-key          ::sm/created-at
-        query-limit        (inc limit)
         query-opts         {:entity-type-str    entity-type-str
                             :schema             schema
                             :filter-references  filter-references
-                            :limit              query-limit
+                            :limit              limit
                             :offset             offset
                             :order-key          order-key
                             :order-direction    :desc}
-        entities-with-extra (db/all-for-user-query query-opts ctx)
-        paginated-entities (take limit entities-with-extra)
+        paginated-entities (db/all-for-user-query query-opts ctx)
         page-count         (count paginated-entities)
-        has-more?          (> (count entities-with-extra) limit)
+        more-query-opts    (assoc query-opts
+                                  :offset (+ offset limit)
+                                  :limit  1)
+        has-more?          (and (> limit 0)
+                                (seq (db/all-for-user-query more-query-opts ctx)))
         showing-start      (when (pos? page-count) (inc offset))
         showing-end        (when (pos? page-count) (+ offset page-count))
         ;; Fields
