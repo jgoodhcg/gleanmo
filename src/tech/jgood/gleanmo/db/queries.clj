@@ -81,25 +81,38 @@
                   related-entities)))))
     relationship-fields)))
 
+(def ^:private default-order-direction :desc)
+
 (defnp all-entities-for-user
   "Get all entities of a specific type that belong to a user.
    Optionally includes or removes entities based on sensitivity, archive status, and related entities."
   [db user-id entity-type &
    {:keys [filter-sensitive filter-archived filter-references
-           relationship-fields]}]
+           relationship-fields limit offset order-key order-direction]}]
   (let [entity-type-str (name entity-type)
         sensitive-key   (keyword entity-type-str "sensitive")
         archived-key    (keyword entity-type-str "archived")
         time-stamp-key  (keyword entity-type-str "timestamp")
+        order-direction (or order-direction default-order-direction)
+        order-var       '?order-value
+        base-where      ['[?e :user/id user-id]
+                         ['?e ::sm/type entity-type]
+                         '(not [?e ::sm/deleted-at])]
+        where-clauses   (if order-key
+                          (conj base-where (vec ['?e order-key order-var]))
+                          base-where)
+        find-elements   (if order-key
+                          '[(pull ?e [*]) ?order-value]
+                          '[(pull ?e [*])])
+        query-map       (cond-> {:find  find-elements
+                                 :where where-clauses
+                                 :in    ['user-id]}
+                           order-key (assoc :order-by [[order-var order-direction]])
+                           limit     (assoc :limit limit)
+                           offset    (assoc :offset offset))
         ;; Query for entities
-        raw-results     (q db
-                           {:find  '(pull ?e [*]),
-                            :where ['[?e :user/id user-id]
-                                    ['?e ::sm/type entity-type]
-                                    '(not [?e ::sm/deleted-at])],
-                            :in    ['user-id]}
-                           user-id)
-        entities        raw-results
+        raw-results     (q db query-map user-id)
+        entities        (map first raw-results)
 
         ;; Apply basic filtering for sensitivity and archiving first
         basic-filtered  (cond->> entities
@@ -120,18 +133,20 @@
                                            db
                                            remove-sensitive
                                            remove-archived))))
-                          basic-filtered)]
+                         basic-filtered)]
 
-    ;; Sort the final result
-    (cond->> final-entities
-      :always (sort-by #(or (time-stamp-key %) (::sm/created-at %)))
-      :always (reverse))))
+  ;; Sort the final result
+  (cond->> final-entities
+    (nil? order-key)
+    (sort-by #(or (time-stamp-key %) (::sm/created-at %)))
+    (nil? order-key)
+    reverse)))
 
 (defnp all-for-user-query
   "Get all entities for a user with include/exclude options from user settings.
    This function is a higher-level wrapper around all-entities-for-user that handles
    user settings for including sensitive entities, archived entities, and related entity filtering."
-  [{:keys [entity-type-str schema filter-references]}
+  [{:keys [entity-type-str schema filter-references limit offset order-key order-direction]}
    {:keys [biff/db session params]}]
   (let [user-id             (:uid session)
         ;; Get user's preferences from settings, with secure defaults
@@ -155,7 +170,11 @@
      :filter-sensitive    sensitive
      :filter-archived     archived
      :filter-references   filter-references
-     :relationship-fields relationship-fields)))
+     :relationship-fields relationship-fields
+     :limit               limit
+     :offset              offset
+     :order-key           order-key
+     :order-direction     order-direction)))
 
 (defn get-user-authz
   "Get user authorization info (super-user status) for a user ID."

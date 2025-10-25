@@ -7,6 +7,7 @@
    [tech.jgood.gleanmo.app.shared :refer
     [side-bar]]
    [tech.jgood.gleanmo.schema.utils :as schema-utils]
+   [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.crud.views.formatting :refer [format-cell-value]]
    [tech.jgood.gleanmo.db.queries :as db]
    [tech.jgood.gleanmo.ui :as ui]
@@ -618,18 +619,22 @@
         limit              (try (Integer/parseInt limit-str)
                                 (catch Exception _ default-limit))
         filter-references  true
-        ;; Get all entities
-        entities           (db/all-for-user-query
-                            (pot/map-of entity-type-str
-                                        schema
-                                        filter-references)
-                            ctx)
-        ;; Count for pagination
-        total-count        (count entities)
-        ;; Apply pagination
-        paginated-entities (->> entities
-                                (drop offset)
-                                (take limit))
+        ;; Query with pagination at the database level (+1 sentinel to detect more pages)
+        order-key          ::sm/created-at
+        query-limit        (inc limit)
+        query-opts         {:entity-type-str    entity-type-str
+                            :schema             schema
+                            :filter-references  filter-references
+                            :limit              query-limit
+                            :offset             offset
+                            :order-key          order-key
+                            :order-direction    :desc}
+        entities-with-extra (db/all-for-user-query query-opts ctx)
+        paginated-entities (take limit entities-with-extra)
+        page-count         (count paginated-entities)
+        has-more?          (> (count entities-with-extra) limit)
+        showing-start      (when (pos? page-count) (inc offset))
+        showing-end        (when (pos? page-count) (+ offset page-count))
         ;; Fields
         display-fields     (get-display-fields schema)]
     (ui/page
@@ -651,23 +656,24 @@
         (view-selector (pot/map-of entity-str
                                    view-type
                                    offset
-                                   limit))
+                                  limit))
 
-        (if (empty? entities)
+        (if (zero? page-count)
           [:div.text-lg "No items found"]
-          [:div
+         [:div
              ;; Pagination summary
            [:div.flex.items-center.justify-between.mb-4
             [:p.text-sm.text-secondary
-             (str "Showing "
-                  (inc offset)
-                  "-"
-                  (min total-count (+ offset (count paginated-entities)))
-                  " of "
-                  total-count
-                  " "
-                  entity-str
-                  (when (not= 1 total-count) "s"))]
+             (if (pos? page-count)
+               (str "Showing "
+                    showing-start
+                    "-"
+                    showing-end
+                    (when has-more? "+"))
+               (str "No "
+                    entity-str
+                    (when (not= 1 limit) "s")
+                    " found"))]
 
               ;; Pagination controls with view type preserved
             [:div.flex.items-center.gap-4
@@ -677,18 +683,17 @@
                         (str "/app/crud/" entity-str
                              "?view="     view-type
                              "&offset="   (max 0 (- offset limit))
-                             "&limit="    limit)
+                            "&limit="    limit)
                         "#")}
               "← Previous"]
              [:a.text-sm.text-secondary.hover:text-primary.transition-colors
-              {:href  (if (< (+ offset (count paginated-entities))
-                             total-count)
+              {:href  (if has-more?
                         (str "/app/crud/" entity-str
                              "?view="     view-type
                              "&offset="   (+ offset limit)
                              "&limit="    limit)
                         "#"),
-               :class (when (>= (+ offset (count paginated-entities)) total-count)
+               :class (when (not has-more?)
                         "opacity-50 pointer-events-none")}
               "Next →"]]]
 

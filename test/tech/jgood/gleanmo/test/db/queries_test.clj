@@ -509,12 +509,43 @@
                                :schema mock-schema,
                                :filter-references true}
                               request-ctx)]
-            
-            ;; Should show all entities
-            (is (= 3 (count result)))
-            (is (some #(= (:normal entity-ids) (:xt/id %)) result))
-            (is (some #(= (:sensitive entity-ids) (:xt/id %)) result))
-            (is (some #(= (:archived entity-ids) (:xt/id %)) result))))
+           
+           ;; Should show all entities
+           (is (= 3 (count result)))
+           (is (some #(= (:normal entity-ids) (:xt/id %)) result))
+           (is (some #(= (:sensitive entity-ids) (:xt/id %)) result))
+           (is (some #(= (:archived entity-ids) (:xt/id %)) result))))
+
+        (testing "supports limit and offset pagination"
+          (let [_          (mutations/update-user!
+                             ctx
+                             user-id
+                             {:user/show-sensitive true
+                              :user/show-archived  true})
+                updated-db (xt/db node)
+                request-ctx {:biff/db updated-db
+                             :session {:uid user-id}
+                             :params {}}
+                first-page (queries/all-for-user-query
+                             {:entity-type-str "cruddy"
+                              :schema mock-schema
+                              :filter-references false
+                              :limit 1
+                              :offset 0
+                              :order-direction :desc}
+                             request-ctx)
+                second-page (queries/all-for-user-query
+                              {:entity-type-str "cruddy"
+                               :schema mock-schema
+                               :filter-references false
+                               :limit 1
+                               :offset 1
+                               :order-direction :desc}
+                              request-ctx)]
+            (is (= 1 (count first-page)))
+            (is (= 1 (count second-page)))
+            (is (not= (:xt/id (first first-page))
+                      (:xt/id (first second-page)))))) 
         
         (testing "should ignore query parameters (params no longer control filtering)"
           (let [_           (mutations/update-user!
