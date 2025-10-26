@@ -83,6 +83,26 @@
 
 (def ^:private default-order-direction :desc)
 
+(defn- build-entity-query
+  [user-id entity-type order-key order-direction limit offset]
+  (let [order-direction (or order-direction default-order-direction)
+        order-var       '?order-value
+        base-where      ['[?e :user/id user-id]
+                         ['?e ::sm/type entity-type]
+                         '(not [?e ::sm/deleted-at])]
+        where-clauses   (if order-key
+                          (conj base-where (vec ['?e order-key order-var]))
+                          base-where)
+        find-elements   (if order-key
+                          '[(pull ?e [*]) ?order-value]
+                          '[(pull ?e [*])])]
+    (cond-> {:find  find-elements
+             :where where-clauses
+             :in    ['user-id]}
+      order-key (assoc :order-by [[order-var order-direction]])
+      limit     (assoc :limit limit)
+      offset    (assoc :offset offset))))
+
 (defnp all-entities-for-user
   "Get all entities of a specific type that belong to a user.
    Optionally includes or removes entities based on sensitivity, archive status, and related entities."
@@ -93,54 +113,56 @@
         sensitive-key   (keyword entity-type-str "sensitive")
         archived-key    (keyword entity-type-str "archived")
         time-stamp-key  (keyword entity-type-str "timestamp")
-        order-direction (or order-direction default-order-direction)
-        order-var       '?order-value
-        base-where      ['[?e :user/id user-id]
-                         ['?e ::sm/type entity-type]
-                         '(not [?e ::sm/deleted-at])]
-        where-clauses   (if order-key
-                          (conj base-where (vec ['?e order-key order-var]))
-                          base-where)
-        find-elements   (if order-key
-                          '[(pull ?e [*]) ?order-value]
-                          '[(pull ?e [*])])
-        query-map       (cond-> {:find  find-elements
-                                 :where where-clauses
-                                 :in    ['user-id]}
-                           order-key (assoc :order-by [[order-var order-direction]])
-                           limit     (assoc :limit limit)
-                           offset    (assoc :offset offset))
-        ;; Query for entities
-        raw-results     (q db query-map user-id)
-        entities        (map first raw-results)
+        filter-entities (fn [entities]
+                          (let [basic-filtered (cond->> entities
+                                                   (not filter-sensitive) (remove #(get % sensitive-key))
+                                                   (not filter-archived)  (remove #(get % archived-key)))]
+                            (if (and filter-references relationship-fields)
+                              (let [remove-sensitive (not filter-sensitive)
+                                    remove-archived  (not filter-archived)]
+                                (remove #(should-remove-related-entity
+                                          %
+                                          relationship-fields
+                                          db
+                                          remove-sensitive
+                                          remove-archived)
+                                        basic-filtered))
+                              basic-filtered)))
+        target-count    (when limit (+ (or offset 0) limit))
+        batch-size      (let [candidate (max 32 (or limit 0))]
+                          (if (pos? candidate) candidate 32))
+        filtered-results (loop [acc        []
+                                raw-offset 0]
+                            (let [query-map   (build-entity-query
+                                               user-id
+                                               entity-type
+                                               order-key
+                                               order-direction
+                                               batch-size
+                                               raw-offset)
+                                  raw-results (q db query-map user-id)
+                                  fetched     (count raw-results)
+                                  entities    (map first raw-results)
+                                  filtered    (filter-entities entities)
+                                  new-acc     (into acc filtered)
+                                  enough?     (and target-count
+                                                   (>= (count new-acc) target-count))
+                                  exhausted?  (< fetched batch-size)]
+                              (if (or exhausted? enough?)
+                                new-acc
+                                (recur new-acc (+ raw-offset fetched)))))
+        ordered-results (cond->> filtered-results
+                           (nil? order-key)
+                           (sort-by #(or (time-stamp-key %) (::sm/created-at %)))
+                           (nil? order-key)
+                           reverse)
+        offset'         (max 0 (or offset 0))
+        after-offset    (if (zero? offset')
+                          ordered-results
+                          (drop offset' ordered-results))]
 
-        ;; Apply basic filtering for sensitivity and archiving first
-        basic-filtered  (cond->> entities
-                          (not filter-sensitive) (remove #(get % sensitive-key))
-                          (not filter-archived)  (remove #(get % archived-key)))
-
-        ;; Then apply related entity filtering if needed
-        final-entities  (if (and filter-references relationship-fields)
-                          (let [remove-sensitive (not filter-sensitive)
-                                remove-archived  (not filter-archived)]
-                            ;; Remove entities with sensitive or
-                            ;; archived related entities based on current
-                            ;; settings
-                            (->> basic-filtered
-                                 (remove #(should-remove-related-entity
-                                           %
-                                           relationship-fields
-                                           db
-                                           remove-sensitive
-                                           remove-archived))))
-                         basic-filtered)]
-
-  ;; Sort the final result
-  (cond->> final-entities
-    (nil? order-key)
-    (sort-by #(or (time-stamp-key %) (::sm/created-at %)))
-    (nil? order-key)
-    reverse)))
+    (cond->> after-offset
+      limit (take limit))))
 
 (defnp all-for-user-query
   "Get all entities for a user with include/exclude options from user settings.
