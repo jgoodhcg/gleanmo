@@ -339,6 +339,43 @@
             (is (some #(= (:archived-relation related-entity-ids) (:xt/id %))
                       entities))))))))
 
+(deftest pagination-respects-filtering-test
+  (testing "should backfill filtered rows to satisfy limit"
+    (with-open [node (test-xtdb-node [])]
+      (let [ctx     (get-context node)
+            user-id (UUID/randomUUID)]
+        ;; Insert enough sensitive entities to exceed the initial batch size
+        (doseq [i (range 40)]
+          (mutations/create-entity!
+            ctx
+            {:entity-key :cruddy,
+             :data       (merge (create-valid-cruddy-data user-id)
+                                {:cruddy/label     (format "A-sensitive-%02d" i),
+                                 :cruddy/sensitive true})}))
+
+        ;; Insert normal entities that should populate the final page
+        (doseq [i (range 5)]
+          (mutations/create-entity!
+            ctx
+            {:entity-key :cruddy,
+             :data       (merge (create-valid-cruddy-data user-id)
+                                {:cruddy/label (format "Z-normal-%02d" i)})}))
+
+        (let [db        (xt/db node)
+              entities  (queries/all-entities-for-user
+                          db
+                          user-id
+                          :cruddy
+                          :filter-sensitive false
+                          :order-key        :cruddy/label
+                          :order-direction  :asc
+                          :limit            5)
+              labels    (map :cruddy/label entities)
+              expected  (set (map #(format "Z-normal-%02d" %) (range 5)))]
+          (is (= 5 (count entities)))
+          (is (not-any? :cruddy/sensitive entities))
+          (is (= expected (set labels))))))))
+
 (deftest all-for-user-query-test
   (testing "all-for-user-query"
     (with-open [node (test-xtdb-node [])]
