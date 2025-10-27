@@ -24,8 +24,21 @@
 [:medication-log/timestamp {:crud/priority 1} :instant]
    [:medication-log/medication-id {:crud/priority 2 :crud/label "Medication"} :medication/id]
    [:medication-log/dosage {:crud/priority 3} :float]
-       [:medication-log/unit
-        [:enum :mg :g :glob :sprays :mcg :capsule]]
+      [:medication-log/unit
+       [:enum :mg
+              :mcg
+              :g
+              :ml
+              :capsule
+              :tablet
+              :pill
+              :drop
+              :sprays
+              :units
+              :glob
+              :patch
+              :puff
+              :other]]
        [:medication-log/notes {:optional true} :string]
        [:medication-log/injection-site {:optional true}
         [:enum :left-thigh :right-thigh :left-lower-belly :right-lower-belly]]]
