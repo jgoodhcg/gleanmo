@@ -62,6 +62,33 @@
                                             result)))
       result)))
 
+(defn humanize-key
+  [k]
+  (when k
+    (-> k
+        name
+        (str/replace "-" " ")
+        str/capitalize)))
+
+(defn find-display-field
+  [display-fields field-key]
+  (some #(when (= (:field-key %) field-key) %) display-fields))
+
+(defn display-label
+  [display-fields field-key]
+  (or (some-> (find-display-field display-fields field-key)
+              :input-label)
+      (humanize-key field-key)))
+
+(defn prioritized-field?
+  [field]
+  (when field
+    (< (get-field-priority field) 99)))
+
+(defn prioritized-fields
+  [fields]
+  (filter prioritized-field? fields))
+
 (defn render-table
   [{:keys [paginated-entities display-fields entity-str]} ctx]
   (let [;; Sort function that places label field first, then alphabetically
@@ -278,138 +305,197 @@
      (let [;; Find key fields
            entity-id         (:xt/id entity)
 
-           ;; Check for label field - determine if it exists in schema but is nil
-           ;; or doesn't exist in schema at all
            label-key         (keyword entity-str "label")
            label-value       (get entity label-key)
+           label-field-info  (find-display-field display-fields label-key)
            label-in-schema?  (field-exists-in-schema? label-key display-fields)
 
-           ;; Find timestamp field
-           timestamp-field   (find-field-by-pattern entity
-                                                    entity-str
-                                                    "timestamp")
+           ;; Timestamp details
+           timestamp-field   (find-field-by-pattern entity entity-str "timestamp")
            timestamp-key     (first timestamp-field)
            timestamp-value   (second timestamp-field)
            timestamp-type    (get-field-formatter timestamp-key display-fields)
+           timestamp-display (when timestamp-value
+                               (if timestamp-type
+                                 (format-cell-value timestamp-type timestamp-value ctx)
+                                 (str timestamp-value)))
            timestamp-instant (as-instant timestamp-value)
+           timestamp-label   (or (display-label display-fields timestamp-key)
+                                 (when timestamp-key (humanize-key timestamp-key)))
 
-           ;; Find beginning and end fields
-           beginning-field   (find-field-by-pattern entity
-                                                    entity-str
-                                                    "beginning")
+           ;; Beginning and end details
+           beginning-field   (find-field-by-pattern entity entity-str "beginning")
            beginning-key     (first beginning-field)
            beginning-value   (second beginning-field)
            beginning-type    (get-field-formatter beginning-key display-fields)
+           beginning-display (when beginning-value
+                               (if beginning-type
+                                 (format-cell-value beginning-type beginning-value ctx)
+                                 (str beginning-value)))
            beginning-instant (as-instant beginning-value)
+           beginning-instant (as-instant beginning-value)
+           beginning-label   (or (display-label display-fields beginning-key)
+                                 (when beginning-key (humanize-key beginning-key))
+                                 "Beginning")
 
            end-field         (find-field-by-pattern entity entity-str "end")
            end-key           (first end-field)
            end-value         (second end-field)
            end-type          (get-field-formatter end-key display-fields)
+           end-display       (when end-value
+                               (if end-type
+                                 (format-cell-value end-type end-value ctx)
+                                 (str end-value)))
            end-instant       (as-instant end-value)
+           end-instant       (as-instant end-value)
+           end-label         (or (display-label display-fields end-key)
+                                 (when end-key (humanize-key end-key))
+                                 "End")
 
-           ;; Calculate duration if beginning and end exist
+           ;; Duration if both beginning and end exist
            duration          (when (and beginning-instant end-instant)
                                (format-duration beginning-instant end-instant))
 
-           ;; Find notes field if available
-           notes-field       (find-field-by-pattern entity entity-str "notes")
-           notes-key         (first notes-field)
-           notes-value       (second notes-field)
-           notes-in-schema?  (and notes-key (field-exists-in-schema? notes-key display-fields))]
+           ;; Determine primary title field
+           sorted-fields     (sort-by-priority-then-arbitrary display-fields)
+           prioritized       (prioritized-fields sorted-fields)
+           timestamp-priority? (some #(= (:field-key %) timestamp-key) prioritized)
+           beginning-priority? (some #(= (:field-key %) beginning-key) prioritized)
+           end-priority?     (some #(= (:field-key %) end-key) prioritized)
+           first-priority-field
+           (some (fn [{:keys [field-key] :as field}]
+                   (let [value (get entity field-key)]
+                     (when (and (not= field-key label-key)
+                                (some? value)
+                                (not (and (string? value)
+                                          (str/blank? value))))
+                       (assoc field :value value))))
+                 prioritized)
+           label-title-field (when (and (some? label-value)
+                                        (not (and (string? label-value)
+                                                  (str/blank? label-value))))
+                               (merge {:field-key  label-key
+                                       :input-type (:input-type label-field-info)
+                                       :opts       (:opts label-field-info)}
+                                      label-field-info
+                                      {:value label-value}))
+           title-field       (or label-title-field first-priority-field)
+           title-key         (:field-key title-field)
+           title-label       (or (:input-label title-field)
+                                 (display-label display-fields title-key))
+           title-content     (when title-field
+                               (if (= title-key label-key)
+                                 (let [value (:value title-field)]
+                                   (if (string? value) value (str value)))
+                                 (format-cell-value (:input-type title-field)
+                                                    (:value title-field)
+                                                    ctx)))
+           title-raw-value   (:value title-field)
 
-       ;; Wrapper div for entire card - clickable area
+           ;; Helper for rendering content consistently
+           ->display         (fn [content]
+                               (cond
+                                 (nil? content) [:span.text-secondary.italic "None"]
+                                 (vector? content) content
+                                 :else [:span content]))
+
+           ;; Additional highlight fields
+           highlight-fields  (->> prioritized
+                                  (remove #(let [fk (:field-key %)]
+                                             (or (= fk label-key)
+                                                 (= fk timestamp-key)
+                                                 (= fk beginning-key)
+                                                 (= fk end-key)
+                                                 (= fk title-key))))
+                                  (map (fn [{:keys [field-key input-type input-label]}]
+                                         (let [value (get entity field-key)]
+                                           (when (and (some? value)
+                                                      (not (and (string? value)
+                                                                (str/blank? value))))
+                                             {:field-key   field-key
+                                              :input-label (or input-label
+                                                                (display-label display-fields field-key))
+                                              :content     (format-cell-value input-type value ctx)}))))
+                                  (remove nil?)
+                                  (take 4))
+
+           aria-title        (or (when (string? title-content) title-content)
+                                 (when (string? label-value) label-value)
+                                 (some-> title-raw-value str)
+                                 entity-str)
+           title-node        (cond
+                               (= title-key label-key)
+                               [:h2.card-header.truncate
+                                (if (string? title-content)
+                                  title-content
+                                  (or (some-> title-raw-value str)
+                                      entity-str))]
+                               title-field
+                               (let [content-node (->display title-content)]
+                                 [:div.space-y-1
+                                  [:span.card-text-secondary.font-medium title-label]
+                                  [:div.card-text.font-medium content-node]])
+                               (and label-in-schema? (nil? label-value))
+                               [:span.card-text-secondary.italic "No label"]
+                               :else
+                               [:span.card-text-secondary.italic "Untitled"])
+           timestamp-row     (when (and timestamp-priority?
+                                        timestamp-display)
+                               [:div.flex.flex-wrap.items-center.justify-between.gap-3
+                                [:div.flex.flex-wrap.items-center.gap-2.text-sm.text-secondary
+                                 (when timestamp-label
+                                   [:span.font-medium (str timestamp-label ":")])
+                                 (->display timestamp-display)]
+                                (when timestamp-instant
+                                  [:span.card-tag.text-xs.font-medium
+                                   (format-relative-time timestamp-instant)])])
+           duration-row      (let [rows (remove nil?
+                                                [(when (and beginning-display beginning-priority?)
+                                                   [:div.flex.items-center.justify-between.gap-2
+                                                    [:span.card-text-secondary.font-medium
+                                                     (str beginning-label ":")]
+                                                    [:div.card-text
+                                                     (->display beginning-display)]])
+                                                 (when (and end-display end-priority?)
+                                                   [:div.flex.items-center.justify-between.gap-2
+                                                    [:span.card-text-secondary.font-medium
+                                                     (str end-label ":")]
+                                                    [:div.card-text
+                                                     (->display end-display)]])])
+                                   duration-node (when (and duration beginning-priority? end-priority?)
+                                                   [:div.flex.justify-end
+                                                    [:span.card-tag.text-xs.font-medium
+                                                     (str "Duration " duration)]])]
+                               (when (or (seq rows) duration-node)
+                                 (into [:div.bg-dark.p-3.rounded.space-y-2]
+                                       (cond-> rows
+                                         duration-node (conj duration-node)))))]
+
        [:div.card-container.group
         {:key (str entity-id)}
 
-        ;; Subtle entity ID display in top-right corner
         [:div.card-tag.font-mono
          (str (subs (str entity-id) 0 8) "...")]
 
-        ;; Main card content area - clickable for edit  
         [:a.flex-grow.flex.flex-col.pt-8.pb-4.px-4.relative.z-10
          {:href (str "/app/crud/form/" entity-str "/edit/" entity-id),
           :class
           "focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-inset",
-          :aria-label (str "Edit " (or label-value entity-str)),
+          :aria-label (str "Edit " aria-title),
           :role "button"}
 
-         ;; Main content section
-         [:div.flex-grow.space-y-3
+         [:div.flex-grow.space-y-4
+          title-node
+          (when timestamp-row timestamp-row)
+          (when duration-row duration-row)
+          (when (seq highlight-fields)
+            [:div.space-y-3
+             (for [{:keys [field-key input-label content]} highlight-fields]
+               [:div {:key (name field-key)
+                      :class "flex flex-col gap-1"}
+                [:span.card-text-secondary.font-medium input-label]
+                [:div.card-text (->display content)]])])]]
 
-          ;; Timestamp with relative time
-          (when timestamp-value
-            [:div.flex.justify-between.items-baseline
-             [:div
-              [:span.card-text-secondary.font-medium
-               (str (str/capitalize (name timestamp-key)) ":")]
-              [:span.ml-1.card-text
-               (if timestamp-type
-                 (format-cell-value timestamp-type timestamp-value ctx)
-                 (str timestamp-value))]]
-             (when timestamp-instant
-               [:span.card-tag.px-2.py-0.5
-                (format-relative-time timestamp-instant)])])
-
-          ;; Beginning and End with duration (if both exist)
-          (when (or beginning-value end-value)
-            [:div.bg-dark.p-2.rounded
-             (when beginning-value
-               [:div
-                [:span.card-text-secondary.font-medium
-                 (str (str/capitalize (name beginning-key)) ":")]
-                [:span.ml-1.card-text
-                 (if beginning-type
-                   (format-cell-value beginning-type beginning-value ctx)
-                   (str beginning-value))]])
-
-             (when end-value
-               [:div.mt-1
-                [:span.card-text-secondary.font-medium
-                 (str (str/capitalize (name end-key)) ":")]
-                [:span.ml-1.card-text
-                 (if end-type
-                   (format-cell-value end-type end-value ctx)
-                   (str end-value))]])
-
-             ;; Duration display if we have both beginning and end
-             (when duration
-               [:div.mt-2.flex.items-center.justify-end
-                [:span.card-tag.font-medium.px-2.py-0.5.rounded-full
-                 (str "Duration: " duration)]])])
-
-           ;; Additional fields section
-           (let [all-sorted-fields (sort-by-priority-then-arbitrary display-fields)
-                 _ (log/info "Card view - All sorted fields for entity" entity-id ":" 
-                            (clojure.string/join ", " 
-                                                  (map (fn [field] 
-                                                         (str (name (:field-key field)) 
-                                                              "(priority:" (get-field-priority field) ")"))
-                                                       all-sorted-fields)))
-                 important-fields
-                  (->> all-sorted-fields
-                     (filter #(not (or
-                                    (= (:field-key %) timestamp-key)
-                                    (= (:field-key %) beginning-key)
-                                    (= (:field-key %) end-key))))
-                     (take 3))
-                 _ (log/info "Card view - Important fields (after filtering/take-3) for entity" entity-id ":"
-                            (clojure.string/join ", " 
-                                                  (map (fn [field] 
-                                                         (str (name (:field-key field)) 
-                                                              "(priority:" (get-field-priority field) ")"))
-                                                       important-fields)))]
-            [:div.mt-2.space-y-1
-             (for [{:keys [field-key input-type input-label]}
-                   important-fields]
-               (let [value (get entity field-key)]
-                 [:div.text-sm {:key (name field-key)}
-                  [:span.card-text-secondary.font-medium (str input-label ": ")]
-                  (if (nil? value)
-                    [:span.text-secondary.italic "None"]
-                    [:span (format-cell-value input-type value ctx)])]))])]]
-
-        ;; Delete button - small icon at the bottom-left
         [:div.absolute.bottom-3.right-3.z-20
          (biff/form
           {:action (str "/app/crud/" entity-str "/" entity-id "/delete"),
@@ -419,7 +505,7 @@
            "return confirm('Are you sure you want to delete this item? This action cannot be undone.');"}
           [:button.text-secondary.hover:text-red-600.transition-colors
            {:type       "submit",
-            :aria-label (str "Delete " (or label-value entity-str))}
+            :aria-label (str "Delete " aria-title)}
            [:svg.h-4.w-4
             {:xmlns   "http://www.w3.org/2000/svg",
              :viewBox "0 0 20 20",
@@ -434,135 +520,192 @@
 (defn render-list-view
   [{:keys [paginated-entities display-fields entity-str]} ctx]
   [:div.list-container
-   {:style {:list-style "none"}}
+   {:style {:list-style "none"}
+    :class "w-full"}
    (for [entity paginated-entities]
-     (let [;; Find key fields
-           entity-id         (:xt/id entity)
-
-           ;; Check for label field
+     (let [entity-id         (:xt/id entity)
            label-key         (keyword entity-str "label")
            label-value       (get entity label-key)
+           label-field-info  (find-display-field display-fields label-key)
            label-in-schema?  (field-exists-in-schema? label-key display-fields)
+           sorted-fields     (sort-by-priority-then-arbitrary display-fields)
+           prioritized       (prioritized-fields sorted-fields)
 
-           ;; Find timestamp field
+           ;; Timestamp details
            timestamp-field   (find-field-by-pattern entity entity-str "timestamp")
            timestamp-key     (first timestamp-field)
            timestamp-value   (second timestamp-field)
            timestamp-type    (get-field-formatter timestamp-key display-fields)
+           timestamp-display (when timestamp-value
+                               (if timestamp-type
+                                 (format-cell-value timestamp-type timestamp-value ctx)
+                                 (str timestamp-value)))
            timestamp-instant (as-instant timestamp-value)
+           timestamp-label   (display-label display-fields timestamp-key)
+           timestamp-priority? (some #(= (:field-key %) timestamp-key) prioritized)
 
-           ;; Find beginning and end fields
+           ;; Beginning / end details
            beginning-field   (find-field-by-pattern entity entity-str "beginning")
            beginning-key     (first beginning-field)
            beginning-value   (second beginning-field)
            beginning-type    (get-field-formatter beginning-key display-fields)
+           beginning-display (when beginning-value
+                               (if beginning-type
+                                 (format-cell-value beginning-type beginning-value ctx)
+                                 (str beginning-value)))
            beginning-instant (as-instant beginning-value)
+           beginning-label   (display-label display-fields beginning-key)
+           beginning-priority? (some #(= (:field-key %) beginning-key) prioritized)
 
            end-field         (find-field-by-pattern entity entity-str "end")
            end-key           (first end-field)
            end-value         (second end-field)
            end-type          (get-field-formatter end-key display-fields)
+           end-display       (when end-value
+                               (if end-type
+                                 (format-cell-value end-type end-value ctx)
+                                 (str end-value)))
            end-instant       (as-instant end-value)
+           end-label         (display-label display-fields end-key)
+           end-priority?     (some #(= (:field-key %) end-key) prioritized)
 
-           ;; Calculate duration if beginning and end exist
            duration          (when (and beginning-instant end-instant)
                                (format-duration beginning-instant end-instant))
 
-           ;; Get primary information to display
-           display-title     (cond
-                               ;; If label exists in schema but is nil
+           ;; Title determination
+           first-priority-field
+           (some (fn [{:keys [field-key] :as field}]
+                   (let [value (get entity field-key)]
+                     (when (and (not= field-key label-key)
+                                (prioritized-field? field)
+                                (some? value)
+                                (not (and (string? value)
+                                          (str/blank? value))))
+                       (assoc field :value value))))
+                 prioritized)
+           label-title-field (when (and (some? label-value)
+                                        (not (and (string? label-value)
+                                                  (str/blank? label-value))))
+                               (merge {:field-key  label-key
+                                       :input-type (:input-type label-field-info)
+                                       :opts       (:opts label-field-info)}
+                                      label-field-info
+                                      {:value label-value}))
+           title-field       (or label-title-field first-priority-field)
+           title-key         (:field-key title-field)
+           title-label       (or (:input-label title-field)
+                                 (display-label display-fields title-key))
+           title-content     (when title-field
+                               (if (= title-key label-key)
+                                 (let [value (:value title-field)]
+                                   (if (string? value) value (str value)))
+                                 (format-cell-value (:input-type title-field)
+                                                    (:value title-field)
+                                                    ctx)))
+           title-raw-value   (:value title-field)
+
+           ->display         (fn [content]
+                               (cond
+                                 (nil? content) [:span.text-secondary.italic "None"]
+                                 (vector? content) content
+                                 :else [:span content]))
+
+           highlight-fields  (->> prioritized
+                                  (remove #(let [fk (:field-key %)]
+                                             (or (= fk label-key)
+                                                 (= fk timestamp-key)
+                                                 (= fk beginning-key)
+                                                 (= fk end-key)
+                                                 (= fk title-key))))
+                                  (map (fn [{:keys [field-key input-type input-label]}]
+                                         (let [value (get entity field-key)]
+                                           (when (and (some? value)
+                                                      (not (and (string? value)
+                                                                (str/blank? value))))
+                                             {:field-key   field-key
+                                              :input-label (or input-label
+                                                                (display-label display-fields field-key))
+                                              :content     (format-cell-value input-type value ctx)}))))
+                                  (remove nil?)
+                                  (take 3))
+
+           aria-title        (or (when (string? title-content) title-content)
+                                 (when (string? label-value) label-value)
+                                 (some-> title-raw-value str)
+                                 entity-str)
+           title-node        (cond
+                               (= title-key label-key)
+                               [:h3.list-title.truncate
+                                (if (string? title-content)
+                                  title-content
+                                  (or (some-> title-raw-value str) entity-str))]
+                               title-field
+                               [:div.flex.flex-wrap.items-center.gap-2.text-sm.text-secondary
+                                [:span.font-medium (str title-label ":")]
+                                (->display title-content)]
                                (and label-in-schema? (nil? label-value))
-                               [:span.text-secondary.italic "No Label"]
-
-                               ;; If label has a value
-                               label-value
-                               label-value
-
-                               ;; If label doesn't exist, use entity type
+                               [:span.text-secondary.italic.text-sm "No label"]
                                :else
-                               entity-str)
+                               [:span.text-secondary.italic.text-sm "Untitled"])
 
-           ;; Get secondary information (timestamp or beginning/end)
-           timestamp-display (when timestamp-value
-                               (if timestamp-type
-                                 (format-cell-value timestamp-type timestamp-value ctx)
-                                 (str timestamp-value)))
+           timestamp-row     (when (and timestamp-priority?
+                                        timestamp-display)
+                               [:div.flex.items-center.flex-wrap.gap-2.text-sm.text-secondary
+                                (when timestamp-label
+                                  [:span.font-medium (str timestamp-label ":")])
+                                (->display timestamp-display)
+                                (when timestamp-instant
+                                  [:span.card-tag.text-xs.font-medium.text-secondary
+                                   (format-relative-time timestamp-instant)])])
 
-           time-display      (cond
-                               ;; Show timestamp with relative time if available
-                               timestamp-instant
-                               [:div.flex.items-center.gap-2
-                                [:span timestamp-display]
-                                [:span.card-tag.px-1.py-0.5.rounded
-                                 (format-relative-time timestamp-instant)]]
-
-                               ;; Show beginning/end with duration if available
-                               (and beginning-value end-value)
-                               [:div.flex.items-center.gap-2
-                                [:span (if beginning-type
-                                         (format-cell-value beginning-type beginning-value ctx)
-                                         (str beginning-value))]
-                                [:span.text-secondary "→"]
-                                [:span (if end-type
-                                         (format-cell-value end-type end-value ctx)
-                                         (str end-value))]
-                                (when duration
-                                  [:span.card-tag.px-1.py-0.5.rounded
-                                   duration])]
-
-                               ;; Show just beginning if that's all we have
-                               beginning-value
-                               [:span (if beginning-type
-                                        (format-cell-value beginning-type beginning-value ctx)
-                                        (str beginning-value))]
-
-                               ;; Show nothing if no time information
-                               :else
-                               nil)]
-
-       [:div.list-item.group
-        {:key (str entity-id)}
-
-        ;; Main row content - clickable for edit
-        [:a.flex.items-center.justify-between.py-4.px-4.relative
-         {:href (str "/app/crud/form/" entity-str "/edit/" entity-id)
-          :class "focus:outline-none"
-          :aria-label (str "Edit " (or label-value entity-str))
-          :role "button"}
-
-         ;; Left side - main content
-         [:div.flex-1.min-w-0
-          ;; Title and subtle entity type indicator
-          [:div.flex.items-baseline.gap-2
-           [:h3.list-title.truncate
-            display-title]]
-
-          ;; Timestamp/duration info
-          (when time-display
-            [:div.card-text-secondary.mt-1
-             time-display])
-
-          ;; Subtle entity ID display
-          [:div.mt-1.card-tag.font-mono
-           (str "ID: " (subs (str entity-id) 0 8) "...")]]
-
-         ;; Right side - actions
-         [:div.flex.items-center.space-x-4.opacity-0.group-hover:opacity-100.transition-opacity
-          ;; Delete button wrapper (to stop click propagation)
-          [:div {:onClick "event.stopPropagation();"}
-           (biff/form
-            {:action (str "/app/crud/" entity-str "/" entity-id "/delete")
-             :method "post"
-             :class "inline"
-             :onsubmit "event.stopPropagation(); return confirm('Are you sure you want to delete this item? This action cannot be undone.');"}
-            [:button.text-secondary.hover:text-red-600.transition-colors.focus:outline-none
-             {:type "submit"
-              :aria-label (str "Delete " (or label-value entity-str))
-              :onClick "event.stopPropagation();"}
-             [:svg.h-4.w-4 {:xmlns "http://www.w3.org/2000/svg" :viewBox "0 0 20 20" :fill "currentColor"}
-              [:path {:fill-rule "evenodd"
-                      :d "M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-                      :clip-rule "evenodd"}]]])]]]]))])
+           duration-parts    (-> []
+                                 (cond-> (and beginning-display beginning-priority?)
+                                   (into [[:span.font-medium (str beginning-label ":")]
+                                          (->display beginning-display)]))
+                                 (cond-> (and beginning-display beginning-priority?
+                                              end-display end-priority?)
+                                   (conj [:span.text-secondary "→"]))
+                                 (cond-> (and end-display end-priority?)
+                                   (into [[:span.font-medium (str end-label ":")]
+                                          (->display end-display)]))
+                                 (cond-> (and duration beginning-priority? end-priority?)
+                                   (conj [:span.card-tag.text-xs.font-medium.text-secondary
+                                          (str "Duration " duration)])))
+           duration-row      (when (seq duration-parts)
+                               (into [:div.flex.items-center.flex-wrap.gap-2.text-sm.text-secondary]
+                                     duration-parts))]
+       [:div
+        {:key   (str entity-id)
+         :class "list-item group relative"}
+        [:div {:class "flex flex-col gap-4 p-4 w-full sm:flex-row sm:items-start sm:justify-between"}
+         [:a {:href       (str "/app/crud/form/" entity-str "/edit/" entity-id)
+              :class      "flex-1 min-w-0 w-full space-y-2 pr-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 rounded-lg"
+              :aria-label (str "Edit " aria-title)}
+          [:div {:class "flex flex-col gap-2"}
+           title-node]
+          (when timestamp-row timestamp-row)
+          (when duration-row duration-row)
+          (when (seq highlight-fields)
+            [:div {:class "flex flex-wrap gap-x-6 gap-y-2 text-sm"}
+             (for [{:keys [field-key input-label content]} highlight-fields]
+               (let [node (->display content)]
+                 [:div {:key   (name field-key)
+                        :class "flex flex-col gap-1 min-w-0 text-secondary"}
+                  [:span.font-medium (str input-label)]
+                  [:div.min-w-0 node]]))])
+          [:div {:class "text-xs text-secondary font-mono opacity-70"}
+           (str "ID " (subs (str entity-id) 0 8) "...")]]
+         [:div {:class "flex items-center gap-3 sm:flex-col sm:items-end sm:gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"}
+          [:a.link {:href (str "/app/crud/form/" entity-str "/edit/" entity-id)}
+           "Edit"]
+          (biff/form
+           {:action (str "/app/crud/" entity-str "/" entity-id "/delete")
+            :method "post"
+            :onsubmit
+            "return confirm('Are you sure you want to delete this item? This action cannot be undone.');"}
+           [:button.link
+            {:type "submit"}
+            "Delete"])]]]))])
 
 ;; View type selector component
 (defn view-selector

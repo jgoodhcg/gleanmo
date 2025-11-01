@@ -28,11 +28,11 @@
        [::sm/deleted-at {:optional true} :instant]
        [::sm/created-at :instant]
        [:user/id :user/id]
-       [:habit-log/timestamp {:crud/priority 1} :instant]
+       [:habit-log/timestamp {:crud/priority 2} :instant]
        [:habit-log/time-zone  :string]
        [:habit-log/habit-ids {:crud/priority 1, :crud/label "Habits"}
         [:set :habit/id]]
-       [:habit-log/notes {:optional true, :crud/priority 2 :crud/label "Notes"}
+       [:habit-log/notes {:optional true, :crud/priority 3 :crud/label "Notes"}
         :string]]
       (concat sm/legacy-meta)
       vec))
