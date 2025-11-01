@@ -10,10 +10,14 @@
    [java.time ZonedDateTime]))
 
 (defn nav-bar
-  [{:keys [email]}]
-  [:div.space-x-8
-   [:a.link {:href "/app/my-user"} email]
-   [:a.link {:href "/app"} "home"]
+  [{:keys [email user-id account-url]}]
+  (let [account-link (or account-url
+                         (when user-id (str "/app/users/" user-id))
+                         "/app/my-user")]
+    [:div.flex.items-center.space-x-6
+     (gleanmo-wordmark)
+     [:a.link {:href account-link} "account"]
+     [:a.link {:href "/app"} "home"]
    [:a.link {:href "/app/habits"} "habits"]
    [:a.link {:href "/app/habit-logs"} "habit-logs"]
    [:a.link {:href "/app/locations"} "locations"]
@@ -26,7 +30,7 @@
     {:action "/auth/signout",
      :class  "inline"}
     [:button.link {:type "submit"}
-     "Sign out"])])
+     "Sign out"])]))
 
 (defn turn-off-sensitive-button
   "Show a button to turn off sensitive display when sensitive mode is enabled.
@@ -56,19 +60,28 @@
       {:style {:box-shadow "0 0 8px rgba(6, 182, 212, 0.2)"}}
       [:div.flex.items-center.justify-between
        [:div.flex.items-center.gap-2
-        [:span.font-medium.text-md.text-neon-cyan "📦 Archived"]]]])))
+       [:span.font-medium.text-md.text-neon-cyan "📦 Archived"]]]])))
+
+(defn gleanmo-wordmark
+  "Render the Gleanmo wordmark used in navigation chrome."
+  []
+  [:div.gleanmo-wordmark
+   [:span.gleanmo-wordmark-bracket "[["]
+   [:span.gleanmo-wordmark-core "GLEANMO"]
+   [:span.gleanmo-wordmark-bracket "]]"]])
 
 (defn side-bar
   [{:keys [biff/db session], :as ctx} & content]
   (let [user-id (:uid session)
-        {:keys [email show-sensitive show-archived]} (query/get-user-settings db user-id)
+        {:keys [show-sensitive show-archived]} (query/get-user-settings db user-id)
+        account-url (str "/app/users/" user-id)
         {:keys [super-user]} (query/get-user-authz db user-id)
         super-user? (true? super-user)]
     [:div.flex.min-h-screen
      ;; Sidebar
-     [:div#sidebar.hidden.md:flex.flex-col.space-y-4.bg-dark-surface.p-4.z-50.border-r.border-dark.w-64.flex-shrink-0
-      ;; User email link
-      [:a.link {:href "/app/my-user"} email]
+      [:div#sidebar.hidden.md:flex.flex-col.space-y-4.bg-dark-surface.p-4.z-50.border-r.border-dark.w-64.flex-shrink-0
+      ;; Wordmark
+      [:div.mb-2 (gleanmo-wordmark)]
       ;; Turn off sensitive button (when sensitive mode is on)
       (turn-off-sensitive-button show-sensitive user-id)
       ;; Turn off archived button (when archived mode is on)
@@ -76,6 +89,7 @@
       
       ;; Navigation
       [:a.link {:href "/app"} "home"]
+      [:a.link {:href account-url} "account"]
       [:hr.border-dark]
       
       ;; Quick Add
@@ -115,10 +129,10 @@
       content]
 
      ;; Mobile menu button
-     [:div.fixed.md:hidden.p-2.bg-dark-surface.w-full.border-b.border-dark
+      [:div.fixed.md:hidden.p-2.bg-dark-surface.w-full.border-b.border-dark
       {:id "menu-btn"}
-      [:div.flex
-       [:button.mr-4
+      [:div.flex.items-center.gap-3
+       [:button
         {:type "button",
          :class "text-primary focus:outline-none",
          ;; TODO move this to js?
@@ -139,7 +153,7 @@
            :stroke-linejoin "round",
            :stroke-width "2",
            :d "M4 6h16M4 12h16M4 18h16"}]]]
-       [:a.link {:href "/app/my-user"} email]]]]))
+       (gleanmo-wordmark)]]]]))
 
 (def local-date-time-fmt "yyyy-MM-dd'T'HH:mm")
 

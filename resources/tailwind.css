@@ -321,6 +321,22 @@
     @apply text-xs px-1 py-0.5 rounded opacity-60;
   }
   
+  /* Gleanmo Wordmark */
+  .gleanmo-wordmark {
+    font-family: "IBM Plex Mono", "Fira Code", "Courier New", monospace;
+    letter-spacing: 0.25em;
+    @apply uppercase text-primary text-sm flex items-center gap-2 select-none;
+  }
+  
+  .gleanmo-wordmark-core {
+    @apply text-lg font-semibold tracking-[0.4em];
+  }
+  
+  .gleanmo-wordmark-bracket {
+    color: var(--dark-text-secondary);
+    @apply text-xs font-semibold;
+  }
+  
   /* List View Styles */
   .list-container {
     background: linear-gradient(145deg, var(--dark-surface), var(--dark-bg));
