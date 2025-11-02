@@ -35,11 +35,13 @@
        (update :base/head (fn [head]
                             (cond->> head
                               :always
-                              (concat [[:link {:rel "stylesheet" :href (css-path)}]
+                              (concat [[:link {:rel "stylesheet" :href "https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"}]
+                                       [:link {:rel "stylesheet" :href (css-path)}]
                                        [:link {:rel "preconnect" :href "https://fonts.googleapis.com"}]
                                        [:link {:rel "preconnect" :href "https://fonts.gstatic.com" :crossorigin true}]
                                        [:link {:href "https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" :rel "stylesheet"}]
                                        [:script {:src (js-path)}]
+                                       [:script {:src "https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js" :defer true}]
                                        [:script {:src "https://unpkg.com/htmx.org@1.9.0"}]
                                        [:script {:src "https://unpkg.com/htmx.org/dist/ext/ws.js"}]
                                        [:script {:src "https://unpkg.com/hyperscript.org@0.9.8"}]

@@ -9,6 +9,14 @@
    [java.time LocalDateTime]
    [java.time ZonedDateTime]))
 
+(defn gleanmo-wordmark
+  "Render the Gleanmo wordmark used in navigation chrome."
+  []
+  [:div.gleanmo-wordmark
+   [:span.gleanmo-wordmark-bracket "[["]
+   [:span.gleanmo-wordmark-core "GLEANMO"]
+   [:span.gleanmo-wordmark-bracket "]]"]])
+
 (defn nav-bar
   [{:keys [email user-id account-url]}]
   (let [account-link (or account-url
@@ -61,14 +69,6 @@
       [:div.flex.items-center.justify-between
        [:div.flex.items-center.gap-2
        [:span.font-medium.text-md.text-neon-cyan "📦 Archived"]]]])))
-
-(defn gleanmo-wordmark
-  "Render the Gleanmo wordmark used in navigation chrome."
-  []
-  [:div.gleanmo-wordmark
-   [:span.gleanmo-wordmark-bracket "[["]
-   [:span.gleanmo-wordmark-core "GLEANMO"]
-   [:span.gleanmo-wordmark-bracket "]]"]])
 
 (defn side-bar
   [{:keys [biff/db session], :as ctx} & content]
@@ -153,7 +153,7 @@
            :stroke-linejoin "round",
            :stroke-width "2",
            :d "M4 6h16M4 12h16M4 18h16"}]]]
-       (gleanmo-wordmark)]]]]))
+       (gleanmo-wordmark)]]]))
 
 (def local-date-time-fmt "yyyy-MM-dd'T'HH:mm")
 

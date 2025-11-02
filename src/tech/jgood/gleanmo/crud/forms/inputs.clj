@@ -207,8 +207,14 @@
      [:label.form-label {:for input-name}
       input-label]
      [:select.form-select
-      {:name     input-name,
-       :required input-required}
+      (cond-> {:name             input-name
+               :required         input-required
+               :data-enhance     "choices"
+               :data-placeholder input-label}
+        (not input-required)
+        (assoc :data-allow-clear "true"))
+      (when-not input-required
+        [:option {:value "" :selected (nil? value)} "-- Select --"])
       (for [{:keys [id label]} options]
         [:option {:value id, :selected (= (str id) (str value))} label])]]))
 
@@ -233,12 +239,14 @@
      [:label.form-label {:for input-name}
       input-label]
      [:select.form-select
-      {:name     input-name,
-       :multiple true,
-       :required input-required}
+      {:name             input-name
+       :multiple         true
+       :required         input-required
+       :data-enhance     "choices"
+       :data-remove-item "true"}
       (for [{:keys [id label]} options]
         [:option
-         {:value    id,
+         {:value    id
           :selected (and value-set (contains? value-set (str id)))}
          label])]]))
 

@@ -170,3 +170,42 @@ function setURLParameter(paramName, value) {
 }
 
 // REMOVED: Old CalHeatmap function - replaced by generic ECharts system
+
+
+function initializeChoices(select) {
+  if (select.dataset.choicesInitialized === 'true') {
+    return;
+  }
+  if (typeof Choices === 'undefined') {
+    console.error('Choices.js not loaded');
+    return;
+  }
+  const isMultiple = select.multiple;
+  const options = {
+    searchEnabled: true,
+    shouldSort: false,
+    placeholder: !!select.dataset.placeholder,
+    placeholderValue: select.dataset.placeholder || 'Select…',
+    removeItemButton: select.dataset.removeItem === 'true',
+    allowHTML: false,
+  };
+  if (select.dataset.allowClear === 'true' && !isMultiple) {
+    options.allowHTML = false;
+    options.removeItemButton = true;
+  }
+  new Choices(select, options);
+  select.dataset.choicesInitialized = 'true';
+}
+
+function initChoicesSelectors(root = document) {
+  const selects = root.querySelectorAll('select[data-enhance="choices"]');
+  selects.forEach(initializeChoices);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  initChoicesSelectors();
+});
+
+document.addEventListener('htmx:afterSettle', function(event) {
+  initChoicesSelectors(event.target);
+});
