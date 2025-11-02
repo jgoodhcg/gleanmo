@@ -56,9 +56,13 @@
 - **Event Delete**: Delete functionality
 
 ### Calendar Data Features
-- **Holidays**: Display major holidays on calendar
-- **Lunar Phases**: Show moon phases
-- **Solar Events**: Equinox, solstice indicators
+- **Configurable Overlays**  
+  - **Settings Surface**: Extend calendar settings with `:calendar/time-zone`, optional `:calendar/holiday-region`, and toggles for holidays, seasons, solar, and lunar overlays.  
+  - **Holidays**: Use Jollyday to generate read-only holiday markers per user region; render when the toggle is enabled.  
+  - **Solar + Seasons**: Leverage `commons-suncalc` to fetch equinoxes/solstices, derive season bands, and display single-day markers.  
+  - **Lunar Phases**: Calculate primary moon phases (new, first quarter, full, last quarter) for the selected timezone with `commons-suncalc`; show them as lightweight badges.  
+  - **Caching**: Memoize overlay computations per `(user-id, year)` and invalidate when settings change or year navigation shifts.  
+  - **Tests**: Add fixtures asserting expected overlays for a representative timezone/region to keep deterministic outputs.
 - **Seasonal Data**: First/last frost dates (future)
 
 ### Medium Priority Refactoring
