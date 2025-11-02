@@ -37,6 +37,13 @@
 
 ### High Priority UI/UX Improvements
 
+#### Multi-day Events (Highest Priority)
+- **Schema & Forms**: Collect `end` dates in the modal/CRUD flow, validate inclusive ranges, and set defaults for existing entries.
+- **Query Logic**: Fetch events whose `[beginning, end)` spans overlap the requested year/month.
+- **Rendering**: Expand multi-day events into per-day segments with start/middle/end styling so pills appear contiguous across cells.
+- **Styles**: Adjust pill radii and gutters to show span continuity while preserving click targets.
+- **Testing**: Add coverage for multi-day spans crossing months, years, and DST transitions.
+
 #### Visual Design
 - **Event Shape Updates**: Change from rectangles to dots/bars/other shapes
 - **Event Size**: Make events larger and more prominent in day cells
