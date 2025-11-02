@@ -44,6 +44,11 @@ Comprehensive workout logging with superset support. Four-entity schema (exercis
 
 **Key sections:** Core entities, data entry workflow, superset support, schema issues, migration strategy
 
+### [Reading Tracker](./reading-tracker.md)
+Lightweight Goodreads replacement focused on quick book capture with metadata lookup and timer-backed reading sessions, with clear paths for later expansion.
+
+**Key sections:** Minimal schema, metadata lookup flow, timer integration, phased rollout
+
 ### [Automated Screenshots](./screenshots.md)
 Visual changelog of application development through automated route screenshots. Supports local development, GitHub Actions, and Docker deployment approaches.
 
@@ -64,6 +69,7 @@ Minor improvements and enhancements including CRUD system redesign, dark-themed 
 | Project Timer Fixes | Auto-refresh shipped; Roam metrics pending | High | [roam-integration.md](./roam-integration.md) |
 | Life Chart | Planned | Medium | [life-chart.md](./life-chart.md) |
 | Exercise Tracking | Planned | Medium | [exercise.md](./exercise.md) |
+| Reading Tracker | Planned | High | [reading-tracker.md](./reading-tracker.md) |
 | Generic Viz | Phase 1–3 Live | Medium | [generic-viz.md](./generic-viz.md) |
 | Screenshots | Planned | Low | [screenshots.md](./screenshots.md) |
 | Performance | Profiling Dashboard Live | Low | [performance.md](./performance.md) |
@@ -72,7 +78,7 @@ Minor improvements and enhancements including CRUD system redesign, dark-themed 
 ## Navigation
 
 - **Active work**: [calendar.md](./calendar.md), [roam-integration.md](./roam-integration.md), [generic-viz.md](./generic-viz.md), [performance.md](./performance.md)
-- **Next features**: [life-chart.md](./life-chart.md), [exercise.md](./exercise.md), [screenshots.md](./screenshots.md)
+- **Next features**: [life-chart.md](./life-chart.md), [exercise.md](./exercise.md), [reading-tracker.md](./reading-tracker.md), [screenshots.md](./screenshots.md)
 - **Minor improvements**: [backlog.md](./backlog.md)
 
 ## ✅ Status Update (2025-10-23)
