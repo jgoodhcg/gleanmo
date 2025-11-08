@@ -77,9 +77,14 @@
 
 (defn start-timer-card
   "Render a start button for a parent entity."
-  [parent {:keys [entity-str parent-entity-key relationship-key]}]
-  (let [label-key (schema-utils/entity-attr-key parent-entity-key "label")
-        notes-key (schema-utils/entity-attr-key parent-entity-key "notes")]
+  [parent {:keys [entity-str parent-entity-key relationship-key beginning-key]}]
+  (let [label-key          (schema-utils/entity-attr-key parent-entity-key "label")
+        notes-key          (schema-utils/entity-attr-key parent-entity-key "notes")
+        rel-param-name     (schema-utils/ns-keyword->input-name relationship-key)
+        beginning-param    (schema-utils/ns-keyword->input-name beginning-key)
+        encoded-beginning  (java.net.URLEncoder/encode (str (t/now)) "UTF-8")
+        encoded-redirect   (java.net.URLEncoder/encode (str "/app/timer/" entity-str)
+                                                       "UTF-8")]
     [:div.bg-dark-surface.rounded-lg.p-4.border.border-dark.transition-all.duration-300.hover:shadow-lg.hover:border-neon-yellow
 [:div.flex.items-center.justify-between
        [:div.flex-1.min-w-0
@@ -90,15 +95,9 @@
        [:a.bg-neon-yellow.bg-opacity-20.text-neon-yellow.px-3.py-2.rounded.text-sm.font-medium.hover:bg-opacity-30.transition-all.no-underline
        {:href (str "/app/crud/form/" entity-str
                    "/new?"
-                   (namespace relationship-key) "/"
-                   (name relationship-key) "="
-                   (:xt/id parent)
-                   "&" entity-str
-                   "/beginning=" (java.net.URLEncoder/encode (str (t/now))
-                                                             "UTF-8")
-                   "&redirect="  (java.net.URLEncoder/encode (str "/app/timer/"
-                                                                  entity-str)
-                                                             "UTF-8"))}
+                   rel-param-name "=" (:xt/id parent)
+                   "&" beginning-param "=" encoded-beginning
+                   "&redirect=" encoded-redirect)}
        "Start Timer"]]]))
 
 (defn active-timer-card
