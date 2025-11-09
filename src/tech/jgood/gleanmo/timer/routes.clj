@@ -113,26 +113,23 @@
         elapsed-hours   (quot elapsed-seconds 3600)
         elapsed-minutes (quot (mod elapsed-seconds 3600) 60)
         elapsed-str     (str elapsed-hours "h " elapsed-minutes "m")
-        timer-notes     (get timer notes-key)]
+        timer-notes     (get timer notes-key)
+        redirect-target (str "/app/timer/" entity-str)
+        edit-url        (str "/app/crud/form/" entity-str "/edit/" (:xt/id timer)
+                             "?redirect="
+                             (java.net.URLEncoder/encode redirect-target "UTF-8"))]
     [:div.bg-dark-surface.rounded-lg.p-4.border.border-neon-cyan.transition-all.duration-300.hover:shadow-lg
-[:div.flex.items-center.justify-between
-       [:div.flex-1.min-w-0
-        [:div
-         [:h3.text-lg.font-semibold.text-white parent-name]
-         [:p.text-sm.text-neon-cyan (str "Running for " elapsed-str)]
-         (when timer-notes
-           [:p.text-sm.text-gray-400.truncate timer-notes])]]
-       [:div.flex.gap-2
-       [:a.bg-red-500.bg-opacity-20.text-red-400.px-3.py-2.rounded.text-sm.font-medium.hover:bg-opacity-30.transition-all.no-underline
-        {:href (str "/app/timer/" entity-str "/" (:xt/id timer) "/stop")}
-        "Stop Timer"]
-       [:a.bg-gray-500.bg-opacity-20.text-gray-400.px-3.py-2.rounded.text-sm.font-medium.hover:bg-opacity-30.transition-all.no-underline
-        {:href (str "/app/crud/form/" entity-str
-                    "/edit/"          (:xt/id timer)
-                    "?redirect="      (java.net.URLEncoder/encode
-                                       (str "/app/timer/" entity-str)
-                                       "UTF-8"))}
-        "Edit"]]]]))
+     [:div.flex.items-center.justify-between.mb-4
+      [:span.text-sm.text-gray-400.uppercase.tracking-wide "Active Timer"]
+      [:a.bg-red-500.bg-opacity-20.text-red-400.px-3.py-2.rounded.text-sm.font-medium.hover:bg-opacity-30.transition-all.no-underline
+       {:href (str "/app/timer/" entity-str "/" (:xt/id timer) "/stop")}
+       "End Session"]]
+     [:a.block.no-underline {:href edit-url}
+      [:div.flex.flex-col.space-y-1.text-white.transition-all.duration-300.hover:text-neon-cyan
+       [:h3.text-lg.font-semibold parent-name]
+       [:p.text-sm.text-neon-cyan (str "Running for " elapsed-str)]
+       (when timer-notes
+         [:p.text-sm.text-gray-400.truncate timer-notes])]]]))
 
 (defn timer-page
   "Timer page showing parent entities and active timers"
@@ -204,11 +201,14 @@
          {:entity-key (keyword entity-str),
           :entity-id  timer-id,
           :data       {end-key (t/now)}})
-        ;; Redirect back to timer page
-        {:status  303,
-         :headers {"location" (str "/app/timer/" entity-str)}})
+        ;; Redirect to edit form so the user can review notes/details
+        (let [edit-path        (str "/app/crud/form/" entity-str "/edit/" timer-id)
+              return-target    (str "/app/timer/" entity-str)
+              encoded-redirect (java.net.URLEncoder/encode return-target "UTF-8")]
+          {:status  303
+           :headers {"location" (str edit-path "?redirect=" encoded-redirect)}}))
       ;; Timer not found or already stopped
-      {:status  303,
+      {:status  303
        :headers {"location" (str "/app/timer/" entity-str)}})))
 
 (defn gen-routes
