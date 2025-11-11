@@ -68,6 +68,12 @@ When we decide to support rereads or per-run status, we can introduce a `reading
 4. **Phase 3 – Highlights, Imports, Analytics (Future)**
    - Layer in Goodreads import, highlight capture, dashboards, recommendations, etc.
 
+## Historical Airtable Migration
+- Export the existing reading Airtable base (books + sessions/logs) and stash in `airtable_data/`.
+- Build REPL helpers to map Airtable fields to the `book` / `reading-session` schema (deterministic UUID per Airtable record, metadata payload preservation, timer linkage).
+- Validate and import all legacy entries before dogfooding the new UI so lifetime totals remain continuous.
+- Record the migration run (file names, counts, timestamp) alongside other ingest notebooks for reproducibility.
+
 ## Expansion Backlog
 - Split metadata: promote authors/topics to first-class tables.
 - Goodreads/Kindle imports with dedupe heuristics.

@@ -123,3 +123,11 @@ Change `[:sm/type [:enum :habit-log]]` to `[:sm/type [:enum :exercise]]`
 - **Superset Support**: Easy to track complex workout patterns  
 - **Data Integrity**: Full historical data preserved via Airtable fields
 - **Flexible Analysis**: Support for various workout analytics and trends
+
+## Implementation + Migration Notes
+- The Malli schemas in `src/tech/jgood/gleanmo/schema/exercise_schema.clj` exist but no routes, CRUD pages, or background tasks currently persist exercise data—treat the roadmap above as unimplemented work.
+- Airtable remains the system of record. We must:
+  1. Export the latest exercise + log tables (sessions, sets, reps) into `airtable_data/`.
+  2. Build REPL ingesters mirroring the BM log approach: deterministic UUIDs per Airtable record, enum normalization, and Malli validation.
+  3. Persist historical sessions before enabling the new UI so trends remain continuous.
+- Once migration helpers exist, document the run (record counts, file names) alongside any cleanup scripts so future backfills are reproducible.

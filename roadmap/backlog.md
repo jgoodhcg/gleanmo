@@ -50,8 +50,3 @@ Reusable search component with fuzzy matching for entity selection across forms 
   - Needs investigation: Check DOM structure and container divs
   - Likely: Section headers (h2) need proper container wrapping
   - See: `MEDITATION_TIMER_FIXES.md` for investigation steps
-- **Stop timer enhancement**: When stopping a timer, redirect user to the meditation log form with the end time pre-filled
-  - **Current behavior**: Stop timer just creates a log entry with start time only
-  - **Desired behavior**: Stop timer should navigate to edit form with current time as end time
-  - **Benefits**: Allows user to add notes, adjust duration, and complete the meditation session properly
-  - **Implementation**: Modify stop timer action to redirect to `/app/crud/form/meditation-log/edit/{id}` with end-time parameter
