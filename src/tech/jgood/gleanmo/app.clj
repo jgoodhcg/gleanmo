@@ -17,7 +17,7 @@
    [tech.jgood.gleanmo.app.meditation-log :as meditation-log]
    [tech.jgood.gleanmo.app.project :as project]
    [tech.jgood.gleanmo.app.project-log :as project-log]
-   [tech.jgood.gleanmo.app.shared :refer [side-bar]]
+   [tech.jgood.gleanmo.app.shared :refer [get-user-time-zone side-bar]]
    [tech.jgood.gleanmo.app.timers :as timers]
    [tech.jgood.gleanmo.app.user :as user]
    [tech.jgood.gleanmo.observability :as obs]
@@ -26,6 +26,7 @@
    [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.settings :as settings]
    [tech.jgood.gleanmo.ui :as ui]
+   [tick.core :as t]
    [xtdb.api :as xt]))
 
 (def about-page
@@ -56,19 +57,47 @@
    {:entity-str "project"         :label "Projects"}
    {:entity-str "calendar-event"  :label "Calendar Events"}])
 
+(defn- date-str->start-of-day
+  [date-str zone-id]
+  (when (seq date-str)
+    (-> (t/date date-str)
+        (t/at (t/midnight))
+        (t/in zone-id)
+        t/instant)))
+
+(defn- date-str->end-of-day
+  [date-str zone-id]
+  (when (seq date-str)
+    (-> (t/date date-str)
+        (t/at (t/new-time 23 59 59))
+        (t/in zone-id)
+        t/instant)))
+
+(defn- within-range?
+  [entity {:keys [start end]}]
+  (let [created (::sm/created-at entity)]
+    (if (or start end)
+      (when created
+        (and (if start (t/>= created start) true)
+             (if end   (t/<= created end)   true)))
+      true)))
+
 (defn entity-count-summary
   "Return labels/counts for the home page entity bar chart, respecting user settings."
-  [ctx]
-  (let [counts (mapv (fn [{:keys [entity-str label]}]
-                       {:label label
-                        :count (count (db/all-for-user-query
-                                       {:entity-type-str   entity-str
-                                        :filter-references false}
-                                       ctx))})
-                     entity-count-chart-types)]
-    {:labels (mapv :label counts)
-     :counts (mapv :count counts)
-     :total  (reduce + 0 (map :count counts))}))
+  ([ctx] (entity-count-summary ctx {}))
+  ([ctx {:keys [start end] :as range}]
+   (let [counts (mapv (fn [{:keys [entity-str label]}]
+                        {:label label
+                         :count (->> (db/all-for-user-query
+                                      {:entity-type-str   entity-str
+                                       :filter-references false}
+                                      ctx)
+                                     (filter #(within-range? % range))
+                                     count)})
+                      entity-count-chart-types)]
+     {:labels (mapv :label counts)
+      :counts (mapv :count counts)
+      :total  (reduce + 0 (map :count counts))})))
 
 (defn db-viz
   [{:keys [session biff/db path-params params], :as ctx}]
@@ -191,9 +220,21 @@
 
 
 (defn root
-  [{:keys [session biff/db], :as ctx}]
+  [{:keys [session biff/db params], :as ctx}]
   (let [chart-id "entity-counts"
-        {:keys [labels counts total]} (entity-count-summary ctx)
+        zone-id  (java.time.ZoneId/of (get-user-time-zone ctx))
+        start-date-str (:start-date params)
+        end-date-str   (:end-date params)
+        start-instant  (date-str->start-of-day start-date-str zone-id)
+        end-instant    (date-str->end-of-day end-date-str zone-id)
+        filter-range   {:start start-instant :end end-instant}
+        filtering?     (or start-instant end-instant)
+        {:keys [labels counts total]} (entity-count-summary ctx filter-range)
+        filter-text    (cond
+                         (and start-date-str end-date-str) (str "from " start-date-str " to " end-date-str)
+                         start-date-str (str "starting " start-date-str)
+                         end-date-str   (str "through " end-date-str)
+                         :else          nil)
         chart-config {:backgroundColor "#0d1117"
                       :textStyle {:color "#c9d1d9"}
                       :title {:text "Entities Created (all time)"
@@ -220,6 +261,33 @@
        ctx
        [:div.flex.flex-col.justify-center.space-y-6
         [:h1.text-3xl.font-bold.text-primary "App Root Page!"]
+        (biff/form
+         {:hx-post "/app"
+          :hx-swap "outerHTML"
+          :hx-target "#entity-counts-container"
+          :hx-select "#entity-counts-container"
+          :class "bg-dark-surface border border-dark rounded-xl p-6 space-y-4"}
+         [:div.flex.items-center.justify-between
+          [:h2.text-xl.font-semibold.text-white "Filter entity counts"]
+          (when filtering?
+            [:a.text-sm.text-neon.hover:text-white {:href "/app"} "Clear filter"])]
+         [:div.grid.grid-cols-1.md:grid-cols-2.gap-4
+          [:div
+           [:label.block.text-sm.font-medium.text-gray-300 {:for "start-date"} "Start date"]
+           [:input.rounded-md.block.w-full.border.border-dark.bg-dark.text-gray-100.py-2.px-3.focus:ring-2.focus:ring-neon.focus:border-neon
+            {:type "date" :name "start-date" :value start-date-str}]]
+          [:div
+           [:label.block.text-sm.font-medium.text-gray-300 {:for "end-date"} "End date"]
+           [:input.rounded-md.block.w-full.border.border-dark.bg-dark.text-gray-100.py-2.px-3.focus:ring-2.focus:ring-neon.focus:border-neon
+            {:type "date" :name "end-date" :value end-date-str}]]]
+         [:div.flex.gap-3
+          [:button.bg-neon.text-dark.font-bold.py-2.px-4.rounded.hover:bg-neon-bright {:type "submit"} "Apply"]
+          [:a.bg-dark-light.text-gray-200.font-bold.py-2.px-4.rounded.border.border-dark.hover:bg-dark
+           {:href "/app"} "Reset"]])
+        [:div#entity-counts-container.flex.flex-col.justify-center.space-y-6
+         (when filtering?
+           [:div.bg-dark-surface.border-l-4.border-neon.p-4.rounded
+            [:p.text-sm.text-neon (str "Filtering counts " filter-text)]])
         [:div.bg-dark-surface.border.border-dark.rounded-xl.p-6
          [:div.flex.items-center.justify-between.mb-4
           [:div
@@ -490,7 +558,8 @@
             timers/routes
 
             ;; Main app and DB visualization
-            ["" {:get root}]
+            ["" {:get root
+                 :post root}]
 
             ["/db" {:get db-viz}]
             ["/db/:type" {:get db-viz}]
