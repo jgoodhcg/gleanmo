@@ -1,5 +1,6 @@
 (ns tech.jgood.gleanmo.app
   (:require
+   [cheshire.core :as json]
    [com.biffweb :as biff]
    [clojure.string :as str]
    [tech.jgood.gleanmo.app.bm-log :as bm-log]
@@ -48,6 +49,26 @@
     :project
     :project-log
     :cruddy})
+
+(def entity-count-chart-types
+  [{:entity-str "habit"           :label "Habits"}
+   {:entity-str "meditation-log"  :label "Meditation Logs"}
+   {:entity-str "project"         :label "Projects"}
+   {:entity-str "calendar-event"  :label "Calendar Events"}])
+
+(defn entity-count-summary
+  "Return labels/counts for the home page entity bar chart, respecting user settings."
+  [ctx]
+  (let [counts (mapv (fn [{:keys [entity-str label]}]
+                       {:label label
+                        :count (count (db/all-for-user-query
+                                       {:entity-type-str   entity-str
+                                        :filter-references false}
+                                       ctx))})
+                     entity-count-chart-types)]
+    {:labels (mapv :label counts)
+     :counts (mapv :count counts)
+     :total  (reduce + 0 (map :count counts))}))
 
 (defn db-viz
   [{:keys [session biff/db path-params params], :as ctx}]
@@ -171,15 +192,48 @@
 
 (defn root
   [{:keys [session biff/db], :as ctx}]
-  (ui/page
-   {}
-   [:div
-    (side-bar
-     ctx
-     [:div.flex.flex-col.justify-center.space-y-4
-      [:h1.text-3xl.font-bold.text-primary "App Root Page!"]
-      [:div.rgb-test.rgb-glow
-       "🚀 RGB Glow Test - This should have animated rainbow borders!"]])]))
+  (let [chart-id "entity-counts"
+        {:keys [labels counts total]} (entity-count-summary ctx)
+        chart-config {:backgroundColor "#0d1117"
+                      :textStyle {:color "#c9d1d9"}
+                      :title {:text "Entities Created (all time)"
+                              :left "center"
+                              :textStyle {:color "#c9d1d9"}}
+                      :grid {:left "3%"
+                             :right "4%"
+                             :bottom "3%"
+                             :containLabel true}
+                      :xAxis {:type "category"
+                              :data labels
+                              :axisLabel {:color "#8b949e"}}
+                      :yAxis {:type "value"
+                              :axisLabel {:color "#8b949e"}
+                              :splitLine {:lineStyle {:color "#30363d"}}}
+                      :series [{:type "bar"
+                                :data counts
+                                :itemStyle {:color "#32cd32"}
+                                :barWidth "45%"}]}]
+    (ui/page
+     (assoc ctx ::ui/echarts true)
+     [:div
+      (side-bar
+       ctx
+       [:div.flex.flex-col.justify-center.space-y-6
+        [:h1.text-3xl.font-bold.text-primary "App Root Page!"]
+        [:div.bg-dark-surface.border.border-dark.rounded-xl.p-6
+         [:div.flex.items-center.justify-between.mb-4
+          [:div
+           [:p.text-sm.uppercase.tracking-wide.text-gray-400 "AI preview"]
+           [:h2.text-2xl.font-semibold.text-white "Entities created"]]
+          [:span.text-sm.text-gray-500
+           (if (pos? total)
+             (str total " total across tracked entities")
+             "No data yet")]]
+         [:div {:id chart-id
+                :style {:height "320px" :width "100%"}
+                :data-chart-data (str chart-id "-data")}]
+         [:div {:id (str chart-id "-data") :class "hidden"}
+          (json/generate-string chart-config {:pretty true})]]])])))
 
 
 (defn- super-user?
