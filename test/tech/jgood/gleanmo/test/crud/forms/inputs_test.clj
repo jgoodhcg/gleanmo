@@ -262,10 +262,8 @@
                       schema/schema {:user [:user]}]
           (let [result  (inputs/render field ctx)
                 select  (find-element result :select)
-                ;; assume options vec is third element after keyword and
-                ;; map of element attributes
-                options (-> select
-                            (nth 2))]
+                ;; options are children after the attrs map
+                options (->> select (drop 2))]
             (is (vector? result))
             (is (= :div (first result)))
             (is (some? select))
@@ -291,10 +289,7 @@
                       schema/schema {:tag [:tag]}]
           (let [result  (inputs/render field ctx)
                 select  (find-element result :select)
-                ;; assume options vec is third element after keyword and
-                ;; map of element attributes
-                options (-> select
-                            (nth 2))]
+                options  (->> select (drop 2))]
             (is (vector? result))
             (is (= :div (first result)))
             (is (some? select))

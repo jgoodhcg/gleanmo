@@ -9,8 +9,8 @@
        [::sm/deleted-at {:optional true} :instant]
        [::sm/created-at :instant]
        [:user/id :user/id]
-       [:medication/label :string]
-       [:medication/notes {:optional true} :string]]
+       [:medication/label {:crud/priority 1} :string]
+       [:medication/notes {:optional true :crud/priority 2} :string]]
       (concat sm/legacy-meta)
       vec))
 

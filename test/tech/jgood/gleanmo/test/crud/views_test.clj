@@ -85,15 +85,23 @@
           ;; Verify specific priority 1 fields
           (let [timestamp-field (first (filter #(= (:field-key %) :habit-log/timestamp) priority-1-fields))
                 habit-ids-field (first (filter #(= (:field-key %) :habit-log/habit-ids) priority-1-fields))]
-            (is (some? timestamp-field) "Timestamp should be priority 1")
+            (is (nil? timestamp-field) "Timestamp priority now 2 (schema)")
             (is (some? habit-ids-field) "Habit-ids should be priority 1")
             (is (= "Habits" (:input-label habit-ids-field)) "Habit-ids should have custom label")))
         
         ;; Check priority 2 fields
         (let [priority-2-fields (filter #(= 2 (crud-views/get-field-priority %)) sorted-fields)]
           (when (> (count priority-2-fields) 0)
-            (let [notes-field (first (filter #(= (:field-key %) :habit-log/notes) priority-2-fields))]
-              (is (some? notes-field) "Notes should be priority 2")
+            (let [timestamp-field (first (filter #(= (:field-key %) :habit-log/timestamp) priority-2-fields))
+                  notes-field     (first (filter #(= (:field-key %) :habit-log/notes) priority-2-fields))]
+              (is (some? timestamp-field) "Timestamp should be priority 2")
+              (is (nil? notes-field) "Notes priority now 3 (schema)"))))
+
+        ;; Check priority 3 fields
+        (let [priority-3-fields (filter #(= 3 (crud-views/get-field-priority %)) sorted-fields)]
+          (when (> (count priority-3-fields) 0)
+            (let [notes-field (first (filter #(= (:field-key %) :habit-log/notes) priority-3-fields))]
+              (is (some? notes-field) "Notes should be priority 3")
               (is (= "Notes" (:input-label notes-field)) "Notes should have custom label"))))))
     
     (testing "meditation-log schema priority sorting"

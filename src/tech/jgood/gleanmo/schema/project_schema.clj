@@ -8,10 +8,10 @@
    [::sm/created-at :instant]
    [::sm/deleted-at {:optional true} :instant]
    [:user/id :user/id]
-   [:project/label :string]
+   [:project/label {:crud/priority 1} :string]
    [:project/sensitive {:optional true} :boolean]
    [:project/archived {:optional true} :boolean]
-   [:project/notes {:optional true} :string]])
+   [:project/notes {:optional true :crud/priority 2} :string]])
 
 (def project-log
   [:map {:closed true

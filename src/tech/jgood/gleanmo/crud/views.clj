@@ -506,15 +506,47 @@
           [:button.text-secondary.hover:text-red-600.transition-colors
            {:type       "submit",
             :aria-label (str "Delete " aria-title)}
-           [:svg.h-4.w-4
-            {:xmlns   "http://www.w3.org/2000/svg",
-             :viewBox "0 0 20 20",
-             :fill    "currentColor"}
-            [:path
-             {:fill-rule "evenodd",
-              :d
-              "M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z",
-              :clip-rule "evenodd"}]]])]]))])
+            [:svg.h-4.w-4
+             {:xmlns   "http://www.w3.org/2000/svg",
+              :viewBox "0 0 20 20",
+              :fill    "currentColor"}
+             [:path
+              {:fill-rule "evenodd",
+               :d
+               "M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z",
+               :clip-rule "evenodd"}]]])]]))])
+
+;; ---------------------------------------------------------------------------
+;; Condensed card grid (lightweight, requires preformatted items)
+;; ---------------------------------------------------------------------------
+
+(defn render-condensed-card-grid
+  "Render a lightweight grid of cards.
+   Expects {:items [{:id ... :title ... :pill ... :meta ... :href ...}], :heading ..., :subheading ..., :empty-text ...}"
+  [{:keys [items heading subheading empty-text]}]
+  [:div {:class "bg-dark-surface border border-dark rounded-xl p-6 shadow-lg shadow-black/20"}
+   [:div.flex.items-center.justify-between.mb-6
+    [:div
+     (when heading [:p.text-sm.uppercase.tracking-wide.text-gray-400 heading])
+     (when subheading [:h2.text-2xl.font-semibold.text-white subheading])]
+    (when (seq items)
+      [:span.text-sm.text-gray-500 (str "Showing " (count items))])]
+   (if (seq items)
+     [:div.grid.grid-cols-1.md:grid-cols-2.lg:grid-cols-3.gap-4
+      (for [{:keys [id title pill meta href]} items]
+        [:div.card-container.group {:key (str id)}
+         [:a.flex-grow.flex.flex-col.space-y-3.p-4.rounded-lg.border.border-dark.bg-dark.hover:border-neon.transition-all.duration-150
+          {:href href}
+          [:div.flex.items-center.justify-between
+           [:div.space-y-1
+            [:p.text-xs.text-gray-500 pill]
+            [:p.text-lg.font-semibold.text-white title]]
+           [:div.text-xs.text-gray-400 (or meta "–")]]
+          [:div.flex.items-center.gap-2
+           [:span.inline-flex.items-center.rounded-full.bg-dark-light.border.border-dark.px-3.py-1.text-xs.font-semibold.text-neon
+            pill]
+           [:span.text-xs.text-gray-500 "Tap to edit"]]]])]
+     [:p.text-sm.text-gray-400 (or empty-text "No items to display.")])])
 
 ;; List view implementation
 (defn render-list-view

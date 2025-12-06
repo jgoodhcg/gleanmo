@@ -9,8 +9,8 @@
        [::sm/deleted-at {:optional true} :instant]
        [::sm/created-at :instant]
        [:user/id :user/id]
-       [:meditation/label :string]
-       [:meditation/notes {:optional true} :string]]
+       [:meditation/label {:crud/priority 1} :string]
+       [:meditation/notes {:optional true :crud/priority 2} :string]]
       (concat sm/legacy-meta)
       ;; DEPRECATED
       (concat [[:meditation/name {:optional true, :hide true} :string]

@@ -1,5 +1,3 @@
-// When plain htmx isn't quite enough, you can stick some custom JS here.
-
 function renderEChart(elementId, options) {
   const chartElement = document.getElementById(elementId);
   if (!chartElement) {

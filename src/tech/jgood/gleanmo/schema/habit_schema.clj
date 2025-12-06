@@ -11,7 +11,7 @@
        [:user/id :user/id]
        [:habit/label {:crud/priority 1 :crud/label "Habit"} :string]
        [:habit/sensitive {:optional true} :boolean]
-       [:habit/notes {:optional true} :string]
+       [:habit/notes {:optional true :crud/priority 2} :string]
        [:habit/archived {:optional true} :boolean]
        [:airtable/id {:optional true} :string]
        [:airtable/ported-at {:optional true} :instant]]
