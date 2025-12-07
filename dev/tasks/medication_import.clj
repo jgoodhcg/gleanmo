@@ -7,6 +7,7 @@
   (:require
    [cheshire.core :as json]
    [clj-http.client :as http]
+   [clj-uuid :as uuid]
    [clojure.string :as str]
    [clojure.tools.cli :refer [parse-opts]]))
 
@@ -106,6 +107,80 @@
             (println (str "  - " name " (id: " id ")"))))))))
 
 ;; =============================================================================
+;; Enum Mappings
+;; =============================================================================
+
+(def unit-mapping
+  "Map Airtable unit strings to medication-log schema keywords.
+
+   Airtable values: mg, g, Glob, Sprays, Mcg, Capsule
+   Schema enum: :mg :mcg :g :ml :capsule :tablet :pill :drop :sprays :units :glob :patch :puff :other"
+  {"mg"      :mg
+   "g"       :g
+   "Glob"    :glob
+   "glob"    :glob
+   "Sprays"  :sprays
+   "sprays"  :sprays
+   "Mcg"     :mcg
+   "mcg"     :mcg
+   "Capsule" :capsule
+   "capsule" :capsule})
+
+(def injection-site-mapping
+  "Map Airtable injection site strings to medication-log schema keywords.
+
+   Airtable values: left thigh, right thigh, left lower belly, right lower belly
+   Schema enum: :left-thigh :right-thigh :left-lower-belly :right-lower-belly"
+  {"left thigh"        :left-thigh
+   "right thigh"       :right-thigh
+   "left lower belly"  :left-lower-belly
+   "right lower belly" :right-lower-belly})
+
+(defn normalize-unit
+  "Convert an Airtable unit string to a schema keyword.
+   Returns :other if the unit is not recognized."
+  [unit-str]
+  (if (str/blank? unit-str)
+    :other
+    (get unit-mapping unit-str :other)))
+
+(defn normalize-injection-site
+  "Convert an Airtable injection site string to a schema keyword.
+   Returns nil if blank or not recognized."
+  [site-str]
+  (when-not (str/blank? site-str)
+    (get injection-site-mapping site-str)))
+
+;; =============================================================================
+;; Deterministic UUIDs
+;; =============================================================================
+
+(def medication-namespace-uuid
+  "Namespace UUID for medication-related deterministic UUID generation.
+   All medication and medication-log UUIDs will be derived from this namespace."
+  #uuid "a1b2c3d4-e5f6-7890-abcd-ef1234567890")
+
+(defn medication-uuid
+  "Generate a deterministic UUID for a medication catalog entry from its label.
+
+   The label is normalized (lowercased and trimmed) to ensure consistency.
+   This allows idempotent imports - the same medication name will always
+   produce the same UUID."
+  [label]
+  (when-not (str/blank? label)
+    (let [normalized (-> label str/trim str/lower-case)]
+      (uuid/v5 medication-namespace-uuid normalized))))
+
+(defn medication-log-uuid
+  "Generate a deterministic UUID for a medication-log entry from its Airtable record ID.
+
+   This ensures that re-importing the same Airtable record will produce
+   the same UUID, preventing duplicates."
+  [airtable-id]
+  (when-not (str/blank? airtable-id)
+    (uuid/v5 medication-namespace-uuid (str "log:" airtable-id))))
+
+;; =============================================================================
 ;; Field discovery
 ;; =============================================================================
 
@@ -138,6 +213,44 @@
       (println)
       {:records records
        :field-keys observed-keys})))
+
+(defn demo-transformations
+  "Demonstrate enum mappings and UUID generation on sample records."
+  [{:keys [api-key-env base-id table-name sample-size]}]
+  (if-not base-id
+    (println "Skipping transformation demo: base-id is required.")
+    (let [api-key (get-api-key api-key-env)
+          response (list-records api-key base-id table-name {:max-records sample-size})
+          records (:records response)]
+      (println "=== Transformation Demo ===")
+      (println)
+      (println "DEBUG: First record structure:")
+      (println (first records))
+      (println)
+      (if (seq records)
+        (doseq [{:keys [id fields]} (take 3 records)]
+          (let [;; cheshire with :as :json converts JSON keys to keywords
+                medication (:medication fields)
+                unit (:unit fields)
+                dosage (:dosage fields)
+                timestamp (:timestamp fields)
+                injection-site (:injection-site fields)]
+            (println "Record ID:" id)
+            (println "  Raw data:")
+            (println "    medication:" medication)
+            (println "    dosage:" dosage)
+            (println "    unit:" unit)
+            (when injection-site
+              (println "    injection site:" injection-site))
+            (println "  Transformations:")
+            (println "    medication UUID:" (medication-uuid medication))
+            (println "    log UUID:" (medication-log-uuid id))
+            (println "    normalized unit:" (normalize-unit unit))
+            (when injection-site
+              (println "    normalized site:" (normalize-injection-site injection-site)))
+            (println)))
+        (println "No records to demonstrate transformations."))
+      (println))))
 
 ;; =============================================================================
 ;; Entry Point
@@ -182,21 +295,24 @@
         (test-connection options)
 
         ;; Fetch a page and report observed field keys
-        (fetch-and-report-field-keys options)))))
+        (fetch-and-report-field-keys options)
+
+        ;; Demonstrate transformations on sample data
+        (demo-transformations options)))))
 
 ;; =============================================================================
 ;; Sections to implement
 ;; =============================================================================
 
-;; 1. Fuzzy String Matching (Levenshtein Distance)
-;; 2. Enum Mappings
-;; 3. Deterministic UUIDs
-;; 4. Database Operations
-;; 5. Airtable Record Parsing
-;; 6. Medication Catalog Building
-;; 7. Medication Log Transformation
-;; 8. Validation
-;; 9. Import Pipeline
+;; 1. Fuzzy String Matching (Levenshtein Distance) - TODO
+;; 2. Enum Mappings - DONE
+;; 3. Deterministic UUIDs - DONE
+;; 4. Database Operations - TODO
+;; 5. Airtable Record Parsing - TODO
+;; 6. Medication Catalog Building - TODO
+;; 7. Medication Log Transformation - TODO
+;; 8. Validation - TODO
+;; 9. Import Pipeline - TODO
 
 (comment
   ;; Test from REPL
@@ -204,5 +320,23 @@
 
   ;; Test connection (assumes AIRTABLE_API_KEY env var is set)
   (import-medications "-b" "your-base-id-here")
+
+  ;; Test enum mappings
+  (normalize-unit "mg")           ; => :mg
+  (normalize-unit "Mcg")          ; => :mcg
+  (normalize-unit "capsule")      ; => :capsule
+  (normalize-unit "unknown")      ; => :other
+  (normalize-unit nil)            ; => :other
+
+  (normalize-injection-site "left thigh")       ; => :left-thigh
+  (normalize-injection-site "right lower belly") ; => :right-lower-belly
+  (normalize-injection-site "unknown")          ; => nil
+
+  ;; Test deterministic UUIDs
+  (medication-uuid "Ibuprofen")               ; => consistent UUID
+  (medication-uuid "ibuprofen")               ; => same UUID (normalized)
+  (medication-uuid "  Ibuprofen  ")           ; => same UUID (trimmed)
+  (medication-log-uuid "recXXXXXXXXXXXXX")    ; => consistent UUID
+  (medication-log-uuid "recXXXXXXXXXXXXX")    ; => same UUID (idempotent)
   ;;
   )
