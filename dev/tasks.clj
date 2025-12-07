@@ -1,9 +1,10 @@
 (ns tasks
   (:require
-   [clojure.string    :as str]
-   [clojure.test      :as test]
-   [com.biffweb.tasks :as tasks]
-   [tasks.airtable    :as airtable]))
+   [clojure.string           :as str]
+   [clojure.test             :as test]
+   [com.biffweb.tasks        :as tasks]
+   [tasks.airtable           :as airtable]
+   [tasks.medication-import  :as med-import]))
 
 (defn hello
   "Says 'Hello'"
@@ -52,8 +53,9 @@
 ;; Tasks should be vars (#'hello instead of hello) so that `clj -Mdev help` can
 ;; print their docstrings.
 (def custom-tasks
-  {"hello" #'hello,
-   "download-airtable" #'airtable/download-all-records,
-   "test"  #'run-tests})
+  {"hello"              #'hello
+   "download-airtable"  #'airtable/download-all-records
+   "import-medications" #'med-import/import-medications
+   "test"               #'run-tests})
 
 (def tasks (merge tasks/tasks custom-tasks))
