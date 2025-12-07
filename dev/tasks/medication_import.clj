@@ -18,11 +18,14 @@
   [["-e" "--api-key-env ENV_VAR" "Environment variable containing Airtable API Key"
     :default "AIRTABLE_API_KEY"]
    ["-b" "--base-id BASE-ID" "Airtable Base ID"]
-   ["-t" "--table-name TABLE-NAME" "Table name (default: Medication Log)"
-    :default "Medication Log"]
+   ["-t" "--table-name TABLE-NAME" "Table name or id (default: medication-log)"
+    :default "medication-log"]
    ["-u" "--user-id USER-ID" "User UUID to associate entries with"]
    ["-d" "--dry-run" "Only analyze, don't write to database"
     :default true]
+   ["-n" "--sample-size N" "Max records to fetch when inspecting field keys"
+    :default 5
+    :parse-fn #(Integer/parseInt %)]
    ["-h" "--help" "Show help"]])
 
 ;; =============================================================================
@@ -103,6 +106,40 @@
             (println (str "  - " name " (id: " id ")"))))))))
 
 ;; =============================================================================
+;; Field discovery
+;; =============================================================================
+
+(defn field-keys
+  "Return a set of all field keys present across Airtable records."
+  [records]
+  (->> records
+       (map #(or (:fields %) {}))
+       (map keys)
+       (reduce into #{})))
+
+(defn fetch-and-report-field-keys
+  "Fetch up to `sample-size` records and print the discovered field keys."
+  [{:keys [api-key-env base-id table-name sample-size]}]
+  (if-not base-id
+    (do
+      (println "Skipping field discovery: base-id is required.")
+      (println))
+    (let [api-key (get-api-key api-key-env)
+          response (list-records api-key base-id table-name {:max-records sample-size})
+          records (:records response)
+          observed-keys (field-keys records)]
+      (println "Fetched" (count records) "record(s) from" table-name "(max" sample-size ")")
+      (if (seq observed-keys)
+        (do
+          (println "Observed field keys:" (count observed-keys))
+          (doseq [k (sort observed-keys)]
+            (println "  -" k)))
+        (println "No field keys found. The table may be empty or missing fields."))
+      (println)
+      {:records records
+       :field-keys observed-keys})))
+
+;; =============================================================================
 ;; Entry Point
 ;; =============================================================================
 
@@ -138,10 +175,14 @@
         (println "  Table:" (:table-name options))
         (println "  User ID:" (or (:user-id options) "[not provided]"))
         (println "  Dry run:" (:dry-run options))
+        (println "  Sample size:" (:sample-size options))
         (println)
 
         ;; Test connection
-        (test-connection options)))))
+        (test-connection options)
+
+        ;; Fetch a page and report observed field keys
+        (fetch-and-report-field-keys options)))))
 
 ;; =============================================================================
 ;; Sections to implement
