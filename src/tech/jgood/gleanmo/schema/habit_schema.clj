@@ -22,6 +22,12 @@
       vec))
 
 (def habit-log
+  ;; NOTE: This schema is missing :airtable/id, :airtable/created-time, and
+  ;; :airtable/ported-at fields that would have been useful for traceability
+  ;; during the original Airtable migration. This was an oversight discovered
+  ;; during the medication-log migration. Cannot be added retroactively as data
+  ;; has been migrated for too long. Future migrations should include airtable
+  ;; metadata on log entities following the exercise-log pattern.
   (-> [:map {:closed true}
        [:xt/id :habit-log/id]
        [::sm/type [:enum :habit-log]]

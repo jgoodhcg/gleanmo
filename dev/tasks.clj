@@ -3,8 +3,7 @@
    [clojure.string           :as str]
    [clojure.test             :as test]
    [com.biffweb.tasks        :as tasks]
-   [tasks.airtable           :as airtable]
-   [tasks.medication-import  :as med-import]))
+   [tasks.airtable           :as airtable]))
 
 (defn hello
   "Says 'Hello'"
@@ -55,7 +54,6 @@
 (def custom-tasks
   {"hello"              #'hello
    "download-airtable"  #'airtable/download-all-records
-   "import-medications" #'med-import/import-medications
    "test"               #'run-tests})
 
 (def tasks (merge tasks/tasks custom-tasks))

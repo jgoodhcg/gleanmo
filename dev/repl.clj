@@ -265,6 +265,20 @@
   ;;
   )
 
+;; =============================================================================
+;; LEGACY: BM Log Airtable Migration - COMPLETED
+;; =============================================================================
+;; This migration has been completed and this code is preserved for reference.
+;;
+;; For new Airtable entity migrations, use the new pattern:
+;; - Shared utilities: repl.airtable.core
+;; - Entity-specific code: repl.airtable.<entity> (e.g., repl.airtable.medication)
+;;
+;; Workflow:
+;; 1. clj -M:dev download-airtable -k $API_KEY -b BASE_ID -n table-name
+;; 2. Use REPL functions in repl.airtable.<entity> to transform and write
+;; =============================================================================
+
 (defn get-keys-of-airtable-file
   [file-path]
   (with-open [rdr (io/reader file-path)]
