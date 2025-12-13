@@ -57,6 +57,9 @@ clj -M:repl
 lein repl
 ```
 
+## Parens Fix Attempts
+- If you encounter a parentheses/brace compilation error, limit yourself to **three** fix attempts. If it still fails after three tries, pause and ask the human for guidance before proceeding.
+
 ## Project Context
 
 This is a Clojure project using the tech.jgood.gleanmo namespace structure. The human developer prefers to run the server locally for validation and testing purposes.
