@@ -1,3 +1,4 @@
+;; TODO rename this to not collide with other dashboards
 (ns tech.jgood.gleanmo.app.dashboard-view
   (:require
    [clojure.string :as str]
@@ -5,6 +6,7 @@
    [tech.jgood.gleanmo.crud.views :as crud-views]
    [tech.jgood.gleanmo.crud.views.formatting :as fmt]
    [tech.jgood.gleanmo.db.queries :as db]
+   [tech.jgood.gleanmo.app.shared :as shared]
    [tech.jgood.gleanmo.timer.routes :as timer-routes]
    [tech.jgood.gleanmo.app.timers :as timers-app]
    [tech.jgood.gleanmo.schema :as schema-registry]
@@ -17,16 +19,27 @@
    "meditation-log"
    "bm-log"
    "medication-log"
-   "project-log"
-   "calendar-event"])
+   "project-log"])
 
 (def recent-activity-order-keys
   {"habit-log"      :habit-log/timestamp,
    "meditation-log" :meditation-log/beginning,
    "bm-log"         :bm-log/timestamp,
    "medication-log" :medication-log/timestamp,
-   "project-log"    :project-log/beginning,
-   "calendar-event" :calendar-event/beginning})
+   "project-log"    :project-log/beginning})
+
+(def event-colors
+  {:blue   {:accent "#3b82f6" :muted "rgba(59,130,246,0.18)"}
+   :cyan   {:accent "#06b6d4" :muted "rgba(6,182,212,0.18)"}
+   :green  {:accent "#22c55e" :muted "rgba(34,197,94,0.18)"}
+   :violet {:accent "#8b5cf6" :muted "rgba(139,92,246,0.18)"}
+   :red    {:accent "#ef4444" :muted "rgba(239,68,68,0.18)"}
+   :orange {:accent "#f97316" :muted "rgba(249,115,22,0.18)"}
+   :default {:accent "#8b949e" :muted "rgba(139,148,158,0.18)"}})
+
+(defn event-accent
+  [color-key]
+  (get event-colors color-key (get event-colors :default)))
 
 (def recent-activity-accents
   {"habit-log"      {:accent "#06b6d4", :muted "rgba(6,182,212,0.16)"},
@@ -274,6 +287,44 @@
      "Active timers"    active-timers
      "Entities tracked" distinct-types}))
 
+(defn upcoming-events
+  "Fetch near-future calendar events."
+  [ctx {:keys [limit], :or {limit 5}}]
+  (let [user-id    (-> ctx :session :uid)
+        {:keys [show-sensitive show-archived]}
+        (db/get-user-settings (:biff/db ctx) user-id)
+        now         (t/now)
+        cache       (atom {})
+        get-entity  (fn [id]
+                      (if-let [v (get @cache id)]
+                        v
+                        (let [v (db/get-entity-by-id (:biff/db ctx) id)]
+                          (swap! cache assoc id v)
+                          v)))
+        entity-str  "calendar-event"
+        order-key   :calendar-event/beginning
+        entity-schema (get schema-registry/schema (keyword entity-str))
+        rel-fields    (schema-utils/extract-relationship-fields
+                        entity-schema
+                        :remove-system-fields true)]
+    (->> (db/all-for-user-query
+          {:entity-type-str   entity-str
+           :filter-references false
+           :limit             (* 2 limit)
+           :order-key         order-key
+           :order-direction   :asc}
+          ctx)
+         (filter (fn [e]
+                   (let [inst (or (get e :calendar-event/beginning)
+                                  (get e ::sm/created-at))]
+                     (and (uuid? (:xt/id e))
+                          inst
+                          (t/> inst now)
+                          (base-visible? e show-sensitive show-archived)
+                          (related-visible? e rel-fields show-sensitive show-archived get-entity)))))
+         (sort-by #(or (:calendar-event/beginning %) (::sm/created-at %)))
+         (take limit))))
+
 (defn recent-activity
   "Fetch recent entities across primary log types."
   [ctx {:keys [limit], :or {limit 10}}]
@@ -282,6 +333,36 @@
        (sort-by (comp :sort-instant ::activity-time) #(compare %2 %1))
        (take limit)))
 
+(defn render-upcoming-events
+  "Render near-future calendar events."
+  [ctx]
+  (let [events (upcoming-events ctx {:limit 5})]
+    [:div.border.border-dark.bg-dark-surface.rounded-lg.p-4.space-y-3
+     [:div.space-y-1
+      [:p.text-xs.text-gray-400.uppercase.tracking-wide "Upcoming events"]]
+     (if (seq events)
+       [:div.grid.grid-cols-1.md:grid-cols-2.gap-2
+        (for [e events
+              :let [label   (or (:calendar-event/label e) "Untitled event")
+                    start   (or (:calendar-event/beginning e) (::sm/created-at e))
+                    rel     (relative-time start)
+                    {:keys [accent muted]} (event-accent (:calendar-event/color-neon e))
+                    href    (str "/app/crud/form/calendar-event/edit/" (:xt/id e))]]
+          [:a {:class "group relative overflow-hidden rounded-lg border border-dark bg-dark/80 hover:bg-dark transition-colors"
+               :key (str (:xt/id e))
+               :href href
+               :style {:box-shadow "0 6px 18px rgba(0,0,0,0.22)"}}
+           [:div.absolute.left-0.top-0.bottom-0.w-1 {:style {:background accent}}]
+           [:div.flex.items-start.gap-3.px-4.py-3
+            [:div.flex-1.min-w-0.space-y-1
+             [:div.flex.items-center.gap-2
+              [:div.font-semibold.text-white.truncate label]
+              (when rel
+                [:span.text-xs.uppercase.tracking-wide.text-gray-500.ml-auto rel])]
+             (when-let [desc (:calendar-event/summary e)]
+               [:div.text-sm.text-gray-400.truncate desc])]]])]
+       [:p.text-sm.text-gray-400 "No upcoming events found."])]))
+
 (defn stats-strip
   "Simple stat strip for the dashboard. Accepts a map of stat label->value."
   [stats]
@@ -289,7 +370,7 @@
    [:div.grid.grid-cols-2.md:grid-cols-4.gap-4
     (for [[label value] stats]
       [:div.flex.flex-col.gap-1 {:key label}
-       [:span.text-gray-400.uppercase.tracking-wide {:style {:font-size "11px"}} label]
+       [:span.text-gray-400.uppercase.tracking-wide.text-xs label]
        [:span.text-white.font-semibold (or value "—")]])]])
 
 (defn render-recent-activity
@@ -299,11 +380,10 @@
         stats (dashboard-stats ctx)]
     [:div.space-y-4
      (stats-strip stats)
+     (render-upcoming-events ctx)
      (if (seq items)
        [:div.relative
-        [:div
-         {:class
-            "absolute left-[14px] top-1 bottom-1 w-px bg-dark-border pointer-events-none"}]
+        [:div {:class "absolute left-[14px] top-1 bottom-1 w-px bg-dark-border pointer-events-none"}]
         [:div.space-y-3
          (for [entity items]
            (let [etype         (name (::sm/type entity))
@@ -311,51 +391,42 @@
                  {:keys [accent muted]} (accent-style etype)
                  activity-inst (or instant (::sm/created-at entity))
                  relative      (relative-time activity-inst)
-                 href          (str "/app/crud/form/" etype
-                                    "/edit/" (:xt/id entity))
+                 href          (str "/app/crud/form/" etype "/edit/" (:xt/id entity))
                  primary       (or (primary-field-value entity ctx)
-                                   {:kind :fallback,
+                                   {:kind :fallback
                                     :node (entity-title entity)})
                  id-short      (subs (str (:xt/id entity)) 0 8)]
              [:a.group.relative.block.pl-12.pr-4.py-4.rounded-xl.border.transition-all.duration-200
-              {:key   (str (:xt/id entity)),
-               :href  href,
-               :style {:background   (str "linear-gradient(90deg,"
-                                          muted
-                                          ", rgba(13,17,23,0.85))"),
-                       :border-color "rgba(48,54,61,0.9)",
+              {:key   (str (:xt/id entity))
+               :href  href
+               :style {:background   (str "linear-gradient(90deg," muted ", rgba(13,17,23,0.85))")
+                       :border-color "rgba(48,54,61,0.9)"
                        :box-shadow   "0 10px 30px rgba(0,0,0,0.35)"}}
-              [:span
-               {:class
-                  "absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 rounded-full",
-                :style {:background accent,
-                        :box-shadow (str
-                                      "0 0 0 6px rgba(13,17,23,1), 0 0 0 10px "
-                                      muted)}}]
+              [:span {:class "absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 rounded-full"
+                      :style {:background accent
+                              :box-shadow (str "0 0 0 6px rgba(13,17,23,1), 0 0 0 10px " muted)}}]
 
               [:div.space-y-3.min-w-0
                [:div.flex.items-center.flex-wrap.gap-2.text-xs.text-gray-400
                 [:span.inline-flex.items-center.rounded-full.border.px-3.py-1.font-semibold
-                 {:style {:color        accent,
-                          :border-color accent,
-                          :background   muted}}
+                 {:style {:color accent
+                          :border-color accent
+                          :background muted}}
                  (readable-label etype)]
                 (when relative
-                  [:span
-                   {:class "text-[11px] uppercase tracking-wide text-gray-500"}
-                   relative])]
+                  [:span.text-xs.uppercase.tracking-wide.text-gray-500 relative])]
 
                (case (:kind primary)
                  :relationship
-                   [:div.flex.flex-wrap.items-center.gap-2
-                    (for [label (:labels primary)]
-                      [:span.inline-flex.items-center.rounded-full.border.border-dark.bg-dark-light.px-3.py-1.text-sm.font-semibold.text-white
-                       {:key (str label)}
-                       label])]
+                 [:div.flex.flex-wrap.items-center.gap-2
+                  (for [label (:labels primary)]
+                    [:span.inline-flex.items-center.rounded-full.border.border-dark.bg-dark-light.px-3.py-1.text-sm.font-semibold.text-white
+                     {:key (str label)}
+                     label])]
 
                  :formatted
-                   [:div.text-lg.font-semibold.text-white.truncate
-                    (:node primary)]
+                 [:div.text-lg.font-semibold.text-white.truncate
+                  (:node primary)]
 
                  [:div.text-lg.font-semibold.text-white.truncate
                   (:node primary)])
