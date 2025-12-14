@@ -11,7 +11,6 @@
    [tech.jgood.gleanmo.app.timers :as timers-app]
    [tech.jgood.gleanmo.schema :as schema-registry]
    [tech.jgood.gleanmo.schema.meta :as sm]
-   [tech.jgood.gleanmo.schema.utils :as schema-utils]
    [tick.core :as t]))
 
 (def recent-activity-types
@@ -54,14 +53,23 @@
   [etype]
   (get recent-activity-accents etype (get recent-activity-accents :default)))
 
+(defn- user-zone
+  [ctx]
+  (try
+    (java.time.ZoneId/of (shared/get-user-time-zone ctx))
+    (catch Exception _
+      (java.time.ZoneId/of "UTC"))))
+
 (defn- relative-time
-  [inst]
+  [ctx inst]
   (when inst
-    (let [now     (t/now)
-          future? (t/> inst now)
+    (let [zone    (user-zone ctx)
+          now     (t/in (t/now) zone)
+          ts      (t/in inst zone)
+          future? (t/> ts now)
           dur     (if future?
-                    (t/between now inst)
-                    (t/between inst now))
+                    (t/between now ts)
+                    (t/between ts now))
           secs    (t/seconds dur)
           suffix  (when-not future? " ago")]
       (cond
@@ -179,84 +187,23 @@
             {:kind :formatted,
              :node (fmt/format-cell-value input-type (:value field) ctx)}))))))
 
-(defn- base-visible?
-  [entity show-sensitive show-archived]
-  (let [etype-str     (some-> entity
-                              ::sm/type
-                              name)
-        sensitive-key (keyword etype-str "sensitive")
-        archived-key  (keyword etype-str "archived")]
-    (and (or show-sensitive (not (get entity sensitive-key)))
-         (or show-archived (not (get entity archived-key))))))
-
-(defn- related-visible?
-  [entity rel-fields show-sensitive show-archived get-entity]
-  (every?
-    (fn [{:keys [field-key input-type related-entity-str]}]
-      (let [raw-val       (get entity field-key)
-            ids           (cond
-                            (= input-type :many-relationship) raw-val
-                            (some? raw-val) [raw-val]
-                            :else nil)
-            rel-sensitive (keyword related-entity-str "sensitive")
-            rel-archived  (keyword related-entity-str "archived")]
-        (every?
-          (fn [rid]
-            (if-let [rel (and rid (get-entity rid))]
-              (and (or show-sensitive (not (get rel rel-sensitive)))
-                   (or show-archived (not (get rel rel-archived))))
-              true))
-        ids)))
-    rel-fields))
-
-(defn fetch-visible-entities
-  "Fetch a bounded set of entities per type and filter by sensitive/archived prefs and related entities."
-  [ctx {:keys [per-type-limit], :or {per-type-limit 20}}]
-  (let [user-id    (-> ctx :session :uid)
-        {:keys [show-sensitive show-archived]}
-        (db/get-user-settings (:biff/db ctx) user-id)
-        cache      (atom {})
-        get-entity (fn [id]
-                     (if-let [v (get @cache id)]
-                       v
-                       (let [v (db/get-entity-by-id (:biff/db ctx) id)]
-                         (swap! cache assoc id v)
-                         v)))]
-    (->> recent-activity-types
-         (mapcat
-          (fn [entity-str]
-            (let [order-key     (get recent-activity-order-keys entity-str ::sm/created-at)
-                  entity-schema (get schema-registry/schema (keyword entity-str))
-                  rel-fields    (schema-utils/extract-relationship-fields
-                                  entity-schema
-                                  :remove-system-fields true)]
-              (db/all-for-user-query
-               {:entity-type-str   entity-str
-                :filter-references false
-                :limit             per-type-limit
-                :order-key         order-key
-                :order-direction   :desc}
-               ctx))))
-         (filter
-         (fn [entity]
-            (let [etype-str     (some-> entity ::sm/type name)
-                  entity-schema (get schema-registry/schema (keyword etype-str))
-                  rel-fields    (schema-utils/extract-relationship-fields
-                                  entity-schema
-                                  :remove-system-fields true)]
-              (and (uuid? (:xt/id entity))
-                   (base-visible? entity show-sensitive show-archived)
-                   (related-visible? entity rel-fields show-sensitive show-archived get-entity))))))))
-
 (defn dashboard-stats
   "Compute lightweight dashboard stats using a bounded set of entities."
   [ctx]
-  (let [items         (->> (fetch-visible-entities ctx {:per-type-limit 200})
+  (let [user-id       (-> ctx :session :uid)
+        zone          (user-zone ctx)
+        items         (->> (db/dashboard-recent-entities
+                            (:biff/db ctx)
+                            user-id
+                            {:entity-types    recent-activity-types
+                             :per-type-limit  200
+                             :order-keys      recent-activity-order-keys})
                            (map #(assoc % ::activity-time (activity-time %))))
-        today         (t/today)
+        now-zoned     (t/in (t/now) zone)
+        today         (t/date now-zoned)
         week-start    (t/<< today (t/new-period 6 :days))
         activity-date (fn [entity]
-                        (some-> entity ::activity-time :instant t/date))
+                        (some-> entity ::activity-time :instant (t/in zone) t/date))
         count-since   (fn [start-date]
                         (count (filter (fn [e]
                                          (when-let [d (activity-date e)]
@@ -290,48 +237,25 @@
 (defn upcoming-events
   "Fetch near-future calendar events."
   [ctx {:keys [limit], :or {limit 5}}]
-  (let [user-id    (-> ctx :session :uid)
-        {:keys [show-sensitive show-archived]}
-        (db/get-user-settings (:biff/db ctx) user-id)
-        now         (t/now)
-        cache       (atom {})
-        get-entity  (fn [id]
-                      (if-let [v (get @cache id)]
-                        v
-                        (let [v (db/get-entity-by-id (:biff/db ctx) id)]
-                          (swap! cache assoc id v)
-                          v)))
-        entity-str  "calendar-event"
-        order-key   :calendar-event/beginning
-        entity-schema (get schema-registry/schema (keyword entity-str))
-        rel-fields    (schema-utils/extract-relationship-fields
-                        entity-schema
-                        :remove-system-fields true)]
-    (->> (db/all-for-user-query
-          {:entity-type-str   entity-str
-           :filter-references false
-           :limit             (* 2 limit)
-           :order-key         order-key
-           :order-direction   :asc}
-          ctx)
-         (filter (fn [e]
-                   (let [inst (or (get e :calendar-event/beginning)
-                                  (get e ::sm/created-at))]
-                     (and (uuid? (:xt/id e))
-                          inst
-                          (t/> inst now)
-                          (base-visible? e show-sensitive show-archived)
-                          (related-visible? e rel-fields show-sensitive show-archived get-entity)))))
-         (sort-by #(or (:calendar-event/beginning %) (::sm/created-at %)))
-         (take limit))))
+  (let [user-id (-> ctx :session :uid)]
+    (db/dashboard-upcoming-events
+     (:biff/db ctx)
+     user-id
+     {:limit limit})))
 
 (defn recent-activity
   "Fetch recent entities across primary log types."
   [ctx {:keys [limit], :or {limit 10}}]
-  (->> (fetch-visible-entities ctx {:per-type-limit (* 2 limit)})
-       (map #(assoc % ::activity-time (activity-time %)))
-       (sort-by (comp :sort-instant ::activity-time) #(compare %2 %1))
-       (take limit)))
+  (let [user-id (-> ctx :session :uid)]
+    (->> (db/dashboard-recent-entities
+          (:biff/db ctx)
+          user-id
+          {:entity-types   recent-activity-types
+           :per-type-limit (* 2 limit)
+           :order-keys     recent-activity-order-keys})
+         (map #(assoc % ::activity-time (activity-time %)))
+         (sort-by (comp :sort-instant ::activity-time) #(compare %2 %1))
+         (take limit))))
 
 (defn render-upcoming-events
   "Render near-future calendar events."
@@ -345,7 +269,7 @@
         (for [e events
               :let [label   (or (:calendar-event/label e) "Untitled event")
                     start   (or (:calendar-event/beginning e) (::sm/created-at e))
-                    rel     (relative-time start)
+                    rel     (relative-time ctx start)
                     {:keys [accent muted]} (event-accent (:calendar-event/color-neon e))
                     href    (str "/app/crud/form/calendar-event/edit/" (:xt/id e))]]
           [:a {:class "group relative overflow-hidden rounded-lg border border-dark bg-dark/80 hover:bg-dark transition-colors"
@@ -354,11 +278,11 @@
                :style {:box-shadow "0 6px 18px rgba(0,0,0,0.22)"}}
            [:div.absolute.left-0.top-0.bottom-0.w-1 {:style {:background accent}}]
            [:div.flex.items-start.gap-3.px-4.py-3
-            [:div.flex-1.min-w-0.space-y-1
-             [:div.flex.items-center.gap-2
-              [:div.font-semibold.text-white.truncate label]
-              (when rel
-                [:span.text-xs.uppercase.tracking-wide.text-gray-500.ml-auto rel])]
+           [:div.flex-1.min-w-0.space-y-1
+            [:div.flex.items-center.gap-2
+             [:div.font-semibold.text-white.truncate label]
+             (when rel
+               [:span.text-xs.uppercase.tracking-wide.text-gray-500.ml-auto rel])]
              (when-let [desc (:calendar-event/summary e)]
                [:div.text-sm.text-gray-400.truncate desc])]]])]
        [:p.text-sm.text-gray-400 "No upcoming events found."])]))
@@ -386,15 +310,15 @@
         [:div {:class "absolute left-[14px] top-1 bottom-1 w-px bg-dark-border pointer-events-none"}]
         [:div.space-y-3
          (for [entity items]
-           (let [etype         (name (::sm/type entity))
-                 {:keys [instant source]} (::activity-time entity)
-                 {:keys [accent muted]} (accent-style etype)
-                 activity-inst (or instant (::sm/created-at entity))
-                 relative      (relative-time activity-inst)
-                 href          (str "/app/crud/form/" etype "/edit/" (:xt/id entity))
-                 primary       (or (primary-field-value entity ctx)
-                                   {:kind :fallback
-                                    :node (entity-title entity)})
+                 (let [etype         (name (::sm/type entity))
+                       {:keys [instant source]} (::activity-time entity)
+                       {:keys [accent muted]} (accent-style etype)
+                       activity-inst (or instant (::sm/created-at entity))
+                       relative      (relative-time ctx activity-inst)
+                       href          (str "/app/crud/form/" etype "/edit/" (:xt/id entity))
+                       primary       (or (primary-field-value entity ctx)
+                                         {:kind :fallback
+                                          :node (entity-title entity)})
                  id-short      (subs (str (:xt/id entity)) 0 8)]
              [:a.group.relative.block.pl-12.pr-4.py-4.rounded-xl.border.transition-all.duration-200
               {:key   (str (:xt/id entity))

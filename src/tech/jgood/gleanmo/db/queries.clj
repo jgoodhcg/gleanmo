@@ -4,6 +4,7 @@
    [com.biffweb :as    biff
     :refer [q]]
    [potpuri.core :as pot]
+   [tech.jgood.gleanmo.schema :as schema-registry]
    [tech.jgood.gleanmo.schema.utils :as schema-utils]
    [tech.jgood.gleanmo.schema.meta :as sm]
    [tick.core :as t]
@@ -22,6 +23,19 @@
     (when (seq result)
       (-> result
           first))))
+
+(defn- ->instant
+  "Coerce a variety of date/time values into java.time.Instant, if possible."
+  [v]
+  (cond
+    (nil? v) nil
+    (instance? java.time.Instant v) v
+    (instance? java.time.LocalDateTime v) (.toInstant ^java.time.LocalDateTime v java.time.ZoneOffset/UTC)
+    (instance? java.time.LocalDate v) (.toInstant (.atStartOfDay ^java.time.LocalDate v java.time.ZoneOffset/UTC))
+    :else (try
+            (t/instant v)
+            (catch Exception _
+              nil))))
 
 (defn get-user-settings
   "Get all user settings in a single query. Returns a map with email and boolean settings."
@@ -197,6 +211,63 @@
      :offset              offset
      :order-key           order-key
      :order-direction     order-direction)))
+
+(defnp dashboard-recent-entities
+  "Fetch a bounded set of recent entities per type for the dashboard, respecting user settings and related-entity filters."
+  [db user-id {:keys [entity-types per-type-limit order-keys], :or {per-type-limit 20}}]
+  (let [{:keys [show-sensitive show-archived]} (get-user-settings db user-id)]
+    (mapcat
+     (fn [entity-str]
+       (let [entity-kw    (keyword entity-str)
+             order-key    (get order-keys entity-str ::sm/created-at)
+             entity-schema (get schema-registry/schema entity-kw)
+             rel-fields    (schema-utils/extract-relationship-fields
+                             entity-schema
+                             :remove-system-fields true)]
+         (all-entities-for-user
+          db
+          user-id
+          entity-kw
+          :filter-sensitive    show-sensitive
+          :filter-archived     show-archived
+          :filter-references   true
+          :relationship-fields rel-fields
+          :limit               per-type-limit
+          :order-key           order-key
+          :order-direction     :desc)))
+     entity-types)))
+
+(defnp dashboard-upcoming-events
+  "Fetch upcoming calendar events with visibility filtering and a small oversample to survive filtering."
+  [db user-id {:keys [limit], :or {limit 5}}]
+  (let [{:keys [show-sensitive show-archived]} (get-user-settings db user-id)
+        entity-kw     :calendar-event
+        entity-schema (get schema-registry/schema entity-kw)
+        rel-fields    (schema-utils/extract-relationship-fields
+                        entity-schema
+                        :remove-system-fields true)
+        batch-limit   (max 40 (* 4 limit))
+        now           (t/now)
+        raw-events    (all-entities-for-user
+                       db
+                       user-id
+                       entity-kw
+                       :filter-sensitive    show-sensitive
+                       :filter-archived     show-archived
+                       :filter-references   true
+                       :relationship-fields rel-fields
+                       :limit               batch-limit
+                       :order-key           :calendar-event/beginning
+                       :order-direction     :desc)]
+    (->> raw-events
+         (keep (fn [e]
+                 (when-let [inst (->instant (or (:calendar-event/beginning e)
+                                                (::sm/created-at e)))]
+                   (when (t/> inst now)
+                     (assoc e ::order inst)))))
+         (sort-by ::order)
+         (take limit)
+         (map #(dissoc % ::order)))))
 
 (defn get-user-authz
   "Get user authorization info (super-user status) for a user ID."
