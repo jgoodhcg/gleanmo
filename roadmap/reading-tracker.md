@@ -3,6 +3,8 @@
 ## Objective
 Replace Goodreads for daily tracking with the lightest possible feature set: quick book capture (with metadata lookup) and session logging that reuses the existing timer system. Everything else can layer on later.
 
+See also: [Reading Airtable Schema (Reference)](./reading-airtable-spec.md) for the source tables we need to map into Malli schemas and migration helpers.
+
 ## Initial Goals
 - Capture a title fast, run a metadata lookup, and accept/override suggested fields.
 - Start a timed reading session, pick a book by title, and store page/start end markers.
