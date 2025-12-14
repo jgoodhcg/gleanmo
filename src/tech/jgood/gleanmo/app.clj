@@ -6,7 +6,6 @@
    [tech.jgood.gleanmo.app.calendar :as calendar]
    [tech.jgood.gleanmo.app.calendar-event :as calendar-event]
    [tech.jgood.gleanmo.app.cruddy :as cruddy]
-   [tech.jgood.gleanmo.app.dashboard-view :as dash-view]
    [tech.jgood.gleanmo.app.dashboards :as dashboards]
    [tech.jgood.gleanmo.app.habit :as habit]
    [tech.jgood.gleanmo.app.habit-log :as habit-log]
@@ -20,6 +19,7 @@
    [tech.jgood.gleanmo.app.shared :as    shared
     :refer [side-bar]]
    [tech.jgood.gleanmo.app.timers :as timers]
+   [tech.jgood.gleanmo.app.overview :as overview]
    [tech.jgood.gleanmo.app.user :as user]
    [tech.jgood.gleanmo.db.queries :as db]
    [tech.jgood.gleanmo.middleware :as mid]
@@ -174,14 +174,11 @@
 
 (defn root
   [ctx]
-  (let [recent-items (dash-view/recent-activity ctx {:limit 10})
-        recent-view  (dash-view/render-recent-activity ctx recent-items)]
-    (ui/page
-     ctx
-     (side-bar
-      ctx
-      [:div.flex.flex-col.space-y-6
-       recent-view]))))
+  (ui/page
+   ctx
+   (side-bar
+    ctx
+    (overview/overview-shell ctx))))
 
 (defn- super-user?
   [db user-id]
@@ -471,6 +468,9 @@
             timers/routes
 
             ;; Main app and DB visualization
+            ["/overview/stats" {:get overview/stats-fragment}]
+            ["/overview/events" {:get overview/upcoming-events-fragment}]
+            ["/overview/recent" {:get overview/recent-activity-fragment}]
             ["" {:get root}]
 
             ["/db" {:get db-viz}]

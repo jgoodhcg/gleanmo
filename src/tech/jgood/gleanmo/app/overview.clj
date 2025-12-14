@@ -1,16 +1,16 @@
-;; TODO rename this to not collide with other dashboards
-(ns tech.jgood.gleanmo.app.dashboard-view
+(ns tech.jgood.gleanmo.app.overview
   (:require
    [clojure.string :as str]
    [clojure.tools.logging :as log]
+   [tech.jgood.gleanmo.app.shared :as shared]
+   [tech.jgood.gleanmo.app.timers :as timers-app]
    [tech.jgood.gleanmo.crud.views :as crud-views]
    [tech.jgood.gleanmo.crud.views.formatting :as fmt]
    [tech.jgood.gleanmo.db.queries :as db]
-   [tech.jgood.gleanmo.app.shared :as shared]
-   [tech.jgood.gleanmo.timer.routes :as timer-routes]
-   [tech.jgood.gleanmo.app.timers :as timers-app]
    [tech.jgood.gleanmo.schema :as schema-registry]
    [tech.jgood.gleanmo.schema.meta :as sm]
+   [tech.jgood.gleanmo.timer.routes :as timer-routes]
+   [tech.jgood.gleanmo.ui :as ui]
    [tick.core :as t]))
 
 (def recent-activity-types
@@ -297,64 +297,132 @@
        [:span.text-gray-400.uppercase.tracking-wide.text-xs label]
        [:span.text-white.font-semibold (or value "—")]])]])
 
-(defn render-recent-activity
+(defn render-activity-feed
   "Render recent activity in a single chronological stream across entity types."
+  [ctx recent-items]
+  (let [items recent-items]
+    (if (seq items)
+      [:div.relative
+       [:div {:class "absolute left-[14px] top-1 bottom-1 w-px bg-dark-border pointer-events-none"}]
+       [:div.space-y-3
+        (for [entity items]
+                (let [etype         (name (::sm/type entity))
+                      {:keys [instant]} (::activity-time entity)
+                      {:keys [accent muted]} (accent-style etype)
+                      activity-inst (or instant (::sm/created-at entity))
+                      relative      (relative-time ctx activity-inst)
+                      href          (str "/app/crud/form/" etype "/edit/" (:xt/id entity))
+                      primary       (or (primary-field-value entity ctx)
+                                        {:kind :fallback
+                                         :node (entity-title entity)})
+                id-short      (subs (str (:xt/id entity)) 0 8)]
+            [:a.group.relative.block.pl-12.pr-4.py-4.rounded-xl.border.transition-all.duration-200
+             {:key   (str (:xt/id entity))
+              :href  href
+              :style {:background   (str "linear-gradient(90deg," muted ", rgba(13,17,23,0.85))")
+                      :border-color "rgba(48,54,61,0.9)"
+                      :box-shadow   "0 10px 30px rgba(0,0,0,0.35)"}}
+             [:span {:class "absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 rounded-full"
+                     :style {:background accent
+                             :box-shadow (str "0 0 0 6px rgba(13,17,23,1), 0 0 0 10px " muted)}}]
+
+             [:div.space-y-3.min-w-0
+              [:div.flex.items-center.flex-wrap.gap-2.text-xs.text-gray-400
+               [:span.inline-flex.items-center.rounded-full.border.px-3.py-1.font-semibold
+                {:style {:color accent
+                         :border-color accent
+                         :background muted}}
+                (readable-label etype)]
+               (when relative
+                 [:span.text-xs.uppercase.tracking-wide.text-gray-500 relative])]
+
+              (case (:kind primary)
+                :relationship
+                [:div.flex.flex-wrap.items-center.gap-2
+                 (for [label (:labels primary)]
+                   [:span.inline-flex.items-center.rounded-full.border.border-dark.bg-dark-light.px-3.py-1.text-sm.font-semibold.text-white
+                    {:key (str label)}
+                    label])]
+
+                :formatted
+                [:div.text-lg.font-semibold.text-white.truncate
+                 (:node primary)]
+
+                [:div.text-lg.font-semibold.text-white.truncate
+                 (:node primary)])
+
+              [:div.flex.items-center.justify-between.text-xs.text-gray-500
+               [:span.font-mono.opacity-70 (str id-short "...")]]]]))]]
+      [:p.text-sm.text-gray-400 "No recent activity yet. Keep logging!"])))
+
+(defn render-recent-activity
+  "Render dashboard stats, upcoming events, and recent activity feed."
   [ctx recent-items]
   (let [items recent-items
         stats (dashboard-stats ctx)]
     [:div.space-y-4
      (stats-strip stats)
      (render-upcoming-events ctx)
-     (if (seq items)
-       [:div.relative
-        [:div {:class "absolute left-[14px] top-1 bottom-1 w-px bg-dark-border pointer-events-none"}]
-        [:div.space-y-3
-         (for [entity items]
-                 (let [etype         (name (::sm/type entity))
-                       {:keys [instant source]} (::activity-time entity)
-                       {:keys [accent muted]} (accent-style etype)
-                       activity-inst (or instant (::sm/created-at entity))
-                       relative      (relative-time ctx activity-inst)
-                       href          (str "/app/crud/form/" etype "/edit/" (:xt/id entity))
-                       primary       (or (primary-field-value entity ctx)
-                                         {:kind :fallback
-                                          :node (entity-title entity)})
-                 id-short      (subs (str (:xt/id entity)) 0 8)]
-             [:a.group.relative.block.pl-12.pr-4.py-4.rounded-xl.border.transition-all.duration-200
-              {:key   (str (:xt/id entity))
-               :href  href
-               :style {:background   (str "linear-gradient(90deg," muted ", rgba(13,17,23,0.85))")
-                       :border-color "rgba(48,54,61,0.9)"
-                       :box-shadow   "0 10px 30px rgba(0,0,0,0.35)"}}
-              [:span {:class "absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 rounded-full"
-                      :style {:background accent
-                              :box-shadow (str "0 0 0 6px rgba(13,17,23,1), 0 0 0 10px " muted)}}]
+     (render-activity-feed ctx items)]))
 
-              [:div.space-y-3.min-w-0
-               [:div.flex.items-center.flex-wrap.gap-2.text-xs.text-gray-400
-                [:span.inline-flex.items-center.rounded-full.border.px-3.py-1.font-semibold
-                 {:style {:color accent
-                          :border-color accent
-                          :background muted}}
-                 (readable-label etype)]
-                (when relative
-                  [:span.text-xs.uppercase.tracking-wide.text-gray-500 relative])]
+(defn- lazy-container
+  "HTMX-enabled wrapper so sections can stream in after the shell renders."
+  [id hx-url placeholder & [{:keys [delay-ms]}]]
+  (let [trigger (if delay-ms
+                  (str "load delay:" delay-ms "ms")
+                  "load")]
+    [:div {:id id
+           :hx-get hx-url
+           :hx-trigger trigger
+           :hx-swap "outerHTML"}
+     [:div {:class "border border-dark bg-dark-surface rounded-lg p-4 text-sm text-gray-500"}
+      [:div {:class "flex items-center justify-between"}
+       [:span {:class "text-gray-400"} placeholder]
+       [:span {:class "text-xs"} "Loading…"]]
+      [:div {:class "mt-3 h-3 rounded bg-dark-light opacity-70 animate-pulse"}]
+      [:div {:class "mt-2 h-3 rounded bg-dark-light opacity-60 animate-pulse w-2/3"}]]]))
 
-               (case (:kind primary)
-                 :relationship
-                 [:div.flex.flex-wrap.items-center.gap-2
-                  (for [label (:labels primary)]
-                    [:span.inline-flex.items-center.rounded-full.border.border-dark.bg-dark-light.px-3.py-1.text-sm.font-semibold.text-white
-                     {:key (str label)}
-                     label])]
+(defn stats-section
+  [ctx]
+  [:div#overview-stats
+   (stats-strip (dashboard-stats ctx))])
 
-                 :formatted
-                 [:div.text-lg.font-semibold.text-white.truncate
-                  (:node primary)]
+(defn upcoming-events-section
+  [ctx]
+  [:div#overview-events
+   (render-upcoming-events ctx)])
 
-                 [:div.text-lg.font-semibold.text-white.truncate
-                  (:node primary)])
+(defn recent-activity-section
+  [{:keys [params] :as ctx}]
+  (let [limit (try
+                (some-> (:limit params) Integer/parseInt)
+                (catch Exception _ nil))
+        items (recent-activity ctx {:limit (or limit 10)})]
+    [:div#overview-recent
+     (render-activity-feed ctx items)]))
 
-               [:div.flex.items-center.justify-between.text-xs.text-gray-500
-                [:span.font-mono.opacity-70 (str id-short "...")]]]]))]]
-       [:p.text-sm.text-gray-400 "No recent activity yet. Keep logging!"])]))
+(defn overview-shell
+  "Top-level layout for the home overview page; sections hydrate via HTMX."
+  [ctx]
+  [:div.flex.flex-col.space-y-6
+   (lazy-container "overview-stats" "/app/overview/stats" "Loading stats")
+   (lazy-container "overview-events" "/app/overview/events" "Loading events")
+   (lazy-container "overview-recent" "/app/overview/recent" "Loading recent activity")])
+
+(defn stats-fragment
+  [ctx]
+  {:status  200
+   :headers {"content-type" "text/html"}
+   :body    (ui/fragment ctx (stats-section ctx))})
+
+(defn upcoming-events-fragment
+  [ctx]
+  {:status  200
+   :headers {"content-type" "text/html"}
+   :body    (ui/fragment ctx (upcoming-events-section ctx))})
+
+(defn recent-activity-fragment
+  [ctx]
+  {:status  200
+   :headers {"content-type" "text/html"}
+   :body    (ui/fragment ctx (recent-activity-section ctx))})
