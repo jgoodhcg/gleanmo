@@ -11,10 +11,10 @@ Year-at-a-glance calendar with event creation, visualization, and timezone-aware
 
 **Key sections:** Completed features, UI/UX improvements, external sync (iCal/Google), recurring events architecture
 
-### [Project Time Tracking](./roam-integration.md)
-**Status**: Timer UX refreshed; Roam metrics still outstanding
+### [Project Timers + Roam Metrics](./roam-integration.md)
+**Status**: Project timers shipped; Roam metrics integration pending
 
-Timer-based project tracking with schema-driven pre-population, automatic refresh, and redirects back to the timer dashboard. Remaining work focuses on Roam Research metric ingestion and richer analytics.
+Timer-based project tracking is live (schema-driven prefill, auto-refresh, redirects). This doc now mainly tracks the future Roam Research metrics integration and related analytics.
 
 **Key sections:** MVP schema, timer functionality, Roam integration, CRUD form enhancements, outstanding issues
 
@@ -54,6 +54,11 @@ Visual changelog of application development through automated route screenshots.
 
 **Key sections:** Implementation approaches, route discovery, storage organization, configuration options
 
+### [Data Migration Status](./data-migration-status.md)
+**Status**: Tracker for Airtable/backfill readiness
+
+Summary of what’s already migrated (habits, BM), what’s live but needs Airtable backfill (medication), and what’s still unrepresented (exercise, pain, mood, reading, bouldering, project time logs).
+
 ## Improvements & Refactoring
 
 ### [Backlog](./backlog.md)
@@ -66,7 +71,7 @@ Minor improvements and enhancements including CRUD system redesign, dark-themed 
 | Feature | Status | Priority | File |
 |---------|--------|----------|------|
 | Calendar Polish | In Progress | High | [calendar.md](./calendar.md) |
-| Project Timer Fixes | Auto-refresh shipped; Roam metrics pending | High | [roam-integration.md](./roam-integration.md) |
+| Project Timers + Roam Metrics | Timers shipped; Roam metrics pending | High | [roam-integration.md](./roam-integration.md) |
 | Life Chart | Planned | Medium | [life-chart.md](./life-chart.md) |
 | Exercise Tracking | Planned | Medium | [exercise.md](./exercise.md) |
 | Reading Tracker | Planned | High | [reading-tracker.md](./reading-tracker.md) |
@@ -74,6 +79,7 @@ Minor improvements and enhancements including CRUD system redesign, dark-themed 
 | Screenshots | Planned | Low | [screenshots.md](./screenshots.md) |
 | Performance | Profiling Dashboard Live | Low | [performance.md](./performance.md) |
 | CRUD Redesign | Future | Medium | [backlog.md](./backlog.md) |
+| Data Migration Status | Tracker | Medium | [data-migration-status.md](./data-migration-status.md) |
 
 ## Navigation
 

@@ -1,4 +1,8 @@
-# Gleanmo Project Integration Requirements
+# Project Timers (Shipped) + Roam Metrics (Planned)
+
+**Status summary**
+- Project tracking and timers: implemented and functional in-app.
+- Roam metrics: planned only (this doc is primarily about the future Roam integration).
 
 ## Project Overview
 
@@ -288,4 +292,3 @@ Timer "Start Timer" buttons link to:
 - **CRUD redirect support**: Timer flows rely on the CRUD redirect parameter that now propagates through create/edit handlers, returning the user directly to the timer dashboard once a log entry is saved.
 - **Multi-entity timer routing**: `timer.routes/gen-routes` generates timer pages for any interval entity, and both project logs and meditation logs are already wired up to the new system.
 - **Still open**: The stop-timer action continues to redirect back to the timer list instead of dropping the user into the edit form with the end-time prefilled; keep that enhancement on the backlog.
-
