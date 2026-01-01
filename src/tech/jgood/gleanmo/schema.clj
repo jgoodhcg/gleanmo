@@ -12,6 +12,7 @@
             [tech.jgood.gleanmo.schema.calendar-event-schema :as ces]
             [tech.jgood.gleanmo.schema.project-schema :as ps]
             [tech.jgood.gleanmo.schema.cruddy :as cs]
+            [tech.jgood.gleanmo.schema.symptom-schema :as ss]
             [tech.jgood.gleanmo.schema.performance-schema :as perf]))
 
 ;; all glenamo/type attributes are the schema key
@@ -35,6 +36,8 @@
    :calendar-event/id   :uuid
    :project/id          :uuid
    :project-log/id      :uuid
+   :symptom-episode/id  :uuid
+   :symptom-log/id      :uuid
    :user                us/user
    :habit               hs/habit
    :habit-log           hs/habit-log
@@ -52,6 +55,8 @@
    :exercise-set        es/exercise-set
    :project             ps/project
    :project-log         ps/project-log
+   :symptom-episode     ss/symptom-episode
+   :symptom-log         ss/symptom-log
    :cruddy              cs/cruddy
    :performance-report  perf/performance-report})
 
