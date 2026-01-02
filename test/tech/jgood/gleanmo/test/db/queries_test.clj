@@ -643,7 +643,8 @@
                 result               (queries/get-user-settings db non-existent-user-id)]
             (is (= {:email           nil
                     :show-sensitive  false
-                    :show-archived   false} result))))
+                    :show-archived   false
+                    :show-bm-logs    true} result))))
         
         (testing "should return all user settings when user exists with all fields"
           (let [user-id (UUID/randomUUID)
@@ -659,7 +660,8 @@
                 result     (queries/get-user-settings updated-db user-id)]
             (is (= {:email           "complete@example.com"
                     :show-sensitive  true
-                    :show-archived   false} result))))
+                    :show-archived   false
+                    :show-bm-logs    true} result))))
         
         (testing "should return false for missing optional boolean fields"
           (let [user-id (UUID/randomUUID)
@@ -673,7 +675,8 @@
                 result     (queries/get-user-settings updated-db user-id)]
             (is (= {:email           "minimal@example.com"
                     :show-sensitive  false
-                    :show-archived   false} result))))
+                    :show-archived   false
+                    :show-bm-logs    true} result))))
         
         (testing "should handle mixed true/false boolean values"
           (let [user-id (UUID/randomUUID)
@@ -689,4 +692,5 @@
                 result     (queries/get-user-settings updated-db user-id)]
             (is (= {:email           "mixed@example.com"
                     :show-sensitive  false
-                    :show-archived   true} result))))))))
+                    :show-archived   true
+                    :show-bm-logs    true} result))))))))

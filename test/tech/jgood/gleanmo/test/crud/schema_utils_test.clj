@@ -354,7 +354,7 @@
             habit-ids-field (some #(= (:field-key %) :habit-log/habit-ids) fields)
             notes-field (some #(= (:field-key %) :habit-log/notes) fields)]
         (is (not (nil? timestamp-field)) "Habit-log schema should have timestamp field")
-        (is (= 1 (:crud/priority (:opts timestamp-field))) "Timestamp should have priority 1")
+        (is (nil? (:crud/priority (:opts timestamp-field))) "Timestamp should not have priority")
         
         (is (not (nil? habit-ids-field)) "Habit-log schema should have habit-ids field")
         (is (= 1 (:crud/priority (:opts habit-ids-field))) "Habit-ids should have priority 1")

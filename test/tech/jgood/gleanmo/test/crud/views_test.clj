@@ -61,12 +61,12 @@
           
           ;; Check priority values
           (when beginning-field
-            (is (= 1 (:crud/priority (:opts beginning-field))) "Beginning should have priority 1"))
+            (is (nil? (:crud/priority (:opts beginning-field))) "Beginning should not have priority"))
           (when end-field
-            (is (= 2 (:crud/priority (:opts end-field))) "End should have priority 2"))
-           (when type-id-field
-             (is (= 3 (:crud/priority (:opts type-id-field))) "Type-id should have priority 3")
-             (is (= "Meditation" (:crud/label (:opts type-id-field))) "Type-id should have custom label")))))))
+            (is (nil? (:crud/priority (:opts end-field))) "End should not have priority"))
+          (when type-id-field
+            (is (= 1 (:crud/priority (:opts type-id-field))) "Type-id should have priority 1")
+            (is (= "Meditation" (:crud/label (:opts type-id-field))) "Type-id should have custom label")))))))
 
 (deftest priority-metadata-integration-test
   (testing "Priority metadata integration with real schemas"
@@ -85,7 +85,7 @@
           ;; Verify specific priority 1 fields
           (let [timestamp-field (first (filter #(= (:field-key %) :habit-log/timestamp) priority-1-fields))
                 habit-ids-field (first (filter #(= (:field-key %) :habit-log/habit-ids) priority-1-fields))]
-            (is (nil? timestamp-field) "Timestamp priority now 2 (schema)")
+            (is (nil? timestamp-field) "Timestamp should not be priority 1")
             (is (some? habit-ids-field) "Habit-ids should be priority 1")
             (is (= "Habits" (:input-label habit-ids-field)) "Habit-ids should have custom label")))
         
@@ -94,42 +94,45 @@
           (when (> (count priority-2-fields) 0)
             (let [timestamp-field (first (filter #(= (:field-key %) :habit-log/timestamp) priority-2-fields))
                   notes-field     (first (filter #(= (:field-key %) :habit-log/notes) priority-2-fields))]
-              (is (some? timestamp-field) "Timestamp should be priority 2")
-              (is (nil? notes-field) "Notes priority now 3 (schema)"))))
+              (is (nil? timestamp-field) "Timestamp should not be priority 2")
+              (is (some? notes-field) "Notes should be priority 2")
+              (is (= "Notes" (:input-label notes-field)) "Notes should have custom label"))))
 
         ;; Check priority 3 fields
         (let [priority-3-fields (filter #(= 3 (crud-views/get-field-priority %)) sorted-fields)]
-          (when (> (count priority-3-fields) 0)
-            (let [notes-field (first (filter #(= (:field-key %) :habit-log/notes) priority-3-fields))]
-              (is (some? notes-field) "Notes should be priority 3")
-              (is (= "Notes" (:input-label notes-field)) "Notes should have custom label"))))))
+          (is (empty? priority-3-fields) "No priority 3 fields are defined"))))
     
     (testing "meditation-log schema priority sorting"
       (let [display-fields (crud-views/get-display-fields meditation-schema/meditation-log)
             sorted-fields (crud-views/sort-by-priority-then-arbitrary display-fields)]
         
-        ;; Should have beginning, end, and type-id fields with priorities 1, 2, 3
+        ;; Should have beginning, end, type-id, and location fields
         (let [beginning-field (first (filter #(= (:field-key %) :meditation-log/beginning) sorted-fields))
               end-field (first (filter #(= (:field-key %) :meditation-log/end) sorted-fields))
-              type-id-field (first (filter #(= (:field-key %) :meditation-log/type-id) sorted-fields))]
+              type-id-field (first (filter #(= (:field-key %) :meditation-log/type-id) sorted-fields))
+              location-field (first (filter #(= (:field-key %) :meditation-log/location-id) sorted-fields))]
           
           (is (some? beginning-field) "Should have beginning field")
           (is (some? end-field) "Should have end field")
           (is (some? type-id-field) "Should have type-id field")
+          (is (some? location-field) "Should have location field")
           
           ;; Verify priority order in the sorted result
           (let [field-order (map :field-key sorted-fields)
                 beginning-idx (.indexOf field-order :meditation-log/beginning)
                 end-idx (.indexOf field-order :meditation-log/end)
-                type-id-idx (.indexOf field-order :meditation-log/type-id)]
+                type-id-idx (.indexOf field-order :meditation-log/type-id)
+                location-idx (.indexOf field-order :meditation-log/location-id)]
             
-            (is (< beginning-idx end-idx) "Beginning (priority 1) should come before end (priority 2)")
-            (is (< end-idx type-id-idx) "End (priority 2) should come before type-id (priority 3)")
+            (is (< type-id-idx location-idx) "Type-id (priority 1) should come before location (priority 2)")
+            (is (< location-idx beginning-idx) "Priority fields should come before non-priority fields")
+            (is (< location-idx end-idx) "Priority fields should come before non-priority fields")
             
             ;; Verify priority values using the get-field-priority function
-            (is (= 1 (crud-views/get-field-priority beginning-field)) "Beginning should have priority 1")
-            (is (= 2 (crud-views/get-field-priority end-field)) "End should have priority 2")
-            (is (= 3 (crud-views/get-field-priority type-id-field)) "Type-id should have priority 3")
+            (is (= 1 (crud-views/get-field-priority type-id-field)) "Type-id should have priority 1")
+            (is (= 2 (crud-views/get-field-priority location-field)) "Location should have priority 2")
+            (is (= 99 (crud-views/get-field-priority beginning-field)) "Beginning should not have priority")
+            (is (= 99 (crud-views/get-field-priority end-field)) "End should not have priority")
             (is (= "Meditation" (:input-label type-id-field)) "Type-id should have custom label")))))
     
     (testing "fields without priority appear after priority fields"
