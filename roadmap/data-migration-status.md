@@ -1,10 +1,18 @@
 # Data Migration Status (Airtable + Other Sources)
 
+## Work Unit Summary
+- Status: active
+- Problem / intent: Track Airtable backfills and remaining imports so we can fully exit Airtable.
+- Constraints: Preserve lineage fields and deterministic IDs; document each import run.
+- Proposed approach: Prioritize exercise migration, then move through pain, mood, reading, bouldering, and project time logs.
+- Open questions: Which import should follow exercise, and what is the default validation threshold?
+
 ## Current State
 - Habits & habit logs: fully migrated from Airtable. Legacy runner left only for reference (`dev/airtable/activity.clj`).
 - BM logs: fully migrated; helper code in `dev/repl.clj` is archival/reference.
 - Medication: entities and logging are live in-app; Airtable backfill still pending.
 - Not represented in app yet: exercise, pain, mood, reading, bouldering, project time logs (project timers exist, but historical logs live in other apps/spreadsheets).
+- Priority: exercise migration is the first target for exiting Airtable.
 
 ## Next Actions (medication backfill)
 1. Export Airtable `medication-log` table: `clj -M:dev download-airtable -k $API_KEY -b BASE_ID -n medication-log` → `airtable_data/...edn`.

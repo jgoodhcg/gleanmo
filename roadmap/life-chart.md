@@ -1,5 +1,12 @@
 # Life Chart Calendar Requirements
 
+## Work Unit Summary
+- Status: idea
+- Problem / intent: Provide a lifetime view with years as rows and weeks as cells to see life periods at a glance.
+- Constraints: Must render thousands of cells efficiently and remain legible at multiple zoom levels.
+- Proposed approach: Use canvas or SVG with virtualization, layered period colors, and event overlays from the main calendar.
+- Open questions: Which interactions (drag, edit, filter) should ship in v1?
+
 ## Overview
 A life visualization calendar where each row represents a year of life and each cell represents a week. This provides a "life at a glance" view to understand major periods, transitions, and milestones across an entire lifetime.
 

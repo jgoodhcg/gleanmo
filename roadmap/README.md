@@ -2,6 +2,21 @@
 
 This directory contains detailed planning and requirements documentation for Gleanmo features and improvements.
 
+Canonical state lives in `index.md`. This README is the catalog and structure guide.
+
+## Roadmap Structure
+- `index.md`: current focus, active links, and short status summary (keep it short).
+- `roadmap/*.md`: work units with a short "Work Unit Summary" block at the top.
+- `_template.md`: starting point for new work units.
+- `log.md`: optional, append-only session log (create when needed).
+
+**Rules for work units**
+- Start each file with the "Work Unit Summary" section (status, problem/intent, constraints, approach, open questions).
+- Avoid subtasks or checklists; keep details in narrative notes.
+- Status should be one of: `idea`, `active`, `paused`, `done`, `dropped`.
+
+## Catalog
+
 ## Active Features
 
 ### [Calendar](./calendar.md)
@@ -39,6 +54,16 @@ Lifetime visualization with years as rows and weeks as columns. Track life perio
 
 **Key sections:** Visual structure, core entities, period categories, interactions, technical implementation
 
+### [Task Management (Projects + Tasks + Time)](./task-management.md)
+Lightweight tasks linked to projects with optional time tracking and a reset-friendly Now/Later workflow.
+
+**Key sections:** Task lifecycle, project linkage, reset/archival behaviors, open questions
+
+### [Memento Mori Calendar](./memento-mori.md)
+Minimal time-horizon view that highlights finite time with optional calendar overlays.
+
+**Key sections:** View model, overlays, integration with life chart/calendar
+
 ### [Exercise Tracking](./exercise.md)
 Comprehensive workout logging with superset support. Four-entity schema (exercise, session, set, rep) designed for flexible data entry and Airtable migration.
 
@@ -66,13 +91,20 @@ Minor improvements and enhancements including CRUD system redesign, dark-themed 
 
 **Key sections:** CRUD redesign, generic components, medication/meditation improvements
 
+### [Infrastructure Move (Neon to DigitalOcean)](./infrastructure.md)
+Database hosting migration plan, cutover strategy, and rollback considerations.
+
+**Key sections:** Hosting choice, data transfer plan, backup/rollback
+
 ## Quick Reference
 
 | Feature | Status | Priority | File |
 |---------|--------|----------|------|
 | Calendar Polish | In Progress | High | [calendar.md](./calendar.md) |
 | Project Timers + Roam Metrics | Timers shipped; Roam metrics pending | High | [roam-integration.md](./roam-integration.md) |
+| Task Management | Planned | High | [task-management.md](./task-management.md) |
 | Life Chart | Planned | Medium | [life-chart.md](./life-chart.md) |
+| Memento Mori | Planned | Medium | [memento-mori.md](./memento-mori.md) |
 | Exercise Tracking | Planned | Medium | [exercise.md](./exercise.md) |
 | Reading Tracker | Planned | High | [reading-tracker.md](./reading-tracker.md) |
 | Generic Viz | Phase 1–3 Live | Medium | [generic-viz.md](./generic-viz.md) |
@@ -80,12 +112,13 @@ Minor improvements and enhancements including CRUD system redesign, dark-themed 
 | Performance | Profiling Dashboard Live | Low | [performance.md](./performance.md) |
 | CRUD Redesign | Future | Medium | [backlog.md](./backlog.md) |
 | Data Migration Status | Tracker | Medium | [data-migration-status.md](./data-migration-status.md) |
+| Infrastructure Move | Planned | Medium | [infrastructure.md](./infrastructure.md) |
 
 ## Navigation
 
 - **Active work**: [calendar.md](./calendar.md), [roam-integration.md](./roam-integration.md), [generic-viz.md](./generic-viz.md), [performance.md](./performance.md)
-- **Next features**: [life-chart.md](./life-chart.md), [exercise.md](./exercise.md), [reading-tracker.md](./reading-tracker.md), [screenshots.md](./screenshots.md)
-- **Minor improvements**: [backlog.md](./backlog.md)
+- **Next features**: [task-management.md](./task-management.md), [life-chart.md](./life-chart.md), [memento-mori.md](./memento-mori.md), [exercise.md](./exercise.md), [reading-tracker.md](./reading-tracker.md), [screenshots.md](./screenshots.md)
+- **Minor improvements**: [backlog.md](./backlog.md), [infrastructure.md](./infrastructure.md)
 
 ## ✅ Status Update (2025-10-23)
 - Calendar polish picks up header navigation, event editing from the grid, and better past-day treatments; review the new implementation notes inside `calendar.md`.

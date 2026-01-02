@@ -1,5 +1,12 @@
 # Medication Logging Roadmap
 
+## Work Unit Summary
+- Status: active
+- Problem / intent: Import Airtable medication history while keeping current CRUD and viz flows stable.
+- Constraints: Preserve provenance fields and normalize enums without losing source data.
+- Proposed approach: Audit schema enums, seed medication catalog, build converters, and run backfill.
+- Open questions: Which Airtable values require new enums vs stored raw strings?
+
 Document the remaining work to import decades of Airtable medication history while keeping the existing CRUD + visualization flows unchanged.
 
 ## Status

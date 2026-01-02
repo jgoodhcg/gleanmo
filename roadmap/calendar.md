@@ -1,5 +1,12 @@
 # Calendar Implementation Requirements
 
+## Work Unit Summary
+- Status: active
+- Problem / intent: Deliver a polished year-at-a-glance calendar with richer event interactions and external calendar sync.
+- Constraints: Keep the UI fast in a dense grid, preserve timezone correctness, and avoid breaking existing event CRUD flows.
+- Proposed approach: Incrementally expand event rendering (multi-day, icons, click targets), then add overlay features and external sync.
+- Open questions: Which sync path is first (iCal URL vs Google API)? What is the preferred visual shape for events in cells?
+
 ## ✅ COMPLETED FEATURES
 
 ### Core Calendar Functionality

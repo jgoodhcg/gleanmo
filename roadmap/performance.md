@@ -1,5 +1,12 @@
 # Performance Monitoring Requirements
 
+## Work Unit Summary
+- Status: active
+- Problem / intent: Make performance regressions visible and target known slow paths, starting with habit-related queries.
+- Constraints: Avoid noisy logs, keep the dashboard light, and rely on XTDB history for time series.
+- Proposed approach: Keep Tufte snapshots and extend with charting and targeted query optimizations.
+- Open questions: What is the simplest path to reduce habit label queries from O(n) to O(1)?
+
 ## Goals
 - Capture per-request and database-layer latencies without printing noisy console logs.
 - Persist periodic summaries so historical metrics are queryable via XTDB entity history.

@@ -2,6 +2,13 @@
 
 Minor improvements and enhancements that don't warrant separate requirement documents.
 
+## Work Unit Summary
+- Status: active
+- Problem / intent: Capture minor improvements without spinning up full work-unit docs.
+- Constraints: Keep it lightweight and move completed items to `roadmap/archived/`.
+- Proposed approach: Organize by area (CRUD, UI, performance, components) and promote items that grow in scope.
+- Open questions: Which items are big enough to graduate into their own roadmap files?
+
 _Completed items are moved to `roadmap/archived/`; see `roadmap/archived/backlog-2025-03-09.md` for the latest archive entry._
 
 ## CRUD System Redesign
@@ -38,6 +45,16 @@ Reusable search component with fuzzy matching for entity selection across forms 
 - Keyboard navigation and mobile-friendly interface
 - Configurable search fields and display formatting
 - Recent/frequent item prioritization
+
+## Dashboard UI
+
+### Recent List View Visual Refresh
+Improve the main dashboard recent list view with better information density, clearer hierarchy, and more deliberate visual styling.
+
+## Performance / Queries
+
+### Habit Labels Query Optimization
+Reduce O(n) request patterns when fetching habit labels. Target a single query (or two at most) for label data instead of one request per habit.
 
 ## Entity-Specific Improvements
 

@@ -1,5 +1,12 @@
 # Automated App Screenshots - Implementation Requirements
 
+## Work Unit Summary
+- Status: idea
+- Problem / intent: Build a visual changelog via periodic screenshots of key routes.
+- Constraints: Keep setup lightweight and avoid adding friction to local development.
+- Proposed approach: Start with local Playwright runs, then evaluate CI automation and artifact storage.
+- Open questions: Should screenshots be stored in git, LFS, or external storage?
+
 ## Overview
 
 Capture screenshots of every route in the Gleanmo app periodically to track visual progression and design evolution over time. This creates a visual changelog of the application's development.

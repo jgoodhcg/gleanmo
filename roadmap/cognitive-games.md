@@ -1,5 +1,12 @@
 # Cognitive Games Roadmap
 
+## Work Unit Summary
+- Status: idea
+- Problem / intent: Add cognitive games to track performance trends with fresh puzzle content.
+- Constraints: Puzzle generation must avoid repeats and store enough metadata for analytics.
+- Proposed approach: Define puzzle/guess schemas, add an AI generator, then build game UIs and dashboards.
+- Open questions: Should puzzles be pre-generated or on-demand? Is single-user only acceptable for v1?
+
 Introduce Wordle- and Connections-style games as on-demand experiences to measure cognition trends while keeping puzzle content fresh via AI generation.
 
 ## Objectives

@@ -1,5 +1,12 @@
 # Reading Tracker Roadmap
 
+## Work Unit Summary
+- Status: idea
+- Problem / intent: Replace Goodreads with a lightweight reading tracker and timer-backed sessions.
+- Constraints: Keep the schema minimal and reuse existing timer infrastructure.
+- Proposed approach: Add book capture with metadata lookup, then session logging tied to timers.
+- Open questions: Which metadata source should we use for lookups, and how much data should be stored?
+
 ## Objective
 Replace Goodreads for daily tracking with the lightest possible feature set: quick book capture (with metadata lookup) and session logging that reuses the existing timer system. Everything else can layer on later.
 
