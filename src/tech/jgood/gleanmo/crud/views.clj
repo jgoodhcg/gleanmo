@@ -5,7 +5,9 @@
    [com.biffweb :as biff]
    [potpuri.core :as pot]
    [tech.jgood.gleanmo.app.shared :refer
-    [side-bar]]
+    [format-date-time-local
+     get-user-time-zone
+     side-bar]]
    [tech.jgood.gleanmo.schema.utils :as schema-utils]
    [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.crud.views.formatting :refer [format-cell-value]]
@@ -297,6 +299,81 @@
       (catch Exception _
         nil))))
 
+(defn entity-time-zone-info
+  [entity entity-str ctx]
+  (let [user-tz        (get-user-time-zone ctx)
+        tz-field       (find-field-by-pattern entity entity-str "time-zone")
+        tz-from-field  (second tz-field)
+        tz-from-entity (or tz-from-field (:time-zone entity))
+        tz-from-entity (when (and tz-from-entity
+                                  (not (str/blank? (str tz-from-entity))))
+                         tz-from-entity)
+        entity-tz      (or tz-from-entity user-tz "UTC")
+        show-tz?       (and tz-from-entity (not= tz-from-entity user-tz))]
+    {:user-tz   user-tz
+     :entity-tz entity-tz
+     :show-tz?  show-tz?}))
+
+(defn format-entity-instant
+  [instant time-zone]
+  (when (and instant time-zone)
+    (format-date-time-local (t/instant instant) time-zone)))
+
+(defn build-time-display
+  [entity entity-str display-fields ctx]
+  (let [timestamp-field   (find-field-by-pattern entity entity-str "timestamp")
+        timestamp-key     (first timestamp-field)
+        timestamp-value   (second timestamp-field)
+        timestamp-instant (as-instant timestamp-value)
+        timestamp-label   (or (display-label display-fields timestamp-key)
+                              (when timestamp-key (humanize-key timestamp-key)))
+
+        beginning-field   (find-field-by-pattern entity entity-str "beginning")
+        beginning-key     (first beginning-field)
+        beginning-value   (second beginning-field)
+        beginning-instant (as-instant beginning-value)
+        beginning-label   (or (display-label display-fields beginning-key)
+                              (when beginning-key (humanize-key beginning-key))
+                              "Beginning")
+
+        end-field         (find-field-by-pattern entity entity-str "end")
+        end-key           (first end-field)
+        end-value         (second end-field)
+        end-instant       (as-instant end-value)
+
+        duration          (when (and beginning-instant end-instant)
+                            (format-duration beginning-instant end-instant))
+        {:keys [entity-tz show-tz?]} (entity-time-zone-info entity entity-str ctx)
+        mode              (cond
+                            (and beginning-instant end-instant) :duration
+                            timestamp-instant                   :timestamp
+                            beginning-instant                   :beginning
+                            :else                               nil)
+        time-instant      (case mode
+                            :timestamp timestamp-instant
+                            :beginning beginning-instant
+                            nil)
+        time-str          (when time-instant
+                            (format-entity-instant time-instant entity-tz))
+        label             (case mode
+                            :timestamp timestamp-label
+                            :beginning beginning-label
+                            nil)
+        since-instant     (case mode
+                            :duration end-instant
+                            :timestamp timestamp-instant
+                            :beginning beginning-instant
+                            nil)]
+    {:mode            mode
+     :label           label
+     :time-str        time-str
+     :time-zone       (when show-tz? entity-tz)
+     :duration        duration
+     :since-instant   since-instant
+     :timestamp-key   timestamp-key
+     :beginning-key   beginning-key
+     :end-key         end-key}))
+
 ;; Card view implementation
 (defn render-card-view
   [{:keys [paginated-entities display-fields entity-str]} ctx]
@@ -310,58 +387,19 @@
            label-field-info  (find-display-field display-fields label-key)
            label-in-schema?  (field-exists-in-schema? label-key display-fields)
 
-           ;; Timestamp details
-           timestamp-field   (find-field-by-pattern entity entity-str "timestamp")
-           timestamp-key     (first timestamp-field)
-           timestamp-value   (second timestamp-field)
-           timestamp-type    (get-field-formatter timestamp-key display-fields)
-           timestamp-display (when timestamp-value
-                               (if timestamp-type
-                                 (format-cell-value timestamp-type timestamp-value ctx)
-                                 (str timestamp-value)))
-           timestamp-instant (as-instant timestamp-value)
-           timestamp-label   (or (display-label display-fields timestamp-key)
-                                 (when timestamp-key (humanize-key timestamp-key)))
-
-           ;; Beginning and end details
-           beginning-field   (find-field-by-pattern entity entity-str "beginning")
-           beginning-key     (first beginning-field)
-           beginning-value   (second beginning-field)
-           beginning-type    (get-field-formatter beginning-key display-fields)
-           beginning-display (when beginning-value
-                               (if beginning-type
-                                 (format-cell-value beginning-type beginning-value ctx)
-                                 (str beginning-value)))
-           beginning-instant (as-instant beginning-value)
-           beginning-instant (as-instant beginning-value)
-           beginning-label   (or (display-label display-fields beginning-key)
-                                 (when beginning-key (humanize-key beginning-key))
-                                 "Beginning")
-
-           end-field         (find-field-by-pattern entity entity-str "end")
-           end-key           (first end-field)
-           end-value         (second end-field)
-           end-type          (get-field-formatter end-key display-fields)
-           end-display       (when end-value
-                               (if end-type
-                                 (format-cell-value end-type end-value ctx)
-                                 (str end-value)))
-           end-instant       (as-instant end-value)
-           end-instant       (as-instant end-value)
-           end-label         (or (display-label display-fields end-key)
-                                 (when end-key (humanize-key end-key))
-                                 "End")
-
-           ;; Duration if both beginning and end exist
-           duration          (when (and beginning-instant end-instant)
-                               (format-duration beginning-instant end-instant))
+           {:keys [mode
+                   label
+                   time-str
+                   time-zone
+                   duration
+                   since-instant
+                   timestamp-key
+                   beginning-key
+                   end-key]} (build-time-display entity entity-str display-fields ctx)
 
            ;; Determine primary title field
            sorted-fields     (sort-by-priority-then-arbitrary display-fields)
            prioritized       (prioritized-fields sorted-fields)
-           timestamp-priority? (some #(= (:field-key %) timestamp-key) prioritized)
-           beginning-priority? (some #(= (:field-key %) beginning-key) prioritized)
-           end-priority?     (some #(= (:field-key %) end-key) prioritized)
            first-priority-field
            (some (fn [{:keys [field-key] :as field}]
                    (let [value (get entity field-key)]
@@ -439,37 +477,30 @@
                                [:span.card-text-secondary.italic "No label"]
                                :else
                                [:span.card-text-secondary.italic "Untitled"])
-           timestamp-row     (when (and timestamp-priority?
-                                        timestamp-display)
-                               [:div.flex.flex-wrap.items-center.justify-between.gap-3
-                                [:div.flex.flex-wrap.items-center.gap-2.text-sm.text-secondary
-                                 (when timestamp-label
-                                   [:span.font-medium (str timestamp-label ":")])
-                                 (->display timestamp-display)]
-                                (when timestamp-instant
-                                  [:span.card-tag.text-xs.font-medium
-                                   (format-relative-time timestamp-instant)])])
-           duration-row      (let [rows (remove nil?
-                                                [(when (and beginning-display beginning-priority?)
-                                                   [:div.flex.items-center.justify-between.gap-2
-                                                    [:span.card-text-secondary.font-medium
-                                                     (str beginning-label ":")]
-                                                    [:div.card-text
-                                                     (->display beginning-display)]])
-                                                 (when (and end-display end-priority?)
-                                                   [:div.flex.items-center.justify-between.gap-2
-                                                    [:span.card-text-secondary.font-medium
-                                                     (str end-label ":")]
-                                                    [:div.card-text
-                                                     (->display end-display)]])])
-                                   duration-node (when (and duration beginning-priority? end-priority?)
-                                                   [:div.flex.justify-end
-                                                    [:span.card-tag.text-xs.font-medium
-                                                     (str "Duration " duration)]])]
-                               (when (or (seq rows) duration-node)
-                                 (into [:div.bg-dark.p-3.rounded.space-y-2]
-                                       (cond-> rows
-                                         duration-node (conj duration-node)))))]
+           time-row          (case mode
+                               :duration
+                               (when duration
+                                 [:div.flex.items-center.justify-between.gap-3
+                                  [:div.flex.items-center.gap-2.text-sm.text-secondary
+                                   [:span.font-medium "Duration:"]
+                                   [:span duration]]
+                                  (when since-instant
+                                    [:span.card-tag.text-xs.font-medium
+                                     (format-relative-time since-instant)])])
+                               (:timestamp :beginning)
+                               (when time-str
+                                 [:div.flex.flex-wrap.items-center.justify-between.gap-3
+                                  [:div.flex.flex-wrap.items-center.gap-2.text-sm.text-secondary
+                                   (when label
+                                     [:span.font-medium (str label ":")])
+                                   [:span time-str]
+                                   (when time-zone
+                                     [:span.text-xs.text-secondary.font-mono
+                                      (str "TZ " time-zone)])]
+                                  (when since-instant
+                                    [:span.card-tag.text-xs.font-medium
+                                     (format-relative-time since-instant)])])
+                               nil)]
 
        [:div.card-container.group
         {:key (str entity-id)}
@@ -486,8 +517,7 @@
 
          [:div.flex-grow.space-y-4
           title-node
-          (when timestamp-row timestamp-row)
-          (when duration-row duration-row)
+          (when time-row time-row)
           (when (seq highlight-fields)
             [:div.space-y-3
              (for [{:keys [field-key input-label content]} highlight-fields]
@@ -563,46 +593,15 @@
            sorted-fields     (sort-by-priority-then-arbitrary display-fields)
            prioritized       (prioritized-fields sorted-fields)
 
-           ;; Timestamp details
-           timestamp-field   (find-field-by-pattern entity entity-str "timestamp")
-           timestamp-key     (first timestamp-field)
-           timestamp-value   (second timestamp-field)
-           timestamp-type    (get-field-formatter timestamp-key display-fields)
-           timestamp-display (when timestamp-value
-                               (if timestamp-type
-                                 (format-cell-value timestamp-type timestamp-value ctx)
-                                 (str timestamp-value)))
-           timestamp-instant (as-instant timestamp-value)
-           timestamp-label   (display-label display-fields timestamp-key)
-           timestamp-priority? (some #(= (:field-key %) timestamp-key) prioritized)
-
-           ;; Beginning / end details
-           beginning-field   (find-field-by-pattern entity entity-str "beginning")
-           beginning-key     (first beginning-field)
-           beginning-value   (second beginning-field)
-           beginning-type    (get-field-formatter beginning-key display-fields)
-           beginning-display (when beginning-value
-                               (if beginning-type
-                                 (format-cell-value beginning-type beginning-value ctx)
-                                 (str beginning-value)))
-           beginning-instant (as-instant beginning-value)
-           beginning-label   (display-label display-fields beginning-key)
-           beginning-priority? (some #(= (:field-key %) beginning-key) prioritized)
-
-           end-field         (find-field-by-pattern entity entity-str "end")
-           end-key           (first end-field)
-           end-value         (second end-field)
-           end-type          (get-field-formatter end-key display-fields)
-           end-display       (when end-value
-                               (if end-type
-                                 (format-cell-value end-type end-value ctx)
-                                 (str end-value)))
-           end-instant       (as-instant end-value)
-           end-label         (display-label display-fields end-key)
-           end-priority?     (some #(= (:field-key %) end-key) prioritized)
-
-           duration          (when (and beginning-instant end-instant)
-                               (format-duration beginning-instant end-instant))
+           {:keys [mode
+                   label
+                   time-str
+                   time-zone
+                   duration
+                   since-instant
+                   timestamp-key
+                   beginning-key
+                   end-key]} (build-time-display entity entity-str display-fields ctx)
 
            ;; Title determination
            first-priority-field
@@ -680,32 +679,28 @@
                                :else
                                [:span.text-secondary.italic.text-sm "Untitled"])
 
-           timestamp-row     (when (and timestamp-priority?
-                                        timestamp-display)
-                               [:div.flex.items-center.flex-wrap.gap-2.text-sm.text-secondary
-                                (when timestamp-label
-                                  [:span.font-medium (str timestamp-label ":")])
-                                (->display timestamp-display)
-                                (when timestamp-instant
-                                  [:span.card-tag.text-xs.font-medium.text-secondary
-                                   (format-relative-time timestamp-instant)])])
-
-           duration-parts    (-> []
-                                 (cond-> (and beginning-display beginning-priority?)
-                                   (into [[:span.font-medium (str beginning-label ":")]
-                                          (->display beginning-display)]))
-                                 (cond-> (and beginning-display beginning-priority?
-                                              end-display end-priority?)
-                                   (conj [:span.text-secondary "→"]))
-                                 (cond-> (and end-display end-priority?)
-                                   (into [[:span.font-medium (str end-label ":")]
-                                          (->display end-display)]))
-                                 (cond-> (and duration beginning-priority? end-priority?)
-                                   (conj [:span.card-tag.text-xs.font-medium.text-secondary
-                                          (str "Duration " duration)])))
-           duration-row      (when (seq duration-parts)
-                               (into [:div.flex.items-center.flex-wrap.gap-2.text-sm.text-secondary]
-                                     duration-parts))]
+           time-row          (case mode
+                               :duration
+                               (when duration
+                                 [:div.flex.items-center.flex-wrap.gap-2.text-sm.text-secondary
+                                  [:span.font-medium "Duration:"]
+                                  [:span duration]
+                                  (when since-instant
+                                    [:span.card-tag.text-xs.font-medium.text-secondary
+                                     (format-relative-time since-instant)])])
+                               (:timestamp :beginning)
+                               (when time-str
+                                 [:div.flex.items-center.flex-wrap.gap-2.text-sm.text-secondary
+                                  (when label
+                                    [:span.font-medium (str label ":")])
+                                  [:span time-str]
+                                  (when time-zone
+                                    [:span.text-xs.text-secondary.font-mono
+                                     (str "TZ " time-zone)])
+                                  (when since-instant
+                                    [:span.card-tag.text-xs.font-medium.text-secondary
+                                     (format-relative-time since-instant)])])
+                               nil)]
        [:div
         {:key   (str entity-id)
          :class "list-item group relative"}
@@ -715,8 +710,7 @@
               :aria-label (str "Edit " aria-title)}
           [:div {:class "flex flex-col gap-2"}
            title-node]
-          (when timestamp-row timestamp-row)
-          (when duration-row duration-row)
+          (when time-row time-row)
           (when (seq highlight-fields)
             [:div {:class "flex flex-wrap gap-x-6 gap-y-2 text-sm"}
              (for [{:keys [field-key input-label content]} highlight-fields]
