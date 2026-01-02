@@ -70,10 +70,24 @@
        [:div.flex.items-center.gap-2
        [:span.font-medium.text-md.text-neon-cyan "📦 Archived"]]]])))
 
+(defn turn-off-bm-logs-button
+  "Show a button to hide BM logs in overview when BM logs are visible."
+  [show-bm-logs user-id]
+  (when show-bm-logs
+    (biff/form
+     {:action (str "/app/users/" user-id "/settings/turn-off-bm-logs"),
+      :method "post",
+      :class  "inline"}
+     [:button.mb-3.p-3.bg-dark-surface.border.border-amber-400.rounded-lg.shadow-sm.w-full.transition-all.duration-200.hover:bg-dark.hover:shadow-lg
+      {:style {:box-shadow "0 0 8px rgba(251, 191, 36, 0.2)"}}
+      [:div.flex.items-center.justify-between
+       [:div.flex.items-center.gap-2
+        [:span.font-medium.text-md.text-amber-300 "🧻 BM logs"]]]])))
+
 (defn side-bar
   [{:keys [biff/db session], :as ctx} & content]
   (let [user-id (:uid session)
-        {:keys [show-sensitive show-archived]} (query/get-user-settings db user-id)
+        {:keys [show-sensitive show-archived show-bm-logs]} (query/get-user-settings db user-id)
         account-url (str "/app/users/" user-id)
         {:keys [super-user]} (query/get-user-authz db user-id)
         super-user? (true? super-user)]
@@ -86,6 +100,8 @@
       (turn-off-sensitive-button show-sensitive user-id)
       ;; Turn off archived button (when archived mode is on)
       (turn-off-archived-button show-archived user-id)
+      ;; Hide BM logs button (when BM logs are visible)
+      (turn-off-bm-logs-button show-bm-logs user-id)
       
       ;; Navigation
       [:a.link {:href "/app"} "home"]

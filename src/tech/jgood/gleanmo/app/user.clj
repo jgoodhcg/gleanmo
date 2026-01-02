@@ -22,6 +22,13 @@
   {:status  303,
    :headers {"location" (or (get-in ctx [:params :redirect]) "/app")}})
 
+(defn turn-off-bm-logs!
+  "Turn off BM log display in the overview by updating user to false"
+  [{:keys [authorized.user/id], :as ctx}]
+  (mutations/update-user! ctx id {:user/show-bm-logs false})
+  {:status  303,
+   :headers {"location" (or (get-in ctx [:params :redirect]) "/app")}})
+
 
 (defn view
   [{:keys [biff/db authorized.user/id], :as ctx}]
@@ -46,24 +53,34 @@
   (let [email          (:email params)
         time-zone      (:time-zone params)
         show-sensitive (param-true? (:show-sensitive params))
-        show-archived  (param-true? (:show-archived params))]
+        show-archived  (param-true? (:show-archived params))
+        show-bm-logs   (param-true? (:show-bm-logs params))]
     ;; Update user info with all fields in one transaction
     (mutations/update-user! ctx
                             id
                             {:user/email          email
                              :user/time-zone      time-zone
                              :user/show-sensitive show-sensitive
-                             :user/show-archived  show-archived})
+                             :user/show-archived  show-archived
+                             :user/show-bm-logs   show-bm-logs})
     {:status  303,
      :headers {"location" (str "/app/users/" id "/edit")}}))
 
 (defn edit-form
   [{:keys [biff/db authorized.user/id], :as ctx}]
-  (let [{:user/keys [email time-zone show-sensitive show-archived]}
+  (let [{:user/keys [email time-zone show-sensitive show-archived show-bm-logs]
+         :as user}
           (queries/get-entity-by-id db id)
         time-zone      (or time-zone (t/zone "UTC"))
         show-sensitive (boolean show-sensitive)
         show-archived  (boolean show-archived)
+        show-bm-logs   (cond
+                         (contains? user :user/show-bm-logs)
+                         (boolean show-bm-logs)
+                         (contains? user :user/hide-bm-logs)
+                         (not (boolean (:user/hide-bm-logs user)))
+                         :else
+                         true)
         latest-tx-time (-> (queries/get-last-tx-time (merge ctx {:xt/id id}))
                            (t/in (t/zone time-zone))
                            (->> (t/format (t/formatter zoned-date-time-fmt))))]
@@ -110,7 +127,15 @@
                  :id      "show-archived",
                  :checked show-archived}]
                [:label.text-sm.text-secondary {:for "show-archived"}
-                "Show archived items (habits, locations, etc.)"]]]
+                "Show archived items (habits, locations, etc.)"]]
+              [:div.flex.items-center.space-x-2
+               [:input.form-checkbox
+                {:type    "checkbox",
+                 :name    "show-bm-logs",
+                 :id      "show-bm-logs",
+                 :checked show-bm-logs}]
+               [:label.text-sm.text-secondary {:for "show-bm-logs"}
+                "Show BM logs in overview"]]]
 
              [:div.mt-8.w-full
               [:button.form-button-primary.w-full

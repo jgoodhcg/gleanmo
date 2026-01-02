@@ -499,6 +499,9 @@
             ["/users/:id/settings/turn-off-archived"
              {:middleware [mid/wrap-user-authz],
               :post       user/turn-off-archived!}]
+            ["/users/:id/settings/turn-off-bm-logs"
+             {:middleware [mid/wrap-user-authz],
+              :post       user/turn-off-bm-logs!}]
 
             ;;
             ;; data viz

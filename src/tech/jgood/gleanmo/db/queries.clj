@@ -42,12 +42,21 @@
   [db user-id]
   (when user-id
     (if-let [user (get-entity-by-id db user-id)]
-      {:email          (:user/email user),
-       :show-sensitive (boolean (:user/show-sensitive user)),
-       :show-archived  (boolean (:user/show-archived user))}
+      (let [show-bm-logs (cond
+                           (contains? user :user/show-bm-logs)
+                           (boolean (:user/show-bm-logs user))
+                           (contains? user :user/hide-bm-logs)
+                           (not (boolean (:user/hide-bm-logs user)))
+                           :else
+                           true)]
+        {:email          (:user/email user),
+         :show-sensitive (boolean (:user/show-sensitive user)),
+         :show-archived  (boolean (:user/show-archived user)),
+         :show-bm-logs   show-bm-logs})
       {:email          nil,
        :show-sensitive false,
-       :show-archived  false})))
+       :show-archived  false,
+       :show-bm-logs   true})))
 
 (defnp get-entity-for-user
   "Get a single entity by ID that belongs to a specific user.

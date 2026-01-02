@@ -27,6 +27,14 @@
    "medication-log" :medication-log/timestamp,
    "project-log"    :project-log/beginning})
 
+(defn- overview-activity-types
+  [ctx]
+  (let [user-id       (-> ctx :session :uid)
+        {:keys [show-bm-logs]} (db/get-user-settings (:biff/db ctx) user-id)]
+    (if show-bm-logs
+      recent-activity-types
+      (vec (remove #{"bm-log"} recent-activity-types)))))
+
 (def event-colors
   {:blue   {:accent "#3b82f6" :muted "rgba(59,130,246,0.18)"}
    :cyan   {:accent "#06b6d4" :muted "rgba(6,182,212,0.18)"}
@@ -211,7 +219,7 @@
         items         (->> (db/dashboard-recent-entities
                             (:biff/db ctx)
                             user-id
-                            {:entity-types    recent-activity-types
+                            {:entity-types    (overview-activity-types ctx)
                              :per-type-limit  200
                              :order-keys      recent-activity-order-keys})
                            (map #(assoc % ::activity-time (activity-time %))))
@@ -266,7 +274,7 @@
     (->> (db/dashboard-recent-entities
           (:biff/db ctx)
           user-id
-          {:entity-types   recent-activity-types
+          {:entity-types   (overview-activity-types ctx)
            :per-type-limit (* 2 limit)
            :order-keys     recent-activity-order-keys})
          (map #(assoc % ::activity-time (activity-time %)))
