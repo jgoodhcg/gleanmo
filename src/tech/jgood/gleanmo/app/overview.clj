@@ -41,10 +41,10 @@
   (get event-colors color-key (get event-colors :default)))
 
 (def recent-activity-accents
-  {"habit-log"      {:accent "#06b6d4", :muted "rgba(6,182,212,0.16)"},
-   "meditation-log" {:accent "#0ea5e9", :muted "rgba(14,165,233,0.16)"},
-   "bm-log"         {:accent "#f59e0b", :muted "rgba(245,158,11,0.16)"},
-   "medication-log" {:accent "#22c55e", :muted "rgba(34,197,94,0.16)"},
+  {"habit-log"      {:accent "#8b5cf6", :muted "rgba(139,92,246,0.16)"},
+   "meditation-log" {:accent "#22c55e", :muted "rgba(34,197,94,0.16)"},
+   "bm-log"         {:accent "#0ea5e9", :muted "rgba(14,165,233,0.16)"},
+   "medication-log" {:accent "#f59e0b", :muted "rgba(245,158,11,0.16)"},
    "project-log"    {:accent "#3b82f6", :muted "rgba(59,130,246,0.16)"},
    "calendar-event" {:accent "#ec4899", :muted "rgba(236,72,153,0.16)"},
    :default         {:accent "#8b949e", :muted "rgba(139,148,158,0.16)"}})
