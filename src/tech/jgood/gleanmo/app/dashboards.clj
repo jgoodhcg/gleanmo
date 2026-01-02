@@ -1,7 +1,13 @@
 (ns tech.jgood.gleanmo.app.dashboards
   (:require
    [tech.jgood.gleanmo.app.shared :refer [side-bar]]
+   [tech.jgood.gleanmo.db.queries :as queries]
    [tech.jgood.gleanmo.ui :as ui]))
+
+(defn- show-bm-logs?
+  [ctx]
+  (let [user-id (:uid (:session ctx))]
+    (true? (:show-bm-logs (queries/get-user-settings (:biff/db ctx) user-id)))))
 
 (defn dashboard-card
   "Create a card for dashboard navigation"
@@ -51,12 +57,13 @@
      [:p.mb-8.text-gray-400 "View and manage your logged activities"]
      
      [:div.grid.grid-cols-1.md:grid-cols-2.gap-6
-      (dashboard-card "Habit Logs" "Habit completion records" 
+     (dashboard-card "Habit Logs" "Habit completion records" 
                       "/app/crud/habit-log" "📋" "neon-lime")
       (dashboard-card "Meditation Logs" "Meditation session records" 
                       "/app/crud/meditation-log" "📜" "neon-cyan")
-      (dashboard-card "Health Logs" "Health tracking entries" 
-                      "/app/crud/bm-log" "🩺" "neon-azure")
+      (when (show-bm-logs? ctx)
+        (dashboard-card "BM Logs" "BM tracking entries" 
+                        "/app/crud/bm-log" "🧻" "neon-azure"))
       (dashboard-card "Medication Logs" "Medication intake records" 
                       "/app/crud/medication-log" "📊" "neon-pink")
       (dashboard-card "Project Logs" "Time tracking entries" 
@@ -82,8 +89,9 @@
                       "/app/viz/habit-log" "🗓️" "neon-lime")
       (dashboard-card "Meditation Calendar" "Meditation session frequency" 
                       "/app/viz/meditation-log" "🗓️" "neon-cyan")
-      (dashboard-card "Health Calendar" "Health tracking calendar" 
-                      "/app/viz/bm-log" "🗓️" "neon-azure")
+      (when (show-bm-logs? ctx)
+        (dashboard-card "BM Calendar" "BM tracking calendar" 
+                        "/app/viz/bm-log" "🧻" "neon-azure"))
       (dashboard-card "Medication Calendar" "Medication intake calendar" 
                       "/app/viz/medication-log" "🗓️" "neon-pink")
       (dashboard-card "Project Calendar" "Time tracking calendar" 
@@ -97,8 +105,9 @@
                       "/app/dv/habit-dates" "🔍" "neon-lime")
       (dashboard-card "Meditation Stats" "Session duration and frequency stats" 
                       "/app/dv/meditation-stats" "📊" "neon-cyan")
-      (dashboard-card "Health Stats" "Health tracking statistics" 
-                      "/app/dv/bm-stats" "📈" "neon-azure")]])))
+      (when (show-bm-logs? ctx)
+        (dashboard-card "BM Stats" "BM tracking statistics" 
+                        "/app/dv/bm-stats" "🧻" "neon-azure"))]])))
 
 (def routes
   ["/dashboards" {}

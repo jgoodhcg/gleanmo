@@ -26,19 +26,19 @@
      (gleanmo-wordmark)
      [:a.link {:href account-link} "account"]
      [:a.link {:href "/app"} "home"]
-   [:a.link {:href "/app/habits"} "habits"]
-   [:a.link {:href "/app/habit-logs"} "habit-logs"]
-   [:a.link {:href "/app/locations"} "locations"]
-   [:a.link {:href "/app/meditations"} "meditations"]
-   [:a.link {:href "/app/visualizations"} "visualizations"]
-   [:a.link {:href "/app/meditation-logs"} "meditation-logs"]
-   [:a.link {:href "/app/ical-urls"} "ical-urls"]
-   [:a.link {:href "/app/dv/habit-logs"} "habit-logs data viz"]
-   (biff/form
-    {:action "/auth/signout",
-     :class  "inline"}
-    [:button.link {:type "submit"}
-     "Sign out"])]))
+     [:a.link {:href "/app/habits"} "habits"]
+     [:a.link {:href "/app/habit-logs"} "habit-logs"]
+     [:a.link {:href "/app/locations"} "locations"]
+     [:a.link {:href "/app/meditations"} "meditations"]
+     [:a.link {:href "/app/visualizations"} "visualizations"]
+     [:a.link {:href "/app/meditation-logs"} "meditation-logs"]
+     [:a.link {:href "/app/ical-urls"} "ical-urls"]
+     [:a.link {:href "/app/dv/habit-logs"} "habit-logs data viz"]
+     (biff/form
+      {:action "/auth/signout",
+       :class  "inline"}
+      [:button.link {:type "submit"}
+       "Sign out"])]))
 
 (defn turn-off-sensitive-button
   "Show a button to turn off sensitive display when sensitive mode is enabled.
@@ -68,32 +68,36 @@
       {:style {:box-shadow "0 0 8px rgba(6, 182, 212, 0.2)"}}
       [:div.flex.items-center.justify-between
        [:div.flex.items-center.gap-2
-       [:span.font-medium.text-md.text-neon-cyan "📦 Archived"]]]])))
+        [:span.font-medium.text-md.text-neon-cyan "📦 Archived"]]]])))
 
 (defn turn-off-bm-logs-button
-  "Show a button to hide BM logs in overview when BM logs are visible."
+  "Show a button to hide BM logs in overview, sidebar, and dashboards when visible."
   [show-bm-logs user-id]
   (when show-bm-logs
     (biff/form
      {:action (str "/app/users/" user-id "/settings/turn-off-bm-logs"),
       :method "post",
       :class  "inline"}
-     [:button.mb-3.p-3.bg-dark-surface.border.border-amber-400.rounded-lg.shadow-sm.w-full.transition-all.duration-200.hover:bg-dark.hover:shadow-lg
-      {:style {:box-shadow "0 0 8px rgba(251, 191, 36, 0.2)"}}
+     [:button.mb-3.p-3.bg-dark-surface.border.rounded-lg.shadow-sm.w-full.transition-all.duration-200.hover:bg-dark.hover:shadow-lg
+      {:style {:border-color "#0ea5e9",
+               :box-shadow   "0 0 8px rgba(14, 165, 233, 0.2)"}}
       [:div.flex.items-center.justify-between
        [:div.flex.items-center.gap-2
-        [:span.font-medium.text-md.text-amber-300 "🧻 BM logs"]]]])))
+        [:span.font-medium.text-md
+         {:style {:color "#0ea5e9"}}
+         "🧻 BM logs"]]]])))
 
 (defn side-bar
   [{:keys [biff/db session], :as ctx} & content]
-  (let [user-id (:uid session)
-        {:keys [show-sensitive show-archived show-bm-logs]} (query/get-user-settings db user-id)
+  (let [user-id     (:uid session)
+        {:keys [show-sensitive show-archived show-bm-logs]}
+        (query/get-user-settings db user-id)
         account-url (str "/app/users/" user-id)
         {:keys [super-user]} (query/get-user-authz db user-id)
         super-user? (true? super-user)]
     [:div.flex.min-h-screen
      ;; Sidebar
-      [:div#sidebar.hidden.md:flex.flex-col.space-y-4.bg-dark-surface.p-4.z-50.border-r.border-dark.w-64.flex-shrink-0
+     [:div#sidebar.hidden.md:flex.flex-col.space-y-4.bg-dark-surface.p-4.z-50.border-r.border-dark.w-64.flex-shrink-0
       ;; Wordmark
       [:div.mb-2 (gleanmo-wordmark)]
       ;; Turn off sensitive button (when sensitive mode is on)
@@ -102,27 +106,28 @@
       (turn-off-archived-button show-archived user-id)
       ;; Hide BM logs button (when BM logs are visible)
       (turn-off-bm-logs-button show-bm-logs user-id)
-      
+
       ;; Navigation
       [:a.link {:href "/app"} "home"]
       [:a.link {:href account-url} "account"]
       [:hr.border-dark]
-      
+
       ;; Quick Add
       [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Quick Add"]
       [:a.link {:href "/app/crud/form/calendar-event/new"} "calendar event"]
       [:a.link {:href "/app/crud/form/habit-log/new"} "habit log"]
       [:a.link {:href "/app/crud/form/meditation-log/new"} "meditation log"]
-      [:a.link {:href "/app/crud/form/bm-log/new"} "bm log"]
+      (when show-bm-logs
+        [:a.link {:href "/app/crud/form/bm-log/new"} "bm log"])
       [:a.link {:href "/app/crud/form/medication-log/new"} "medication log"]
       [:a.link {:href "/app/crud/form/project-log/new"} "project log"]
       [:hr.border-dark]
-      
+
       ;; Calendar
       [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Calendar"]
       [:a.link {:href "/app/calendar/year"} "📅 calendar (year)"]
       [:hr.border-dark]
-      
+
       ;; Dashboards
       [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Dashboards"]
       [:a.link {:href "/app/dashboards/entities"} "📦 manage entities"]
@@ -145,7 +150,7 @@
       content]
 
      ;; Mobile menu button
-      [:div.fixed.md:hidden.p-2.bg-dark-surface.w-full.border-b.border-dark
+     [:div.fixed.md:hidden.p-2.bg-dark-surface.w-full.border-b.border-dark
       {:id "menu-btn"}
       [:div.flex.items-center.gap-3
        [:button

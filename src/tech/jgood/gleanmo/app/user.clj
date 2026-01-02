@@ -23,7 +23,7 @@
    :headers {"location" (or (get-in ctx [:params :redirect]) "/app")}})
 
 (defn turn-off-bm-logs!
-  "Turn off BM log display in the overview by updating user to false"
+  "Turn off BM log display in the overview/sidebar/dashboards by updating user to false"
   [{:keys [authorized.user/id], :as ctx}]
   (mutations/update-user! ctx id {:user/show-bm-logs false})
   {:status  303,
@@ -130,12 +130,12 @@
                 "Show archived items (habits, locations, etc.)"]]
               [:div.flex.items-center.space-x-2
                [:input.form-checkbox
-                {:type    "checkbox",
+               {:type    "checkbox",
                  :name    "show-bm-logs",
                  :id      "show-bm-logs",
                  :checked show-bm-logs}]
                [:label.text-sm.text-secondary {:for "show-bm-logs"}
-                "Show BM logs in overview"]]]
+                "Show BM logs in overview, sidebar, and dashboards"]]]
 
              [:div.mt-8.w-full
               [:button.form-button-primary.w-full
