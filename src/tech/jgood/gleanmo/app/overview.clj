@@ -187,6 +187,22 @@
             {:kind :formatted,
              :node (fmt/format-cell-value input-type (:value field) ctx)}))))))
 
+(defn- activity-time-meta
+  [entity ctx]
+  (when-let [etype (some-> entity ::sm/type name)]
+    (when-let [entity-schema (get schema-registry/schema (keyword etype))]
+      (let [display-fields (crud-views/get-display-fields entity-schema)
+            {:keys [mode label time-str time-zone duration since-instant]}
+            (crud-views/build-time-display entity etype display-fields ctx)
+            relative (relative-time ctx since-instant)]
+        (when mode
+          {:mode     mode
+           :label    label
+           :time-str time-str
+           :time-zone time-zone
+           :duration duration
+           :relative relative})))))
+
 (defn dashboard-stats
   "Compute lightweight dashboard stats using a bounded set of entities."
   [ctx]
@@ -307,15 +323,13 @@
        [:div.space-y-3
         (for [entity items]
                 (let [etype         (name (::sm/type entity))
-                      {:keys [instant]} (::activity-time entity)
                       {:keys [accent muted]} (accent-style etype)
-                      activity-inst (or instant (::sm/created-at entity))
-                      relative      (relative-time ctx activity-inst)
                       href          (str "/app/crud/form/" etype "/edit/" (:xt/id entity))
                       primary       (or (primary-field-value entity ctx)
                                         {:kind :fallback
                                          :node (entity-title entity)})
-                id-short      (subs (str (:xt/id entity)) 0 8)]
+                      time-meta     (activity-time-meta entity ctx)
+                      id-short      (subs (str (:xt/id entity)) 0 8)]
             [:a.group.relative.block.pl-12.pr-4.py-4.rounded-xl.border.transition-all.duration-200
              {:key   (str (:xt/id entity))
               :href  href
@@ -332,9 +346,7 @@
                 {:style {:color accent
                          :border-color accent
                          :background muted}}
-                (readable-label etype)]
-               (when relative
-                 [:span.text-xs.uppercase.tracking-wide.text-gray-500 relative])]
+                (readable-label etype)]]
 
               (case (:kind primary)
                 :relationship
@@ -350,6 +362,25 @@
 
                 [:div.text-lg.font-semibold.text-white.truncate
                  (:node primary)])
+
+              (when time-meta
+                (case (:mode time-meta)
+                  :duration
+                  [:div.flex.items-center.flex-wrap.gap-2.text-xs.text-gray-500
+                   [:span.font-medium "Duration:"]
+                   [:span (:duration time-meta)]
+                   (when-let [relative (:relative time-meta)]
+                     [:span.text-xs.uppercase.tracking-wide.text-gray-500 relative])]
+                  (:timestamp :beginning)
+                  [:div.flex.items-center.flex-wrap.gap-2.text-xs.text-gray-500
+                   (when-let [label (:label time-meta)]
+                     [:span.font-medium (str label ":")])
+                   [:span (:time-str time-meta)]
+                   (when-let [tz (:time-zone time-meta)]
+                     [:span.text-xs.font-mono.text-gray-500 (str "TZ " tz)])
+                   (when-let [relative (:relative time-meta)]
+                     [:span.text-xs.uppercase.tracking-wide.text-gray-500 relative])]
+                  nil))
 
               [:div.flex.items-center.justify-between.text-xs.text-gray-500
                [:span.font-mono.opacity-70 (str id-short "...")]]]]))]]

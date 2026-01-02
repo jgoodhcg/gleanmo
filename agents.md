@@ -60,6 +60,9 @@ lein repl
 ## Parens Fix Attempts
 - If you encounter a parentheses/brace compilation error, limit yourself to **three** fix attempts. If it still fails after three tries, pause and ask the human for guidance before proceeding.
 
+## Styling Rules
+- Do not use `px` values in Tailwind class names. Use Tailwind's named sizes (e.g., `text-xs`, `text-sm`) instead.
+
 ## Project Context
 
 This is a Clojure project using the tech.jgood.gleanmo namespace structure. The human developer prefers to run the server locally for validation and testing purposes.
