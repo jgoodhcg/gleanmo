@@ -22,8 +22,8 @@
    [::sm/deleted-at {:optional true} :instant]
    [:user/id :user/id]
    [:project-log/project-id {:crud/priority 1 :crud/label "Project"} :project/id]
-   [:project-log/beginning {:crud/priority 2} :instant]
-   [:project-log/end {:optional true :crud/priority 3} :instant]
+   [:project-log/beginning :instant]
+   [:project-log/end {:optional true} :instant]
    [:project-log/time-zone :string]
    [:project-log/location-id {:optional true :crud/label "Location"} :location/id]
    [:project-log/notes {:optional true} :string]])

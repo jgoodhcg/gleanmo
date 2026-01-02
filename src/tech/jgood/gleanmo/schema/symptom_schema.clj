@@ -2,6 +2,8 @@
   (:require
    [tech.jgood.gleanmo.schema.meta :as sm]))
 
+;; TODO: Symptom episode/log schema is under development; CRUD routes are not wired yet.
+
 (def symptom-type-enum
   [:enum
    :fever
