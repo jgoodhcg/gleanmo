@@ -13,11 +13,13 @@
             [tech.jgood.gleanmo.schema.project-schema :as ps]
             [tech.jgood.gleanmo.schema.cruddy :as cs]
             [tech.jgood.gleanmo.schema.symptom-schema :as ss]
-            [tech.jgood.gleanmo.schema.performance-schema :as perf]))
+            [tech.jgood.gleanmo.schema.performance-schema :as perf]
+            [tech.jgood.gleanmo.schema.task-schema :as ts]))
 
 ;; all glenamo/type attributes are the schema key
 (def schema
   {:instant             [:fn t/instant?]
+   :local-date          [:fn t/date?]
    :number              [:fn number?]
    :float               [:fn float?]
    :user/id             :uuid
@@ -38,6 +40,7 @@
    :project-log/id      :uuid
    :symptom-episode/id  :uuid
    :symptom-log/id      :uuid
+   :task/id             :uuid
    :user                us/user
    :habit               hs/habit
    :habit-log           hs/habit-log
@@ -57,6 +60,7 @@
    :project-log         ps/project-log
    :symptom-episode     ss/symptom-episode
    :symptom-log         ss/symptom-log
+   :task                ts/task
    :cruddy              cs/cruddy
    :performance-report  perf/performance-report})
 

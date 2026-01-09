@@ -16,6 +16,7 @@
    [tech.jgood.gleanmo.app.meditation-log :as meditation-log]
    [tech.jgood.gleanmo.app.project :as project]
    [tech.jgood.gleanmo.app.project-log :as project-log]
+   [tech.jgood.gleanmo.app.task :as task]
    [tech.jgood.gleanmo.app.shared :as    shared
     :refer [side-bar]]
    [tech.jgood.gleanmo.app.timers :as timers]
@@ -49,6 +50,7 @@
     :calendar-event
     :project
     :project-log
+    :task
     :cruddy})
 
 (defn db-viz
@@ -460,6 +462,7 @@
             project-log/viz-routes
             project-log/timer-routes
             meditation-log/timer-routes
+            task/crud-routes
 
             ;; Dashboard routes
             dashboards/routes

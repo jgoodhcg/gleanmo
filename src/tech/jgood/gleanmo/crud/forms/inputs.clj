@@ -139,6 +139,28 @@
                 :autocomplete "off"}
          value (assoc :value value))]]]))
 
+(defmethod render :local-date
+  [field _]
+  (let [{:keys [input-name
+                input-label
+                input-required
+                value]}
+        field
+        ;; Format tick date to YYYY-MM-DD string for HTML date input
+        formatted-date (when value
+                         (if (string? value)
+                           value
+                           (str value)))]
+    [:div
+     [:label.form-label {:for input-name}
+      input-label]
+     [:div.mt-2
+      [:input.form-input
+       (cond-> {:type     "date",
+                :name     input-name,
+                :required input-required}
+         formatted-date (assoc :value formatted-date))]]]))
+
 (defmethod render :instant
   [field ctx]
   (let [{:keys [input-name

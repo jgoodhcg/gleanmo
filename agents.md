@@ -90,3 +90,71 @@ If you accidentally run a server command and the database becomes locked:
 1. Stop all agent processes immediately
 2. The human developer will need to restart their computer
 3. This is why the restrictions above are critical
+
+## Adding New Field Types
+
+When adding a new field type to the CRUD system, update these files in order:
+
+### 1. Schema Registry (`src/tech/jgood/gleanmo/schema.clj`)
+
+Add a Malli type definition:
+```clojure
+{:local-date [:fn t/date?]  ;; example for date type
+ :my-type    [:fn my-predicate?]}
+```
+
+### 2. Form Input Renderer (`src/tech/jgood/gleanmo/crud/forms/inputs.clj`)
+
+Add a `render` multimethod for the HTML input:
+```clojure
+(defmethod render :local-date
+  [field _]
+  (let [{:keys [input-name input-label input-required value]} field]
+    [:div
+     [:label.form-label {:for input-name} input-label]
+     [:div.mt-2
+      [:input.form-input
+       (cond-> {:type "date", :name input-name, :required input-required}
+         value (assoc :value (str value)))]]]))
+```
+
+### 3. Form Value Converter (`src/tech/jgood/gleanmo/crud/forms/converters.clj`)
+
+Add a `convert-field-value` multimethod to parse form strings:
+```clojure
+(defmethod convert-field-value :local-date
+  [_ value _]
+  (when (not-empty value)
+    (java.time.LocalDate/parse value)))
+```
+
+### 4. List Display Formatter (`src/tech/jgood/gleanmo/crud/views/formatting.clj`)
+
+Add a `format-cell-value` multimethod for table display:
+```clojure
+(defmethod format-cell-value :local-date
+  [_ value _]
+  (if (nil? value)
+    [:span.text-gray-400 "—"]
+    [:span (str value)]))
+```
+
+### 5. Verify
+
+Run `clj -M:dev test` to ensure everything compiles.
+
+### Existing Field Types
+
+| Type | HTML Input | Notes |
+|------|------------|-------|
+| `:string` | text/textarea | Auto-selects based on field name |
+| `:boolean` | checkbox | |
+| `:number` | number (step=any) | |
+| `:int` | number (step=1) | |
+| `:float` | number (step=0.001) | |
+| `:instant` | datetime-local | Requires timezone handling |
+| `:local-date` | date | No timezone needed |
+| `:enum` | select | Options from schema |
+| `:boolean-or-enum` | select | yes/no + enum options |
+| `:single-relationship` | select | Loads related entities |
+| `:many-relationship` | multi-select | Loads related entities |

@@ -44,6 +44,14 @@
     true
     false))
 
+(defmethod convert-field-value :local-date
+  [_ value _]
+  (when (not-empty value)
+    (try (java.time.LocalDate/parse value)
+         (catch Exception e
+           (throw (ex-info (str "Could not parse date '" value "': " (.getMessage e))
+                           {:value value, :type :local-date}))))))
+
 (defmethod convert-field-value :instant
   [_ value ctx]
   (when (not-empty value)

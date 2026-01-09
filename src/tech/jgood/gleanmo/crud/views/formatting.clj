@@ -50,6 +50,12 @@
     [:span.text-gray-400 "—"]
     [:span (str value)]))
 
+(defmethod format-cell-value :local-date
+  [_ value _]
+  (if (nil? value)
+    [:span.text-gray-400 "—"]
+    [:span (str value)]))
+
 (defmethod format-cell-value :instant
   [_ value ctx]
   (if (nil? value)
