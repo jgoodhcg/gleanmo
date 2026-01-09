@@ -91,6 +91,80 @@ If you accidentally run a server command and the database becomes locked:
 2. The human developer will need to restart their computer
 3. This is why the restrictions above are critical
 
+## Schema Conventions
+
+Schemas are defined using Malli in `/src/tech/jgood/gleanmo/schema/`. Each entity has its own file (e.g., `task_schema.clj`).
+
+### Schema Structure
+
+Every schema follows this structure:
+```clojure
+(ns tech.jgood.gleanmo.schema.my-entity-schema
+  (:require [tech.jgood.gleanmo.schema.meta :as sm]))
+
+(def my-entity
+  [:map {:closed true}
+   ;; System fields (always first, in this order)
+   [:xt/id :my-entity/id]
+   [::sm/type [:enum :my-entity]]
+   [::sm/created-at :instant]
+   [::sm/deleted-at {:optional true} :instant]
+   [:user/id :user/id]
+
+   ;; Entity-specific fields
+   [:my-entity/label {:crud/priority 1} :string]
+   [:my-entity/notes {:optional true :crud/priority 2} :string]
+   ...])
+```
+
+Note: Legacy entities use `(concat sm/legacy-meta)` for Airtable migration compatibility. New entities don't need this.
+
+### Standard Field Names
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `:entity/label` | `:string` | Primary display name (required, priority 1) |
+| `:entity/notes` | `:string` | Freeform text (optional, priority 2) |
+| `:entity/sensitive` | `:boolean` | Hide when sensitive mode off |
+| `:entity/archived` | `:boolean` | Hide when archived mode off |
+
+### Log Entity Fields
+
+Log entities track events with timestamps:
+
+| Pattern | Fields | Use Case |
+|---------|--------|----------|
+| Point-in-time | `:entity-log/timestamp`, `:entity-log/time-zone` | habit-log, medication-log, bm-log |
+| Time interval | `:entity-log/beginning`, `:entity-log/end`, `:entity-log/time-zone` | project-log, meditation-log |
+
+### Field Metadata
+
+Metadata in field options controls CRUD behavior:
+
+| Metadata | Purpose |
+|----------|---------|
+| `:crud/priority N` | Form field order (1 = first, lower = higher) |
+| `:crud/label "Label"` | Override form field label |
+| `:optional true` | Field is not required |
+| `:hide true` | Exclude from forms (for system or deprecated fields) |
+
+### Schema-Level Metadata
+
+Metadata on the map itself:
+
+| Metadata | Purpose |
+|----------|---------|
+| `:closed true` | Required - Malli validates exact match |
+| `:timer/primary-rel :field-key` | For timer entities, specifies primary relationship |
+
+### Registration
+
+After creating a schema, register it in `schema.clj`:
+```clojure
+:my-entity/id  :uuid           ;; Add ID type
+:my-entity     ms/my-entity    ;; Add schema reference
+```
+
 ## Adding New Field Types
 
 When adding a new field type to the CRUD system, update these files in order:

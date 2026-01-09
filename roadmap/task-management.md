@@ -24,6 +24,8 @@
 
 See `src/tech/jgood/gleanmo/schema/task_schema.clj`
 
+Core fields: `label`, `notes`, `state`, `sensitive`
+
 ### States
 
 - **inbox** — captured, not clarified
