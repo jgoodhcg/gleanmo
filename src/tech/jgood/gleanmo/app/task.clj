@@ -86,10 +86,14 @@
 (defn- review-queue-task?
   [task now today]
   (let [staleness    (or (staleness-days task now) 0)
-        snooze-count (or (:task/snooze-count task) 0)]
-    (or (> staleness review-staleness-threshold-days)
-        (>= snooze-count review-snooze-threshold)
-        (overdue? task today))))
+        snooze-count (or (:task/snooze-count task) 0)
+        snooze-until (:task/snooze-until task)
+        snooze-ready? (or (nil? snooze-until)
+                          (not (.isAfter snooze-until today)))]
+    (and (or (not= (:task/state task) :snoozed) snooze-ready?)
+         (or (> staleness review-staleness-threshold-days)
+             (>= snooze-count review-snooze-threshold)
+             (overdue? task today)))))
 
 (defn- get-review-queue-tasks
   [db user-id]

@@ -113,7 +113,8 @@
       [:hr.border-dark]
 
       ;; Tasks
-      [:a.link.font-semibold {:href "/app/task/triage"} "Task Triage"]
+      [:a.link.font-semibold {:href "/app/task/focus"} "Task Focus"]
+      [:a.link {:href "/app/task/triage"} "Task Triage"]
       [:hr.border-dark]
 
       ;; Quick Add
