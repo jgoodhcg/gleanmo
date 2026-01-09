@@ -11,10 +11,25 @@
    [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.timer.routes :as timer-routes]
    [tech.jgood.gleanmo.ui :as ui]
-   [tick.core :as t]))
+   [tick.core :as t]
+   [xtdb.api :as xt]))
+
+(defn- count-tasks-by-state
+  "Count tasks in a specific state for a user."
+  [db user-id state]
+  (count
+   (xt/q db
+         '{:find  [?e]
+           :where [[?e :user/id user-id]
+                   [?e ::sm/type :task]
+                   [?e :task/state state]
+                   (not [?e ::sm/deleted-at])]
+           :in    [[user-id state]]}
+         [user-id state])))
 
 (def recent-activity-types
-  ["habit-log"
+  ["task"
+   "habit-log"
    "meditation-log"
    "bm-log"
    "medication-log"
@@ -49,7 +64,8 @@
   (get event-colors color-key (get event-colors :default)))
 
 (def recent-activity-accents
-  {"habit-log"      {:accent "#8b5cf6", :muted "rgba(139,92,246,0.16)"},
+  {"task"           {:accent "#84cc16", :muted "rgba(132,204,22,0.16)"},
+   "habit-log"      {:accent "#8b5cf6", :muted "rgba(139,92,246,0.16)"},
    "meditation-log" {:accent "#22c55e", :muted "rgba(34,197,94,0.16)"},
    "bm-log"         {:accent "#0ea5e9", :muted "rgba(14,165,233,0.16)"},
    "medication-log" {:accent "#f59e0b", :muted "rgba(245,158,11,0.16)"},
@@ -245,18 +261,20 @@
                            (+ acc (count timers))))
                        0
                        timers-app/timer-entities)
-        distinct-types (count (distinct (map ::sm/type items)))]
+        distinct-types (count (distinct (map ::sm/type items)))
+        now-tasks (count-tasks-by-state (:biff/db ctx) user-id :now)]
     (log/info "Dashboard stats"
               {:entries-today entries-today
                :entries-week  entries-week
                :active-timers active-timers
                :distinct-types distinct-types
+               :now-tasks now-tasks
                :sample-count (count items)
                :week-start week-start})
-    {"Entries today"    entries-today
+    {"Now tasks"        now-tasks
+     "Entries today"    entries-today
      "This week"        entries-week
-     "Active timers"    active-timers
-     "Entities tracked" distinct-types}))
+     "Active timers"    active-timers}))
 
 (defn upcoming-events
   "Fetch near-future calendar events."
@@ -444,8 +462,8 @@
   "Top-level layout for the home overview page; sections hydrate via HTMX."
   [ctx]
   [:div.flex.flex-col.space-y-6
-   (lazy-container "overview-stats" "/app/overview/stats" "Loading stats")
    (lazy-container "overview-events" "/app/overview/events" "Loading events")
+   (lazy-container "overview-stats" "/app/overview/stats" "Loading stats")
    (lazy-container "overview-recent" "/app/overview/recent" "Loading recent activity")])
 
 (defn stats-fragment

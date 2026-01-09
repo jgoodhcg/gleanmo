@@ -34,8 +34,10 @@
      [:p.mb-8.text-gray-400 "Create and manage your core data entities"]
      
      [:div.grid.grid-cols-1.md:grid-cols-2.gap-6
-      (dashboard-card "Habits" "Daily routines you want to track" 
-                      "/app/crud/habit" "🎯" "neon-lime")
+      (dashboard-card "Tasks" "Things to do, with behavioral signals"
+                      "/app/crud/task" "✅" "neon-lime")
+      (dashboard-card "Habits" "Daily routines you want to track"
+                      "/app/crud/habit" "🎯" "neon-cyan")
       (dashboard-card "Meditations" "Types of meditation practices" 
                       "/app/crud/meditation" "🧘" "neon-cyan")
       (dashboard-card "Medications" "Medications and dosages" 
