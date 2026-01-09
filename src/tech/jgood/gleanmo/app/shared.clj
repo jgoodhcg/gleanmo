@@ -112,9 +112,13 @@
       [:a.link {:href account-url} "account"]
       [:hr.border-dark]
 
+      ;; Tasks
+      [:a.link.font-semibold {:href "/app/task/triage"} "Task Triage"]
+      [:hr.border-dark]
+
       ;; Quick Add
       [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Quick Add"]
-      [:a.link {:href "/app/crud/form/task/new"} "task"]
+      [:a.link {:href "/app/crud/form/task/new"} "task (full form)"]
       [:a.link {:href "/app/crud/form/calendar-event/new"} "calendar event"]
       [:a.link {:href "/app/crud/form/habit-log/new"} "habit log"]
       [:a.link {:href "/app/crud/form/meditation-log/new"} "meditation log"]

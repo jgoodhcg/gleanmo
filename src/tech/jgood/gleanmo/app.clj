@@ -463,6 +463,7 @@
             project-log/timer-routes
             meditation-log/timer-routes
             task/crud-routes
+            task/routes
 
             ;; Dashboard routes
             dashboards/routes
