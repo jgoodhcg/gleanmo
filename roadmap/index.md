@@ -15,7 +15,7 @@ Improve the main dashboard recent list view (visual density and clarity).
 - [Infrastructure move (Neon to DigitalOcean)](./infrastructure.md)
 
 ## Status summary
-Core tracking features and timers are live. Near-term work is UX polish and Airtable migration starting with exercise, while task management and infrastructure migration are in planning.
+Core tracking features and timers are live. Near-term focus: define remaining schemas (exercise fix, symptom, reading, bouldering) and wire CRUD, then migrate data from Airtable and other sources one entity at a time. Calendar polish and task management continue in parallel.
 
 ## Key links
 - [Roadmap structure and catalog](./README.md)

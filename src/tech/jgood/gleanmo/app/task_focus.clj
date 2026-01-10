@@ -248,6 +248,9 @@
        (task-row task project-by-id today now))
      [:p.text-gray-400 "No tasks match these filters."])])
 
+(def ^:private filter-active-class
+  "border-neon-cyan")
+
 (defn- task-filter-form
   "Render the filter form block."
   [{:keys [projects
@@ -259,142 +262,164 @@
            due-status-selected
            snoozed-filter
            sort-selected]}]
-  [:div.mb-8.bg-dark-surface.border.border-dark.rounded.p-4
-   [:form#filter-form.space-y-4
-    {:action      "/app/task/focus",
-     :method      "get",
-     :hx-get      "/app/task/focus",
-     :hx-target   "#task-list",
-     :hx-select   "#task-list",
-     :hx-swap     "outerHTML",
-     :hx-push-url "true"}
-    [:div.grid.grid-cols-1.md:grid-cols-2.lg:grid-cols-3.gap-4
-     [:div
-      [:label.form-label {:for "task-search"} "Search"]
-      [:div.mt-2
-       [:input.form-input
-        {:type         "search",
-         :id           "task-search",
-         :name         "search",
-         :value        search,
-         :placeholder  "Search label or notes...",
-         :autocomplete "off"}]]]
+  (let [search-active?     (seq search)
+        project-active?    (seq project-selected)
+        state-active?      (not= state-selected "any")
+        domain-active?     (seq domain-selected)
+        due-on-active?     (seq due-selected)
+        due-status-active? (not= due-status-selected "any")
+        snoozed-active?    (not= snoozed-filter "any")
+        sort-active?       (not= sort-selected "created-desc")]
+    [:div.mb-8.bg-dark-surface.border.border-dark.rounded.p-4
+     [:form#filter-form.space-y-4
+      {:action      "/app/task/focus",
+       :method      "get",
+       :hx-get      "/app/task/focus",
+       :hx-target   "#task-list",
+       :hx-select   "#task-list",
+       :hx-swap     "outerHTML",
+       :hx-push-url "true"}
+      [:div.grid.grid-cols-1.md:grid-cols-2.lg:grid-cols-3.gap-4
+       [:div
+        [:label.form-label {:for "task-search"} "Search"]
+        [:div.mt-2
+         [:input.form-input
+          {:type         "search",
+           :id           "task-search",
+           :name         "search",
+           :value        search,
+           :placeholder  "Search label or notes...",
+           :autocomplete "off",
+           :class        (when search-active? filter-active-class)}]]]
 
-     [:div
-      [:label.form-label {:for "task-project"} "Project"]
-      [:div.mt-2
-       [:select.form-select
-        {:id "task-project", :name "project"}
-        [:option {:value "", :selected (str/blank? project-selected)}
-         "All projects"]
-        (for [project projects
-              :let    [project-id (str (:xt/id project))]]
-          ^{:key project-id}
+       [:div
+        [:label.form-label {:for "task-project"} "Project"]
+        [:div.mt-2
+         [:select.form-select
+          {:id    "task-project",
+           :name  "project",
+           :class (when project-active? filter-active-class)}
+          [:option {:value "", :selected (str/blank? project-selected)}
+           "All projects"]
+          (for [project projects
+                :let    [project-id (str (:xt/id project))]]
+            ^{:key project-id}
+            [:option
+             {:value    project-id,
+              :selected (= project-selected project-id)}
+             (:project/label project)])]]]
+
+       [:div
+        [:label.form-label {:for "task-state"} "State"]
+        [:div.mt-2
+         [:select.form-select
+          {:id    "task-state",
+           :name  "state",
+           :class (when state-active? filter-active-class)}
+          [:option {:value "any", :selected (= state-selected "any")}
+           "Any state"]
+          (for [state task-states
+                :let  [state-value (name state)]]
+            ^{:key state-value}
+            [:option
+             {:value    state-value,
+              :selected (= state-selected state-value)}
+             (task-state-labels state)])]]]
+
+       [:div
+        [:label.form-label {:for "task-domain"} "Domain"]
+        [:div.mt-2
+         [:select.form-select
+          {:id    "task-domain",
+           :name  "domain",
+           :class (when domain-active? filter-active-class)}
+          [:option {:value "", :selected (str/blank? domain-selected)}
+           "All domains"]
+          (for [domain task-domains
+                :let   [domain-value (name domain)]]
+            ^{:key domain-value}
+            [:option
+             {:value    domain-value,
+              :selected (= domain-selected domain-value)}
+             (str/capitalize domain-value)])]]]
+
+       [:div
+        [:label.form-label {:for "task-due-on"} "Due by date"]
+        [:div.mt-2
+         [:input.form-input
+          {:type         "date",
+           :id           "task-due-on",
+           :name         "due-on",
+           :value        due-selected,
+           :autocomplete "off",
+           :class        (when due-on-active? filter-active-class)}]]]
+
+       [:div
+        [:label.form-label {:for "task-due-status"} "Due status"]
+        [:div.mt-2
+         [:select.form-select
+          {:id    "task-due-status",
+           :name  "due-status",
+           :class (when due-status-active? filter-active-class)}
+          [:option {:value "any", :selected (= due-status-selected "any")}
+           "Any"]
+          [:option {:value "set", :selected (= due-status-selected "set")}
+           "Has due date"]
+          [:option {:value "none", :selected (= due-status-selected "none")}
+           "No due date"]
+          [:option {:value "overdue", :selected (= due-status-selected "overdue")}
+           "Overdue"]
+          [:option {:value "today", :selected (= due-status-selected "today")}
+           "Due today"]
+          [:option {:value "next-7", :selected (= due-status-selected "next-7")}
+           "Due next 7 days"]
+          [:option {:value "future", :selected (= due-status-selected "future")}
+           "Due later"]]]]
+
+       [:div
+        [:label.form-label {:for "task-snoozed"} "Availability"]
+        [:div.mt-2
+         [:select.form-select
+          {:id    "task-snoozed",
+           :name  "snoozed",
+           :class (when snoozed-active? filter-active-class)}
+          [:option {:value "any", :selected (= snoozed-filter "any")} "All"]
           [:option
-           {:value    project-id,
-            :selected (= project-selected project-id)}
-           (:project/label project)])]]]
+           {:value    "exclude-future",
+            :selected (= snoozed-filter "exclude-future")}
+           "Actionable (available now)"]
+          [:option {:value "future", :selected (= snoozed-filter "future")}
+           "Snoozed (future)"]]]]
 
-     [:div
-      [:label.form-label {:for "task-state"} "State"]
-      [:div.mt-2
-       [:select.form-select
-        {:id "task-state", :name "state"}
-        [:option {:value "any", :selected (= state-selected "any")}
-         "Any state"]
-        (for [state task-states
-              :let  [state-value (name state)]]
-          ^{:key state-value}
+       [:div
+        [:label.form-label {:for "task-sort"} "Sort"]
+        [:div.mt-2
+         [:select.form-select
+          {:id    "task-sort",
+           :name  "sort",
+           :class (when sort-active? filter-active-class)}
           [:option
-           {:value    state-value,
-            :selected (= state-selected state-value)}
-           (task-state-labels state)])]]]
-
-     [:div
-      [:label.form-label {:for "task-domain"} "Domain"]
-      [:div.mt-2
-       [:select.form-select
-        {:id "task-domain", :name "domain"}
-        [:option {:value "", :selected (str/blank? domain-selected)}
-         "All domains"]
-        (for [domain task-domains
-              :let   [domain-value (name domain)]]
-          ^{:key domain-value}
+           {:value    "created-desc",
+            :selected (= sort-selected "created-desc")}
+           "Created (newest)"]
           [:option
-           {:value    domain-value,
-            :selected (= domain-selected domain-value)}
-           (str/capitalize domain-value)])]]]
+           {:value    "due-asc",
+            :selected (= sort-selected "due-asc")}
+           "Due date (soonest)"]
+          [:option
+           {:value    "stale-desc",
+            :selected (= sort-selected "stale-desc")}
+           "Staleness (oldest)"]]]]]
 
-     [:div
-      [:label.form-label {:for "task-due-on"} "Due by date"]
-      [:div.mt-2
-       [:input.form-input
-        {:type         "date",
-         :id           "task-due-on",
-         :name         "due-on",
-         :value        due-selected,
-         :autocomplete "off"}]]]
-
-     [:div
-      [:label.form-label {:for "task-due-status"} "Due status"]
-      [:div.mt-2
-       [:select.form-select
-        {:id "task-due-status", :name "due-status"}
-        [:option {:value "any", :selected (= due-status-selected "any")}
-         "Any"]
-        [:option {:value "set", :selected (= due-status-selected "set")}
-         "Has due date"]
-        [:option {:value "none", :selected (= due-status-selected "none")}
-         "No due date"]
-        [:option {:value "overdue", :selected (= due-status-selected "overdue")}
-         "Overdue"]
-        [:option {:value "today", :selected (= due-status-selected "today")}
-         "Due today"]
-        [:option {:value "next-7", :selected (= due-status-selected "next-7")}
-         "Due next 7 days"]
-        [:option {:value "future", :selected (= due-status-selected "future")}
-         "Due later"]]]]
-
-     [:div
-      [:label.form-label {:for "task-snoozed"} "Availability"]
-      [:div.mt-2
-       [:select.form-select
-        {:id "task-snoozed", :name "snoozed"}
-        [:option {:value "any", :selected (= snoozed-filter "any")} "All"]
-        [:option
-         {:value    "exclude-future",
-          :selected (= snoozed-filter "exclude-future")}
-         "Actionable (available now)"]
-        [:option {:value "future", :selected (= snoozed-filter "future")}
-         "Snoozed (future)"]]]]
-
-     [:div
-      [:label.form-label {:for "task-sort"} "Sort"]
-      [:div.mt-2
-       [:select.form-select
-        {:id "task-sort", :name "sort"}
-        [:option
-         {:value    "created-desc",
-          :selected (= sort-selected "created-desc")}
-         "Created (newest)"]
-        [:option
-         {:value    "due-asc",
-          :selected (= sort-selected "due-asc")}
-         "Due date (soonest)"]
-        [:option
-         {:value    "stale-desc",
-          :selected (= sort-selected "stale-desc")}
-         "Staleness (oldest)"]]]]]
-
-    [:div.flex.items-center.gap-3
-     [:button.form-button-primary {:type "submit"} "Apply"]
-     [:a.text-sm.text-gray-400.hover:text-white {:href "/app/task/focus"}
-      "Clear"]
-     [:button#copy-link-btn.text-sm.text-gray-400.hover:text-neon-cyan.flex.items-center.gap-1
-      {:type "button",
-       :onclick
-       "navigator.clipboard.writeText(window.location.href).then(function(){var btn=document.getElementById('copy-link-btn');btn.textContent='Copied!';setTimeout(function(){btn.textContent='Copy link'},1500)})"}
-      "Copy link"]]]])
+      [:div.flex.items-center.gap-3
+       [:button.form-button-primary {:type "submit"} "Apply"]
+       [:a.text-sm.text-gray-400.hover:text-white {:href "/app/task/focus"}
+        "Clear"]
+       [:button#copy-link-btn.text-sm.text-gray-400.hover:text-neon-cyan.flex.items-center.gap-1
+        {:type "button",
+         :onclick
+         "navigator.clipboard.writeText(window.location.href).then(function(){var btn=document.getElementById('copy-link-btn');btn.textContent='Copied!';setTimeout(function(){btn.textContent='Copy link'},1500)})"}
+        "Copy link"]]]]))
 
 (defn focus-view
   "Actionable task list with filters."

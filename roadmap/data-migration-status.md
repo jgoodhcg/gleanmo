@@ -10,9 +10,12 @@
 ## Current State
 - Habits & habit logs: fully migrated from Airtable. Legacy runner left only for reference (`dev/airtable/activity.clj`).
 - BM logs: fully migrated; helper code in `dev/repl.clj` is archival/reference.
-- Medication: entities and logging are live in-app; Airtable backfill still pending.
-- Not represented in app yet: exercise, pain, mood, reading, bouldering, project time logs (project timers exist, but historical logs live in other apps/spreadsheets).
-- Priority: exercise migration is the first target for exiting Airtable.
+- Medication: entities and logging are live in-app; Airtable backfill ready in `dev/repl/airtable/` pending execution.
+- Symptom (pain/mood): schema defined in `symptom_schema.clj`, CRUD routes not wired, no migration code.
+- Exercise: schema defined in `exercise_schema.clj` (needs type fix), no routes, no migration code.
+- Tasks & Projects: CRUD live in-app; historical data lives in other apps/spreadsheets, no migration code.
+- Not represented in app yet: reading, bouldering.
+- Priority: define and implement entities incrementally, then port data one by one.
 
 ## Next Actions (medication backfill)
 1. Export Airtable `medication-log` table: `clj -M:dev download-airtable -k $API_KEY -b BASE_ID -n medication-log` → `airtable_data/...edn`.
@@ -22,7 +25,74 @@
    - Ensure validation `passed == total`; abort if not.
 4. Record the run: file name, record counts, timestamp, user email used.
 
-## Remaining Ingestions to Design/Build
+## Recommended Approach: Define-Then-Port Per Entity (Ascending Complexity)
+Define schema → wire CRUD → build/run migration for each entity sequentially. This provides:
+- Short feedback loops between schema implementation and real Airtable data validation
+- Ability to adjust patterns based on actual data quirks
+- Historical data visible sooner, providing motivation
+- UI/UX pattern refinement before tackling complex entities
+
+## Recommended Sequence
+
+### 1. Medication (backfill ready)
+- Execute existing ingester in `dev/repl/airtable/`
+- **Estimated time: 0.5 day**
+
+### 2. Symptom (pain/mood)
+- Schema defined, wire CRUD for `symptom-episode` and `symptom-log`
+- Build ingester, export from Airtable, run migration
+- **Estimated time: 1-2 days**
+
+### 3. Task
+- CRUD live, design migration from existing sources
+- Build ingester, export data, run migration
+- **Estimated time: 1-2 days**
+
+### 4. Project
+- CRUD live, export time logs from current apps
+- Build ingester, run migration
+- **Estimated time: 1 day**
+
+### 5. Reading
+- Define `book` and `reading-session` schemas per `roadmap/reading-tracker.md`
+- Wire CRUD routes + metadata lookup UI (optional: defer lookup to phase 2)
+- Build ingester, export from Airtable, run migration
+- **Estimated time: 2-3 days**
+
+### 6. Exercise (most complex, defer to end)
+- Fix schema type error + address log/set/rep confusion
+- Wire CRUD for 4 entities (exercise, session, set, rep)
+- Build ingester, export from Airtable, run migration
+- **Estimated time: 3-4 days**
+
+### 7. Bouldering (complex, defer to end)
+- Define schema (check Airtable structure first)
+- Wire CRUD routes
+- Build ingester, export from Airtable, run migration
+- **Estimated time: 2-3 days**
+
+## Total Estimated Time: 10.5-16.5 days (2-3 weeks)
+
+### Breakdown
+| Entity | Status | Estimated Time |
+|--------|--------|----------------|
+| Medication backfill | Ready to run | 0.5 day |
+| Symptom | Schema defined | 1-2 days |
+| Task | CRUD live | 1-2 days |
+| Project | CRUD live | 1 day |
+| Reading | Needs schema | 2-3 days |
+| Exercise | Schema exists, complex | 3-4 days |
+| Bouldering | Needs schema, complex | 2-3 days |
+| **Total** | | **10.5-16.5 days** |
+
+### Assumptions
+- Full-time focused work (no context switching)
+- Airtable exports go smoothly
+- Migration patterns from `dev/repl/airtable/core.clj` scale well
+- Minimal UI/UX rework needed for simpler entities (symptom, task, project)
+- Exercise and bouldering may require schema iteration based on data quirks
+
+## Remaining Ingestions to Execute
 - Exercise: Fix schema (type, rep entity) per `roadmap/exercise.md`, then create Airtable ingester (deterministic IDs per record, enum normalization, validation). Export exercise tables to `airtable_data/` first.
 - Pain: Define schema (include Airtable trace fields), add ingester; export pain table to `airtable_data/`.
 - Mood: Same pattern—schema + ingester, then import from `airtable_data/`.

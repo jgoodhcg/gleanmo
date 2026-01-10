@@ -49,9 +49,9 @@
   [{:keys [biff.xtdb/node path-params], :as ctx}]
   (let [task-id (parse-uuid (:id path-params))]
     (biff/submit-tx ctx
-                    [{:db/op :update,
-                      :db/doc-type :task,
-                      :xt/id task-id,
+                    [{:db/op            :update,
+                      :db/doc-type      :task,
+                      :xt/id            task-id,
                       :task/snooze-until nil}])
     (task-focus/focus-view (assoc ctx :biff/db (xt/db node)))))
 

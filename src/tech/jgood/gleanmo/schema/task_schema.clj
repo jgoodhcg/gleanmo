@@ -20,7 +20,7 @@
 
      ;; Dates
     [:task/due-on {:optional true, :crud/priority 4} :local-date]
-    [:task/snooze-until {:optional true, :crud/priority 5} :local-date]
+    [:task/snooze-until {:optional true, :crud/priority 5} [:maybe :local-date]]
     [:task/done-at {:optional true, :hide true} :instant]
 
      ;; Attributes (fixed enums)

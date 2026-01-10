@@ -207,3 +207,72 @@ document.addEventListener('DOMContentLoaded', function() {
 document.addEventListener('htmx:afterSettle', function(event) {
   initChoicesSelectors(event.target);
 });
+
+// Task Focus filter active state indicators
+// Highlights filter fields with non-default values using a cyan border
+(function() {
+  const FILTER_ACTIVE_CLASS = 'border-neon-cyan';
+
+  // Default values for each filter field (by element ID)
+  const FILTER_DEFAULTS = {
+    'task-search': '',
+    'task-project': '',
+    'task-state': 'any',
+    'task-domain': '',
+    'task-due-on': '',
+    'task-due-status': 'any',
+    'task-snoozed': 'any',
+    'task-sort': 'created-desc'
+  };
+
+  function updateFilterBorder(element) {
+    if (!element || !element.id) return;
+
+    const defaultValue = FILTER_DEFAULTS[element.id];
+    if (defaultValue === undefined) return;
+
+    const currentValue = element.value || '';
+    const isActive = currentValue !== defaultValue;
+
+    if (isActive) {
+      element.classList.add(FILTER_ACTIVE_CLASS);
+    } else {
+      element.classList.remove(FILTER_ACTIVE_CLASS);
+    }
+  }
+
+  function updateAllFilterBorders(root) {
+    Object.keys(FILTER_DEFAULTS).forEach(function(id) {
+      const element = root.getElementById ? root.getElementById(id) : root.querySelector('#' + id);
+      if (element) {
+        updateFilterBorder(element);
+      }
+    });
+  }
+
+  function initFilterForm(root) {
+    const form = root.getElementById ? root.getElementById('filter-form') : root.querySelector('#filter-form');
+    if (!form) return;
+
+    // Update all borders initially
+    updateAllFilterBorders(root);
+
+    // Listen for changes on the form
+    form.addEventListener('input', function(event) {
+      updateFilterBorder(event.target);
+    });
+    form.addEventListener('change', function(event) {
+      updateFilterBorder(event.target);
+    });
+  }
+
+  // Initialize on page load
+  document.addEventListener('DOMContentLoaded', function() {
+    initFilterForm(document);
+  });
+
+  // Re-initialize after HTMX swaps (in case the form is replaced)
+  document.addEventListener('htmx:afterSettle', function(event) {
+    updateAllFilterBorders(document);
+  });
+})();

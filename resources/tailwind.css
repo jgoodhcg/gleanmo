@@ -200,6 +200,12 @@
     box-shadow: 0 0 0 2px rgba(255, 212, 0, 0.2);
     outline: none;
   }
+
+  /* Active filter indicator - shows when filter has non-default value */
+  .form-input.border-neon-cyan:not(:focus),
+  .form-select.border-neon-cyan:not(:focus) {
+    border-color: var(--pacific-cyan) !important;
+  }
   
   .form-input::placeholder, .form-textarea::placeholder {
     color: var(--dark-text-secondary);
