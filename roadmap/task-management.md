@@ -1,10 +1,10 @@
 # Task Management
 
 ## Work Unit Summary
-- Status: ready
+- Status: active
 - Problem / intent: Build a task system that absorbs large backlogs, surfaces behavioral signals (not declared priorities), and delivers a short actionable list without overwhelm.
 - Constraints: Fast capture, no mandatory priorities, fixed attribute enums, derive urgency from behavior, integrate with existing projects, no recurring tasks in v1.
-- Proposed approach: Single task entity with 6 states, optional attributes (effort/mode/domain), date-based snoozing, and computed signals (staleness, snooze count, churn). Default views for Now, Review Queue, Backlog, Done.
+- Proposed approach: Single task entity with 6 states, optional attributes (effort/mode/domain), date-based snoozing, and computed signals (staleness, snooze count, churn). A single Focus page replaces separate triage/now views; filtering and sorting drive the workflow.
 - Open questions: None blocking v1.
 
 ## Design Decisions
@@ -13,6 +13,7 @@
 |----------|--------|
 | States | 6: inbox, now, later, waiting, snoozed, done |
 | Snooze | Date-based, auto-returns when date passes |
+| Primary UI | Single Focus page with filters/sorts and inline state actions |
 | Done vs Delete | Done = permanent history, soft-delete separate |
 | Attributes | Fixed enums (effort, mode, domain) |
 | Projects | Link to existing `:project/id` |
@@ -47,35 +48,47 @@ Core fields: `label`, `notes`, `state`, `sensitive`
 - **overdue**: `due-on < today`
 - **time-in-inbox**: days since creation when state = inbox
 
-## Default Views
+## Default Views (Focus filters)
 
-1. **Now** — state = :now, snooze-until <= today or nil, limit 10
+1. **Now** — state = :now, snooze-until <= today or nil
 2. **Review Queue** — staleness > 14d OR snooze-count >= 3 OR overdue
-3. **Backlog** — state in [:later :waiting], grouped by domain or project
-4. **Done** — state = :done, recent first
+3. **Backlog** — state in [:later :waiting]
+4. **Done** — state = :done
+5. **Inbox** — state = :inbox (rare; accessible via filters)
 
 ## Milestones
 
-### M1: Schema + CRUD
+### M1: Schema + CRUD (done)
 - Add task schema to registry
 - Basic create/edit/list views via existing CRUD system
 - State transitions via edit form
 
-### M2: Triage Flow
-- Inbox capture (minimal fields: title only)
-- Triage screen to move inbox → now/later/waiting
-- Snooze with date picker
+### M2: Focus Page MVP (done)
+- Single Focus page with filters/sorts
+- Inline state actions + snooze actions
+- Show project label on each task row
 
-### M3: Views + Signals
-- Now view with limit
-- Review queue based on computed signals
-- Backlog grouped by domain/project
-- Done history view
+### M3: Data correctness + HTMX (done)
+- Move task queries into db layer and respect global sensitive/deleted rules
+- Add snooze filters for no-date, expired, and future snoozes
+- Focus filters as GET with HTMX partial refresh (no full page reload, URL is bookmarkable)
 
-### M4: Polish
-- Quick-add from other screens
+### M4: Pre-rollout (done)
+- Visual signal indicators on task rows (staleness, overdue, snooze count)
+- Expired snoozes auto-surface in Now view
+- HTMX action buttons preserve filter state
+
+~~Review Queue preset filter~~ — deferred; bookmarkable URLs + existing filters sufficient for now. Add if usage reveals need.
+
+~~Quick capture on Focus page~~ — deferred; existing quick-add + CRUD form sufficient for MVP.
+
+~~Empty state guidance~~ — deferred; user is developer, knows the system.
+
+### M5: Polish (post-rollout)
 - Keyboard shortcuts for state changes
 - Signal thresholds configurable
+- Bulk state transitions
+- Task stats on overview page
 
 ## Notes
 

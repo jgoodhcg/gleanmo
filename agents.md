@@ -57,6 +57,7 @@ The agent must **NOT** run these unless explicitly instructed:
 
 - `/src/tech/jgood/gleanmo/` - Core application code
   - `/app/` - Domain-specific modules (habits, meditation, etc.)
+  - `/db/` - Database queries and mutations (single source for all db access)
   - `/schema/` - Data models and validation (Malli)
   - `/crud/` - Generic CRUD operations
   - `/viz/` - Visualization routes and chart generation
@@ -64,6 +65,21 @@ The agent must **NOT** run these unless explicitly instructed:
 - `/dev/` - Development utilities
 - `/test/` - Unit and integration tests
 - `/roadmap/` - Feature planning and requirements documentation
+
+## Database Layer
+
+**All database reads and writes must go through the db layer** (`/db/queries.clj` and `/db/mutations.clj`). This ensures:
+- Consistent handling of user settings (sensitive, archived)
+- Soft-delete filtering via `::sm/deleted-at`
+- Single point of change if we ever port to a new database
+
+When adding new queries:
+1. Add the query function to `db/queries.clj`
+2. Use `get-user-settings` to respect user preferences
+3. Filter out deleted entities with `(not [?e ::sm/deleted-at])`
+4. Call the db function from your route handler
+
+**Do not** query XTDB directly from route handlers or view functions.
 
 ## Code Style Guidelines
 

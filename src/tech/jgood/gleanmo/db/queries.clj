@@ -187,6 +187,40 @@
     (cond->> after-offset
       limit (take limit))))
 
+(defn tasks-for-user
+  "Get all tasks for a user, respecting the user's sensitive setting."
+  [db user-id]
+  (let [{:keys [show-sensitive show-archived]} (get-user-settings db user-id)]
+    (all-entities-for-user
+     db
+     user-id
+     :task
+     :filter-sensitive show-sensitive
+     :filter-archived  show-archived)))
+
+(defn tasks-by-state
+  "Get tasks for a user in a specific state, respecting sensitive settings."
+  [db user-id state]
+  (->> (tasks-for-user db user-id)
+       (filter #(= (:task/state %) state))))
+
+(defn count-tasks-by-state
+  "Count tasks in a specific state for a user, respecting sensitive settings."
+  [db user-id state]
+  (count (tasks-by-state db user-id state)))
+
+(defn projects-for-user
+  "Get all projects for a user, respecting the user's sensitive setting."
+  [db user-id]
+  (let [{:keys [show-sensitive show-archived]} (get-user-settings db user-id)]
+    (->> (all-entities-for-user
+          db
+          user-id
+          :project
+          :filter-sensitive show-sensitive
+          :filter-archived  show-archived)
+         (sort-by :project/label))))
+
 (defnp all-for-user-query
   "Get all entities for a user with include/exclude options from user settings.
    This function is a higher-level wrapper around all-entities-for-user that handles

@@ -11,21 +11,7 @@
    [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.timer.routes :as timer-routes]
    [tech.jgood.gleanmo.ui :as ui]
-   [tick.core :as t]
-   [xtdb.api :as xt]))
-
-(defn- count-tasks-by-state
-  "Count tasks in a specific state for a user."
-  [db user-id state]
-  (count
-   (xt/q db
-         '{:find  [?e]
-           :where [[?e :user/id user-id]
-                   [?e ::sm/type :task]
-                   [?e :task/state state]
-                   (not [?e ::sm/deleted-at])]
-           :in    [[user-id state]]}
-         [user-id state])))
+   [tick.core :as t]))
 
 (def recent-activity-types
   ["task"
@@ -262,7 +248,7 @@
                        0
                        timers-app/timer-entities)
         distinct-types (count (distinct (map ::sm/type items)))
-        now-tasks (count-tasks-by-state (:biff/db ctx) user-id :now)]
+        now-tasks (db/count-tasks-by-state (:biff/db ctx) user-id :now)]
     (log/info "Dashboard stats"
               {:entries-today entries-today
                :entries-week  entries-week
