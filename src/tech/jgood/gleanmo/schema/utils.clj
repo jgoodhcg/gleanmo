@@ -54,10 +54,13 @@
       maybe-opts)))
 
 (defn determine-input-type
-  "Determines the input type based on the field type definition.
-   Handles enum fields, relationships, or-types, and primitive types."
+   "Determines the input type based on the field type definition.
+    Handles enum fields, relationships, or-types, and primitive types."
   [type]
   (cond
+    (and (vector? type) (= :maybe (first type)))
+    (determine-input-type (second type))
+
     (and (vector? type) (= :enum (first type)))
     {:input-type         :enum,
      :enum-options       (vec (rest type)),
