@@ -1,7 +1,7 @@
 # Task Management
 
 ## Work Unit Summary
-- Status: active
+- Status: deployed
 - Problem / intent: Build a task system that absorbs large backlogs, surfaces behavioral signals (not declared priorities), and delivers a short actionable list without overwhelm.
 - Constraints: Fast capture, no mandatory priorities, fixed attribute enums, derive urgency from behavior, integrate with existing projects, no recurring tasks in v1.
 - Proposed approach: Single task entity with 6 states, optional attributes (effort/mode/domain), date-based snoozing, and computed signals (staleness, snooze count, churn). A single Focus page replaces separate triage/now views; filtering and sorting drive the workflow.
@@ -16,7 +16,7 @@
 | Primary UI | Single Focus page with filters/sorts and inline state actions |
 | Done vs Delete | Done = permanent history, soft-delete separate |
 | Attributes | Fixed enums (effort, mode, domain) |
-| Projects | Link to existing `:project/id` |
+| Project Relationship | One-to-many (Task -> Project). Rejected many-to-many to preserve "fast capture" and simplify time logging attribution. |
 | Due dates | Optional, hard semantics (overdue warnings) |
 | Review | Threshold-based queue + manual trigger |
 | Recurring | Not in v1 |
@@ -84,11 +84,14 @@ Core fields: `label`, `notes`, `state`, `sensitive`
 
 ~~Empty state guidance~~ — deferred; user is developer, knows the system.
 
-### M5: Polish (post-rollout)
+### M5: Polish (active)
 - Keyboard shortcuts for state changes
 - Signal thresholds configurable
 - Bulk state transitions
 - Task stats on overview page
+- Filter enhancements:
+  - "No project" option in project filter (show tasks without projects)
+  - "Not done" state filter option (show all active tasks: inbox, now, later, waiting)
 
 ## Notes
 

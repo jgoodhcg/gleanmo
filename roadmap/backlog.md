@@ -56,7 +56,22 @@ Improve the main dashboard recent list view with better information density, cle
 ### Habit Labels Query Optimization
 Reduce O(n) request patterns when fetching habit labels. Target a single query (or two at most) for label data instead of one request per habit.
 
+## Code Quality
+
+### Linting Setup
+- Configure and run linting tools (clj-kondo, cljfmt)
+- Update AGENTS.md with linting commands
+- Establish linting rules for codebase consistency
+- Pre-commit hooks for automated linting
+
 ## Entity-Specific Improvements
+
+### Project Colors
+Add optional color field to projects for visual organization and differentiation.
+- **Schema**: Add `:project/color {:optional true} :string` storing hex code
+- **UI**: Constrained color picker in CRUD forms (8-12 preset colors)
+- **Display**: Show color indicator in project lists and detail views
+- **Rationale**: Visual differentiation helps scanning 18+ projects efficiently
 
 ### Meditation Timer
 - **Form pre-population bug**: Creating a timer for a specific meditation doesn't prefill the meditation selection in the form
