@@ -13,6 +13,14 @@ This is the source of truth for all AI agents (Claude, Gemini, Codex, etc.) work
     - **Never** assume the state of the database; ask the user to verify if unsure.
 - **Roadmap Driven:** The roadmap lives in `roadmap/` with `index.md` as canonical state and `README.md` as the catalog. Reference it frequently when planning features.
 
+## UI/UX Patterns
+
+### Changed Field Highlighting
+When implementing CRUD forms, the system automatically highlights fields that have been modified by the user.
+- **Requirement:** All form inputs must have a `data-original-value` attribute containing their initial server-side value.
+- **Implementation:** `src/tech/jgood/gleanmo/crud/forms/inputs.clj` handles this automatically for standard types. If creating custom inputs, ensure this attribute is present.
+- **Frontend:** `main.js` handles the comparison and class application (`border-neon-cyan`). It supports standard inputs, textareas, and Choices.js widgets.
+
 ## Why Server/REPL Restrictions Exist
 
 When AI agents run the dev server or REPL, it creates orphaned processes that:

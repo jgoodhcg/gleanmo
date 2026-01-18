@@ -276,3 +276,99 @@ document.addEventListener('htmx:afterSettle', function(event) {
     updateAllFilterBorders(document);
   });
 })();
+
+// Automatic Changed Field Highlighting
+//
+// Documentation:
+// This feature automatically highlights form fields (adds 'border-neon-cyan' class)
+// when the user modifies the value away from its original state.
+//
+// Mechanism:
+// 1. Backend: The `render` methods in `inputs.clj` must add a `data-original-value`
+//    attribute to every input/select/textarea.
+//    - For enums: Use the stringified keyword (e.g. "inbox").
+//    - For boolean: Use "true" or "false".
+//    - For textarea: Use the string content (preserved newlines).
+//    - For Choices.js (select): Use the value of the option (e.g. uuid string).
+//
+// 2. Frontend: This JS function finds all elements with `data-original-value`.
+//    It compares `element.value` (or `checked` state) against this attribute.
+//    - Normalizes newlines (\r\n -> \n) for robust textarea comparison.
+//    - Handles multi-select sorting.
+//
+// Edge Cases:
+// - Textarea: Standard HTML `<textarea>` does not have a `value` attribute, but
+//   JS `.value` property works. We place content in the body but use `data-original-value`
+//   for tracking.
+// - Choices.js: Hides the original select. We listen for `addItem` and `removeItem`
+//   custom events to detect changes. Visual highlighting is applied to the
+//   `.choices__inner` wrapper (found via `.closest('.choices')`), not the hidden select.
+//
+// Highlights form fields where the current value differs from the original value
+(function() {
+  const CHANGED_CLASS = 'border-neon-cyan';
+
+  function updateFieldStatus(element) {
+    if (!element.hasAttribute('data-original-value')) return;
+
+    const originalValue = element.getAttribute('data-original-value');
+    let currentValue;
+
+    if (element.type === 'checkbox') {
+      currentValue = element.checked.toString();
+    } else if (element.multiple) {
+      // For multi-selects, we need to sort values to match the backend's sorted original string
+      const selected = Array.from(element.selectedOptions).map(opt => opt.value);
+      selected.sort();
+      currentValue = selected.join(',');
+    } else {
+      currentValue = element.value;
+    }
+
+    // Normalize null/undefined to empty string for comparison
+    const normOriginal = (originalValue === 'nil' || originalValue === null ? '' : originalValue).replace(/\r\n/g, '\n');
+    const normCurrent = (currentValue === null ? '' : currentValue).replace(/\r\n/g, '\n');
+
+    if (normOriginal !== normCurrent) {
+      element.classList.add(CHANGED_CLASS);
+      // Also highlight the parent choices wrapper if it exists (for Choices.js)
+      const choicesRoot = element.closest('.choices');
+      if (choicesRoot) {
+          const inner = choicesRoot.querySelector('.choices__inner');
+          if (inner) inner.classList.add(CHANGED_CLASS);
+      }
+    } else {
+      element.classList.remove(CHANGED_CLASS);
+      const choicesRoot = element.closest('.choices');
+      if (choicesRoot) {
+          const inner = choicesRoot.querySelector('.choices__inner');
+          if (inner) inner.classList.remove(CHANGED_CLASS);
+      }
+    }
+  }
+
+  function initChangedFieldHighlighting(root = document) {
+    const inputs = root.querySelectorAll('[data-original-value]');
+    
+    inputs.forEach(input => {
+      // Check initial state
+      updateFieldStatus(input);
+      
+      // Listen for standard changes
+      input.addEventListener('input', () => updateFieldStatus(input));
+      input.addEventListener('change', () => updateFieldStatus(input));
+      
+      // Listen for Choices.js specific events (which don't always bubble as 'change')
+      input.addEventListener('addItem', () => updateFieldStatus(input));
+      input.addEventListener('removeItem', () => updateFieldStatus(input));
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    initChangedFieldHighlighting();
+  });
+
+  document.addEventListener('htmx:afterSettle', function(event) {
+    initChangedFieldHighlighting(event.target);
+  });
+})();

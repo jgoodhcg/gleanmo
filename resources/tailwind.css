@@ -203,12 +203,17 @@
 
   /* Active filter indicator - shows when filter has non-default value */
   .form-input.border-neon-cyan:not(:focus),
+  .form-textarea.border-neon-cyan:not(:focus),
   .form-select.border-neon-cyan:not(:focus) {
     border-color: var(--pacific-cyan) !important;
   }
   
-  .form-input::placeholder, .form-textarea::placeholder {
-    color: var(--dark-text-secondary);
+  /* Choices.js changed state (when not focused) */
+  .choices:not(.is-focused) .choices__inner.border-neon-cyan {
+    border-color: var(--pacific-cyan) !important;
+  }
+  
+  .form-input::placeholder, .form-textarea::placeholder {    color: var(--dark-text-secondary);
   }
   
   /* Choices.js Overrides */
@@ -310,15 +315,17 @@
   }
   
   .choices__button {
-    border-left-color: rgba(255, 212, 0, 0.35) !important;
+    border-left-color: var(--dark-border) !important;
+    opacity: 0.6;
+    transition: opacity 0.2s ease, background-color 0.2s ease;
+    filter: brightness(0) invert(0.6); /* Creates the secondary grey color from the base icon */
   }
   
   .choices__button:hover {
-    background-color: rgba(255, 212, 0, 0.15);
-  }
-  
-  .choices[data-type*='select-one']::after {
-    border-color: var(--dark-text-secondary) transparent transparent transparent;
+    background-color: transparent !important;
+    opacity: 1;
+  }  
+  .choices[data-type*='select-one']::after {    border-color: var(--dark-text-secondary) transparent transparent transparent;
   }
   
   .choices[data-type*='select-one'].is-open::after {

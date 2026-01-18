@@ -32,10 +32,11 @@
         {:for input-name} input-label]
        [:div.mt-2
         [:input.form-input
-         (cond-> {:type         "text",
-                  :name         input-name,
-                  :required     input-required,
-                  :autocomplete "off"}
+         (cond-> {:type                "text",
+                  :name                input-name,
+                  :required            input-required,
+                  :autocomplete        "off",
+                  :data-original-value (str value)}
            value (assoc :value value))]]]
 
       (str/includes? input-name "time-zone")
@@ -44,9 +45,10 @@
         {:for input-name} input-label]
        [:div.mt-2
         [:select.form-select
-         {:name         input-name,
-          :required     input-required,
-          :autocomplete "off"}
+         {:name                input-name,
+          :required            input-required,
+          :autocomplete        "off",
+          :data-original-value (str value)}
          (for [zoneId (sort (ZoneId/getAvailableZoneIds))]
            [:option
             {:value    zoneId,
@@ -58,11 +60,12 @@
         {:for input-name} input-label]
        [:div.mt-2
         [:textarea.form-textarea
-         (cond-> {:name         input-name,
-                  :rows         3,
-                  :required     input-required,
-                  :placeholder  "...",
-                  :autocomplete "off"}
+         (cond-> {:name                input-name,
+                  :rows                3,
+                  :required            input-required,
+                  :placeholder         "...",
+                  :autocomplete        "off",
+                  :data-original-value (str value)}
            value (assoc :value value))]]])))
 
 (defmethod render :boolean
@@ -75,9 +78,10 @@
         default-value (if (contains? field :value) value false)]
     [:div.flex.items-center
      [:input.mr-2
-      (cond-> {:type         "checkbox",
-               :name         input-name,
-               :autocomplete "off"}
+      (cond-> {:type                "checkbox",
+               :name                input-name,
+               :autocomplete        "off",
+               :data-original-value (str default-value)}
         default-value (assoc :checked "checked"))]
      [:label.form-label {:for input-name}
       input-label]]))
@@ -94,11 +98,12 @@
       input-label]
      [:div.mt-2
       [:input.form-input
-       (cond-> {:type         "number",
-                :step         "any",
-                :name         input-name,
-                :required     input-required,
-                :autocomplete "off"}
+       (cond-> {:type                "number",
+                :step                "any",
+                :name                input-name,
+                :required            input-required,
+                :autocomplete        "off",
+                :data-original-value (str value)}
          value (assoc :value value))]]]))
 
 (defmethod render :int
@@ -113,11 +118,12 @@
       input-label]
      [:div.mt-2
       [:input.form-input
-       (cond-> {:type         "number",
-                :step         "1",
-                :name         input-name,
-                :required     input-required,
-                :autocomplete "off"}
+       (cond-> {:type                "number",
+                :step                "1",
+                :name                input-name,
+                :required            input-required,
+                :autocomplete        "off",
+                :data-original-value (str value)}
          value (assoc :value value))]]]))
 
 (defmethod render :float
@@ -132,11 +138,12 @@
       input-label]
      [:div.mt-2
       [:input.form-input
-       (cond-> {:type         "number",
-                :step         "0.001",
-                :name         input-name,
-                :required     input-required,
-                :autocomplete "off"}
+       (cond-> {:type                "number",
+                :step                "0.001",
+                :name                input-name,
+                :required            input-required,
+                :autocomplete        "off",
+                :data-original-value (str value)}
          value (assoc :value value))]]]))
 
 (defmethod render :local-date
@@ -156,9 +163,10 @@
       input-label]
      [:div.mt-2
       [:input.form-input
-       (cond-> {:type     "date",
-                :name     input-name,
-                :required input-required}
+       (cond-> {:type                "date",
+                :name                input-name,
+                :required            input-required,
+                :data-original-value (str formatted-date)}
          formatted-date (assoc :value formatted-date))]]]))
 
 (defmethod render :instant
@@ -204,9 +212,10 @@
       input-label]
      [:div.mt-2
       [:input.form-input
-       (cond-> {:type     "datetime-local",
-                :name     input-name,
-                :required input-required}
+       (cond-> {:type                "datetime-local",
+                :name                input-name,
+                :required            input-required,
+                :data-original-value (str formatted-time)}
          formatted-time (assoc :value formatted-time))]]]))
 
 (defmethod render :single-relationship
@@ -228,7 +237,7 @@
         option-elems (into []
                            (concat
                             (when-not input-required
-                              [[:option {:value "" :selected (nil? value)} "-- Select --"]])
+                              [[:option {:value "" :selected (nil? value)} ""]])
                             (for [{:keys [id label]} options]
                               [:option {:value id, :selected (= (str id) (str value))} label])))]
     [:div
@@ -236,10 +245,11 @@
       input-label]
      (into
       [:select.form-select
-       (cond-> {:name             input-name
-                :required         input-required
-                :data-enhance     "choices"
-                :data-placeholder input-label}
+       (cond-> {:name                input-name
+                :required            input-required
+                :data-enhance        "choices"
+                :data-placeholder    input-label
+                :data-original-value (str value)}
          (not input-required)
          (assoc :data-allow-clear "true"))]
       option-elems)]))
@@ -261,6 +271,10 @@
                                          ctx)
                      (map (fn [e] {:id (id-key e), :label (label-key e)})))
         value-set (when value (set (map str value)))
+        ;; Sort values to ensure consistent ordering for comparison
+        original-val-str (if (seq value)
+                           (str/join "," (sort (map str value)))
+                           "")
         option-elems (into []
                            (for [{:keys [id label]} options]
                              [:option
@@ -272,11 +286,12 @@
       input-label]
      (into
       [:select.form-select
-       {:name             input-name
-        :multiple         true
-        :required         input-required
-        :data-enhance     "choices"
-        :data-remove-item "true"}]
+       {:name                input-name
+        :multiple            true
+        :required            input-required
+        :data-enhance        "choices"
+        :data-remove-item    "true"
+        :data-original-value original-val-str}]
       option-elems)]))
 
 (defmethod render :enum
@@ -286,15 +301,23 @@
                 input-label
                 input-required
                 value]}
-        field]
+        field
+        ;; Calculate effective default for data-original-value
+        ;; If required and no value, browser selects first option
+        default-val-str (if (some? value)
+                          (if (keyword? value) (name value) (str value))
+                          (if input-required
+                            (name (first enum-options))
+                            ""))]
     [:div
      [:label.form-label {:for input-name}
       input-label]
      [:div.mt-2
       (into
         [:select.form-select
-         {:name     input-name,
-          :required input-required}
+         {:name                input-name,
+          :required            input-required,
+          :data-original-value default-val-str}
          ;; Add empty option for optional fields
          (when-not input-required
            [:option {:value "", :selected (nil? value)} "-- Select --"])]
@@ -314,15 +337,19 @@
         field
         ;; Default to :no when value is nil OR missing
         default-value (if (contains? field :value) value :no)
-        options (concat [:yes :no] enum-options)]
+        options (concat [:yes :no] enum-options)
+        original-val-str (if (keyword? default-value)
+                           (name default-value)
+                           (str default-value))]
     [:div
      [:label.form-label {:for input-name}
       input-label]
      [:div.mt-2
       (into
         [:select.form-select
-         {:name     input-name,
-          :required input-required}]
+         {:name                input-name,
+          :required            input-required,
+          :data-original-value original-val-str}]
         (for [opt options]
           [:option
            (cond-> {:value (name opt)}
