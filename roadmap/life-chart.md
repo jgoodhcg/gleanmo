@@ -178,6 +178,13 @@ A life visualization calendar where each row represents a year of life and each 
 - **Journal Integration**: Link to journal entries from periods
 - **External Data**: Import from various life tracking sources
 
+### Comparison & Inspiration
+- **Admired Person Data Files**: Include curated life event data for notable figures to compare with user's timeline
+  - Initial figures: Ursula K. Le Guin (1929-2018), Octavia E. Butler (1947-2006)
+  - Data format: JSON files with periods (education, work, major works, awards, travel)
+  - Visual overlay: Display admired person's life alongside user's for perspective and inspiration
+  - Extensibility: Allow adding custom admired person data files
+
 ### Sharing & Export
 - **Life Story Export**: Generate narrative from periods/events
 - **Visual Export**: High-resolution life chart images
