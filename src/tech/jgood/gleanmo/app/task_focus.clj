@@ -10,6 +10,10 @@
 (def ^:private task-states
   [:inbox :now :later :waiting :done])
 
+(def ^:private active-task-states
+  "Task states that are considered 'not done' (active tasks)."
+  #{:inbox :now :later :waiting})
+
 (def ^:private task-state-labels
   {:inbox   "Inbox",
    :now     "Now",
@@ -84,13 +88,16 @@
       true)))
 
 (defn- focus-base-tasks
-  [db user-id state-filter state-any?]
+  [db user-id state-filter state-any? state-not-done?]
   (cond
     state-filter
     (queries/tasks-by-state db user-id state-filter)
 
     state-any?
     (mapcat #(queries/tasks-by-state db user-id %) task-states)
+
+    state-not-done?
+    (mapcat #(queries/tasks-by-state db user-id %) active-task-states)
 
     :else
     (queries/tasks-by-state db user-id :now)))
@@ -301,6 +308,8 @@
            :class (when project-active? filter-active-class)}
           [:option {:value "", :selected (str/blank? project-selected)}
            "All projects"]
+          [:option {:value "none", :selected (= project-selected "none")}
+           "No project"]
           (for [project projects
                 :let    [project-id (str (:xt/id project))]]
             ^{:key project-id}
@@ -318,6 +327,8 @@
            :class (when state-active? filter-active-class)}
           [:option {:value "any", :selected (= state-selected "any")}
            "Any state"]
+          [:option {:value "not-done", :selected (= state-selected "not-done")}
+           "Not done"]
           (for [state task-states
                 :let  [state-value (name state)]]
             ^{:key state-value}
@@ -434,8 +445,10 @@
         snoozed-filter      (or (normalize-param (:snoozed params)) "any")
         sort-key            (or (normalize-param (:sort params)) "created-desc")
         state-any?          (= state-param "any")
+        state-not-done?     (= state-param "not-done")
         state-filter        (cond
                               (= state-param "any") nil
+                              (= state-param "not-done") nil
                               state-param (keyword state-param)
                               :else :now)
         domain-filter       (parse-keyword-param domain-param)
@@ -448,17 +461,20 @@
         base-tasks          (focus-base-tasks db
                                               user-id
                                               state-filter
-                                              state-any?)
+                                              state-any?
+                                              state-not-done?)
         filtered-tasks      (->>
                              base-tasks
                              (filter #(or (nil? state-filter)
                                           (= (:task/state %) state-filter)))
                              (filter #(or (nil? domain-filter)
                                           (= (:task/domain %) domain-filter)))
-                             (filter #(or (nil? project-param)
-                                          (= project-param
-                                             (some-> (:task/project-id %)
-                                                     str))))
+                             (filter #(cond
+                                          (nil? project-param) true
+                                          (= project-param "none") (nil? (:task/project-id %))
+                                          :else (= project-param
+                                                   (some-> (:task/project-id %)
+                                                           str))))
                              (filter #(or (nil? search)
                                           (matches-search? % search)))
                              (filter #(or (nil? due-filter)
