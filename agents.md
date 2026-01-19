@@ -44,12 +44,25 @@ When AI agents run the dev server or REPL, it creates orphaned processes that:
 
 The agent **IS** permitted to run these commands to verify code compilation and syntax:
 
+### Primary Command (run after every change)
+
+```bash
+just check
+```
+
+This single command runs formatting check + linting and catches most issues: syntax errors, unresolved symbols, invalid arity, unused imports, and formatting problems. **Run this after every code change.**
+
+### All Commands
+
 | Command | Description |
 |---------|-------------|
+| `just check` | **Primary validation** - format + lint (run after changes) |
+| `just validate` | Full validation - format + lint + tests |
 | `clj -M:dev test` | Run all tests |
 | `clj -M:dev test <namespace>` | Run tests for a specific namespace |
-| `clj -M:cljfmt check` | Check code formatting |
-| `clj -M:cljfmt fix` | Fix code formatting |
+| `clj -M:cljfmt check src test` | Check code formatting |
+| `clj -M:cljfmt fix src test` | Fix code formatting |
+| `clj -M:lint --lint src --lint test` | Run clj-kondo linter |
 
 ## User-Only Commands
 

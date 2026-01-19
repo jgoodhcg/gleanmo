@@ -1,4 +1,18 @@
 {:skip-comments true
+
  :lint-as {tech.jgood.gleanmo.crud/defcrud clojure.core/def
            taoensso.tufte/defnp        clojure.core/defn
-           taoensso.tufte/defnp-       clojure.core/defn-}}
+           taoensso.tufte/defnp-       clojure.core/defn-}
+
+ :linters {:unresolved-symbol {:level :error}
+           :unresolved-var {:level :error}
+           :unresolved-namespace {:level :error}
+           :invalid-arity {:level :error}
+           :unused-binding {:level :warning}
+           :unused-import {:level :warning}
+           :unused-namespace {:level :warning}
+           :unused-private-var {:level :warning}
+           :redundant-let {:level :warning}
+           :redundant-do {:level :warning}
+           :shadowed-var {:level :warning}
+           :missing-docstring {:level :off}}}

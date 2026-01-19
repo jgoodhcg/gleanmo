@@ -40,20 +40,21 @@
            value (assoc :value value))]]]
 
       (str/includes? input-name "time-zone")
-      [:div
-       [:label.form-label
-        {:for input-name} input-label]
-       [:div.mt-2
-        [:select.form-select
-         {:name                input-name,
-          :required            input-required,
-          :autocomplete        "off",
-          :data-original-value (str value)}
-         (for [zoneId (sort (ZoneId/getAvailableZoneIds))]
-           [:option
-            {:value    zoneId,
-             :selected (or (= zoneId value) (= zoneId time-zone))}
-            zoneId])]]]
+      (let [effective-value (or value time-zone)]
+        [:div
+         [:label.form-label
+          {:for input-name} input-label]
+         [:div.mt-2
+          [:select.form-select
+           {:name                input-name,
+            :required            input-required,
+            :autocomplete        "off",
+            :data-original-value (str effective-value)}
+           (for [zoneId (sort (ZoneId/getAvailableZoneIds))]
+             [:option
+              {:value    zoneId,
+               :selected (= zoneId effective-value)}
+              zoneId])]]])
       :else
       [:div
        [:label.form-label

@@ -310,6 +310,8 @@
            "All projects"]
           [:option {:value "none", :selected (= project-selected "none")}
            "No project"]
+          [:option {:value "has-project", :selected (= project-selected "has-project")}
+           "Has project"]
           (for [project projects
                 :let    [project-id (str (:xt/id project))]]
             ^{:key project-id}
@@ -472,6 +474,7 @@
                              (filter #(cond
                                           (nil? project-param) true
                                           (= project-param "none") (nil? (:task/project-id %))
+                                          (= project-param "has-project") (some? (:task/project-id %))
                                           :else (= project-param
                                                    (some-> (:task/project-id %)
                                                            str))))

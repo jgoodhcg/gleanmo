@@ -30,4 +30,8 @@
   :prod {:jvm-opts  ["-XX:-OmitStackTraceInFastThrow"
                      "-XX:+CrashOnOutOfMemoryError"
                      "-Dbiff.env.BIFF_PROFILE=prod"]
-         :main-opts ["-m" "tech.jgood.gleanmo"]}}}
+         :main-opts ["-m" "tech.jgood.gleanmo"]}
+  :cljfmt {:extra-deps {dev.weavejester/cljfmt {:mvn/version "0.13.0"}}
+           :main-opts ["-m" "cljfmt.main"]}
+  :lint {:extra-deps {clj-kondo/clj-kondo {:mvn/version "2024.11.14"}}
+         :main-opts ["-m" "clj-kondo.main"]}}}
