@@ -1,7 +1,4 @@
 (ns tech.jgood.gleanmo.prediction.heuristics
-  (:require
-   [clojure.string :as str]
-   [tick.core :as t])
   (:import
    [java.time LocalDate]
    [java.time.temporal ChronoUnit]))
@@ -65,7 +62,7 @@
     (let [intervals-seq (intervals dates)]
       (when (seq intervals-seq)
         (let [avg (double (/ (apply + intervals-seq)
-                           (count intervals-seq)))]
+                             (count intervals-seq)))]
           (int (Math/round avg)))))))
 
 (defn predict-by-average
@@ -112,22 +109,22 @@
               days-to-add (if (= target-day-of-week current-day-of-week)
                             7 ; Same day, so add a week
                             (mod (- (+ (.getValue target-day-of-week) 7)
-                                   (.getValue current-day-of-week))
-                                7))]
+                                    (.getValue current-day-of-week))
+                                 7))]
           (local-date->str (.plusDays last-local-date days-to-add)))
-        
+
         ;; Monthly pattern (same day of month)
         (detect-monthly-pattern dates)
         (let [target-day (detect-monthly-pattern dates)
               current-month (.getMonthValue last-local-date)
               next-month (if (= 12 current-month) 1 (inc current-month))
-              next-year (if (= 12 current-month) 
+              next-year (if (= 12 current-month)
                           (inc (.getYear last-local-date))
                           (.getYear last-local-date))
               max-days-in-month (.lengthOfMonth (LocalDate/of next-year next-month 1))
               actual-day (min target-day max-days-in-month)]
           (local-date->str (LocalDate/of next-year next-month actual-day)))
-        
+
         :else nil))))
 
 (defn predict-next-dates
@@ -139,7 +136,7 @@
       {:mode-prediction (predict-by-mode sorted-dates)
        :average-prediction (predict-by-average sorted-dates)
        :pattern-prediction (predict-by-pattern sorted-dates)
-       :days-since-last (when-let [last-date (last sorted-dates)] 
+       :days-since-last (when-let [last-date (last sorted-dates)]
                           (days-since last-date))}
       (catch Exception e
         (println "Error in predict-next-dates:" (.getMessage e))
@@ -151,13 +148,13 @@
   (when date
     (try
       {:date date
-       :description (str method-name ": " date 
-                        (when days-since-last
-                          (str " (" 
-                               (if (pos? days-since-last)
-                                 (str days-since-last " days ago")
-                                 (str (Math/abs days-since-last) " days from now"))
-                               ")")))}
+       :description (str method-name ": " date
+                         (when days-since-last
+                           (str " ("
+                                (if (pos? days-since-last)
+                                  (str days-since-last " days ago")
+                                  (str (Math/abs days-since-last) " days from now"))
+                                ")")))}
       (catch Exception e
         (println "Error in format-prediction-date:" (.getMessage e))
         {:date date
@@ -167,7 +164,7 @@
   "Get formatted predictions for a set of dates."
   [dates]
   (try
-    (let [{:keys [mode-prediction average-prediction 
+    (let [{:keys [mode-prediction average-prediction
                   pattern-prediction days-since-last]} (predict-next-dates dates)]
       (remove nil?
               [(format-prediction-date mode-prediction days-since-last "Most frequent interval")

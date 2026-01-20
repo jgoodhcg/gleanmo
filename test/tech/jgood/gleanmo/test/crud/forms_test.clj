@@ -68,7 +68,7 @@
                     [:tech.jgood.gleanmo.schema/created-at :inst]]
             result (forms/prepare-form-fields schema)]
         (is (empty? result))))
-        
+
     (testing "excludes airtable namespace fields"
       (let [schema [:entity-with-airtable
                     [:entity/name :string]
@@ -85,7 +85,7 @@
         (is (nil? (first (filter #(= :airtable/id (:field-key %)) result))))
         (is (nil? (first (filter #(= :airtable/last-modified (:field-key %)) result))))
         (is (nil? (first (filter #(= :airtable/created-time (:field-key %)) result))))))
-        
+
     (testing "excludes fields with hide option"
       (let [schema [:entity-with-hidden-fields
                     [:entity/name :string]

@@ -24,7 +24,7 @@
    observability/module
    (biff/authentication-module
     {:biff.auth/new-user-tx
-     (fn [ctx email]
+     (fn [_ctx email]
        (let [now (t/now)]
          [{:db/doc-type    :user
            ::sm/type       :user
@@ -45,7 +45,7 @@
 
 (def static-pages (apply biff/safe-merge (map :static modules)))
 
-(defn generate-assets! [ctx]
+(defn generate-assets! [_ctx]
   (biff/export-rum static-pages "target/resources/public")
   (biff/delete-old-files {:dir "target/resources/public"
                           :exts [".html"]}))
@@ -86,9 +86,9 @@
    biff/use-beholder])
 
 (defn start []
-  (let [new-system (reduce (fn [system component]
+  (let [new-system (reduce (fn [sys component]
                              (log/info "starting:" (str component))
-                             (component system))
+                             (component sys))
                            initial-system
                            components)]
     (reset! system new-system)

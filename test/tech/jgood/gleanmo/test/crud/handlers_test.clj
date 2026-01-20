@@ -4,8 +4,7 @@
    [tech.jgood.gleanmo.app.shared :as shared]
    [tech.jgood.gleanmo.crud.handlers :as handlers]
    [tech.jgood.gleanmo.db.mutations :as mutations]
-   [tech.jgood.gleanmo.db.queries :as db-queries]
-   [xtdb.api :as xt]))
+   [tech.jgood.gleanmo.db.queries :as db-queries]))
 
 ;; Test schema to be used across tests
 (def test-schema
@@ -124,7 +123,7 @@
                       entity-id)
                     shared/get-user-time-zone (constantly "UTC")
                     db-queries/get-entity-by-id (fn [_ id]
-                                                 {:xt/id id, :user/email "test@example.com"})]
+                                                  {:xt/id id, :user/email "test@example.com"})]
 
         (testing "creates entity with user ID and returns redirect"
           (let [result (handlers/create-entity! entity-args ctx)]

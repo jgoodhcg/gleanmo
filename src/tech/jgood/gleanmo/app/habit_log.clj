@@ -1,9 +1,6 @@
 (ns tech.jgood.gleanmo.app.habit-log
   (:require
-   [cheshire.core :as json]
-   [clojure.set :as set]
    [clojure.string :as str]
-   [clojure.pprint :refer [pprint]]
    [potpuri.core :as pot]
    [tech.jgood.gleanmo.app.shared :refer [param-true? side-bar]]
    [tech.jgood.gleanmo.crud.routes :as crud]
@@ -100,7 +97,7 @@
          [:select.form-select
           {:onchange "window.location.href=this.value;"}
           [:option {:value (str base-url)} "-- Select habit --"]
-          (for [{id :xt/id, name :habit/label} all-habits]
+          (for [{id :xt/id, habit-label :habit/label} all-habits]
             [:option
              {:value    (str base-url
                              "?habit-id="
@@ -108,7 +105,7 @@
                              (when sensitive "&sensitive=true")
                              (when archived "&archived=true")),
               :selected (= id habit-id)}
-             name])]]]
+             habit-label])]]]
 
          ;; Display habit name if selected
        (when habit
@@ -219,6 +216,6 @@
 ;; Generate visualization routes
 (def viz-routes
   (viz-routes/gen-routes {:entity-key :habit-log
-                          :entity-schema hc/habit-log  
+                          :entity-schema hc/habit-log
                           :entity-str "habit-log"
                           :plural-str "habit-logs"}))

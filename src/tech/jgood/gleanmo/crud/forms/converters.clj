@@ -35,8 +35,8 @@
                               "' to number: "       (.getMessage e))
                          {:value value, :type :number})))))
 
-(defmethod convert-field-value :boolean 
-  [_ value _] 
+(defmethod convert-field-value :boolean
+  [_ value _]
   ;; In HTML forms, checkboxes only send a value when checked
   ;; When a checkbox is unchecked, the field is completely missing from the form data
   ;; We could handle this with hidden fields, but it's more straightforward to handle it here

@@ -1,6 +1,6 @@
 (ns tech.jgood.gleanmo.schema.location-schema
   (:require
-    [tech.jgood.gleanmo.schema.meta :as sm]))
+   [tech.jgood.gleanmo.schema.meta :as sm]))
 
 (def location
   (-> [:map {:closed true}
@@ -16,5 +16,5 @@
       (concat sm/legacy-meta)
       ;; DEPRECATED
       (concat
-        [[:location/name {:optional true} :string]])
+       [[:location/name {:optional true} :string]])
       vec))

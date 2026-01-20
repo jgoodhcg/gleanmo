@@ -16,7 +16,7 @@
   (case (or color-neon :blue)
     :blue   "bg-neon-azure"
     :cyan   "bg-neon-cyan"
-    :green  "bg-neon-lime" 
+    :green  "bg-neon-lime"
     :violet "bg-neon-violet"
     :red    "bg-neon-pink"
     :orange "bg-neon-amber"
@@ -159,7 +159,6 @@
         user-tz        (get-user-time-zone ctx)
         events         (when user-id
                          (db/get-events-for-user-year db user-id year user-tz))
-        event-count    (count events)
 
         ;; Group events by date string (YYYY-MM-DD)
         events-by-date (group-by (fn [event]
@@ -180,14 +179,14 @@
       [:div.block.md:hidden.text-center.py-12.px-6
        [:div.max-w-md.mx-auto.bg-gray-800.rounded-lg.p-6.border.border-gray-600
         [:h2.text-xl.font-semibold.text-white.mb-4 "Desktop View Required"]
-        [:p.text-gray-300.mb-4 
+        [:p.text-gray-300.mb-4
          "The year-at-a-glance calendar is designed for desktop viewing to show all 12 months and events clearly."]
         [:p.text-gray-400.text-sm.mb-6
          "Please use a larger screen (tablet or desktop) to access the full calendar experience."]
         [:a.inline-flex.items-center.px-4.py-2.bg-gray-700.hover:bg-gray-600.text-white.rounded.transition-colors
          {:href "/app"}
          "← Back to Home"]]]
-      
+
       ;; Desktop calendar (hidden on mobile)
       [:div.hidden.md:block
        ;; Top navigation bar (full-width at top)
@@ -268,8 +267,7 @@
         [:option {:value "green"} "Lime"]
         [:option {:value "violet"} "Violet"]
         [:option {:value "red"} "Pink"]
-        [:option {:value "orange"} "Amber"]
-]]
+        [:option {:value "orange"} "Amber"]]]
 
       ;; Hidden to keep original clicked date if needed later
       [:input {:type "hidden", :name "date", :value date}]
@@ -340,7 +338,7 @@
               tx         [(merge {:db/doc-type :calendar-event,
                                   :xt/id       (:xt/id doc)}
                                  doc)]
-              txres      (biff/submit-tx ctx tx)]
+              _txres     (biff/submit-tx ctx tx)]
             ;; Clear modal content and trigger calendar refresh
           {:status 200, :headers {"content-type" "text/html", "HX-Trigger" "eventCreated"}, :body ""})
         (catch Exception e

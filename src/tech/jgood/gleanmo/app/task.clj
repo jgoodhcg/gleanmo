@@ -13,7 +13,7 @@
                     :schema     schema}))
 
 (defn set-state!
-  [{:keys [biff/db biff.xtdb/node session path-params params], :as ctx}]
+  [{:keys [biff/db biff.xtdb/node path-params params], :as ctx}]
   (let [task-id      (parse-uuid (:id path-params))
         new-state    (keyword (or (:target-state params)
                                   (:state params)))

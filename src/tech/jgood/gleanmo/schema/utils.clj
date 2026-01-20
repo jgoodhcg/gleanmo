@@ -14,36 +14,36 @@
 
 (defn schema-options
   "Return the options map (the second element) if present on a schema vector."
-  [entity-schema]
-  (let [maybe-opts (second entity-schema)]
+  [ent-schema]
+  (let [maybe-opts (second ent-schema)]
     (when (map? maybe-opts)
       maybe-opts)))
 
 (defn extract-schema-fields
   "Extracts fields from a schema, skipping the schema identifier and options if present."
-  [entity-schema]
-  (let [has-opts (map? (second entity-schema))]
+  [ent-schema]
+  (let [has-opts (map? (second ent-schema))]
     (if has-opts
-      (drop 2 entity-schema)
-      (rest entity-schema))))
+      (drop 2 ent-schema)
+      (clojure.core/rest ent-schema))))
 
 (defn schema-field
   "Find a specific field entry by key inside the schema vector."
-  [entity-schema field-key]
+  [ent-schema field-key]
   (some (fn [[k & _ :as entry]]
           (when (= k field-key) entry))
-        (extract-schema-fields entity-schema)))
+        (extract-schema-fields ent-schema)))
 
 (defn parse-field
   "Extract field key, options, and type from a schema entry."
   [[key-or-opts & _ :as entry]]
-  (let [has-opts (map? (second entry))
-        k        (if has-opts key-or-opts (first entry))
-        opts     (if has-opts (second entry) {})
-        type     (if has-opts (nth entry 2) (second entry))]
+  (let [has-opts   (map? (second entry))
+        k          (if has-opts key-or-opts (first entry))
+        opts       (if has-opts (second entry) {})
+        field-type (if has-opts (nth entry 2) (second entry))]
     {:field-key k,
      :opts      opts,
-     :type      type}))
+     :type      field-type}))
 
 (defn field-type
   "Return the declared type keyword/vector for a schema field entry."
@@ -54,20 +54,20 @@
       maybe-opts)))
 
 (defn determine-input-type
-   "Determines the input type based on the field type definition.
+  "Determines the input type based on the field type definition.
     Handles enum fields, relationships, or-types, and primitive types."
-  [type]
+  [ftype]
   (cond
-    (and (vector? type) (= :maybe (first type)))
-    (determine-input-type (second type))
+    (and (vector? ftype) (= :maybe (first ftype)))
+    (determine-input-type (second ftype))
 
-    (and (vector? type) (= :enum (first type)))
+    (and (vector? ftype) (= :enum (first ftype)))
     {:input-type         :enum,
-     :enum-options       (vec (rest type)),
+     :enum-options       (vec (clojure.core/rest ftype)),
      :related-entity-str nil}
 
-    (and (vector? type) (= :or (first type)))
-    (let [options     (rest type)
+    (and (vector? ftype) (= :or (first ftype)))
+    (let [options     (clojure.core/rest ftype)
           has-boolean (some #(= :boolean %) options)
           enum-option (some #(when (and (vector? %) (= :enum (first %))) %)
                             options)]
@@ -81,24 +81,24 @@
          :enum-options       nil,
          :related-entity-str nil}))
 
-    (and (vector? type)
-         (= :set (first type))
-         (let [elem (second type)]
+    (and (vector? ftype)
+         (= :set (first ftype))
+         (let [elem (second ftype)]
            (and (keyword? elem) (= "id" (name elem)))))
     {:input-type         :many-relationship,
      :enum-options       nil,
-     :related-entity-str (-> type
+     :related-entity-str (-> ftype
                              second
                              namespace)}
 
-    (and (keyword? type) (= "id" (name type)))
+    (and (keyword? ftype) (= "id" (name ftype)))
     {:input-type         :single-relationship,
      :enum-options       nil,
-     :related-entity-str (-> type
+     :related-entity-str (-> ftype
                              namespace)}
 
     :else
-    {:input-type         type,
+    {:input-type         ftype,
      :enum-options       nil,
      :related-entity-str nil}))
 
@@ -113,8 +113,8 @@
 
 (defn add-descriptors
   "Attach :input-type metadata to a parsed field."
-  [{:keys [field-key type], :as field}]
-  (let [type-info (determine-input-type type)]
+  [{:keys [field-key], :as field}]
+  (let [type-info (determine-input-type (:type field))]
     (merge field
            {:field-key field-key}
            type-info)))
@@ -128,25 +128,25 @@
 (defn add-input-name-label
   [{:keys [field-key opts], :as field}]
   (let [n        (ns-keyword->input-name field-key)
-         l        (or
+        l        (or
                     ;; Check for explicit crud/label override first
-                    (:crud/label opts)
+                  (:crud/label opts)
                     ;; Fall back to existing logic
-                    (cond
-                      (= field-key :meditation-log/type-id) "Meditation Type"
-                      (and (str/ends-with? (name field-key) "/id")
-                           (not= (name field-key) "id"))
-                      (-> (namespace field-key)
-                          (str/split #"-")
-                          (->> (map str/capitalize))
-                          (->> (str/join " ")))
-                      :else
-                      (-> field-key
-                          name
-                          (str/split #"-")
-                          (->> (map str/capitalize))
-                          (->> (str/join " ")))))
-         required (not (:optional opts))]
+                  (cond
+                    (= field-key :meditation-log/type-id) "Meditation Type"
+                    (and (str/ends-with? (name field-key) "/id")
+                         (not= (name field-key) "id"))
+                    (-> (namespace field-key)
+                        (str/split #"-")
+                        (->> (map str/capitalize))
+                        (->> (str/join " ")))
+                    :else
+                    (-> field-key
+                        name
+                        (str/split #"-")
+                        (->> (map str/capitalize))
+                        (->> (str/join " ")))))
+        required (not (:optional opts))]
     (merge field
            {:input-name     n,
             :input-label    l,
@@ -175,9 +175,9 @@
 
 (defn extract-relationship-fields
   "Extracts relationship fields from a schema."
-  [entity-schema &
+  [ent-schema &
    {:keys [remove-system-fields], :or {remove-system-fields false}}]
-  (cond->> entity-schema
+  (cond->> ent-schema
     :always extract-schema-fields
     :always (map prepare-field)
     :always (filter (fn [{:keys [input-type]}]
@@ -187,13 +187,13 @@
 
 (defn get-field-info
   "Returns a map with :type and :opts for a given field key from a schema."
-  [entity-schema field-key]
-  (some (fn [[k & rest]]
+  [ent-schema field-key]
+  (some (fn [[k & more]]
           (when (= k field-key)
-            (if (map? (first rest))
-              {:type (second rest), :opts (first rest)}
-              {:type (first rest), :opts {}})))
-        (extract-schema-fields entity-schema)))
+            (if (map? (first more))
+              {:type (second more), :opts (first more)}
+              {:type (first more), :opts {}})))
+        (extract-schema-fields ent-schema)))
 
 (defn entity-base-name
   "Given an entity string like \"project-log\", return the base noun (\"project\")."
@@ -211,10 +211,11 @@
 
 (defn ensure-interval-fields
   "Ensure schema contains beginning/end instants for the entity."
-  [{:keys [entity-schema entity-str]}]
-  (let [beginning-field (schema-field entity-schema
+  [{:keys [entity-schema entity-str], :as _opts}]
+  (let [ent-schema     entity-schema
+        beginning-field (schema-field ent-schema
                                       (entity-field-key entity-str "beginning"))
-        end-field       (schema-field entity-schema
+        end-field       (schema-field ent-schema
                                       (entity-field-key entity-str "end"))]
     (when-not beginning-field
       (throw (ex-info "Timer entity missing :beginning field"
@@ -230,8 +231,8 @@
 
 (defn primary-rel-field
   "Read :timer/primary-rel off the schema, without yet applying fallbacks."
-  [entity-schema]
-  (let [opts (schema-options entity-schema)]
+  [ent-schema]
+  (let [opts (schema-options ent-schema)]
     (:timer/primary-rel opts)))
 
 

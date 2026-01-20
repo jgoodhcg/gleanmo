@@ -33,12 +33,12 @@
                      ;; Start with defaults for missing boolean fields
                      (reduce (fn [acc field]
                                (let [[field-key opts type] (if (map? (second field))
-                                                            [(first field) (second field) (nth field 2)]
-                                                            [(first field) {} (second field)])
+                                                             [(first field) (second field) (nth field 2)]
+                                                             [(first field) {} (second field)])
                                      {:keys [input-type]} (schema-utils/determine-input-type type)
                                      optional? (:optional opts)]
                                  ;; Add default false value for boolean fields that aren't present in form data and aren't optional
-                                 (if (and (= input-type :boolean) 
+                                 (if (and (= input-type :boolean)
                                           (not (contains? form-fields (name field-key)))
                                           (not optional?))
                                    (assoc acc field-key false)
@@ -96,12 +96,12 @@
         redirect-url   (or (get params "redirect") (get params :redirect))
         ;; Get current entity data to compare with
         current-entity (db/get-entity-for-user db entity-id user-id entity-key)
-        
+
         ;; Process optional boolean fields that might have been unchecked
         updated-params (reduce (fn [acc field]
                                  (let [[field-key opts type] (if (map? (second field))
-                                                              [(first field) (second field) (nth field 2)]
-                                                              [(first field) {} (second field)])
+                                                               [(first field) (second field) (nth field 2)]
+                                                               [(first field) {} (second field)])
                                        {:keys [input-type]} (schema-utils/determine-input-type type)
                                        field-name (schema-utils/ns-keyword->input-name field-key)
                                        optional? (:optional opts)]
@@ -116,20 +116,20 @@
                                      acc)))
                                params
                                (schema-utils/extract-schema-fields schema))
-        
+
         form-data      (form->schema updated-params schema ctx)
         time-zone      (-> params
                            (get (str entity-str "/time-zone")))
         user-time-zone (get-user-time-zone ctx)
         new-tz         (and time-zone (not= user-time-zone time-zone))]
-    
+
     ;; Update the entity
     (mutations/update-entity!
      ctx
      {:entity-key entity-key,
       :entity-id  entity-id,
       :data       form-data})
-    
+
     ;; Optionally update user time zone
     (when new-tz
       (mutations/update-entity!
@@ -137,7 +137,7 @@
        {:entity-key :user,
         :entity-id  user-id,
         :data       {:user/time-zone time-zone}}))
-    
+
     ;; Return redirect response
     (let [default-redirect (str "/app/crud/form/" entity-str "/edit/" entity-id)
           final-redirect   (or redirect-url default-redirect)

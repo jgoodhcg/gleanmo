@@ -1,15 +1,15 @@
 (ns tech.jgood.gleanmo.test.app.shared-test
   (:require
-    [clojure.test       :refer [deftest is testing]]
-    [com.biffweb        :as    biff
-                        :refer [test-xtdb-node]]
-    [tech.jgood.gleanmo :as main]
-    [tech.jgood.gleanmo.app.shared :as shared]
-    [tech.jgood.gleanmo.db.mutations :as mutations]
-    [tick.core :as t]
-    [xtdb.api           :as xt])
+   [clojure.test       :refer [deftest is testing]]
+   [com.biffweb        :as    biff
+    :refer [test-xtdb-node]]
+   [tech.jgood.gleanmo :as main]
+   [tech.jgood.gleanmo.app.shared :as shared]
+   [tech.jgood.gleanmo.db.mutations :as mutations]
+   [tick.core :as t]
+   [xtdb.api           :as xt])
   (:import
-    [java.util UUID]))
+   [java.util UUID]))
 
 (defn get-context
   [node]
@@ -51,14 +51,14 @@
       (let [ctx     (get-context node)
             user-id (UUID/randomUUID)]
         ;; Create a test user with sensitive setting enabled
-        (mutations/create-entity! 
-          ctx
-          {:entity-key :user
-           :data {:user/email "test@example.com"
-                  :user/joined-at (t/now)
-                  :user/show-sensitive true
-                  :xt/id user-id}})
-        
+        (mutations/create-entity!
+         ctx
+         {:entity-key :user
+          :data {:user/email "test@example.com"
+                 :user/joined-at (t/now)
+                 :user/show-sensitive true
+                 :xt/id user-id}})
+
         ;; Test the sidebar context preparation
         (let [sidebar-ctx {:biff/db (xt/db node)
                            :session {:uid user-id}}
@@ -117,15 +117,15 @@
         ;; Verify it contains the expected text
         (is (some #(and (string? %) (.contains % "Archived")) (tree-seq coll? seq button-component))))))
 
-(deftest param-true-test
-  (testing "should return true for 'on'"
-    (is (true? (shared/param-true? "on"))))
+  (deftest param-true-test
+    (testing "should return true for 'on'"
+      (is (true? (shared/param-true? "on"))))
 
-  (testing "should return true for 'true'"
-    (is (true? (shared/param-true? "true"))))
+    (testing "should return true for 'true'"
+      (is (true? (shared/param-true? "true"))))
 
-  (testing "should return false for other values"
-    (is (false? (shared/param-true? "false")))
-    (is (false? (shared/param-true? "off")))
-    (is (false? (shared/param-true? nil)))
-    (is (false? (shared/param-true? ""))))))
+    (testing "should return false for other values"
+      (is (false? (shared/param-true? "false")))
+      (is (false? (shared/param-true? "off")))
+      (is (false? (shared/param-true? nil)))
+      (is (false? (shared/param-true? ""))))))

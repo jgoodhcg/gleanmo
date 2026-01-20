@@ -64,7 +64,7 @@
                     {:x-csrf-token csrf/*anti-forgery-token*})})
     body]))
 
-(defn on-error [{:keys [status ex] :as ctx}]
+(defn on-error [{:keys [status] :as ctx}]
   {:status status
    :headers {"content-type" "text/html"}
    :body (rum/render-static-markup
@@ -81,7 +81,7 @@
   called with just the component."
   ([component]
    (fragment {} component))
-  ([ctx & body]
+  ([_ctx & body]
    (let [content (if (> (count body) 1)
                    (into [:<>] body)
                    (first body))]

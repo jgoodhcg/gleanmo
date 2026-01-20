@@ -1,11 +1,8 @@
 (ns tech.jgood.gleanmo.home
-  (:require [clj-http.client :as http]
-            [com.biffweb :as biff]
+  (:require [com.biffweb :as biff]
             [tech.jgood.gleanmo.middleware :as mid]
             [tech.jgood.gleanmo.ui :as ui]
-            [tech.jgood.gleanmo.settings :as settings]
-            [rum.core :as rum]
-            [xtdb.api :as xt]))
+            [tech.jgood.gleanmo.settings :as settings]))
 
 (def email-disabled-notice
   [:.text-sm.mt-3.bg-blue-100.rounded.p-2

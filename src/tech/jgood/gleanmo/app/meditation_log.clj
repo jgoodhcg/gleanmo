@@ -1,7 +1,6 @@
 (ns tech.jgood.gleanmo.app.meditation-log
   (:require
    [com.biffweb :as biff]
-   [potpuri.core :as pot]
    [tech.jgood.gleanmo.app.shared :refer [get-user-time-zone side-bar]]
    [tech.jgood.gleanmo.crud.routes :as crud]
    [tech.jgood.gleanmo.db.queries :as db]
@@ -23,7 +22,7 @@
 ;; Generate visualization routes
 (def viz-routes
   (viz-routes/gen-routes {:entity-key :meditation-log
-                          :entity-schema mc/meditation-log  
+                          :entity-schema mc/meditation-log
                           :entity-str "meditation-log"
                           :plural-str "meditation-logs"}))
 
@@ -52,10 +51,9 @@
         t/instant)))
 
 (defn meditation-stats
-  [{:keys [session biff/db params],
+  [{:keys [params],
     :as   context}]
-  (let [user-id              (:uid session)
-        time-zone            (get-user-time-zone context)
+  (let [time-zone            (get-user-time-zone context)
         zone-id              (ZoneId/of (or time-zone "US/Eastern"))
         start-date-str       (:start-date params)
         end-date-str         (:end-date params)

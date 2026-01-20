@@ -2,7 +2,6 @@
 (ns tech.jgood.gleanmo.test.timer.routes-test
   (:require
    [clojure.test :refer [deftest is testing]]
-   [tech.jgood.gleanmo.schema :refer [schema]]
    [tech.jgood.gleanmo.schema.utils :as schema-utils]
    [tech.jgood.gleanmo.timer.routes :as timer-routes]))
 

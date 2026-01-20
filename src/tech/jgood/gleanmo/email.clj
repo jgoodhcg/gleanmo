@@ -1,7 +1,5 @@
 (ns tech.jgood.gleanmo.email
   (:require
-   [camel-snake-kebab.core :as csk]
-   [camel-snake-kebab.extras :as cske]
    [clj-http.client :as http]
    [clojure.tools.logging :as log]
    [rum.core :as rum]
@@ -99,7 +97,7 @@
     success))
 
 (defn send-console
-  [ctx form-params]
+  [_ctx form-params]
   (println "TO:" (:to form-params))
   (println "SUBJECT:" (:subject form-params))
   (println)
@@ -110,17 +108,16 @@
   true)
 
 (defn send-email
-  [{:keys [biff/secret recaptcha/site-key], :as ctx} opts]
+  [{:as ctx} opts]
   (let [form-params (if-some [template-key (:template opts)]
                       (template template-key opts)
                       opts)]
     ;; 2025-06-07 Justin 
     ;; Temporarily send only console because of Mailersend trial plan changes
     (send-console ctx form-params)
-    #_
-    (if (every? some?
-                [(secret :mailersend/api-key)
-                 (secret :recaptcha/secret-key)
-                 site-key])
-      (send-mailersend ctx form-params)
-      (send-console ctx form-params))))
+    #_(if (every? some?
+                  [(secret :mailersend/api-key)
+                   (secret :recaptcha/secret-key)
+                   site-key])
+        (send-mailersend ctx form-params)
+        (send-console ctx form-params))))

@@ -37,31 +37,31 @@
   (let [;; Separate fields with explicit priority (not the default 99) from those without
         fields-with-priority (filter #(< (get-field-priority %) 99) display-fields)
         fields-without-priority (filter #(>= (get-field-priority %) 99) display-fields)
-        
+
         ;; Sort priority fields by their priority value (lower = higher priority)
         sorted-priority-fields (sort-by get-field-priority fields-with-priority)]
-    
-    (log/info "Priority sorting - Fields with priority:" 
-               (clojure.string/join ", " 
-                                     (map (fn [field] 
-                                            (str (name (:field-key field)) 
-                                                 "(priority:" (get-field-priority field) ")"))
-                                          sorted-priority-fields)))
-    (log/info "Priority sorting - Fields without priority:" 
-               (clojure.string/join ", " 
-                                     (map (fn [field] 
-                                            (str (name (:field-key field)) 
-                                                 "(priority:" (get-field-priority field) ")"))
-                                          fields-without-priority)))
-    
+
+    (log/info "Priority sorting - Fields with priority:"
+              (clojure.string/join ", "
+                                   (map (fn [field]
+                                          (str (name (:field-key field))
+                                               "(priority:" (get-field-priority field) ")"))
+                                        sorted-priority-fields)))
+    (log/info "Priority sorting - Fields without priority:"
+              (clojure.string/join ", "
+                                   (map (fn [field]
+                                          (str (name (:field-key field))
+                                               "(priority:" (get-field-priority field) ")"))
+                                        fields-without-priority)))
+
     ;; Combine prioritized fields with remaining fields in arbitrary order
     (let [result (concat sorted-priority-fields fields-without-priority)]
-      (log/info "Priority sorting - Final order:" 
-                 (clojure.string/join ", " 
-                                       (map (fn [field] 
-                                              (str (name (:field-key field)) 
-                                                   "(priority:" (get-field-priority field) ")"))
-                                            result)))
+      (log/info "Priority sorting - Final order:"
+                (clojure.string/join ", "
+                                     (map (fn [field]
+                                            (str (name (:field-key field))
+                                                 "(priority:" (get-field-priority field) ")"))
+                                          result)))
       result)))
 
 (defn humanize-key
@@ -117,7 +117,7 @@
         priority-sorted-fields (sort-by-priority-then-arbitrary display-fields)
         sorted-fields         (sort-with-label-first priority-sorted-fields)
         ;; Process fields to adjust labels and handle special cases
-        processed-fields      (map (fn [{:keys [field-key input-label],
+        processed-fields      (map (fn [{:keys [field-key],
                                          :as   field}]
                                      (if (= field-key :user/id)
                                        ;; Special case for user/id - change
@@ -144,7 +144,7 @@
         (fn [idx entity]
           [:tr.table-row
            {:key   idx}
-           (for [{:keys [field-key input-type type]} processed-fields]
+           (for [{:keys [field-key input-type]} processed-fields]
              [:td.table-cell
               {:key   (str (name field-key)),
                :style {:max-width "250px",
@@ -452,7 +452,7 @@
                                                                 (str/blank? value))))
                                              {:field-key   field-key
                                               :input-label (or input-label
-                                                                (display-label display-fields field-key))
+                                                               (display-label display-fields field-key))
                                               :content     (format-cell-value input-type value ctx)}))))
                                   (remove nil?)
                                   (take 4))
@@ -536,15 +536,15 @@
           [:button.text-secondary.hover:text-red-600.transition-colors
            {:type       "submit",
             :aria-label (str "Delete " aria-title)}
-            [:svg.h-4.w-4
-             {:xmlns   "http://www.w3.org/2000/svg",
-              :viewBox "0 0 20 20",
-              :fill    "currentColor"}
-             [:path
-              {:fill-rule "evenodd",
-               :d
-               "M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z",
-               :clip-rule "evenodd"}]]])]]))])
+           [:svg.h-4.w-4
+            {:xmlns   "http://www.w3.org/2000/svg",
+             :viewBox "0 0 20 20",
+             :fill    "currentColor"}
+            [:path
+             {:fill-rule "evenodd",
+              :d
+              "M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z",
+              :clip-rule "evenodd"}]]])]]))])
 
 ;; ---------------------------------------------------------------------------
 ;; Condensed card grid (lightweight, requires preformatted items)
@@ -655,7 +655,7 @@
                                                                 (str/blank? value))))
                                              {:field-key   field-key
                                               :input-label (or input-label
-                                                                (display-label display-fields field-key))
+                                                               (display-label display-fields field-key))
                                               :content     (format-cell-value input-type value ctx)}))))
                                   (remove nil?)
                                   (take 3))
@@ -738,8 +738,8 @@
   [{:keys [entity-str view-type offset limit]}]
   [:div.flex.space-x-4.mb-4
    [:a.text-sm.transition-colors
-    {:class (if (= view-type "table") 
-              "text-primary font-medium" 
+    {:class (if (= view-type "table")
+              "text-primary font-medium"
               "text-secondary hover:text-primary"),
      :href  (str "/app/crud/" entity-str
                  "?view=table"
@@ -748,8 +748,8 @@
                         "&limit="  (or limit 15))))}
     "Table"]
    [:a.text-sm.transition-colors
-    {:class (if (= view-type "card") 
-              "text-primary font-medium" 
+    {:class (if (= view-type "card")
+              "text-primary font-medium"
               "text-secondary hover:text-primary"),
      :href  (str "/app/crud/" entity-str
                  "?view=card"
@@ -758,8 +758,8 @@
                         "&limit="  (or limit 15))))}
     "Cards"]
    [:a.text-sm.transition-colors
-    {:class (if (= view-type "list") 
-              "text-primary font-medium" 
+    {:class (if (= view-type "list")
+              "text-primary font-medium"
               "text-secondary hover:text-primary"),
      :href  (str "/app/crud/" entity-str
                  "?view=list"
@@ -772,10 +772,9 @@
   [{:keys [entity-key
            entity-str
            plural-str
-           schema],
-    :as   args}
-   {:keys [session biff/db params], :as ctx}]
-  (let [user-id            (:uid session)
+           schema]}
+   {:keys [session params], :as ctx}]
+  (let [_user-id           (:uid session)
         entity-type-str    (name entity-key)
         ;; Get view type from query param or default to "table"
         view-type          (or (:view params) "list")
@@ -827,11 +826,11 @@
         (view-selector (pot/map-of entity-str
                                    view-type
                                    offset
-                                  limit))
+                                   limit))
 
         (if (zero? page-count)
           [:div.text-lg "No items found"]
-         [:div
+          [:div
              ;; Pagination summary
            [:div.flex.items-center.justify-between.mb-4
             [:p.text-sm.text-secondary
@@ -854,7 +853,7 @@
                         (str "/app/crud/" entity-str
                              "?view="     view-type
                              "&offset="   (max 0 (- offset limit))
-                            "&limit="    limit)
+                             "&limit="    limit)
                         "#")}
               "← Previous"]
              [:a.text-sm.text-secondary.hover:text-primary.transition-colors

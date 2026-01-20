@@ -1,8 +1,7 @@
 (ns tech.jgood.gleanmo.test.crud.schema-utils-test
   (:require
    [clojure.test :refer [deftest is testing]]
-   [tech.jgood.gleanmo.schema.utils :as schema-utils]
-   [tech.jgood.gleanmo.schema :refer [schema]]))
+   [tech.jgood.gleanmo.schema.utils :as schema-utils]))
 
 (deftest parse-field-test
   (testing "parse-field function"
@@ -46,7 +45,7 @@
                 [:user/name :string]
                 [:user/email :string]]
                result))))
-    
+
     (testing "extracts fields from schema with options"
       (let [schema [:user
                     {:description "User schema"}
@@ -67,21 +66,21 @@
         (is (= :enum (:input-type result)))
         (is (= [:admin :user :guest] (:enum-options result)))
         (is (nil? (:related-entity-str result)))))
-    
+
     (testing "handles many-relationship types"
       (let [type [:set :habit/id]
             result (schema-utils/determine-input-type type)]
         (is (= :many-relationship (:input-type result)))
         (is (nil? (:enum-options result)))
         (is (= "habit" (:related-entity-str result)))))
-    
+
     (testing "handles single-relationship types"
       (let [type :user/id
             result (schema-utils/determine-input-type type)]
         (is (= :single-relationship (:input-type result)))
         (is (nil? (:enum-options result)))
         (is (= "user" (:related-entity-str result)))))
-    
+
     (testing "handles primitive types"
       (let [type :string
             result (schema-utils/determine-input-type type)]
@@ -98,7 +97,7 @@
         (is (= :string (:input-type result)))
         (is (nil? (:enum-options result)))
         (is (nil? (:related-entity-str result)))))
-    
+
     (testing "adds descriptors for enum field"
       (let [field {:field-key :user/role :type [:enum :admin :user] :opts {}}
             result (schema-utils/add-descriptors field)]
@@ -106,7 +105,7 @@
         (is (= :enum (:input-type result)))
         (is (= [:admin :user] (:enum-options result)))
         (is (nil? (:related-entity-str result)))))
-    
+
     (testing "adds descriptors for relationship field"
       (let [field {:field-key :habit/user :type :user/id :opts {}}
             result (schema-utils/add-descriptors field)]
@@ -129,14 +128,14 @@
         (is (= "user/first-name" (:input-name result)))
         (is (= "First Name" (:input-label result)))
         (is (true? (:input-required result)))))
-    
+
     (testing "adds input name and label for optional field"
       (let [field {:field-key :user/middle-name :opts {:optional true}}
             result (schema-utils/add-input-name-label field)]
         (is (= "user/middle-name" (:input-name result)))
         (is (= "Middle Name" (:input-label result)))
         (is (false? (:input-required result)))))
-    
+
     (testing "uses special label for meditation-log/type-id"
       (let [field {:field-key :meditation-log/type-id :opts {}}
             result (schema-utils/add-input-name-label field)]
@@ -150,7 +149,6 @@
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
                           #"Unknown entity schema"
                           (schema-utils/entity-schema :unknown)))))
-
 
 (deftest ensure-interval-fields-test
   (testing "ensure-interval-fields validates required keys"
@@ -174,8 +172,7 @@
                           (schema-utils/ensure-interval-fields
                            {:entity-schema [:test
                                             [:test/beginning :instant]]
-                            :entity-str "test"}))))
-)
+                            :entity-str "test"})))))
 
 (deftest prepare-field-test
   (testing "prepare-field function"
@@ -189,7 +186,7 @@
         (is (= "user/email" (:input-name result)))
         (is (= "Email" (:input-label result)))
         (is (false? (:input-required result)))))
-    
+
     (testing "prepares relationship field"
       (let [field-entry [:habit/user :user/id]
             result (schema-utils/prepare-field field-entry)]
@@ -200,7 +197,7 @@
         (is (= "habit/user" (:input-name result)))
         (is (= "User" (:input-label result)))
         (is (true? (:input-required result)))))
-    
+
     (testing "preserves crud metadata in options"
       (let [field-entry [:test-field {:crud/priority 1 :crud/label "Custom Label"} :string]
             result (schema-utils/prepare-field field-entry)]
@@ -218,38 +215,38 @@
     ;; First, check if the function exists and works properly
     (let [fn-result (schema-utils/should-remove-system-or-user-field? {:field-key :xt/id, :opts {}})]
       (is (not (nil? fn-result)) "Function should return a boolean value, not nil"))
-      
+
     (testing "identifies xt/id field"
       (is (= true (schema-utils/should-remove-system-or-user-field? {:field-key :xt/id, :opts {}}))))
-    
+
     (testing "identifies user/id field"
       (is (= true (schema-utils/should-remove-system-or-user-field? {:field-key :user/id, :opts {}}))))
-    
+
     (testing "identifies schema namespace fields"
-      (is (= true (schema-utils/should-remove-system-or-user-field? 
-                  {:field-key :tech.jgood.gleanmo.schema/created-at, :opts {}}))))
-    
+      (is (= true (schema-utils/should-remove-system-or-user-field?
+                   {:field-key :tech.jgood.gleanmo.schema/created-at, :opts {}}))))
+
     (testing "identifies schema.meta namespace fields"
-      (is (= true (schema-utils/should-remove-system-or-user-field? 
-                  {:field-key :tech.jgood.gleanmo.schema.meta/version, :opts {}}))))
-    
+      (is (= true (schema-utils/should-remove-system-or-user-field?
+                   {:field-key :tech.jgood.gleanmo.schema.meta/version, :opts {}}))))
+
     (testing "keeps regular fields"
       (is (= false (schema-utils/should-remove-system-or-user-field? {:field-key :user/name, :opts {}})))
       (is (= false (schema-utils/should-remove-system-or-user-field? {:field-key :habit/title, :opts {}}))))
-    
+
     (testing "identifies airtable namespace fields"
-      (is (= true (schema-utils/should-remove-system-or-user-field? 
-                  {:field-key :airtable/id, :opts {}})))
-      (is (= true (schema-utils/should-remove-system-or-user-field? 
-                  {:field-key :airtable/last-modified, :opts {}}))))
-                  
+      (is (= true (schema-utils/should-remove-system-or-user-field?
+                   {:field-key :airtable/id, :opts {}})))
+      (is (= true (schema-utils/should-remove-system-or-user-field?
+                   {:field-key :airtable/last-modified, :opts {}}))))
+
     (testing "identifies fields with hide option"
       (is (= true (schema-utils/should-remove-system-or-user-field?
-                  {:field-key :habit/secret-field, :opts {:hide true}})))
+                   {:field-key :habit/secret-field, :opts {:hide true}})))
       (is (= false (schema-utils/should-remove-system-or-user-field?
-                   {:field-key :habit/visible-field, :opts {:hide false}})))
+                    {:field-key :habit/visible-field, :opts {:hide false}})))
       (is (= false (schema-utils/should-remove-system-or-user-field?
-                   {:field-key :habit/normal-field, :opts {}}))))))
+                    {:field-key :habit/normal-field, :opts {}}))))))
 
 (deftest extract-relationship-fields-test
   (testing "extract-relationship-fields function"
@@ -259,7 +256,7 @@
                   [:habit/user :user/id]
                   [:habit/tags [:set :tag/id]]
                   [:tech.jgood.gleanmo.schema/created-at :inst]]]
-      
+
       (testing "extracts single and many relationships"
         (let [result (schema-utils/extract-relationship-fields schema)]
           (is (= 2 (count result)))
@@ -267,7 +264,7 @@
           (is (= :single-relationship (:input-type (first result))))
           (is (= :habit/tags (:field-key (second result))))
           (is (= :many-relationship (:input-type (second result))))))
-      
+
       (testing "can filter system fields"
         (let [schema-with-system [:habit
                                   [:xt/id :uuid]
@@ -278,103 +275,102 @@
           (is (= :habit/user (:field-key (first result))))
           (is (= :single-relationship (:input-type (first result))))))))
 
-(deftest get-field-info-test
-  (testing "get-field-info function"
-    (let [schema [:user
-                  [:user/id :uuid]
-                  [:user/name :string]
-                  [:user/email {:optional true} :string]
-                  [:user/role [:enum :admin :user]]]]
-      
-      (testing "retrieves field info without options"
-        (let [result (schema-utils/get-field-info schema :user/name)]
-          (is (= :string (:type result)))
-          (is (= {} (:opts result)))))
-      
-      (testing "retrieves field info with options"
-        (let [result (schema-utils/get-field-info schema :user/email)]
-          (is (= :string (:type result)))
-          (is (= {:optional true} (:opts result)))))
-      
-      (testing "retrieves complex type field info"
-        (let [result (schema-utils/get-field-info schema :user/role)]
-          (is (= [:enum :admin :user] (:type result)))
-          (is (= {} (:opts result)))))
-      
-      (testing "returns nil for non-existent fields"
-        (is (nil? (schema-utils/get-field-info schema :user/non-existent)))))))
+  (deftest get-field-info-test
+    (testing "get-field-info function"
+      (let [schema [:user
+                    [:user/id :uuid]
+                    [:user/name :string]
+                    [:user/email {:optional true} :string]
+                    [:user/role [:enum :admin :user]]]]
 
-(deftest crud-priority-metadata-test
-  (testing "CRUD priority metadata handling"
-    (testing "prepare-field preserves crud priority metadata"
-      (let [field-entry [:test-field {:crud/priority 1} :string]
-            result (schema-utils/prepare-field field-entry)]
-        (is (= 1 (:crud/priority (:opts result))))
-        (is (= :test-field (:field-key result)))
-        (is (= :string (:type result)))))
-    
-    (testing "prepare-field preserves crud label metadata"
-      (let [field-entry [:test-field {:crud/label "Custom Label"} :string]
-            result (schema-utils/prepare-field field-entry)]
-        (is (= "Custom Label" (:crud/label (:opts result))))
-        (is (= :test-field (:field-key result)))
-        (is (= :string (:type result)))))
-    
-    (testing "prepare-field preserves both crud priority and label metadata"
-      (let [field-entry [:test-field {:crud/priority 2 :crud/label "Important Field"} :string]
-            result (schema-utils/prepare-field field-entry)]
-        (is (= 2 (:crud/priority (:opts result))))
-        (is (= "Important Field" (:crud/label (:opts result))))
-        (is (= :test-field (:field-key result)))
-        (is (= :string (:type result)))))
-    
-    (testing "prepare-field handles fields without crud metadata"
-      (let [field-entry [:test-field {:optional true} :string]
-            result (schema-utils/prepare-field field-entry)]
-        (is (nil? (:crud/priority (:opts result))))
-        (is (nil? (:crud/label (:opts result))))
-        (is (= {:optional true} (:opts result)))
-        (is (= :test-field (:field-key result)))
-        (is (= :string (:type result)))))
-    
-    (testing "real schema example - habit schema priority metadata"
-      (let [habit-schema (schema-utils/entity-schema :habit)
-            fields (map schema-utils/prepare-field 
-                       (schema-utils/extract-schema-fields habit-schema))
-            label-field (some #(= (:field-key %) :habit/label) fields)]
-        (is (not (nil? label-field)) "Habit schema should have a label field")
-        (is (= 1 (:crud/priority (:opts label-field))) "Habit label should have priority 1")
-        (is (= "Habit" (:crud/label (:opts label-field))) "Habit label should have custom label")))
-    
-    (testing "real schema example - habit-log schema priority metadata"
-      (let [habit-log-schema (schema-utils/entity-schema :habit-log)
-            fields (map schema-utils/prepare-field 
-                       (schema-utils/extract-schema-fields habit-log-schema))
-            timestamp-field (some #(= (:field-key %) :habit-log/timestamp) fields)
-            habit-ids-field (some #(= (:field-key %) :habit-log/habit-ids) fields)
-            notes-field (some #(= (:field-key %) :habit-log/notes) fields)]
-        (is (not (nil? timestamp-field)) "Habit-log schema should have timestamp field")
-        (is (nil? (:crud/priority (:opts timestamp-field))) "Timestamp should not have priority")
-        
-        (is (not (nil? habit-ids-field)) "Habit-log schema should have habit-ids field")
-        (is (= 1 (:crud/priority (:opts habit-ids-field))) "Habit-ids should have priority 1")
-        (is (= "Habits" (:crud/label (:opts habit-ids-field))) "Habit-ids should have custom label")
-        
-        (is (not (nil? notes-field)) "Habit-log schema should have notes field")
-        (is (= 2 (:crud/priority (:opts notes-field))) "Notes should have priority 2")
-        (is (= "Notes" (:crud/label (:opts notes-field))) "Notes should have custom label")))
-    
-    (testing "priority metadata extraction for sorting"
-      (let [test-fields [[:field-a {:crud/priority 3} :string]
-                         [:field-b {:crud/priority 1} :string]
-                         [:field-c {:crud/priority 2} :string]
-                         [:field-d {} :string]  ; no priority
-                         [:field-e {:optional true} :string]]  ; no priority
-            prepared-fields (map schema-utils/prepare-field test-fields)
-            priorities (map #(get-in % [:opts :crud/priority]) prepared-fields)]
-        (is (= [3 1 2 nil nil] priorities) "Should extract priority values correctly")
-        
+        (testing "retrieves field info without options"
+          (let [result (schema-utils/get-field-info schema :user/name)]
+            (is (= :string (:type result)))
+            (is (= {} (:opts result)))))
+
+        (testing "retrieves field info with options"
+          (let [result (schema-utils/get-field-info schema :user/email)]
+            (is (= :string (:type result)))
+            (is (= {:optional true} (:opts result)))))
+
+        (testing "retrieves complex type field info"
+          (let [result (schema-utils/get-field-info schema :user/role)]
+            (is (= [:enum :admin :user] (:type result)))
+            (is (= {} (:opts result)))))
+
+        (testing "returns nil for non-existent fields"
+          (is (nil? (schema-utils/get-field-info schema :user/non-existent)))))))
+
+  (deftest crud-priority-metadata-test
+    (testing "CRUD priority metadata handling"
+      (testing "prepare-field preserves crud priority metadata"
+        (let [field-entry [:test-field {:crud/priority 1} :string]
+              result (schema-utils/prepare-field field-entry)]
+          (is (= 1 (:crud/priority (:opts result))))
+          (is (= :test-field (:field-key result)))
+          (is (= :string (:type result)))))
+
+      (testing "prepare-field preserves crud label metadata"
+        (let [field-entry [:test-field {:crud/label "Custom Label"} :string]
+              result (schema-utils/prepare-field field-entry)]
+          (is (= "Custom Label" (:crud/label (:opts result))))
+          (is (= :test-field (:field-key result)))
+          (is (= :string (:type result)))))
+
+      (testing "prepare-field preserves both crud priority and label metadata"
+        (let [field-entry [:test-field {:crud/priority 2 :crud/label "Important Field"} :string]
+              result (schema-utils/prepare-field field-entry)]
+          (is (= 2 (:crud/priority (:opts result))))
+          (is (= "Important Field" (:crud/label (:opts result))))
+          (is (= :test-field (:field-key result)))
+          (is (= :string (:type result)))))
+
+      (testing "prepare-field handles fields without crud metadata"
+        (let [field-entry [:test-field {:optional true} :string]
+              result (schema-utils/prepare-field field-entry)]
+          (is (nil? (:crud/priority (:opts result))))
+          (is (nil? (:crud/label (:opts result))))
+          (is (= {:optional true} (:opts result)))
+          (is (= :test-field (:field-key result)))
+          (is (= :string (:type result)))))
+
+      (testing "real schema example - habit schema priority metadata"
+        (let [habit-schema (schema-utils/entity-schema :habit)
+              fields (map schema-utils/prepare-field
+                          (schema-utils/extract-schema-fields habit-schema))
+              label-field (some #(= (:field-key %) :habit/label) fields)]
+          (is (not (nil? label-field)) "Habit schema should have a label field")
+          (is (= 1 (:crud/priority (:opts label-field))) "Habit label should have priority 1")
+          (is (= "Habit" (:crud/label (:opts label-field))) "Habit label should have custom label")))
+
+      (testing "real schema example - habit-log schema priority metadata"
+        (let [habit-log-schema (schema-utils/entity-schema :habit-log)
+              fields (map schema-utils/prepare-field
+                          (schema-utils/extract-schema-fields habit-log-schema))
+              timestamp-field (some #(= (:field-key %) :habit-log/timestamp) fields)
+              habit-ids-field (some #(= (:field-key %) :habit-log/habit-ids) fields)
+              notes-field (some #(= (:field-key %) :habit-log/notes) fields)]
+          (is (not (nil? timestamp-field)) "Habit-log schema should have timestamp field")
+          (is (nil? (:crud/priority (:opts timestamp-field))) "Timestamp should not have priority")
+
+          (is (not (nil? habit-ids-field)) "Habit-log schema should have habit-ids field")
+          (is (= 1 (:crud/priority (:opts habit-ids-field))) "Habit-ids should have priority 1")
+          (is (= "Habits" (:crud/label (:opts habit-ids-field))) "Habit-ids should have custom label")
+
+          (is (not (nil? notes-field)) "Habit-log schema should have notes field")
+          (is (= 2 (:crud/priority (:opts notes-field))) "Notes should have priority 2")
+          (is (= "Notes" (:crud/label (:opts notes-field))) "Notes should have custom label")))
+
+      (testing "priority metadata extraction for sorting"
+        (let [test-fields [[:field-a {:crud/priority 3} :string]
+                           [:field-b {:crud/priority 1} :string]
+                           [:field-c {:crud/priority 2} :string]
+                           [:field-d {} :string]  ; no priority
+                           [:field-e {:optional true} :string]]  ; no priority
+              prepared-fields (map schema-utils/prepare-field test-fields)
+              priorities (map #(get-in % [:opts :crud/priority]) prepared-fields)]
+          (is (= [3 1 2 nil nil] priorities) "Should extract priority values correctly")
+
         ;; Test that fields without priority return nil (not 99)
-        (let [field-without-priority (some #(nil? (get-in % [:opts :crud/priority])) prepared-fields)]
-          (is (not (nil? field-without-priority)) "Should have fields without priority metadata"))))))
-)
+          (let [field-without-priority (some #(nil? (get-in % [:opts :crud/priority])) prepared-fields)]
+            (is (not (nil? field-without-priority)) "Should have fields without priority metadata")))))))

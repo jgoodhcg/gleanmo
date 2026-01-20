@@ -119,7 +119,7 @@
          :airtable/created-time       (core/parse-timestamp created-time)
          :airtable/ported-at          now}
         (cond->
-            (not (str/blank? notes))
+         (not (str/blank? notes))
           (assoc :medication-log/notes notes)
 
           (not (str/blank? injection-str))

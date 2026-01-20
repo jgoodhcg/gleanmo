@@ -27,13 +27,13 @@
         {:pattern :interval
          :beginning-field beginning-field
          :end-field end-field})
-      
+
       ;; Check for point events (timestamp fields)
       (some #(str/ends-with? (str %) "/timestamp") (keys field-map))
       (let [timestamp-field (first (filter #(str/ends-with? (str %) "/timestamp") (keys field-map)))]
         {:pattern :point
          :timestamp-field timestamp-field})
-      
+
       ;; No temporal pattern detected
       :else nil)))
 
@@ -66,10 +66,10 @@
                      (let [labels (case input-type
                                     :single-relationship
                                     [(resolve-entity-label db field-value)]
-                                    
+
                                     :many-relationship
                                     (map #(resolve-entity-label db %) field-value)
-                                    
+
                                     [])
                            ;; Just capitalize for now, we'll handle pluralization after aggregation
                            group-name (clojure.string/capitalize related-entity-str)]
@@ -94,42 +94,38 @@
   (if (empty? data)
     ;; No data - show current year
     (str (java.time.Year/now))
-    
-    (let [current-year (java.time.Year/now)
-          prev-year (.minusYears current-year 1)
-          
-          ;; Extract years from data
+
+    (let [;; Extract years from data
           timestamp-field (:timestamp-field temporal-pattern)
           beginning-field (:beginning-field temporal-pattern)
           field-to-use (if timestamp-field timestamp-field beginning-field)
-          
+
           data-years (->> data
                           (map #(get % field-to-use))
                           (map #(-> % str (.substring 0 4)))
                           (map #(Integer/parseInt %))
                           distinct
                           sort)
-          
-          min-data-year (first data-years)
+
           max-data-year (last data-years)]
-      
+
       ;; Strategy: Show the year with the most recent data
       ;; This gives better UX than trying to show multiple years in one chart
       (str max-data-year))))
 
 (defn generate-mobile-calendar-config
   "Generate ECharts calendar heatmap configuration optimized for mobile (vertical layout)."
-  [temporal-pattern data ctx entity-key entity-schema entity-str]
+  [temporal-pattern data ctx _entity-key entity-schema entity-str]
   (let [year-range (get-relevant-year-range data temporal-pattern)
         timestamp-field (:timestamp-field temporal-pattern)
         beginning-field (:beginning-field temporal-pattern)
-        
+
         ;; Get relationship fields from the entity schema to resolve labels generically
-        relationship-fields (schema-utils/extract-relationship-fields 
+        relationship-fields (schema-utils/extract-relationship-fields
                              entity-schema
                              :remove-system-fields true)
         db (:biff/db ctx)
-        
+
         ;; Group data by date and collect entity details generically
         grouped-data (case (:pattern temporal-pattern)
                        :point
@@ -148,7 +144,7 @@
                                                                           {}
                                                                           grouped-labels)]
                                      [date-str (count items) unique-grouped-labels]))))
-                       
+
                        :interval
                        (->> data
                             (group-by (fn [item]
@@ -165,11 +161,11 @@
                                                                           {}
                                                                           grouped-labels)]
                                      [date-str (count items) unique-grouped-labels])))))
-        
+
         ;; Create chart data with embedded details for tooltip
-        chart-data (map (fn [[date-str count entity-labels]] 
+        chart-data (map (fn [[date-str count entity-labels]]
                           [date-str count entity-labels entity-str]) grouped-data)]
-    
+
     {:backgroundColor "#0d1117"  ; Dark background
      :title {:text (str "Activity Calendar - " year-range)
              :left "center"
@@ -209,17 +205,17 @@
 
 (defn generate-calendar-heatmap-config
   "Generate ECharts calendar heatmap configuration with entity details."
-  [temporal-pattern data ctx entity-key entity-schema entity-str]
+  [temporal-pattern data ctx _entity-key entity-schema entity-str]
   (let [year-range (get-relevant-year-range data temporal-pattern)
         timestamp-field (:timestamp-field temporal-pattern)
         beginning-field (:beginning-field temporal-pattern)
-        
+
         ;; Get relationship fields from the entity schema to resolve labels generically
-        relationship-fields (schema-utils/extract-relationship-fields 
+        relationship-fields (schema-utils/extract-relationship-fields
                              entity-schema
                              :remove-system-fields true)
         db (:biff/db ctx)
-        
+
         ;; Group data by date and collect entity details generically
         grouped-data (case (:pattern temporal-pattern)
                        :point
@@ -238,7 +234,7 @@
                                                                           {}
                                                                           grouped-labels)]
                                      [date-str (count items) unique-grouped-labels]))))
-                       
+
                        :interval
                        (->> data
                             (group-by (fn [item]
@@ -255,11 +251,11 @@
                                                                           {}
                                                                           grouped-labels)]
                                      [date-str (count items) unique-grouped-labels])))))
-        
+
         ;; Create chart data with embedded details for tooltip
-        chart-data (map (fn [[date-str count entity-labels]] 
+        chart-data (map (fn [[date-str count entity-labels]]
                           [date-str count entity-labels entity-str]) grouped-data)]
-    
+
     {:backgroundColor "#0d1117"  ; Dark background
      :title {:text (str "Activity Calendar - " year-range)
              :left "center"
@@ -302,7 +298,7 @@
            :data-chart-data (str base-chart-id "-desktop-data")}]
     [:div {:id (str base-chart-id "-desktop-data") :class "hidden"}
      (json/generate-string desktop-config {:pretty true})]]
-   
+
    ;; Mobile version
    [:div.block.md:hidden
     [:h2.text-xl.font-bold.mb-4 mobile-title]
@@ -314,11 +310,10 @@
 
 (defn viz-page
   "Generate visualization page for an entity."
-  [ctx entity-key entity-schema entity-str plural-str]
+  [ctx entity-key entity-schema entity-str _plural-str]
   (let [temporal-pattern (detect-temporal-pattern entity-schema)]
     (if temporal-pattern
-      (let [user-id (get-in ctx [:session :uid])
-            ;; Fetch entity data respecting user settings (sensitive/archived)
+      (let [;; Fetch entity data respecting user settings (sensitive/archived)
             entity-data (queries/all-for-user-query
                          {:entity-type-str entity-str
                           :schema entity-schema
@@ -328,22 +323,22 @@
             mobile-calendar-config (generate-mobile-calendar-config temporal-pattern entity-data ctx entity-key entity-schema entity-str)]
         (ui/page
          (assoc ctx ::ui/echarts true)
-         (side-bar 
+         (side-bar
           ctx
           [:div.container.mx-auto.p-6
-           [:h1.text-3xl.font-bold.mb-6 
+           [:h1.text-3xl.font-bold.mb-6
             (str "Visualizations - " (str/capitalize entity-str))]
-           [:p.mb-6.text-gray-600 
+           [:p.mb-6.text-gray-600
             (str "Temporal pattern: " (name (:pattern temporal-pattern)))]
-           
+
            ;; Responsive chart section - horizontal calendar on desktop, vertical calendar on mobile
-           (render-responsive-chart-section 
-            "activity-chart" 
-            "Activity Calendar" 
+           (render-responsive-chart-section
+            "activity-chart"
             "Activity Calendar"
-            calendar-config 
+            "Activity Calendar"
+            calendar-config
             mobile-calendar-config)])))
-      
+
       ;; No temporal pattern detected
       (ui/page
        ctx

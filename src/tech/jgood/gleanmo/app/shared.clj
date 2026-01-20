@@ -18,7 +18,7 @@
    [:span.gleanmo-wordmark-bracket "]]"]])
 
 (defn nav-bar
-  [{:keys [email user-id account-url]}]
+  [{:keys [user-id account-url]}]
   (let [account-link (or account-url
                          (when user-id (str "/app/users/" user-id))
                          "/app/my-user")]
@@ -88,7 +88,7 @@
          "🧻 BM logs"]]]])))
 
 (defn side-bar
-  [{:keys [biff/db session], :as ctx} & content]
+  [{:keys [biff/db session]} & content]
   (let [user-id     (:uid session)
         {:keys [show-sensitive show-archived show-bm-logs]}
         (query/get-user-settings db user-id)

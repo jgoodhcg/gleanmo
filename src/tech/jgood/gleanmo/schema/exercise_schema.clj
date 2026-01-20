@@ -1,5 +1,4 @@
-(ns tech.jgood.gleanmo.schema.exercise-schema
-  (:require [tech.jgood.gleanmo.schema.meta :as sm]))
+(ns tech.jgood.gleanmo.schema.exercise-schema)
 
 (def exercise
   [:map {:closed true}

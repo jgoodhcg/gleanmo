@@ -1,6 +1,5 @@
 (ns tech.jgood.gleanmo.timer.routes
   (:require
-   [com.biffweb :as biff]
    [tech.jgood.gleanmo.app.shared :refer [side-bar]]
    [tech.jgood.gleanmo.db.queries :as queries]
    [tech.jgood.gleanmo.db.mutations :as mutations]
@@ -18,7 +17,7 @@
   (let [explicit-field (schema-utils/primary-rel-field entity-schema)
         base-name      (schema-utils/entity-base-name entity-str)
         candidate-key  (or explicit-field
-                            (keyword entity-str (str base-name "-id")))
+                           (keyword entity-str (str base-name "-id")))
         field-entry    (schema-utils/schema-field entity-schema candidate-key)
         parent-entity  (some-> field-entry schema-utils/relationship-target-entity)]
     (when-not field-entry
@@ -34,7 +33,6 @@
     {:relationship-field candidate-key
      :parent-entity-key  parent-entity
      :parent-entity-str  (name parent-entity)}))
-
 
 (defn timer-config
   "Build derived configuration for a timer-enabled entity."
@@ -68,7 +66,6 @@
            interval-fields
            rel-info)))
 
-
 (defn fetch-active-timers
   [ctx {:keys [entity-query beginning-key end-key]}]
   (->> (queries/all-for-user-query entity-query ctx)
@@ -87,13 +84,13 @@
         encoded-redirect   (java.net.URLEncoder/encode (str "/app/timer/" entity-str)
                                                        "UTF-8")]
     [:div.bg-dark-surface.rounded-lg.p-4.border.border-dark.transition-all.duration-300.hover:shadow-lg.hover:border-neon-yellow
-[:div.flex.items-center.justify-between
-       [:div.flex-1.min-w-0
-        [:div
-         [:h3.text-lg.font-semibold.text-white (or (get parent label-key) "Unnamed")]
-         (when-let [notes (get parent notes-key)]
-           [:p.text-sm.text-gray-400.truncate notes])]]
-       [:a.bg-neon-yellow.bg-opacity-20.text-neon-yellow.px-3.py-2.rounded.text-sm.font-medium.hover:bg-opacity-30.transition-all.no-underline
+     [:div.flex.items-center.justify-between
+      [:div.flex-1.min-w-0
+       [:div
+        [:h3.text-lg.font-semibold.text-white (or (get parent label-key) "Unnamed")]
+        (when-let [notes (get parent notes-key)]
+          [:p.text-sm.text-gray-400.truncate notes])]]
+      [:a.bg-neon-yellow.bg-opacity-20.text-neon-yellow.px-3.py-2.rounded.text-sm.font-medium.hover:bg-opacity-30.transition-all.no-underline
        {:href (str "/app/crud/form/" entity-str
                    "/new?"
                    rel-param-name "=" (:xt/id parent)
@@ -103,9 +100,9 @@
 
 (defn active-timer-card
   "Create a card for an active timer with stop functionality"
-  [timer parents ctx {:keys [entity-str parent-entity-key relationship-key beginning-key notes-key]}]
+  [timer parent-entities _ctx {:keys [entity-str parent-entity-key relationship-key beginning-key notes-key]}]
   (let [timer-parent-id (get timer relationship-key)
-        parent          (first (filter #(= (:xt/id %) timer-parent-id) parents))
+        parent          (first (filter #(= (:xt/id %) timer-parent-id) parent-entities))
         label-key       (schema-utils/entity-attr-key parent-entity-key "label")
         parent-name     (or (some-> parent (get label-key)) "Unknown")
         start-time      (get timer beginning-key)
@@ -135,44 +132,44 @@
 (defn timer-page
   "Timer page showing parent entities and active timers"
   [ctx {:keys [entity-str parent-entity-str parent-query] :as config}]
-  (let [parents      (queries/all-for-user-query parent-query ctx)
+  (let [parent-entities      (queries/all-for-user-query parent-query ctx)
         ;; Find active timers (entries with beginning but no end)
         active-timers (fetch-active-timers ctx config)]
     (ui/page
      ctx
-      (side-bar
-       ctx
-       [:div.container.mx-auto.p-6.space-y-8
-        [:h1.text-3xl.font-bold.text-white "⏱️ Time Tracker"]
+     (side-bar
+      ctx
+      [:div.container.mx-auto.p-6.space-y-8
+       [:h1.text-3xl.font-bold.text-white "⏱️ Time Tracker"]
 
 ;; Active Timers Section
-         [:div.mb-8
-          [:h2.text-xl.font-semibold.mb-4.text-neon-cyan "Active Timers"]
-          [:div
-           {:id "active-timers-section"
-            :hx-get (str "/app/timer/" entity-str "/active")
-            :hx-trigger "every 30s"
-            :hx-swap "outerHTML"}
-           (when (seq active-timers)
-             [:div.space-y-4
-              (for [timer active-timers]
-                ^{:key (:xt/id timer)}
-                (active-timer-card timer parents ctx config))])]]
+       [:div.mb-8
+        [:h2.text-xl.font-semibold.mb-4.text-neon-cyan "Active Timers"]
+        [:div
+         {:id "active-timers-section"
+          :hx-get (str "/app/timer/" entity-str "/active")
+          :hx-trigger "every 30s"
+          :hx-swap "outerHTML"}
+         (when (seq active-timers)
+           [:div.space-y-4
+            (for [timer active-timers]
+              ^{:key (:xt/id timer)}
+              (active-timer-card timer parent-entities ctx config))])]]
 
-[:div.mb-8
-          [:h2.text-xl.font-semibold.mb-4.text-neon-yellow "Start Timer"]
-          (if (seq parents)
-            [:div.grid.grid-cols-1.md:grid-cols-2.gap-4
-             (for [parent parents]
-               ^{:key (:xt/id parent)}
-               (start-timer-card parent config))]
-            [:p.text-gray-400
-             (str "No " parent-entity-str "s found. Create some first!")])]]))))
+       [:div.mb-8
+        [:h2.text-xl.font-semibold.mb-4.text-neon-yellow "Start Timer"]
+        (if (seq parent-entities)
+          [:div.grid.grid-cols-1.md:grid-cols-2.gap-4
+           (for [parent parent-entities]
+             ^{:key (:xt/id parent)}
+             (start-timer-card parent config))]
+          [:p.text-gray-400
+           (str "No " parent-entity-str "s found. Create some first!")])]]))))
 
 (defn active-timers-section
   "Return HTML for the active timers section"
   [ctx {:keys [entity-str parent-query] :as config}]
-  (let [parents (queries/all-for-user-query parent-query ctx)
+  (let [parent-entities (queries/all-for-user-query parent-query ctx)
         active-timers (fetch-active-timers ctx config)]
     {:status 200
      :headers {"Content-Type" "text/html"}
@@ -183,16 +180,15 @@
               :hx-trigger "every 30s"
               :hx-swap "outerHTML"}
              (when (seq active-timers)
-[:div.space-y-4
-                 (for [timer active-timers]
-                   ^{:key (:xt/id timer)}
-                   (active-timer-card timer parents ctx config))])])}))
+               [:div.space-y-4
+                (for [timer active-timers]
+                  ^{:key (:xt/id timer)}
+                  (active-timer-card timer parent-entities ctx config))])])}))
 
 (defn stop-timer
   "Stop an active timer by setting the end time"
   [timer-id ctx {:keys [entity-str end-key entity-query]}]
-  (let [user-id (get-in ctx [:session :uid])
-        timer   (first (filter #(= (:xt/id %) timer-id)
+  (let [timer   (first (filter #(= (:xt/id %) timer-id)
                                (queries/all-for-user-query entity-query ctx)))]
     (if (and timer (nil? (get timer end-key)))
       (do

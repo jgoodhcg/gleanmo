@@ -1,7 +1,5 @@
 (ns tech.jgood.gleanmo.app.bm-log
   (:require
-   [clojure.pprint :refer [pprint]]
-   [potpuri.core :as pot]
    [tech.jgood.gleanmo.app.shared :refer [side-bar]]
    [tech.jgood.gleanmo.crud.routes :as crud]
    [tech.jgood.gleanmo.db.queries :as queries]
@@ -21,7 +19,7 @@
 (def viz-routes
   (viz-routes/gen-routes {:entity-key :bm-log
                           :entity-schema bm-schema/bm-log
-                          :entity-str "bm-log" 
+                          :entity-str "bm-log"
                           :plural-str "bm-logs"}))
 
 (defn bristol-chart
@@ -29,7 +27,6 @@
   [bristol-counts]
   (let [types          [[:b1 "1"] [:b2 "2"] [:b3 "3"] [:b4 "4"] [:b5 "5"]
                         [:b6 "6"] [:b7 "7"]]
-        segment-height 8 ; Height per occurrence in pixels
         bristol-colors {:b1 "bg-neon-azure",
                         :b2 "bg-neon-azure",
                         :b3 "bg-neon-azure",
@@ -42,13 +39,13 @@
      [:div
       {:class "flex gap-1 items-end", :style {:min-height "8rem"}}
       (for [[type-key label] types]
-        (let [count (get bristol-counts type-key 0)
+        (let [cnt   (get bristol-counts type-key 0)
               color (get bristol-colors type-key "bg-gray-400")]
           [:div.flex-1.flex.flex-col.items-center.justify-end
            {:key type-key}
            ;; Stack of segments for each occurrence
            [:div.w-full.flex.flex-col-reverse.gap-1
-            (for [i (range count)]
+            (for [i (range cnt)]
               [:div.w-full.opacity-70.h-1
                {:key i, :class color}])]
            [:p.text-xs.text-gray-500.mt-1
@@ -56,8 +53,8 @@
 
 (defn bm-stats
   [{:keys [session biff/db], :as context}]
-  (let [user-id            (:uid session)
-        {:user/keys [time-zone]} (queries/get-entity-by-id db user-id)
+  (let [user-id (:uid session)
+        _user   (queries/get-entity-by-id db user-id)
         ;; Get all BM logs for the user
         all-bm-logs        (->> (queries/all-for-user-query
                                  {:entity-type-str "bm-log",

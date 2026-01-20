@@ -28,20 +28,20 @@
      (let [[ns-name test-name] (str/split test-spec #"/")
            ;; Check if ns-name already has the prefix
            has-prefix (str/starts-with? ns-name "tech.jgood.gleanmo.test")
-           ns-sym (symbol (if has-prefix 
-                            ns-name 
+           ns-sym (symbol (if has-prefix
+                            ns-name
                             (str "tech.jgood.gleanmo.test." ns-name)))
            _ (require ns-sym :reload)
            test-var (resolve (symbol (str ns-sym "/" test-name)))]
        (if test-var
          (test/test-vars [test-var])
          (println "Test" test-spec "not found.")))
-     
+
      ;; Handle namespace name only
      (let [;; Check if the namespace already has the prefix
            has-prefix (str/starts-with? test-spec "tech.jgood.gleanmo.test")
-           ns-sym (symbol (if has-prefix 
-                            test-spec 
+           ns-sym (symbol (if has-prefix
+                            test-spec
                             (str "tech.jgood.gleanmo.test." test-spec)))]
        (try
          (require ns-sym :reload)

@@ -1,9 +1,7 @@
 (ns tech.jgood.gleanmo.test.crud.forms.inputs-test
   (:require
-   [clojure.pprint :refer [pprint]]
    [clojure.string :as str]
    [clojure.test :refer [deftest is testing use-fixtures]]
-   [potpuri.core :as pot]
    [tech.jgood.gleanmo.app.shared :as shared]
    [tech.jgood.gleanmo.crud.forms.inputs :as inputs]
    [tech.jgood.gleanmo.db.queries :as db-queries]
@@ -209,7 +207,7 @@
             (is (= "habit/due-date" (get-attr input :name)))
             (is (nil? (get-attr input :value))) ; No default for non-beginning fields
             (is (true? (get-attr input :required))))))
-      
+
       (testing "sets default now value for beginning fields"
         (with-redefs [shared/get-user-time-zone     (constantly "UTC")
                       shared/format-date-time-local (constantly
@@ -222,7 +220,7 @@
                 input  (find-element result :input)]
             (is (some? input))
             (is (= "2023-05-15T14:30" (get-attr input :value))))))
-      
+
       (testing "sets default now value for timestamp fields"
         (with-redefs [shared/get-user-time-zone     (constantly "UTC")
                       shared/format-date-time-local (constantly
@@ -235,7 +233,7 @@
                 input  (find-element result :input)]
             (is (some? input))
             (is (= "2023-05-15T14:30" (get-attr input :value))))))
-                
+
       (testing "includes value when provided, regardless of field name"
         (with-redefs [shared/get-user-time-zone     (constantly "UTC")
                       shared/format-date-time-local (constantly

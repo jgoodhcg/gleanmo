@@ -472,12 +472,12 @@
                              (filter #(or (nil? domain-filter)
                                           (= (:task/domain %) domain-filter)))
                              (filter #(cond
-                                          (nil? project-param) true
-                                          (= project-param "none") (nil? (:task/project-id %))
-                                          (= project-param "has-project") (some? (:task/project-id %))
-                                          :else (= project-param
-                                                   (some-> (:task/project-id %)
-                                                           str))))
+                                        (nil? project-param) true
+                                        (= project-param "none") (nil? (:task/project-id %))
+                                        (= project-param "has-project") (some? (:task/project-id %))
+                                        :else (= project-param
+                                                 (some-> (:task/project-id %)
+                                                         str))))
                              (filter #(or (nil? search)
                                           (matches-search? % search)))
                              (filter #(or (nil? due-filter)

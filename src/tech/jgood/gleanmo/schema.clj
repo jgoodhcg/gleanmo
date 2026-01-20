@@ -1,6 +1,5 @@
 (ns tech.jgood.gleanmo.schema
   (:require [tick.core :as t]
-            [tech.jgood.gleanmo.schema.meta :as sm]
             [tech.jgood.gleanmo.schema.location-schema :as ls]
             [tech.jgood.gleanmo.schema.user-schema :as us]
             [tech.jgood.gleanmo.schema.habit-schema :as hs]

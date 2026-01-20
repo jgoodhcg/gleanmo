@@ -140,10 +140,10 @@
                  (fn [acc id pstats]
                    (let [kid (group-id->keyword id)]
                      (update acc kid
-                           (fn [existing]
-                             (if existing
-                               (timpl/merge-pstats existing pstats)
-                               pstats)))))
+                             (fn [existing]
+                               (if existing
+                                 (timpl/merge-pstats existing pstats)
+                                 pstats)))))
                  current
                  delta)))))
    (let [aggregate @accumulated-pstats]

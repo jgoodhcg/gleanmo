@@ -73,37 +73,37 @@
 (defn- relative-time
   [ctx inst]
   (when inst
-    (let [zone    (user-zone ctx)
-          now     (t/in (t/now) zone)
-          ts      (t/in inst zone)
-          future? (t/> ts now)
-          dur     (if future?
-                    (t/between now ts)
-                    (t/between ts now))
+    (let [zone     (user-zone ctx)
+          now      (t/in (t/now) zone)
+          ts       (t/in inst zone)
+          in-future (t/> ts now)
+          dur      (if in-future
+                     (t/between now ts)
+                     (t/between ts now))
           secs    (t/seconds dur)
-          suffix  (when-not future? " ago")]
+          suffix  (when-not in-future " ago")]
       (cond
-        (< secs 60)     (if future? "in under a minute" (str "just now"))
+        (< secs 60)     (if in-future "in under a minute" (str "just now"))
         (< secs 3600)   (let [m (t/minutes dur)]
-                          (str (when future? "in ")
+                          (str (when in-future "in ")
                                m
                                " min"
                                (when (not= m 1) "s")
                                suffix))
         (< secs 86400)  (let [h (t/hours dur)]
-                          (str (when future? "in ")
+                          (str (when in-future "in ")
                                h
                                " hr"
                                (when (not= h 1) "s")
                                suffix))
         (< secs 604800) (let [d (t/days dur)]
-                          (str (when future? "in ")
+                          (str (when in-future "in ")
                                d
                                " day"
                                (when (not= d 1) "s")
                                suffix))
         :else           (let [w (int (/ (t/days dur) 7))]
-                          (str (when future? "in ")
+                          (str (when in-future "in ")
                                w
                                " week"
                                (when (not= w 1) "s")
@@ -180,19 +180,19 @@
             prioritized    (sort-by #(or (:crud/priority (:opts %)) 99)
                                     display-fields)]
         (when-let [{:keys [input-type], :as field}
-                     (some (fn [f]
-                             (let [v (get entity (:field-key f))]
-                               (when (present-value? v)
-                                 (assoc f :value v))))
-                           prioritized)]
+                   (some (fn [f]
+                           (let [v (get entity (:field-key f))]
+                             (when (present-value? v)
+                               (assoc f :value v))))
+                         prioritized)]
           (case input-type
             :single-relationship
-              {:kind   :relationship,
-               :labels (keep #(relationship-label db %) [(:value field)])}
+            {:kind   :relationship,
+             :labels (keep #(relationship-label db %) [(:value field)])}
 
             :many-relationship
-              {:kind   :relationship,
-               :labels (keep #(relationship-label db %) (:value field))}
+            {:kind   :relationship,
+             :labels (keep #(relationship-label db %) (:value field))}
 
             {:kind :formatted,
              :node (fmt/format-cell-value input-type (:value field) ctx)}))))))
@@ -298,7 +298,7 @@
               :let [label   (or (:calendar-event/label e) "Untitled event")
                     start   (or (:calendar-event/beginning e) (::sm/created-at e))
                     rel     (relative-time ctx start)
-                    {:keys [accent muted]} (event-accent (:calendar-event/color-neon e))
+                    {:keys [accent]} (event-accent (:calendar-event/color-neon e))
                     href    (str "/app/crud/form/calendar-event/edit/" (:xt/id e))]]
           [:a {:class "group relative overflow-hidden rounded-lg border border-dark bg-dark/80 hover:bg-dark transition-colors"
                :key (str (:xt/id e))
@@ -306,11 +306,11 @@
                :style {:box-shadow "0 6px 18px rgba(0,0,0,0.22)"}}
            [:div.absolute.left-0.top-0.bottom-0.w-1 {:style {:background accent}}]
            [:div.flex.items-start.gap-3.px-4.py-3
-           [:div.flex-1.min-w-0.space-y-1
-            [:div.flex.items-center.gap-2
-             [:div.font-semibold.text-white.truncate label]
-             (when rel
-               [:span.text-xs.uppercase.tracking-wide.text-gray-500.ml-auto rel])]
+            [:div.flex-1.min-w-0.space-y-1
+             [:div.flex.items-center.gap-2
+              [:div.font-semibold.text-white.truncate label]
+              (when rel
+                [:span.text-xs.uppercase.tracking-wide.text-gray-500.ml-auto rel])]
              (when-let [desc (:calendar-event/summary e)]
                [:div.text-sm.text-gray-400.truncate desc])]]])]
        [:p.text-sm.text-gray-400 "No upcoming events found."])]))
@@ -334,14 +334,14 @@
        [:div {:class "absolute left-[14px] top-1 bottom-1 w-px bg-dark-border pointer-events-none"}]
        [:div.space-y-3
         (for [entity items]
-                (let [etype         (name (::sm/type entity))
-                      {:keys [accent muted]} (accent-style etype)
-                      href          (str "/app/crud/form/" etype "/edit/" (:xt/id entity))
-                      primary       (or (primary-field-value entity ctx)
-                                        {:kind :fallback
-                                         :node (entity-title entity)})
-                      time-meta     (activity-time-meta entity ctx)
-                      id-short      (subs (str (:xt/id entity)) 0 8)]
+          (let [etype         (name (::sm/type entity))
+                {:keys [accent muted]} (accent-style etype)
+                href          (str "/app/crud/form/" etype "/edit/" (:xt/id entity))
+                primary       (or (primary-field-value entity ctx)
+                                  {:kind :fallback
+                                   :node (entity-title entity)})
+                time-meta     (activity-time-meta entity ctx)
+                id-short      (subs (str (:xt/id entity)) 0 8)]
             [:a.group.relative.block.pl-12.pr-4.py-4.rounded-xl.border.transition-all.duration-200
              {:key   (str (:xt/id entity))
               :href  href
@@ -446,7 +446,7 @@
 
 (defn overview-shell
   "Top-level layout for the home overview page; sections hydrate via HTMX."
-  [ctx]
+  [_ctx]
   [:div.flex.flex-col.space-y-6
    (lazy-container "overview-events" "/app/overview/events" "Loading events")
    (lazy-container "overview-stats" "/app/overview/stats" "Loading stats")

@@ -64,8 +64,8 @@
                         (timestamp)
                         ".edn")
         options    (cond-> options
-                      table-id   (assoc :table-id table-id)
-                      (and (nil? table-id) table-name) (assoc :table-name table-name))]
+                     table-id   (assoc :table-id table-id)
+                     (and (nil? table-id) table-name) (assoc :table-name table-name))]
     (with-open [writer (io/writer file-name)]
       #_(.write writer "[\n")
       (get-all-records options writer)

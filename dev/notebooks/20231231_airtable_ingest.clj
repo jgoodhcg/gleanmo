@@ -27,34 +27,33 @@
 (def exercise-file "notebook_data/2024-02-29__09_37_08_386115_exercises.edn")
 (def exercise-log-file "notebook_data/2024-02-29__09_38_03_404207_exercise_log.edn")
 
-#_#_
-;; ### Exercises
-(with-open [rdr (io/reader exercise-file)]
-  (let [lines (line-seq rdr)]
-    (-> lines
-        (->> (map (fn [line]
-                    (-> line
-                        edn/read-string
-                        (->> (pot/map-keys keyword))
-                        (update :fields #(pot/map-keys keyword %))))))
-        shuffle
-        (->> (take 2)))))
+#_#_;; ### Exercises
+    (with-open [rdr (io/reader exercise-file)]
+      (let [lines (line-seq rdr)]
+        (-> lines
+            (->> (map (fn [line]
+                        (-> line
+                            edn/read-string
+                            (->> (pot/map-keys keyword))
+                            (update :fields #(pot/map-keys keyword %))))))
+            shuffle
+            (->> (take 2)))))
 
 ;; ### Exercise-logs
-(with-open [rdr (io/reader exercise-log-file)]
-  (let [lines (line-seq rdr)]
-    (-> lines
-        (->> (map (fn [line]
-                    (-> line
-                        edn/read-string
-                        (->> (pot/map-keys keyword))
-                        (update :fields #(pot/map-keys keyword %))
-                        (update-in [:fields :timestamp]
-                                   #(if (or (nil? %)
-                                            (str/blank? %))
-                                      % (t/instant %)))))))
-        shuffle
-        (->> (take 2)))))
+  (with-open [rdr (io/reader exercise-log-file)]
+    (let [lines (line-seq rdr)]
+      (-> lines
+          (->> (map (fn [line]
+                      (-> line
+                          edn/read-string
+                          (->> (pot/map-keys keyword))
+                          (update :fields #(pot/map-keys keyword %))
+                          (update-in [:fields :timestamp]
+                                     #(if (or (nil? %)
+                                              (str/blank? %))
+                                        % (t/instant %)))))))
+          shuffle
+          (->> (take 2)))))
 
 ;; ## Writing to XTDB
 ;; ### XTDB Setup
@@ -630,9 +629,9 @@
 (def rwd-by-day-data
   (->> rwd-by-day-data-proto-2
        (mapv (fn [{r   :reps
-                  d   :duration-seconds
-                  w   :weight
-                  :as entry}]
+                   d   :duration-seconds
+                   w   :weight
+                   :as entry}]
                (let [relative-duration (safe-division d max-duration)
                      relative-reps     (safe-division r max-reps)
                      relative-weight   (safe-division w max-weight)

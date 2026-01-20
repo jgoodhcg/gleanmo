@@ -69,8 +69,8 @@
     [:span.text-gray-400 "—"]
     (let [entity      (db/get-entity-by-id db value)
           entity-type (or (some-> entity
-                                   ::sm/type
-                                   name)
+                                  ::sm/type
+                                  name)
                           (some-> entity
                                   keys
                                   first

@@ -15,6 +15,7 @@ Directory of all work units. See [README.md](./README.md) for system documentati
 | [generic-viz.md](./generic-viz.md) | Generic visualizations for timestamp/interval entities |
 | [performance.md](./performance.md) | Performance monitoring and profiling dashboard |
 | [backlog.md](./backlog.md) | Minor improvements without full work-unit docs |
+| [search-filter.md](./search-filter.md) | Text search tool for CRUD and timer view pages |
 
 ## Paused
 

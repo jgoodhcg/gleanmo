@@ -2,7 +2,6 @@
   (:require
    [clojure.string :as str]
    [com.biffweb :as biff]
-   [potpuri.core :as pot]
    [tech.jgood.gleanmo.app.shared :refer [side-bar]]
    [tech.jgood.gleanmo.crud.forms.inputs :as inputs]
    [tech.jgood.gleanmo.db.queries :as db]
@@ -36,9 +35,8 @@
 (defn new-form
   "Render a new entity form"
   [{:keys [schema schema-map entity-str]}
-   {:keys [session biff/db params], :as ctx}]
-  (let [user-id (:uid session)
-        form-id (str entity-str "-new-form")
+   {:keys [params], :as ctx}]
+  (let [form-id (str entity-str "-new-form")
         ;; Extract pre-population values from query params. Use param keys
         ;; directly as they match field input names
         pre-populated-values

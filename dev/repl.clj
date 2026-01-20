@@ -483,9 +483,8 @@
   (let [ctx (get-prod-db-context prod-node)]
     (write-bm-logs-to-db ctx "<redacted-email>")
     #_(count (q (:biff/db ctx)
-       '{:find  (pull ?e [*]),
-         :where [[?e ::sm/type :bm-log]]}
-       )))
+                '{:find  (pull ?e [*]),
+                  :where [[?e ::sm/type :bm-log]]})))
 
 ;;
   )
@@ -495,15 +494,15 @@
   "Run a trivial profiled block to confirm Tufte is wired up."
   []
   (obs/profile-block :repl/smoke
-    (Thread/sleep 10)
-    :ok))
+                     (Thread/sleep 10)
+                     :ok))
 
 (defn dump-profiling-snapshot
   "Return the current accumlated profiling snapshot map (and reset buffer)."
   []
   (obs/aggregator-snapshot))
 
-(comment 
+(comment
   (profile-smoke)
   (dump-profiling-snapshot)
   ;;

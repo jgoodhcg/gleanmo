@@ -1,9 +1,7 @@
 (ns tech.jgood.gleanmo.db.queries
   (:require
-   [clojure.tools.logging :as log]
    [com.biffweb :as    biff
     :refer [q]]
-   [potpuri.core :as pot]
    [tech.jgood.gleanmo.schema :as schema-registry]
    [tech.jgood.gleanmo.schema.utils :as schema-utils]
    [tech.jgood.gleanmo.schema.meta :as sm]
@@ -107,7 +105,7 @@
 (def ^:private default-order-direction :desc)
 
 (defn- build-entity-query
-  [user-id entity-type order-key order-direction limit offset]
+  [_user-id entity-type order-key order-direction limit offset]
   (let [order-direction (or order-direction default-order-direction)
         order-var       '?order-value
         base-where      ['[?e :user/id user-id]
@@ -138,8 +136,8 @@
         time-stamp-key  (keyword entity-type-str "timestamp")
         filter-entities (fn [entities]
                           (let [basic-filtered (cond->> entities
-                                                   (not filter-sensitive) (remove #(get % sensitive-key))
-                                                   (not filter-archived)  (remove #(get % archived-key)))]
+                                                 (not filter-sensitive) (remove #(get % sensitive-key))
+                                                 (not filter-archived)  (remove #(get % archived-key)))]
                             (if (and filter-references relationship-fields)
                               (let [remove-sensitive (not filter-sensitive)
                                     remove-archived  (not filter-archived)]
@@ -156,29 +154,29 @@
                           (if (pos? candidate) candidate 32))
         filtered-results (loop [acc        []
                                 raw-offset 0]
-                            (let [query-map   (build-entity-query
-                                               user-id
-                                               entity-type
-                                               order-key
-                                               order-direction
-                                               batch-size
-                                               raw-offset)
-                                  raw-results (q db query-map user-id)
-                                  fetched     (count raw-results)
-                                  entities    (map first raw-results)
-                                  filtered    (filter-entities entities)
-                                  new-acc     (into acc filtered)
-                                  enough?     (and target-count
-                                                   (>= (count new-acc) target-count))
-                                  exhausted?  (< fetched batch-size)]
-                              (if (or exhausted? enough?)
-                                new-acc
-                                (recur new-acc (+ raw-offset fetched)))))
+                           (let [query-map   (build-entity-query
+                                              user-id
+                                              entity-type
+                                              order-key
+                                              order-direction
+                                              batch-size
+                                              raw-offset)
+                                 raw-results (q db query-map user-id)
+                                 fetched     (count raw-results)
+                                 entities    (map first raw-results)
+                                 filtered    (filter-entities entities)
+                                 new-acc     (into acc filtered)
+                                 enough?     (and target-count
+                                                  (>= (count new-acc) target-count))
+                                 exhausted?  (< fetched batch-size)]
+                             (if (or exhausted? enough?)
+                               new-acc
+                               (recur new-acc (+ raw-offset fetched)))))
         ordered-results (cond->> filtered-results
-                           (nil? order-key)
-                           (sort-by #(or (time-stamp-key %) (::sm/created-at %)))
-                           (nil? order-key)
-                           reverse)
+                          (nil? order-key)
+                          (sort-by #(or (time-stamp-key %) (::sm/created-at %)))
+                          (nil? order-key)
+                          reverse)
         offset'         (max 0 (or offset 0))
         after-offset    (if (zero? offset')
                           ordered-results
@@ -226,7 +224,7 @@
    This function is a higher-level wrapper around all-entities-for-user that handles
    user settings for including sensitive entities, archived entities, and related entity filtering."
   [{:keys [entity-type-str schema filter-references limit offset order-key order-direction]}
-   {:keys [biff/db session params]}]
+   {:keys [biff/db session]}]
   (let [user-id             (:uid session)
         ;; Get user's preferences from settings, with secure defaults
         {:keys [show-sensitive show-archived]} (get-user-settings db user-id)
@@ -265,8 +263,8 @@
              order-key    (get order-keys entity-str ::sm/created-at)
              entity-schema (get schema-registry/schema entity-kw)
              rel-fields    (schema-utils/extract-relationship-fields
-                             entity-schema
-                             :remove-system-fields true)]
+                            entity-schema
+                            :remove-system-fields true)]
          (all-entities-for-user
           db
           user-id
@@ -287,8 +285,8 @@
         entity-kw     :calendar-event
         entity-schema (get schema-registry/schema entity-kw)
         rel-fields    (schema-utils/extract-relationship-fields
-                        entity-schema
-                        :remove-system-fields true)
+                       entity-schema
+                       :remove-system-fields true)
         batch-limit   (max 40 (* 4 limit))
         now           (t/now)
         raw-events    (all-entities-for-user

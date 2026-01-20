@@ -4,8 +4,7 @@
    [tech.jgood.gleanmo.app.shared :as shared]
    [tech.jgood.gleanmo.crud.views.formatting :as fmt]
    [tech.jgood.gleanmo.db.queries :as db]
-   [tech.jgood.gleanmo.schema.meta :as sm]
-   [xtdb.api :as xt]))
+   [tech.jgood.gleanmo.schema.meta :as sm]))
 
 ;; Mock functions for testing
 (defn test-fixtures
@@ -102,8 +101,8 @@
 
       (testing "displays label from entity when available"
         (with-redefs [db/get-entity-by-id (constantly {:xt/id      uuid,
-                                                      ::sm/type   :user,
-                                                      :user/label "John Doe"})]
+                                                       ::sm/type   :user,
+                                                       :user/label "John Doe"})]
           (let [result (fmt/format-cell-value :single-relationship
                                               uuid
                                               {:biff/db mock-db})]
@@ -111,7 +110,7 @@
 
       (testing "displays ID truncated when no label available"
         (with-redefs [db/get-entity-by-id (constantly {:xt/id uuid
-                                                      ::sm/type :foo})]
+                                                       ::sm/type :foo})]
           (let [result (fmt/format-cell-value :single-relationship
                                               uuid
                                               {:biff/db mock-db})]

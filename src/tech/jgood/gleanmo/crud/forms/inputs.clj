@@ -315,18 +315,18 @@
       input-label]
      [:div.mt-2
       (into
-        [:select.form-select
-         {:name                input-name,
-          :required            input-required,
-          :data-original-value default-val-str}
+       [:select.form-select
+        {:name                input-name,
+         :required            input-required,
+         :data-original-value default-val-str}
          ;; Add empty option for optional fields
-         (when-not input-required
-           [:option {:value "", :selected (nil? value)} "-- Select --"])]
-        (for [opt enum-options]
-          [:option
-           {:value    (name opt),
-            :selected (= (keyword opt) value)}
-           (name opt)]))]]))
+        (when-not input-required
+          [:option {:value "", :selected (nil? value)} "-- Select --"])]
+       (for [opt enum-options]
+         [:option
+          {:value    (name opt),
+           :selected (= (keyword opt) value)}
+          (name opt)]))]]))
 
 (defmethod render :boolean-or-enum
   [field _]
@@ -347,19 +347,19 @@
       input-label]
      [:div.mt-2
       (into
-        [:select.form-select
-         {:name                input-name,
-          :required            input-required,
-          :data-original-value original-val-str}]
-        (for [opt options]
-          [:option
-           (cond-> {:value (name opt)}
-             (cond
-               (boolean? default-value) (= (if default-value :yes :no) opt)
-               (keyword? default-value) (= default-value opt)
-               :else false)
-             (assoc :selected true))
-           (name opt)]))]]))
+       [:select.form-select
+        {:name                input-name,
+         :required            input-required,
+         :data-original-value original-val-str}]
+       (for [opt options]
+         [:option
+          (cond-> {:value (name opt)}
+            (cond
+              (boolean? default-value) (= (if default-value :yes :no) opt)
+              (keyword? default-value) (= default-value opt)
+              :else false)
+            (assoc :selected true))
+          (name opt)]))]]))
 
 (defmethod render :default
   [field _]
