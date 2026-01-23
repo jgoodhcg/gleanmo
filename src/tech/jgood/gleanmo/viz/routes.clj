@@ -13,6 +13,7 @@
   [schema]
   (let [field-map (->> schema
                        (filter vector?)
+                       #_{:clj-kondo/ignore [:shadowed-var]}
                        (map (fn [[field-name opts type]]
                               (if (map? opts)
                                 [field-name type]
@@ -163,8 +164,9 @@
                                      [date-str (count items) unique-grouped-labels])))))
 
         ;; Create chart data with embedded details for tooltip
-        chart-data (map (fn [[date-str count entity-labels]]
-                          [date-str count entity-labels entity-str]) grouped-data)]
+        chart-data #_{:clj-kondo/ignore [:shadowed-var]}
+        (map (fn [[date-str count entity-labels]]
+               [date-str count entity-labels entity-str]) grouped-data)]
 
     {:backgroundColor "#0d1117"  ; Dark background
      :title {:text (str "Activity Calendar - " year-range)
@@ -253,8 +255,9 @@
                                      [date-str (count items) unique-grouped-labels])))))
 
         ;; Create chart data with embedded details for tooltip
-        chart-data (map (fn [[date-str count entity-labels]]
-                          [date-str count entity-labels entity-str]) grouped-data)]
+        chart-data #_{:clj-kondo/ignore [:shadowed-var]}
+        (map (fn [[date-str count entity-labels]]
+               [date-str count entity-labels entity-str]) grouped-data)]
 
     {:backgroundColor "#0d1117"  ; Dark background
      :title {:text (str "Activity Calendar - " year-range)

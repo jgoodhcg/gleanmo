@@ -61,6 +61,7 @@
 (deftest determine-input-type-test
   (testing "determine-input-type function"
     (testing "handles enum types"
+      #_{:clj-kondo/ignore [:shadowed-var]}
       (let [type [:enum :admin :user :guest]
             result (schema-utils/determine-input-type type)]
         (is (= :enum (:input-type result)))
@@ -68,6 +69,7 @@
         (is (nil? (:related-entity-str result)))))
 
     (testing "handles many-relationship types"
+      #_{:clj-kondo/ignore [:shadowed-var]}
       (let [type [:set :habit/id]
             result (schema-utils/determine-input-type type)]
         (is (= :many-relationship (:input-type result)))
@@ -75,6 +77,7 @@
         (is (= "habit" (:related-entity-str result)))))
 
     (testing "handles single-relationship types"
+      #_{:clj-kondo/ignore [:shadowed-var]}
       (let [type :user/id
             result (schema-utils/determine-input-type type)]
         (is (= :single-relationship (:input-type result)))
@@ -82,6 +85,7 @@
         (is (= "user" (:related-entity-str result)))))
 
     (testing "handles primitive types"
+      #_{:clj-kondo/ignore [:shadowed-var]}
       (let [type :string
             result (schema-utils/determine-input-type type)]
         (is (= :string (:input-type result)))

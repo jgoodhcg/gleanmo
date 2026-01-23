@@ -64,6 +64,38 @@ This single command runs formatting check + linting and catches most issues: syn
 | `clj -M:cljfmt fix src test` | Fix code formatting |
 | `clj -M:lint --lint src --lint test` | Run clj-kondo linter |
 
+## nREPL Usage (Clojure MCP Tools)
+
+A running nREPL (typically port 7888) may be available via MCP tools (`clojure_eval`, `clojure_inspect_project`, etc.). This provides fast feedback without JVM cold-starts, but operates on the **live application state**.
+
+### Safe (No Permission Needed)
+
+These operations are pure and have no side effects:
+
+- **Evaluate pure expressions** — arithmetic, string manipulation, data transformations
+- **Validate data against Malli schemas** — `(malli.core/validate schema data)`, `(malli.core/explain schema data)`
+- **Inspect loaded var metadata** — `(-> #'some-fn meta :arglists)`
+- **Check if a symbol resolves** — `(resolve 'some.ns/some-fn)`
+- **Read project structure** — `clojure_inspect_project`
+- **List nREPL servers** — `list_nrepl_ports`
+
+### Requires User Permission
+
+**Ask before running** anything that could have side effects:
+
+- **`(require ... :reload)`** — reloading namespaces may re-register routes, redefine multimethods, or alter system state
+- **Any function that touches the database** — even read-only queries hit the live DB
+- **Calling application functions** — unless you are certain they are pure (no IO, no atoms, no DB)
+- **Anything involving atoms, refs, or agents** — state mutation
+- **Running tests via nREPL** — tests may have DB fixtures or side effects; prefer `just validate` instead
+
+### General Rules
+
+1. **`just check` remains the primary validation command.** It is safe, isolated, and catches most issues.
+2. **Use the nREPL for fast pure-expression feedback only** — e.g., verifying a data transformation works before committing to it.
+3. **When in doubt, don't evaluate it.** Use `just check` instead.
+4. **Never use `clojure_eval` as a substitute for running the dev server or REPL.** The same restrictions from "User-Only Commands" apply.
+
 ## User-Only Commands
 
 The agent must **NOT** run these unless explicitly instructed:

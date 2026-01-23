@@ -222,6 +222,7 @@
                         (keyword (if (str/blank? slug) "request" slug))))]
       (profile-request route-key #(handler req)))))
 
+#_{:clj-kondo/ignore [:shadowed-var]}
 (defmacro profile-block
   "Convenience macro that profiles a block as a standalone unit.
    Wraps the body in both `tufte/profile` and `tufte/p` so the accumulator records it."
@@ -231,6 +232,7 @@
 
 (defn use-observability
   "Biff component initializer that ensures profiling is active and records instance metadata."
+  #_{:clj-kondo/ignore [:unused-binding]}
   [{:keys [biff/stop], :as system}]
   (init!)
   (log/info "Observability component active for" instance-id)

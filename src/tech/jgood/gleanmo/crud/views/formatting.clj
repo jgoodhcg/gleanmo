@@ -6,6 +6,7 @@
    [tech.jgood.gleanmo.schema.meta :as sm]))
 
 ;; Multimethod for formatting cell values based on field type
+#_{:clj-kondo/ignore [:shadowed-var]}
 (defmulti format-cell-value (fn [type _ _] type))
 
 (defmethod format-cell-value :string

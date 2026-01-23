@@ -225,6 +225,7 @@
                                      "habit/priority"  "5",
                                      "habit/completed" "true"}
                 ctx-without-flag (assoc ctx :params params-without-flag)
+                #_{:clj-kondo/ignore [:unused-binding]}
                 result (handlers/update-entity! entity-args ctx-without-flag)]
 
             ;; Check that the optional flag was explicitly set to false in

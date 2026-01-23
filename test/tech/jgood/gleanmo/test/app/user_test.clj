@@ -73,6 +73,7 @@
             (is (false? (:user/show-archived updated-user)))))
 
         (testing "should handle partial updates"
+          #_{:clj-kondo/ignore [:unused-binding]}
           (let [edit-ctx (assoc ctx
                                 :params {:email "partial@example.com"
                                          :time-zone "Europe/London"
@@ -187,6 +188,7 @@
                                 :data       {:user/email     "fresh@example.com"
                                              :user/joined-at (t/now)
                                              :xt/id          fresh-user-id}})
+                #_{:clj-kondo/ignore [:unused-binding]}
                 result        (mutations/update-user!
                                ctx
                                fresh-user-id

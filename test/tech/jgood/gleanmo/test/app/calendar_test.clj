@@ -17,6 +17,7 @@
    :biff/db         (xt/db node),
    :biff/malli-opts #'main/malli-opts})
 
+#_{:clj-kondo/ignore [:unused-value]}
 (deftest user-access-control-test
   "Test that users can only access their own events"
   (with-open [node (test-xtdb-node [])]
@@ -57,6 +58,7 @@
           (is (= "User 2 Event" (:calendar-event/label (first events)))
               "Should be user 2's event"))))))
 
+#_{:clj-kondo/ignore [:unused-value]}
 (deftest timezone-handling-test
   "Test timezone handling for events across different zones"
   (with-open [node (test-xtdb-node [])]
@@ -91,6 +93,7 @@
             (is (= utc-instant (:calendar-event/beginning (first utc-events)))
                 "Event time should be same UTC instant")))))))
 
+#_{:clj-kondo/ignore [:unused-value]}
 (deftest year-boundary-timezone-query-test
   "Critical test: events near year boundaries should appear in correct year despite timezone differences"
   (with-open [node (test-xtdb-node [])]

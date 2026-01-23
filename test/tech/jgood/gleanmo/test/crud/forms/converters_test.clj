@@ -8,6 +8,7 @@
    [java.time ZoneId LocalDateTime ZonedDateTime]))
 
 ;; Helper for testing specific exceptions
+#_{:clj-kondo/ignore [:shadowed-var]}
 (defn thrown-ex-info-with-type?
   [^clojure.lang.ExceptionInfo ex type]
   (= type (:type (ex-data ex))))
@@ -118,6 +119,7 @@
               (is (= "not-a-uuid" (:value (ex-data e))))))))))
 
   (testing "instant conversion"
+    #_{:clj-kondo/ignore [:unused-binding]}
     (let [utc-zone-id (ZoneId/of "UTC")
           est-zone-id (ZoneId/of "America/New_York")
           datetime-str "2023-05-15T14:30"

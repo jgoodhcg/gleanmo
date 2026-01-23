@@ -109,6 +109,7 @@
       :airtable/latest-done   latest-done}
 
      ;; effectively dissoc's anything with a nil value
+     #_{:clj-kondo/ignore [:unresolved-var]}
      (sp/setval [sp/MAP-VALS nil?] sp/NONE))))
 
 ;; Write exercises to xtdb

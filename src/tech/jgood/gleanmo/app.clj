@@ -57,6 +57,7 @@
   [{:keys [session biff/db path-params params], :as ctx}]
   (let [user-id          (:uid session)
         {:keys [super-user]} (db/get-user-authz db user-id)
+        #_{:clj-kondo/ignore [:shadowed-var]}
         type             (->> path-params
                               :type
                               keyword
@@ -285,14 +286,15 @@
                        "Span" "Calls"
                        "Mean" "Total"
                        "Min"  "Max")
-        lines  (for [[pid {:keys [n mean sum min max]}] stats]
-                 (format "%-55s %8d %10s %10s %10s %10s"
-                         (id->label pid)
-                         n
-                         (format-duration mean)
-                         (format-duration sum)
-                         (format-duration min)
-                         (format-duration max)))]
+        lines  #_{:clj-kondo/ignore [:shadowed-var]}
+        (for [[pid {:keys [n mean sum min max]}] stats]
+          (format "%-55s %8d %10s %10s %10s %10s"
+                  (id->label pid)
+                  n
+                  (format-duration mean)
+                  (format-duration sum)
+                  (format-duration min)
+                  (format-duration max)))]
     (str/join "\n"
               (concat [header]
                       lines

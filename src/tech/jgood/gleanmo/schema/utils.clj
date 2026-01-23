@@ -211,6 +211,7 @@
 
 (defn ensure-interval-fields
   "Ensure schema contains beginning/end instants for the entity."
+  #_{:clj-kondo/ignore [:shadowed-var]}
   [{:keys [entity-schema entity-str], :as _opts}]
   (let [ent-schema     entity-schema
         beginning-field (schema-field ent-schema

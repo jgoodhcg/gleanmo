@@ -107,6 +107,7 @@
             sorted-fields (crud-views/sort-by-priority-then-arbitrary display-fields)]
 
         ;; Should have beginning, end, type-id, and location fields
+        #_{:clj-kondo/ignore [:redundant-let]}
         (let [beginning-field (first (filter #(= (:field-key %) :meditation-log/beginning) sorted-fields))
               end-field (first (filter #(= (:field-key %) :meditation-log/end) sorted-fields))
               type-id-field (first (filter #(= (:field-key %) :meditation-log/type-id) sorted-fields))

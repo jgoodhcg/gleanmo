@@ -20,6 +20,7 @@
                          (if (nil? field-info)
                            acc
                            (let [optional?  (get-in field-info [:opts :optional])
+                                 #_{:clj-kondo/ignore [:shadowed-var]}
                                  type       (:type field-info)
                                  {:keys [input-type]}
                                  (schema-utils/determine-input-type type)]
@@ -32,6 +33,7 @@
                                  (assoc acc k converted-value)))))))
                      ;; Start with defaults for missing boolean fields
                      (reduce (fn [acc field]
+                               #_{:clj-kondo/ignore [:shadowed-var]}
                                (let [[field-key opts type] (if (map? (second field))
                                                              [(first field) (second field) (nth field 2)]
                                                              [(first field) {} (second field)])
@@ -99,6 +101,7 @@
 
         ;; Process optional boolean fields that might have been unchecked
         updated-params (reduce (fn [acc field]
+                                 #_{:clj-kondo/ignore [:shadowed-var]}
                                  (let [[field-key opts type] (if (map? (second field))
                                                                [(first field) (second field) (nth field 2)]
                                                                [(first field) {} (second field)])

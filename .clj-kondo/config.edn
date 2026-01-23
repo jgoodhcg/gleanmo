@@ -15,4 +15,38 @@
            :redundant-let {:level :warning}
            :redundant-do {:level :warning}
            :shadowed-var {:level :warning}
-           :missing-docstring {:level :off}}}
+           :missing-docstring {:level :off}}
+
+ ;; Legacy dev files - old migration/utility scripts not actively maintained
+ :config-in-ns
+ {airtable.activity
+  {:linters {:unused-namespace {:level :off}
+             :unused-referred-var {:level :off}}}
+
+  notebooks.20231231-airtable-ingest
+  {:linters {:unused-namespace {:level :off}
+             :unused-referred-var {:level :off}
+             :unused-binding {:level :off}
+             :shadowed-var {:level :off}
+             :unresolved-var {:level :off}
+             :redundant-nested-call {:level :off}}}
+
+  repl.airtable.core
+  {:linters {:unused-binding {:level :off}}}
+
+  repl.airtable.medication
+  {:linters {:unused-binding {:level :off}}}
+
+  repl.airtable.medication-runner
+  {:linters {:unused-namespace {:level :off}
+             :unused-referred-var {:level :off}}}
+
+  tasks.airtable
+  {:linters {:unused-namespace {:level :off}}}
+
+  repl
+  {:linters {:unused-namespace {:level :off}
+             :unused-binding {:level :off}}}
+
+  tasks
+  {:linters {:shadowed-var {:level :off}}}}}

@@ -563,6 +563,7 @@
       [:span.text-sm.text-gray-500 (str "Showing " (count items))])]
    (if (seq items)
      [:div.grid.grid-cols-1.md:grid-cols-2.lg:grid-cols-3.gap-4
+      #_{:clj-kondo/ignore [:shadowed-var]}
       (for [{:keys [id title pill meta href]} items]
         [:div.card-container.group {:key (str id)}
          [:a.flex-grow.flex.flex-col.space-y-3.p-4.rounded-lg.border.border-dark.bg-dark.hover:border-neon.transition-all.duration-150

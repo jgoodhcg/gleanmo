@@ -73,6 +73,7 @@
      [:button.btn {:type "submit"}
       "Sign in"]])
    (when-some [error (:error params)]
+     #_{:clj-kondo/ignore [:unused-value]}
      [:.h-1]
      [:.text-sm.text-red-600
       (case error
@@ -141,6 +142,7 @@
              {:type "submit"})
       "Sign in"]])
    (when-some [error (:error params)]
+     #_{:clj-kondo/ignore [:unused-value]}
      [:.h-1]
      [:.text-sm.text-red-600
       (case error

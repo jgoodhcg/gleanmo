@@ -317,6 +317,7 @@
     (when-let [user (get-entity-by-id db user-id)]
       {:super-user (boolean (:authz/super-user user))})))
 
+#_{:clj-kondo/ignore [:shadowed-var]}
 (defnp db-viz-query
   "Execute a database visualization query with type and filter parameters."
   [db query type filter-email]

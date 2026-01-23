@@ -38,6 +38,7 @@
           result  (shared/turn-off-sensitive-button true user-id)]
       ;; The form contains: [:form {...} [:input ...] [:button ...]]
       ;; Skip the anti-forgery token input and get the button
+      #_{:clj-kondo/ignore [:redundant-let]}
       (let [button-component (first (last result))]
         (is (vector? button-component))
         ;; Just verify it's a button element, not specific styling
@@ -69,6 +70,7 @@
 
   (testing "should handle missing user gracefully"
     (with-open [node (test-xtdb-node [])]
+      #_{:clj-kondo/ignore [:unused-binding]}
       (let [ctx         (get-context node)
             user-id     (UUID/randomUUID)
             sidebar-ctx {:biff/db (xt/db node)
@@ -80,11 +82,13 @@
 
   (testing "should default to false for show-sensitive when no settings exist"
     (with-open [node (test-xtdb-node [])]
+      #_{:clj-kondo/ignore [:unused-binding]}
       (let [ctx         (get-context node)
             user-id     (UUID/randomUUID)
             sidebar-ctx {:biff/db (xt/db node)
                          :session {:uid user-id}}]
         ;; Don't create any user settings
+        #_{:clj-kondo/ignore [:redundant-let]}
         (let [result (shared/side-bar sidebar-ctx [:div "test content"])]
           ;; Should not show the turn-off button since show-sensitive defaults to false
           (is (vector? result)))))))
@@ -110,6 +114,7 @@
           result  (shared/turn-off-archived-button true user-id)]
       ;; The form contains: [:form {...} [:input ...] [:button ...]]
       ;; Skip the anti-forgery token input and get the button
+      #_{:clj-kondo/ignore [:redundant-let]}
       (let [button-component (first (last result))]
         (is (vector? button-component))
         ;; Just verify it's a button element, not specific styling

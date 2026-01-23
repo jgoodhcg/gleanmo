@@ -7,6 +7,7 @@
 (defmulti convert-field-value
   "Convert a form field value to the appropriate type for the schema.
    Dispatches on the field type."
+  #_{:clj-kondo/ignore [:shadowed-var]}
   (fn [type _value _ctx] type))
 
 (defmethod convert-field-value :string [_ value _] value)
@@ -106,6 +107,7 @@
       (keyword value))))
 
 (defmethod convert-field-value :default
+  #_{:clj-kondo/ignore [:shadowed-var]}
   [type value _]
   (throw (ex-info (str "Unknown field type for conversion: " type)
                   {:value value, :type type})))

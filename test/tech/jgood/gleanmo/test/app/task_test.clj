@@ -32,12 +32,11 @@
     (rendered-text view)))
 
 (deftest focus-default-now-test
-  (testing "defaults to now tasks and respects snooze/unrelated users"
+  (testing "defaults to now tasks, excludes other states and other users"
     (with-open [node (test-xtdb-node [])]
       (let [user-id        (UUID/randomUUID)
             other-user-id  (UUID/randomUUID)
-            ctx            (get-context node)
-            today          (LocalDate/now)]
+            ctx            (get-context node)]
         (mutations/create-entity!
          ctx
          {:entity-key :task
@@ -53,13 +52,6 @@
         (mutations/create-entity!
          ctx
          {:entity-key :task
-          :data {:user/id user-id
-                 :task/label "Snoozed Now Task"
-                 :task/state :now
-                 :task/snooze-until (.plusDays today 2)}})
-        (mutations/create-entity!
-         ctx
-         {:entity-key :task
           :data {:user/id other-user-id
                  :task/label "Other User Task"
                  :task/state :now}})
@@ -67,8 +59,30 @@
         (let [text (focus-text node user-id {})]
           (is (str/includes? text "Now Task"))
           (is (not (str/includes? text "Later Task")))
-          (is (not (str/includes? text "Snoozed Now Task")))
-          (is (not (str/includes? text "Other User Task"))))))))
+          (is (not (str/includes? text "Other User Task")))))))
+
+  (testing "exclude-future snoozed filter hides snoozed tasks"
+    (with-open [node (test-xtdb-node [])]
+      (let [user-id (UUID/randomUUID)
+            ctx     (get-context node)
+            today   (LocalDate/now)]
+        (mutations/create-entity!
+         ctx
+         {:entity-key :task
+          :data {:user/id user-id
+                 :task/label "Active Now Task"
+                 :task/state :now}})
+        (mutations/create-entity!
+         ctx
+         {:entity-key :task
+          :data {:user/id user-id
+                 :task/label "Snoozed Now Task"
+                 :task/state :now
+                 :task/snooze-until (.plusDays today 2)}})
+        (xt/sync node)
+        (let [text (focus-text node user-id {:snoozed "exclude-future"})]
+          (is (str/includes? text "Active Now Task"))
+          (is (not (str/includes? text "Snoozed Now Task"))))))))
 
 (deftest focus-any-state-test
   (testing "any state includes multiple states"
@@ -91,13 +105,13 @@
          ctx
          {:entity-key :task
           :data {:user/id user-id
-                 :task/label "Snoozed Task"
-                 :task/state :snoozed}})
+                 :task/label "Waiting Task"
+                 :task/state :waiting}})
         (xt/sync node)
         (let [text (focus-text node user-id {:state "any"})]
           (is (str/includes? text "Now Task"))
           (is (str/includes? text "Later Task"))
-          (is (str/includes? text "Snoozed Task")))))))
+          (is (str/includes? text "Waiting Task")))))))
 
 (deftest focus-filter-combination-test
   (testing "project/domain/search/due filters narrow the list"
@@ -155,25 +169,27 @@
           (is (not (str/includes? text "Write notes"))))))))
 
 (deftest focus-snoozed-only-test
-  (testing "snoozed filter shows only snoozed tasks"
+  (testing "future snoozed filter shows only snoozed tasks"
     (with-open [node (test-xtdb-node [])]
       (let [user-id (UUID/randomUUID)
-            ctx     (get-context node)]
+            ctx     (get-context node)
+            today   (LocalDate/now)]
         (mutations/create-entity!
          ctx
          {:entity-key :task
           :data {:user/id user-id
                  :task/label "Snoozed Task"
-                 :task/state :snoozed}})
+                 :task/state :now
+                 :task/snooze-until (.plusDays today 3)}})
         (mutations/create-entity!
          ctx
          {:entity-key :task
           :data {:user/id user-id
-                 :task/label "Now Task"
+                 :task/label "Active Task"
                  :task/state :now}})
         (xt/sync node)
         (let [params {:state "any"
-                      :snoozed "only"}
+                      :snoozed "future"}
               text   (focus-text node user-id params)]
           (is (str/includes? text "Snoozed Task"))
-          (is (not (str/includes? text "Now Task"))))))))
+          (is (not (str/includes? text "Active Task"))))))))

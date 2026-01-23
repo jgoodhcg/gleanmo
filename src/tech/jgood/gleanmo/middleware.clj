@@ -43,9 +43,11 @@
     (let [response (handler ctx)]
       (println "REQUEST")
       (biff/pprint ctx)
+      #_{:clj-kondo/ignore [:inline-def]}
       (def ctx* ctx)
       (println "RESPONSE")
       (biff/pprint response)
+      #_{:clj-kondo/ignore [:inline-def]}
       (def response* response)
       response)))
 
