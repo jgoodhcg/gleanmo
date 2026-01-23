@@ -127,7 +127,7 @@
                 {:type "hidden", :name "redirect", :value redirect}])
              [:div.flex.justify-between.mt-4
               [:a.form-button-secondary
-               {:href (str "/app/crud/" entity-str)} "Cancel"]
+               {:href (or (:redirect params) (str "/app/crud/" entity-str))} "Cancel"]
               [:button.form-button-primary {:type "submit"}
                "Save Changes"]]])
            [:div.mt-4.text-right

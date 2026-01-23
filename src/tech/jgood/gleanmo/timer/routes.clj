@@ -73,6 +73,106 @@
                  (and (get timer beginning-key)
                       (nil? (get timer end-key)))))))
 
+(defn fetch-completed-logs
+  "Fetch recent completed logs (both beginning and end set), ordered by beginning desc."
+  [ctx {:keys [entity-query beginning-key end-key]} limit]
+  (->> (queries/all-for-user-query
+        (assoc entity-query :order-key beginning-key :order-direction :desc)
+        ctx)
+       (filter (fn [log]
+                 (and (get log beginning-key)
+                      (get log end-key))))
+       (take limit)))
+
+(defn- log-duration-seconds
+  "Calculate duration in seconds for a completed log entry."
+  [log beginning-key end-key]
+  (let [start (get log beginning-key)
+        end   (get log end-key)]
+    (when (and start end)
+      (t/seconds (t/between start end)))))
+
+(defn- format-duration
+  "Format a duration in seconds as Xh Ym."
+  [total-seconds]
+  (let [hours   (quot total-seconds 3600)
+        minutes (quot (mod total-seconds 3600) 60)]
+    (cond
+      (and (zero? hours) (zero? minutes)) "< 1m"
+      (zero? hours) (str minutes "m")
+      :else (str hours "h " minutes "m"))))
+
+(defn- today-logs
+  "Fetch completed logs from today."
+  [ctx {:keys [entity-query beginning-key end-key]}]
+  (let [tz    (t/zone (str (java.time.ZoneId/systemDefault)))
+        today (t/date (t/in (t/now) tz))]
+    (->> (queries/all-for-user-query entity-query ctx)
+         (filter (fn [log]
+                   (and (get log beginning-key)
+                        (get log end-key)
+                        (= (t/date (t/in (get log beginning-key) tz)) today)))))))
+
+(defn- today-stats-section
+  "Render today's time stats broken down by parent entity, plus total."
+  [ctx {:keys [beginning-key end-key relationship-key parent-entity-key] :as config} parent-entities]
+  (let [logs      (today-logs ctx config)
+        label-key (schema-utils/entity-attr-key parent-entity-key "label")
+        by-parent (group-by #(get % relationship-key) logs)
+        parent-stats (->> by-parent
+                          (map (fn [[parent-id parent-logs]]
+                                 (let [parent (first (filter #(= (:xt/id %) parent-id) parent-entities))
+                                       secs   (->> parent-logs
+                                                   (map #(log-duration-seconds % beginning-key end-key))
+                                                   (filter some?)
+                                                   (reduce + 0))]
+                                   {:label (or (some-> parent (get label-key)) "Unknown")
+                                    :seconds secs})))
+                          (sort-by :seconds >)
+                          (filter #(pos? (:seconds %))))
+        total-secs (->> logs
+                        (map #(log-duration-seconds % beginning-key end-key))
+                        (filter some?)
+                        (reduce + 0))]
+    [:div.bg-dark-surface.rounded-lg.p-4.border.border-dark.space-y-3
+     (when (seq parent-stats)
+       [:div.space-y-2
+        (for [{:keys [label seconds]} parent-stats]
+          ^{:key label}
+          [:div.flex.items-center.justify-between
+           [:span.text-sm.text-gray-300 label]
+           [:span.text-sm.text-neon-cyan (format-duration seconds)]])])
+     [:div.flex.items-center.justify-between.border-t.border-dark.pt-2
+      [:span.text-sm.text-gray-400.uppercase.tracking-wide "Total"]
+      [:span.text-lg.font-semibold.text-neon-cyan (format-duration total-secs)]]]))
+
+(defn- recent-logs-section
+  "Render a list of recent completed logs as edit links."
+  [ctx {:keys [entity-str beginning-key end-key relationship-key parent-entity-key] :as config} parent-entities]
+  (let [logs      (fetch-completed-logs ctx config 5)
+        label-key (schema-utils/entity-attr-key parent-entity-key "label")
+        tz        (t/zone (str (java.time.ZoneId/systemDefault)))
+        formatter (java.time.format.DateTimeFormatter/ofPattern "MMM d, h:mm a")
+        redirect  (java.net.URLEncoder/encode (str "/app/timer/" entity-str) "UTF-8")]
+    (when (seq logs)
+      [:div.space-y-2
+       (for [log logs]
+         (let [parent-id   (get log relationship-key)
+               parent      (first (filter #(= (:xt/id %) parent-id) parent-entities))
+               parent-name (or (some-> parent (get label-key)) "Unknown")
+               duration    (log-duration-seconds log beginning-key end-key)
+               start-local (t/in (get log beginning-key) tz)
+               edit-url    (str "/app/crud/form/" entity-str "/edit/" (:xt/id log)
+                                "?redirect=" redirect)]
+           ^{:key (:xt/id log)}
+           [:a.block.no-underline {:href edit-url}
+            [:div.bg-dark-surface.rounded.p-3.border.border-dark.flex.items-center.justify-between.transition-all.duration-300.hover:border-neon-cyan
+             [:div
+              [:span.text-sm.text-white parent-name]
+              [:span.text-xs.text-gray-500.ml-2
+               (str (t/format formatter start-local))]]
+             [:span.text-sm.text-neon-cyan (when duration (format-duration duration))]]]))])))
+
 (defn start-timer-card
   "Render a start button for a parent entity."
   [parent {:keys [entity-str parent-entity-key relationship-key beginning-key]}]
@@ -164,7 +264,16 @@
              ^{:key (:xt/id parent)}
              (start-timer-card parent config))]
           [:p.text-gray-400
-           (str "No " parent-entity-str "s found. Create some first!")])]]))))
+           (str "No " parent-entity-str "s found. Create some first!")])]
+
+       [:div.mb-8
+        [:h2.text-xl.font-semibold.mb-4.text-white "Stats"]
+        (today-stats-section ctx config parent-entities)]
+
+       [:div.mb-8
+        [:h2.text-xl.font-semibold.mb-4.text-white "Recent Logs"]
+        (or (recent-logs-section ctx config parent-entities)
+            [:p.text-sm.text-gray-400 "No completed logs yet."])]]))))
 
 (defn active-timers-section
   "Return HTML for the active timers section"
