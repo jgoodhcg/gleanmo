@@ -1,6 +1,6 @@
 (ns tech.jgood.gleanmo.timer.routes
   (:require
-   [tech.jgood.gleanmo.app.shared :refer [side-bar]]
+   [tech.jgood.gleanmo.app.shared :refer [side-bar get-user-time-zone]]
    [tech.jgood.gleanmo.db.queries :as queries]
    [tech.jgood.gleanmo.db.mutations :as mutations]
    [tech.jgood.gleanmo.schema :refer [schema]]
@@ -105,7 +105,7 @@
 (defn- today-logs
   "Fetch completed logs from today."
   [ctx {:keys [entity-query beginning-key end-key]}]
-  (let [tz    (t/zone (str (java.time.ZoneId/systemDefault)))
+  (let [tz    (t/zone (or (get-user-time-zone ctx) "UTC"))
         today (t/date (t/in (t/now) tz))]
     (->> (queries/all-for-user-query entity-query ctx)
          (filter (fn [log]
@@ -151,7 +151,7 @@
   [ctx {:keys [entity-str beginning-key end-key relationship-key parent-entity-key] :as config} parent-entities]
   (let [logs      (fetch-completed-logs ctx config 5)
         label-key (schema-utils/entity-attr-key parent-entity-key "label")
-        tz        (t/zone (str (java.time.ZoneId/systemDefault)))
+        tz        (t/zone (or (get-user-time-zone ctx) "UTC"))
         formatter (java.time.format.DateTimeFormatter/ofPattern "MMM d, h:mm a")
         redirect  (java.net.URLEncoder/encode (str "/app/timer/" entity-str) "UTF-8")]
     (when (seq logs)
@@ -232,7 +232,9 @@
 (defn timer-page
   "Timer page showing parent entities and active timers"
   [ctx {:keys [entity-str parent-entity-str parent-query] :as config}]
-  (let [parent-entities      (queries/all-for-user-query parent-query ctx)
+  (let [label-key            (schema-utils/entity-attr-key (:parent-entity-key config) "label")
+        parent-entities      (->> (queries/all-for-user-query parent-query ctx)
+                                  (sort-by #(some-> (get % label-key) clojure.string/lower-case)))
         ;; Find active timers (entries with beginning but no end)
         active-timers (fetch-active-timers ctx config)]
     (ui/page
@@ -257,6 +259,10 @@
               (active-timer-card timer parent-entities ctx config))])]]
 
        [:div.mb-8
+        [:h2.text-xl.font-semibold.mb-4.text-white "Stats"]
+        (today-stats-section ctx config parent-entities)]
+
+       [:div.mb-8
         [:h2.text-xl.font-semibold.mb-4.text-neon-yellow "Start Timer"]
         (if (seq parent-entities)
           [:div.grid.grid-cols-1.md:grid-cols-2.gap-4
@@ -265,10 +271,6 @@
              (start-timer-card parent config))]
           [:p.text-gray-400
            (str "No " parent-entity-str "s found. Create some first!")])]
-
-       [:div.mb-8
-        [:h2.text-xl.font-semibold.mb-4.text-white "Stats"]
-        (today-stats-section ctx config parent-entities)]
 
        [:div.mb-8
         [:h2.text-xl.font-semibold.mb-4.text-white "Recent Logs"]
