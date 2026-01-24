@@ -1,5 +1,6 @@
 (ns tech.jgood.gleanmo.timer.routes
   (:require
+   [clojure.string :as str]
    [tech.jgood.gleanmo.app.shared :refer [side-bar get-user-time-zone]]
    [tech.jgood.gleanmo.db.queries :as queries]
    [tech.jgood.gleanmo.db.mutations :as mutations]
@@ -234,7 +235,7 @@
   [ctx {:keys [entity-str parent-entity-str parent-query] :as config}]
   (let [label-key            (schema-utils/entity-attr-key (:parent-entity-key config) "label")
         parent-entities      (->> (queries/all-for-user-query parent-query ctx)
-                                  (sort-by #(some-> (get % label-key) clojure.string/lower-case)))
+                                  (sort-by #(some-> (get % label-key) str/lower-case)))
         ;; Find active timers (entries with beginning but no end)
         active-timers (fetch-active-timers ctx config)]
     (ui/page

@@ -1,11 +1,9 @@
 (ns airtable.activity
-  "LEGACY: Habits (activity) migration from Airtable - COMPLETED.
+  {:deprecated "Migration completed. Use `clj -M:dev migrate-airtable` CLI task for new migrations."}
+  "DEPRECATED/LEGACY: Habits (activity) migration from Airtable - COMPLETED.
 
    This migration has been completed and this code is preserved for reference.
-
-   For new Airtable entity migrations, use the new pattern:
-   - Shared utilities: repl.airtable.core
-   - Entity-specific code: repl.airtable.<entity> (e.g., repl.airtable.medication)
+   New migrations use the CLI task: clj -M:dev migrate-airtable
 
    Workflow:
    1. clj -M:dev download-airtable -k $API_KEY -b BASE_ID -n table-name

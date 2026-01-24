@@ -1,7 +1,11 @@
 (ns repl.airtable.medication-runner
-  "Interactive runner for medication Airtable migration.
+  {:deprecated "Use `clj -M:dev migrate-airtable` CLI task instead."}
+  "DEPRECATED: Interactive REPL runner for medication Airtable migration.
 
-   Usage: Edit the CONFIG section below, then evaluate forms top-to-bottom."
+   This REPL-based workflow is superseded by the CLI migration task.
+   Use: clj -M:dev migrate-airtable --entity medication --file <path> --target dev|prod --user-id <uuid>
+
+   Preserved for reference only."
   (:require
    [com.biffweb :as biff :refer [q]]
    [repl.airtable.core :as core]
