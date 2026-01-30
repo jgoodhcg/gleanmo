@@ -21,7 +21,8 @@
  :aliases
  {:dev  {:extra-deps  {com.biffweb/tasks {:git/url   "https://github.com/jacobobryant/biff"
                                           :git/tag   "v1.8.10", :git/sha "146f2b1"
-                                          :deps/root "libs/tasks"}}
+                                          :deps/root "libs/tasks"}
+                       tortue/spy        {:mvn/version "2.15.0"}}
          :extra-paths ["dev" "notebook_data" "test"]
          :jvm-opts    ["-XX:-OmitStackTraceInFastThrow"
                        "-XX:+CrashOnOutOfMemoryError"

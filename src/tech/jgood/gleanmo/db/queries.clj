@@ -73,10 +73,43 @@
       (-> result
           first))))
 
-(defnp- should-remove-related-entity
+(defn- collect-related-ids
+  "Collect all related entity IDs from a batch of entities based on relationship fields.
+   Returns a set of all related IDs.
+
+   This enables batch-fetching related entities in a single query, reducing
+   network round-trips from O(N × M × K) to O(1) where N=entities, M=relationship
+   fields, K=related IDs per field. Data processing remains O(n) but network
+   latency dominates in practice."
+  [entities relationship-fields]
+  (into #{}
+        (for [entity entities
+              {:keys [field-key input-type]} relationship-fields
+              :let [ids (if (= input-type :many-relationship)
+                          (get entity field-key)
+                          (when-let [id (get entity field-key)] #{id}))]
+              id ids
+              :when id]
+          id)))
+
+(defnp- batch-fetch-entities
+  "Fetch multiple entities by ID in a single query.
+   Returns a map of entity-id -> entity for O(1) lookup."
+  [db ids]
+  (when (seq ids)
+    (let [id-vec  (vec ids)
+          results (q db
+                     {:find  '[(pull ?e [*])]
+                      :where '[[?e :xt/id ?id]]
+                      :in    '[[?id ...]]}
+                     id-vec)]
+      (into {} (map (fn [[entity]] [(:xt/id entity) entity]) results)))))
+
+(defn- should-remove-related-entity
   "Check if an entity has related entities that should be removed based on sensitivity or archive settings.
+   Uses a pre-fetched lookup map instead of individual queries.
    Returns true if any related entity matches removal criteria."
-  [entity relationship-fields db remove-sensitive remove-archived]
+  [entity relationship-fields related-lookup remove-sensitive remove-archived]
   (boolean
    (some
     (fn [{:keys [field-key input-type related-entity-str]}]
@@ -84,21 +117,14 @@
             rel-archived-key  (keyword related-entity-str "archived")
             related-ids       (if (= input-type :many-relationship)
                                 (get entity field-key)
-                                #{(get entity field-key)})]
+                                (when-let [id (get entity field-key)] #{id}))]
         (when (seq related-ids)
-            ;; Query for related entities
-          (let [related-entities (mapv
-                                  (fn [id]
-                                    (first (q db
-                                              {:find  '(pull ?e [*]),
-                                               :where [['?e :xt/id id]],
-                                               :in    '[id]}
-                                              id)))
-                                  (vec related-ids))]
-              ;; Check if any related entity matches our removal criteria
-            (some (fn [entity]
-                    (or (and remove-sensitive (get entity rel-sensitive-key))
-                        (and remove-archived (get entity rel-archived-key))))
+          ;; Look up related entities from pre-fetched map
+          (let [related-entities (keep #(get related-lookup %) related-ids)]
+            ;; Check if any related entity matches our removal criteria
+            (some (fn [rel-entity]
+                    (or (and remove-sensitive (get rel-entity rel-sensitive-key))
+                        (and remove-archived (get rel-entity rel-archived-key))))
                   related-entities)))))
     relationship-fields)))
 
@@ -140,11 +166,14 @@
                                                  (not filter-archived)  (remove #(get % archived-key)))]
                             (if (and filter-references relationship-fields)
                               (let [remove-sensitive (not filter-sensitive)
-                                    remove-archived  (not filter-archived)]
+                                    remove-archived  (not filter-archived)
+                                    ;; Batch-fetch all related entities in one query
+                                    all-related-ids  (collect-related-ids basic-filtered relationship-fields)
+                                    related-lookup   (batch-fetch-entities db all-related-ids)]
                                 (remove #(should-remove-related-entity
                                           %
                                           relationship-fields
-                                          db
+                                          related-lookup
                                           remove-sensitive
                                           remove-archived)
                                         basic-filtered))

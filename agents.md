@@ -96,6 +96,22 @@ These operations are pure and have no side effects:
 3. **When in doubt, don't evaluate it.** Use `just check` instead.
 4. **Never use `clojure_eval` as a substitute for running the dev server or REPL.** The same restrictions from "User-Only Commands" apply.
 
+### Editing Clojure Files
+
+The `clojure_edit` MCP tool understands Clojure structure (forms, parens) but can produce large diffs that fill context quickly. Choose your approach based on the situation:
+
+**For modifying existing forms** (e.g., updating a `deftest` or `defn`):
+- Use `clojure_edit` with `operation: replace` — produces small, targeted diffs
+
+**For adding new forms** (e.g., new `deftest`, `defn`):
+- **Preferred:** Use regular `Edit` tool, then run `just fmt-fix` to auto-format
+- **Avoid:** `clojure_edit` with `operation: insert_after` — reformats entire file, producing 1000s of lines of diff output that wastes context
+
+**For simple string changes within forms** (e.g., changing a comment, renaming a variable):
+- Use regular `Edit` tool — smallest output, no structural concerns
+
+**Key principle:** Focus on getting parens balanced correctly; formatting can always be fixed with `just fmt-fix`.
+
 ## User-Only Commands
 
 The agent must **NOT** run these unless explicitly instructed:

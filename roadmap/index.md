@@ -2,6 +2,12 @@
 
 Directory of all work units. See [README.md](./README.md) for system documentation.
 
+## Completed
+
+| File | Description |
+|------|-------------|
+| [query-optimization.md](./query-optimization.md) | Batched related entity lookups - 93% query reduction |
+
 ## Active
 
 | File | Description |
