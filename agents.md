@@ -40,6 +40,21 @@ When AI agents run the dev server or REPL, it creates orphaned processes that:
 - **Time:** tick library for date/time handling
 - **JSON:** cheshire for JSON encoding/decoding
 
+## Validation Hierarchy
+
+Validate changes in order of increasing cost (token-efficient first). Escalate only when needed.
+
+| Level | Command | When to Use |
+|-------|---------|-------------|
+| 1. Lint + Format | `just check` | **Always, after every change** |
+| 2. REPL Eval | `clojure_eval` (pure reads) | Quick data checks, schema validation |
+| 3. Isolated Unit Test | `clj -M:dev test <namespace>` | Testing specific logic changes |
+| 4. Full Unit Tests | `just validate` | Before commits, after significant changes |
+| 5. Isolated E2E | `just e2e-screenshot /path` | Visual validation of UI changes |
+| 6. Full E2E | `just e2e-flow <name>` | User flow regression checks |
+
+**Most changes only need levels 1-2.** Escalate to unit tests for logic changes, E2E for UI changes.
+
 ## Allowed Verification Commands
 
 The agent **IS** permitted to run these commands to verify code compilation and syntax:
@@ -63,6 +78,17 @@ This single command runs formatting check + linting and catches most issues: syn
 | `clj -M:cljfmt check src test` | Check code formatting |
 | `clj -M:cljfmt fix src test` | Fix code formatting |
 | `clj -M:lint --lint src --lint test` | Run clj-kondo linter |
+
+### E2E Commands
+
+Requires dev server running (user must start it) and `just e2e-install` first.
+
+| Command | Description |
+|---------|-------------|
+| `just e2e-install` | Install Playwright and browsers (one-time setup) |
+| `just e2e-screenshot /path` | Screenshot a page (e.g., `/app/habits`) |
+| `just e2e-screenshot-full /path` | Full-page screenshot |
+| `just e2e-flow <name>` | Run a named UI flow |
 
 ## nREPL Usage (Clojure MCP Tools)
 
@@ -112,6 +138,71 @@ The `clojure_edit` MCP tool understands Clojure structure (forms, parens) but ca
 
 **Key principle:** Focus on getting parens balanced correctly; formatting can always be fixed with `just fmt-fix`.
 
+## Testing Philosophy
+
+### Unit Tests
+
+Unit tests serve two purposes:
+1. **Compilation verification** — exercising code paths to catch type/arity errors
+2. **Tricky logic regression** — protecting complex algorithms or edge cases
+
+**Avoid brittle unit tests.** Don't test:
+- Exact HTML structure or class names
+- Specific error message strings
+- Implementation details that may change
+
+If a test breaks frequently during normal refactoring, it's too brittle. Delete it or make it less specific.
+
+### E2E Tests
+
+E2E tests handle integration and visual validation:
+- User flows (login → action → verify result)
+- Visual regression (screenshots for UI changes)
+- Cross-component interactions
+
+E2E tests are inherently more brittle than unit tests, but that brittleness is acceptable because they test real user behavior.
+
+### When to Write Tests
+
+| Situation | Test Type |
+|-----------|-----------|
+| New pure function with edge cases | Unit test |
+| Complex data transformation | Unit test |
+| New UI component | E2E screenshot |
+| User-facing flow | E2E flow |
+| Bug fix | Unit test if logic, E2E if UI |
+
+## E2E Testing
+
+The `/e2e/` directory contains Playwright-based visual validation tools. A dev-only auth bypass (`/auth/e2e-login`) exists to enable authenticated screenshots without email verification.
+
+### Setup
+
+```bash
+just e2e-install  # One-time: install dependencies and browsers
+```
+
+### Usage
+
+**Requires dev server running** (user must start it manually).
+
+```bash
+# Screenshot a specific route
+just e2e-screenshot /app/habits
+
+# Full-page screenshot
+just e2e-screenshot-full /app/habits
+
+# Run a named flow (captures multiple screenshots)
+just e2e-flow example
+```
+
+Screenshots are saved to `e2e/screenshots/` (gitignored).
+
+### Security Note
+
+The `/auth/e2e-login` endpoint only exists in dev mode. The `dev/` directory is not included in production builds (`:prod` alias excludes it).
+
 ## User-Only Commands
 
 The agent must **NOT** run these unless explicitly instructed:
@@ -131,8 +222,9 @@ The agent must **NOT** run these unless explicitly instructed:
   - `/crud/` - Generic CRUD operations
   - `/viz/` - Visualization routes and chart generation
 - `/resources/` - Configuration and static assets
-- `/dev/` - Development utilities
-- `/test/` - Unit and integration tests
+- `/dev/` - Development utilities (includes dev-only auth bypass)
+- `/test/` - Unit tests (compilation checks, logic regression)
+- `/e2e/` - Playwright E2E tests and visual validation scripts
 - `/roadmap/` - Feature planning and requirements documentation
 
 ## Database Layer
