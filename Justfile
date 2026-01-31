@@ -25,3 +25,22 @@ test:
 
 # Full validation (format + lint + tests)
 validate: check test
+
+# Install e2e dependencies and browsers
+e2e-install:
+    cd e2e && npm install && npm run install-browsers
+
+# Screenshot a page (requires dev server running)
+# Usage: just e2e-screenshot /app/habits
+e2e-screenshot path="/app":
+    cd e2e && npm run screenshot -- {{path}}
+
+# Screenshot full page
+# Usage: just e2e-screenshot-full /app/habits
+e2e-screenshot-full path="/app":
+    cd e2e && npm run screenshot -- {{path}} --full
+
+# Run a UI flow
+# Usage: just e2e-flow example
+e2e-flow name="example":
+    cd e2e && npm run flow -- {{name}}

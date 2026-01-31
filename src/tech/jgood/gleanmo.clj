@@ -20,20 +20,26 @@
   (:gen-class))
 
 (def modules
-  [app/module
-   observability/module
-   (biff/authentication-module
-    {:biff.auth/new-user-tx
-     (fn [_ctx email]
-       (let [now (t/now)]
-         [{:db/doc-type    :user
-           ::sm/type       :user
-           ::sm/created-at now
-           :db.op/upsert   {:user/email email}
-           :user/joined-at now}]))})
-   home/module
-   schema/module
-   worker/module])
+  (let [base-modules [app/module
+                      observability/module
+                      (biff/authentication-module
+                       {:biff.auth/new-user-tx
+                        (fn [_ctx email]
+                          (let [now (t/now)]
+                            [{:db/doc-type    :user
+                              ::sm/type       :user
+                              ::sm/created-at now
+                              :db.op/upsert   {:user/email email}
+                              :user/joined-at now}]))})
+                      home/module
+                      schema/module
+                      worker/module]]
+    (if-let [e2e-module (try
+                          (require 'tech.jgood.gleanmo.e2e-auth)
+                          @(resolve 'tech.jgood.gleanmo.e2e-auth/module)
+                          (catch Exception _ nil))]
+      (conj base-modules e2e-module)
+      base-modules)))
 
 (def routes [["" {:middleware [mid/wrap-site-defaults]}
               (keep :routes modules)]
