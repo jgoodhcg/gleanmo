@@ -1,7 +1,16 @@
+---
+title: "Project Timers (Shipped) + Roam Metrics (Planned)"
+status: paused
+description: "Project timers shipped; Roam metrics integration pending"
+tags: []
+priority: medium
+created: 2026-02-02
+updated: 2026-02-02
+---
+
 # Project Timers (Shipped) + Roam Metrics (Planned)
 
 ## Work Unit Summary
-- Status: paused
 - Problem / intent: Link Gleanmo projects to Roam metrics and surface project health signals.
 - Constraints: Project timers are already live; Roam metrics should not block other roadmap work.
 - Proposed approach: Keep existing project/time tracking, then add Roam page mapping and metrics ingestion.

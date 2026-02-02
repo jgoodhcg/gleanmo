@@ -1,7 +1,16 @@
+---
+title: "Query Optimization: Unbatched Related Entity Lookups"
+status: done
+description: "Batched related entity lookups - 93% query reduction"
+tags: []
+priority: medium
+created: 2026-02-02
+updated: 2026-02-02
+---
+
 # Query Optimization: Unbatched Related Entity Lookups
 
 ## Work Unit Summary
-- Status: complete
 - Problem / intent: `all-for-user-query` makes excessive database queries due to unbatched related entity lookups, causing slow page loads.
 - Constraints: Must not regress existing functionality; changes should be validated by existing tests plus new query-count test.
 - Proposed approach: Batch all related entity lookups into a single query, use lookup map for filtering.

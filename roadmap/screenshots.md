@@ -1,7 +1,16 @@
+---
+title: "Automated App Screenshots - Implementation Requirements"
+status: idea
+description: "Visual changelog via periodic route screenshots"
+tags: []
+priority: medium
+created: 2026-02-02
+updated: 2026-02-02
+---
+
 # Automated App Screenshots - Implementation Requirements
 
 ## Work Unit Summary
-- Status: idea
 - Problem / intent: Build a visual changelog via periodic screenshots of key routes.
 - Constraints: Keep setup lightweight and avoid adding friction to local development.
 - Proposed approach: Start with local Playwright runs, then evaluate CI automation and artifact storage.

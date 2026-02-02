@@ -1,7 +1,16 @@
+---
+title: "Mood Tracking Roadmap"
+status: idea
+description: "Structured mood logging with Airtable backfill"
+tags: []
+priority: medium
+created: 2026-02-02
+updated: 2026-02-02
+---
+
 # Mood Tracking Roadmap
 
 ## Work Unit Summary
-- Status: idea
 - Problem / intent: Add structured mood logging with Airtable backfill and simple visualizations.
 - Constraints: Preserve Airtable lineage fields and keep the entry flow lightweight.
 - Proposed approach: Define schema + CRUD, build an Airtable ingester, then enable calendar heatmaps.

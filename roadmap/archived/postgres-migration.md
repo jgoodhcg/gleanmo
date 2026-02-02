@@ -1,3 +1,13 @@
+---
+title: "Postgres Migration Roadmap"
+status: dropped
+description: "Historical Postgres migration decision log"
+tags: []
+priority: medium
+created: 2026-02-02
+updated: 2026-02-02
+---
+
 # Postgres Migration Roadmap
 
 ## Overview & Goals
@@ -61,7 +71,7 @@
 # Postgres Migration Decision Log
 
 ## Outcome
-- **Status:** Migration paused indefinitely; XTDB remains the primary datastore.
+- **Outcome:** Migration paused indefinitely; XTDB remains the primary datastore.
 - **Date:** 2025-10-22
 - **Decider:** Justin Good
 

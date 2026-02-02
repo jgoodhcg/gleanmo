@@ -1,7 +1,16 @@
+---
+title: "Gleanmo Generic Visualization System Requirements"
+status: active
+description: "Generic visualizations for timestamp/interval entities"
+tags: []
+priority: medium
+created: 2026-02-02
+updated: 2026-02-02
+---
+
 # Gleanmo Generic Visualization System Requirements
 
 ## Work Unit Summary
-- Status: active
 - Problem / intent: Provide generic visualizations for any timestamp or interval entity.
 - Constraints: Must infer chart types from schema and keep routing predictable.
 - Proposed approach: Use schema pattern detection and ECharts to generate calendar and timeline views.

@@ -1,7 +1,16 @@
+---
+title: "Rewrite Analysis: Language & Stack Evaluation"
+status: dropped
+description: "Language/stack evaluation (deferred - staying with Clojure)"
+tags: []
+priority: medium
+created: 2026-02-02
+updated: 2026-02-02
+---
+
 # Rewrite Analysis: Language & Stack Evaluation
 
 **Date**: January 2025
-**Status**: Deferred (staying with Clojure for now)
 
 ## Goals
 

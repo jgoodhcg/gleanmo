@@ -1,7 +1,16 @@
+---
+title: "Reading Airtable Schema (Reference)"
+status: active
+description: "Airtable schema reference for reading migration"
+tags: []
+priority: medium
+created: 2026-02-02
+updated: 2026-02-02
+---
+
 # Reading Airtable Schema (Reference)
 
 ## Work Unit Summary
-- Status: active
 - Problem / intent: Preserve Airtable schema details needed for reading migration and Malli mapping.
 - Constraints: Keep the source fields intact for accurate enum mapping and import planning.
 - Proposed approach: Maintain this file as the canonical Airtable field reference and link from the reading roadmap.

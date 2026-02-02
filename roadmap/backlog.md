@@ -1,9 +1,18 @@
+---
+title: "Backlog"
+status: active
+description: "Minor improvements without full work-unit docs"
+tags: []
+priority: medium
+created: 2026-02-02
+updated: 2026-02-02
+---
+
 # Backlog
 
 Minor improvements and enhancements that don't warrant separate requirement documents.
 
 ## Work Unit Summary
-- Status: active
 - Problem / intent: Capture minor improvements without spinning up full work-unit docs.
 - Constraints: Keep it lightweight and move completed items to `roadmap/archived/`.
 - Proposed approach: Organize by area (CRUD, UI, performance, components) and promote items that grow in scope.

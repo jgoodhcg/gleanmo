@@ -1,7 +1,16 @@
+---
+title: "Task Management"
+status: done
+description: "Task system with behavioral signals and actionable lists"
+tags: []
+priority: medium
+created: 2026-02-02
+updated: 2026-02-02
+---
+
 # Task Management
 
 ## Work Unit Summary
-- Status: deployed
 - Problem / intent: Build a task system that absorbs large backlogs, surfaces behavioral signals (not declared priorities), and delivers a short actionable list without overwhelm.
 - Constraints: Fast capture, no mandatory priorities, fixed attribute enums, derive urgency from behavior, integrate with existing projects, no recurring tasks in v1.
 - Proposed approach: Single task entity with 6 states, optional attributes (effort/mode/domain), date-based snoozing, and computed signals (staleness, snooze count, churn). A single Focus page replaces separate triage/now views; filtering and sorting drive the workflow.

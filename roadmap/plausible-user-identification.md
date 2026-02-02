@@ -1,7 +1,16 @@
+---
+title: "Plausible Analytics User Identification"
+status: idea
+description: "Add user identifiers to Plausible analytics to distinguish individuals"
+tags: []
+priority: medium
+created: 2026-02-02
+updated: 2026-02-02
+---
+
 # Plausible Analytics User Identification
 
 ## Work Unit Summary
-- Status: idea
 - Problem / intent: Add user identifiers to Plausible analytics to distinguish different individuals and understand user-specific behavior patterns.
 - Constraints: Must respect user privacy settings and comply with Plausible's privacy-focused approach; should not expose sensitive user data.
 - Proposed approach: Use Plausible's custom properties API to send a user identifier hash with pageview and custom events.

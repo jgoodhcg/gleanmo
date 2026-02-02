@@ -1,7 +1,16 @@
+---
+title: "Data Migration Status (Airtable + Other Sources)"
+status: active
+description: "Tracker for Airtable backfills and remaining imports"
+tags: []
+priority: medium
+created: 2026-02-02
+updated: 2026-02-02
+---
+
 # Data Migration Status (Airtable + Other Sources)
 
 ## Work Unit Summary
-- Status: active
 - Problem / intent: Track Airtable backfills and remaining imports so we can fully exit Airtable.
 - Constraints: Preserve lineage fields and deterministic IDs; document each import run.
 - Proposed approach: Prioritize exercise migration, then move through pain, mood, reading, bouldering, and project time logs.

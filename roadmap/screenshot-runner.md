@@ -1,7 +1,16 @@
+---
+title: "App-Level Screenshot Runner"
+status: idea
+description: "Authenticated screenshot capture for docs and CI"
+tags: []
+priority: medium
+created: 2026-02-02
+updated: 2026-02-02
+---
+
 # App-Level Screenshot Runner
 
 ## Work Unit Summary
-- Status: idea
 - Problem / intent: Capture authenticated screenshots of the app in a repeatable way for docs and CI.
 - Constraints: Must rely on a manually started dev server; avoid brittle auth flows.
 - Proposed approach: Add a Biff task to fetch a dev cookie and run Playwright against a route manifest.

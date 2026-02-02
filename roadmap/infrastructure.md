@@ -1,7 +1,16 @@
+---
+title: "Infrastructure Move (Neon to DigitalOcean)"
+status: idea
+description: "Database migration from Neon to DigitalOcean"
+tags: []
+priority: medium
+created: 2026-02-02
+updated: 2026-02-02
+---
+
 # Infrastructure Move (Neon to DigitalOcean)
 
 ## Work Unit Summary
-- Status: idea
 - Problem / intent: Move the database off Neon to DigitalOcean for cost/control and infrastructure consolidation.
 - Constraints: Preserve data integrity, avoid extended downtime, and keep backups and rollbacks available.
 - Proposed approach: Select a target hosting model (managed Postgres or self-managed), stage a replica or export/import, validate consistency, then cut over with a brief maintenance window.

@@ -1,7 +1,16 @@
+---
+title: "Dashboard Home Page Performance"
+status: active
+description: "Home page dashboard performance improvements"
+tags: []
+priority: medium
+created: 2026-02-02
+updated: 2026-02-02
+---
+
 # Dashboard Home Page Performance
 
 ## Work Unit Summary
-- Status: active
 - Problem / intent: Home page dashboard takes 2-3 seconds to load due to redundant queries across HTMX fragments
 - Constraints: Maintain HTMX lazy-load UX pattern; avoid breaking existing functionality
 - Proposed approach: Add count-only queries for stats, reduce redundant `all-entities-for-user` calls

@@ -1,7 +1,16 @@
+---
+title: "Cognitive Games Roadmap"
+status: idea
+description: "Cognitive games to track performance trends"
+tags: []
+priority: medium
+created: 2026-02-02
+updated: 2026-02-02
+---
+
 # Cognitive Games Roadmap
 
 ## Work Unit Summary
-- Status: idea
 - Problem / intent: Add cognitive games to track performance trends with fresh puzzle content.
 - Constraints: Puzzle generation must avoid repeats and store enough metadata for analytics.
 - Proposed approach: Define puzzle/guess schemas, add an AI generator, then build game UIs and dashboards.

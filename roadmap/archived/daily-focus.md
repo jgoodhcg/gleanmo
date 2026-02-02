@@ -1,7 +1,16 @@
+---
+title: "Daily Focus"
+status: done
+description: "Daily planning ritual with progress stats and carry-forward"
+tags: []
+priority: medium
+created: 2026-02-02
+updated: 2026-02-02
+---
+
 # Daily Focus
 
 ## Work Unit Summary
-- Status: **Shipped (V1 & V2)**
 - Problem / intent: Task list exists but doesn't support a daily planning ritual. Need a way to gather tasks for today, execute in order, and feel motivated by visible progress.
 - Constraints: Must be smooth and fun or it won't get used. Minimize friction (single-click actions). Build incrementally.
 - Implemented approach: Added `focus-date` to tasks. Dedicated "Today" page with progress stats, ordered list, and satisfying completion feedback. Unfinished tasks carry forward automatically with a visual indicator.

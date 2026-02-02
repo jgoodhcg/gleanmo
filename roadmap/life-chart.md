@@ -1,7 +1,16 @@
+---
+title: "Life Chart Calendar Requirements"
+status: idea
+description: "Lifetime view with years as rows and weeks as cells"
+tags: []
+priority: medium
+created: 2026-02-02
+updated: 2026-02-02
+---
+
 # Life Chart Calendar Requirements
 
 ## Work Unit Summary
-- Status: idea
 - Problem / intent: Provide a lifetime view with years as rows and weeks as cells to see life periods at a glance.
 - Constraints: Must render thousands of cells efficiently and remain legible at multiple zoom levels.
 - Proposed approach: Use canvas or SVG with virtualization, layered period colors, and event overlays from the main calendar.

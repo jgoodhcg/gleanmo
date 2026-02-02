@@ -1,7 +1,16 @@
+---
+title: "Search Tool for CRUD and Timer Views"
+status: idea
+description: "Text search tool for CRUD and timer view pages"
+tags: []
+priority: medium
+created: 2026-02-02
+updated: 2026-02-02
+---
+
 # Search Tool for CRUD and Timer Views
 
 ## Work Unit Summary
-- Status: idea
 - Problem / intent: Users need quick filtering of entity lists by label, especially useful for projects with many entries
 - Constraints: Must work across all CRUD view pages and timer pages; maintain existing UI patterns
 - Proposed approach: Add client-side text search that filters displayed rows in real-time

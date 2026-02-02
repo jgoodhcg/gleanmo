@@ -1,7 +1,16 @@
+---
+title: "Exercise Tracking Requirements"
+status: active
+description: "Exercise tracking with superset support and Airtable backfill"
+tags: []
+priority: medium
+created: 2026-02-02
+updated: 2026-02-02
+---
+
 # Exercise Tracking Requirements
 
 ## Work Unit Summary
-- Status: active
 - Problem / intent: Build exercise tracking that supports supersets and enables Airtable backfill.
 - Constraints: Preserve Airtable lineage fields and keep data entry lightweight during workouts.
 - Proposed approach: Add the missing exercise-rep entity, fix schema types, then build ingesters and UI in that order.

@@ -1,7 +1,16 @@
+---
+title: "Performance Monitoring Requirements"
+status: active
+description: "Performance monitoring and profiling dashboard"
+tags: []
+priority: medium
+created: 2026-02-02
+updated: 2026-02-02
+---
+
 # Performance Monitoring Requirements
 
 ## Work Unit Summary
-- Status: active
 - Problem / intent: Make performance regressions visible and target known slow paths, starting with habit-related queries.
 - Constraints: Avoid noisy logs, keep the dashboard light, and rely on XTDB history for time series.
 - Proposed approach: Keep Tufte snapshots and extend with charting and targeted query optimizations.

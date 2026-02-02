@@ -1,7 +1,16 @@
+---
+title: "Pain Log Roadmap"
+status: idea
+description: "Pain logs with Airtable history and CRUD/viz"
+tags: []
+priority: medium
+created: 2026-02-02
+updated: 2026-02-02
+---
+
 # Pain Log Roadmap
 
 ## Work Unit Summary
-- Status: idea
 - Problem / intent: Track pain logs with Airtable history and a simple CRUD/viz flow.
 - Constraints: Mirror Airtable schema first so backfill is lossless.
 - Proposed approach: Define schema + CRUD, build an Airtable ingester, then enable generic visualizations.

@@ -1,7 +1,16 @@
+---
+title: "Reading Schema Proposal (Malli Draft)"
+status: idea
+description: "Draft Malli schemas for reading entities"
+tags: []
+priority: medium
+created: 2026-02-02
+updated: 2026-02-02
+---
+
 # Reading Schema Proposal (Malli Draft)
 
 ## Work Unit Summary
-- Status: idea
 - Problem / intent: Draft Malli schemas for reading entities aligned with Airtable data.
 - Constraints: Maintain Airtable lineage fields and normalize enums without losing source data.
 - Proposed approach: Finalize book + reading-log schemas, then map import converters to these fields.

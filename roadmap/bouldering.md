@@ -1,7 +1,16 @@
+---
+title: "Bouldering Log Roadmap"
+status: idea
+description: "Climbing sessions and problem attempts with Airtable backfill"
+tags: []
+priority: medium
+created: 2026-02-02
+updated: 2026-02-02
+---
+
 # Bouldering Log Roadmap
 
 ## Work Unit Summary
-- Status: idea
 - Problem / intent: Capture climbing sessions and problem attempts with Airtable backfill.
 - Constraints: Preserve Airtable schema fidelity for import and keep data entry lightweight at the gym.
 - Proposed approach: Add session + attempt entities, CRUD flows, then build an Airtable ingester.
