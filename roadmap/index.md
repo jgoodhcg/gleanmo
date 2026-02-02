@@ -34,6 +34,7 @@ Directory of all work units. See [README.md](./README.md) for system documentati
 
 | File | Description |
 |------|-------------|
+| [plausible-user-identification.md](./plausible-user-identification.md) | Add user identifiers to Plausible analytics to distinguish individuals |
 | [reading-tracker.md](./reading-tracker.md) | Lightweight Goodreads replacement with timer-backed sessions |
 | [reading-schema-proposal.md](./reading-schema-proposal.md) | Draft Malli schemas for reading entities |
 | [life-chart.md](./life-chart.md) | Lifetime view with years as rows and weeks as cells |
