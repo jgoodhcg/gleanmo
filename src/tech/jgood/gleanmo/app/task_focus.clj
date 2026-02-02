@@ -178,6 +178,49 @@
      "border border-dark-border text-gray-400 hover:text-neon-cyan hover:border-neon-cyan px-2 py-1"}
     "Clear"]])
 
+(defn- focus-today-button
+  "Add task to today's focus list, or show indicator if already focused.
+   Uses HTMX to preserve filters."
+  [task-id focused-today?]
+  (if focused-today?
+    ;; Already focused - show indicator with option to remove
+    [:form.inline
+     {:method     "post",
+      :action     (str "/app/task/" task-id "/remove-from-today"),
+      :hx-post    (str "/app/task/" task-id "/remove-from-today"),
+      :hx-include "#filter-form",
+      :hx-target  "#task-list",
+      :hx-select  "#task-list",
+      :hx-swap    "outerHTML"}
+     [:input
+      {:type  "hidden",
+       :name  "__anti-forgery-token",
+       :value csrf/*anti-forgery-token*}]
+     [:button.inline-flex.items-center.justify-center.rounded-md.text-xs.font-medium.transition-all
+      {:type "submit",
+       :title "Remove from today",
+       :class
+       "bg-neon-cyan text-dark border border-neon-cyan hover:bg-transparent hover:text-neon-cyan px-2 py-1"}
+      "✓ Today"]]
+    ;; Not focused - show add button
+    [:form.inline
+     {:method     "post",
+      :action     (str "/app/task/" task-id "/focus-today"),
+      :hx-post    (str "/app/task/" task-id "/focus-today"),
+      :hx-include "#filter-form",
+      :hx-target  "#task-list",
+      :hx-select  "#task-list",
+      :hx-swap    "outerHTML"}
+     [:input
+      {:type  "hidden",
+       :name  "__anti-forgery-token",
+       :value csrf/*anti-forgery-token*}]
+     [:button.inline-flex.items-center.justify-center.rounded-md.text-xs.font-medium.transition-all
+      {:type "submit",
+       :class
+       "border border-neon-cyan text-neon-cyan hover:bg-neon-cyan hover:text-dark px-2 py-1"}
+      "📌 Today"]]))
+
 (defn- task-row
   [task project-by-id today now]
   (let [id            (:xt/id task)
@@ -186,6 +229,10 @@
         project-label (get project-by-id project-id)
         domain        (:task/domain task)
         due-on        (:task/due-on task)
+        focus-date    (:task/focus-date task)
+        focused-today? (and focus-date
+                            (or (.isEqual focus-date today)
+                                (.isBefore focus-date today)))
         snooze-until    (:task/snooze-until task)
         snooze-count    (or (:task/snooze-count task) 0)
         future-snoozed? (and snooze-until (.isAfter snooze-until today))
@@ -225,6 +272,9 @@
          notes])]
 
      [:div.flex.flex-wrap.items-center.gap-2
+      ;; Focus Today button (prominent)
+      (when (not= state :done)
+        (focus-today-button id focused-today?))
       [:div.flex.items-center.gap-1
        (when (not= state :later)
          (secondary-button id :later "Later"))

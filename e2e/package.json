@@ -5,7 +5,8 @@
   "scripts": {
     "install-browsers": "playwright install chromium",
     "screenshot": "tsx scripts/screenshot.ts",
-    "flow": "tsx scripts/flow.ts"
+    "flow": "tsx scripts/flow.ts",
+    "test:today-reorder": "tsx scripts/test-today-reorder.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.40.0",

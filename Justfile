@@ -44,3 +44,7 @@ e2e-screenshot-full path="/app":
 # Usage: just e2e-flow example
 e2e-flow name="example":
     cd e2e && npm run flow -- {{name}}
+
+# Run Today page reorder test
+e2e-test-reorder:
+    cd e2e && npm run test:today-reorder

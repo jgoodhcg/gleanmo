@@ -1,6 +1,5 @@
 (ns tech.jgood.gleanmo
   (:require
-   [clojure.test :as test]
    [clojure.tools.logging :as log]
    [clojure.tools.namespace.repl :as tn-repl]
    [com.biffweb :as biff]
@@ -59,9 +58,7 @@
 (defn on-save [ctx]
   (biff/add-libs)
   (biff/eval-files! ctx)
-  (generate-assets! ctx)
-  (biff/catchall (require 'tech.jgood.gleanmo.test))
-  (test/run-all-tests #"tech.jgood.gleanmo.test.*"))
+  (generate-assets! ctx))
 
 (def malli-opts
   {:registry (malr/composite-registry

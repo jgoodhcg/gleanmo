@@ -25,3 +25,5 @@ prod-storage/
 airtable_data/
 
 src/tech/jgood/.clj-kondo/.cache/
+
+.DS_Store

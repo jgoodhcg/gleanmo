@@ -23,6 +23,10 @@
     [:task/snooze-until {:optional true, :crud/priority 5} [:maybe :local-date]]
     [:task/done-at {:optional true, :hide true} :instant]
 
+     ;; Daily focus
+    [:task/focus-date {:optional true, :hide true} :local-date]
+    [:task/focus-order {:optional true, :hide true} :int]
+
      ;; Attributes (fixed enums)
     [:task/effort {:optional true, :crud/priority 6}
      [:enum :low :medium :high]]

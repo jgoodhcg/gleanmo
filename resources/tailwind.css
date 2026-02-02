@@ -816,3 +816,21 @@ input.choices__input--cloned {
 .choices__list--multiple .choices__item[data-deletable] .choices__button:hover {
   background-color: rgba(255, 212, 0, 0.15) !important;
 }
+
+/* Sortable drag-and-drop styles */
+.sortable-ghost {
+  opacity: 0.4;
+  background: var(--dark-bg) !important;
+  border: 2px dashed var(--pacific-cyan) !important;
+}
+
+.sortable-chosen {
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.4);
+  border-color: var(--pacific-cyan) !important;
+}
+
+.sortable-drag {
+  opacity: 1 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 16px rgba(6, 182, 212, 0.3);
+  transform: scale(1.02);
+}

@@ -113,7 +113,8 @@
       [:hr.border-dark]
 
       ;; Tasks
-      [:a.link.font-semibold {:href "/app/task/focus"} "Task Focus"]
+      [:a.link.font-semibold {:href "/app/task/today"} "Today"]
+      [:a.link {:href "/app/task/focus"} "Task Focus"]
       [:hr.border-dark]
 
       ;; Quick Add

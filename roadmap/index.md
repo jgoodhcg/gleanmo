@@ -12,6 +12,7 @@ Directory of all work units. See [README.md](./README.md) for system documentati
 
 | File | Description |
 |------|-------------|
+| [daily-focus.md](./daily-focus.md) | Daily planning ritual with progress stats and carry-forward |
 | [task-management.md](./task-management.md) | Task system with behavioral signals and actionable lists |
 | [calendar.md](./calendar.md) | Year-at-a-glance calendar with event interactions and external sync |
 | [exercise.md](./exercise.md) | Exercise tracking with superset support and Airtable backfill |

@@ -359,6 +359,63 @@
         first
         :xtdb.api/tx-time)))
 
+(defn tasks-for-today
+  "Get tasks focused for today (focus-date = today or focus-date < today with state != done).
+   Returns tasks sorted by focus-order, then by focus-date."
+  [db user-id today]
+  (let [{:keys [show-sensitive]} (get-user-settings db user-id)
+        all-tasks (all-entities-for-user
+                   db user-id :task
+                   :filter-sensitive show-sensitive
+                   :filter-archived false)]
+    (->> all-tasks
+         (filter (fn [task]
+                   (when-let [focus-date (:task/focus-date task)]
+                     (and (not= (:task/state task) :done)
+                          (or (.isEqual focus-date today)
+                              (.isBefore focus-date today))))))
+         (sort-by (juxt (fn [t] (or (:task/focus-order t) Integer/MAX_VALUE))
+                        :task/focus-date)))))
+
+(defn tasks-completed-today
+  "Get tasks completed today (for progress tracking)."
+  [db user-id today]
+  (let [{:keys [show-sensitive]} (get-user-settings db user-id)
+        all-tasks (all-entities-for-user
+                   db user-id :task
+                   :filter-sensitive show-sensitive
+                   :filter-archived false)]
+    (->> all-tasks
+         (filter (fn [task]
+                   (and (= (:task/state task) :done)
+                        (when-let [focus-date (:task/focus-date task)]
+                          (.isEqual focus-date today))))))))
+
+(defn count-tasks-completed-all-time
+  "Count all completed tasks for a user."
+  [db user-id]
+  (let [{:keys [show-sensitive]} (get-user-settings db user-id)]
+    (->> (all-entities-for-user
+          db user-id :task
+          :filter-sensitive show-sensitive
+          :filter-archived false)
+         (filter #(= (:task/state %) :done))
+         count)))
+
+(defn count-tasks-completed-in-range
+  "Count tasks completed within a date range (based on done-at instant)."
+  [db user-id start-instant end-instant]
+  (let [{:keys [show-sensitive]} (get-user-settings db user-id)]
+    (->> (all-entities-for-user
+          db user-id :task
+          :filter-sensitive show-sensitive
+          :filter-archived false)
+         (filter (fn [task]
+                   (when-let [done-at (:task/done-at task)]
+                     (and (not (.isBefore done-at start-instant))
+                          (.isBefore done-at end-instant)))))
+         count)))
+
 (defnp get-events-for-user-year
   "Get all events for a user within a specific year, using user's timezone.
    Note: Performs date-range filtering in application code to avoid complex

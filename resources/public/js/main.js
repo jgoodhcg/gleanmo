@@ -372,3 +372,79 @@ document.addEventListener('htmx:afterSettle', function(event) {
     initChangedFieldHighlighting(event.target);
   });
 })();
+
+// Sortable Lists - Generic drag-and-drop reordering
+//
+// Auto-discovers elements with .sortable-list class and initializes
+// SortableJS on them. Reads configuration from data attributes:
+// - data-sortable-endpoint: URL to POST new order to
+//
+// Each draggable item should have:
+// - .sortable-item class
+// - data-sortable-id attribute with unique ID
+//
+// On drop, POSTs { ids: ["id1", "id2", ...] } to the endpoint.
+// The endpoint should return updated HTML for HTMX to swap.
+(function() {
+  function initSortableList(container) {
+    // Skip if already initialized or Sortable not loaded
+    if (container.dataset.sortableInitialized === 'true') return;
+    if (typeof Sortable === 'undefined') {
+      console.warn('SortableJS not loaded, skipping sortable init');
+      return;
+    }
+
+    const endpoint = container.dataset.sortableEndpoint;
+    if (!endpoint) {
+      console.warn('Sortable container missing data-sortable-endpoint');
+      return;
+    }
+
+    new Sortable(container, {
+      animation: 150,
+      draggable: '.sortable-item',
+      ghostClass: 'sortable-ghost',
+      chosenClass: 'sortable-chosen',
+      dragClass: 'sortable-drag',
+      onEnd: function() {
+        const items = container.querySelectorAll('.sortable-item[data-sortable-id]');
+        const ids = Array.from(items).map(el => el.dataset.sortableId);
+
+        // Get CSRF token from the page (Biff includes it in hidden inputs)
+        const csrfToken = document.querySelector('input[name="__anti-forgery-token"]')?.value;
+        const values = { ids: JSON.stringify(ids) };
+        if (csrfToken) {
+          values['__anti-forgery-token'] = csrfToken;
+        }
+
+        // POST to endpoint with HTMX
+        htmx.ajax('POST', endpoint, {
+          target: container.closest('[id]') || container,
+          swap: 'outerHTML',
+          values: values
+        });
+      }
+    });
+
+    container.dataset.sortableInitialized = 'true';
+  }
+
+  function initAllSortableLists(root = document) {
+    const containers = root.querySelectorAll('.sortable-list');
+    containers.forEach(initSortableList);
+  }
+
+  // Initialize on page load
+  document.addEventListener('DOMContentLoaded', function() {
+    initAllSortableLists();
+  });
+
+  // Re-initialize after HTMX swaps
+  document.addEventListener('htmx:afterSettle', function(event) {
+    initAllSortableLists(event.target);
+    // Also check if the swapped content itself is a sortable list
+    if (event.target.classList && event.target.classList.contains('sortable-list')) {
+      initSortableList(event.target);
+    }
+  });
+})();
