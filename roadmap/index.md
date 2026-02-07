@@ -53,6 +53,11 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 - [screenshot-runner.md](./screenshot-runner.md) - Authenticated screenshot capture for docs and CI
 - [infrastructure.md](./infrastructure.md) - Database migration from Neon to DigitalOcean
 - [search-filter.md](./search-filter.md) - Text search tool for CRUD and timer view pages
+- [task-activity-logs.md](./task-activity-logs.md) - Spawn time logs from tasks and link habits/calendar events to tasks
+- [drawing-practice.md](./drawing-practice.md) - Timed drawing session habit with tracking and motivation tools
+- [workflow-optimization.md](./workflow-optimization.md) - Minimize clicks for logging, fast landing page, and motivating stats
+- [today-reorder-performance.md](./today-reorder-performance.md) - Fix slow response when reordering items on the today page
+- [today-navigation.md](./today-navigation.md) - Page through dates on today view and richer focus date filtering
 
 ### Archived
 
