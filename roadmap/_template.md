@@ -1,16 +1,16 @@
 ---
 title: "Work Unit Title"
-status: idea
+status: draft
 description: "One-line summary of what this accomplishes"
-tags: []
-priority: medium
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
+tags: []
+priority: medium
 ---
 
 # Work Unit Title
 
-## Problem / Intent
+## Intent
 
 [Why this exists. What problem it solves.]
 
@@ -18,9 +18,17 @@ updated: YYYY-MM-DD
 
 [Hard requirements or limitations.]
 
-## Proposed Approach
+## Specification
 
-[High-level solution direction.]
+[Concrete behavior and acceptance criteria.]
+
+## Validation
+
+[Specific checks: lint/tests/e2e/manual verification.]
+
+## Context
+
+[State, blockers, dependencies, and relevant background.]
 
 ## Open Questions
 

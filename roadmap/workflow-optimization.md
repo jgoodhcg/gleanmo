@@ -1,11 +1,11 @@
 ---
 title: "Workflow Optimization"
-status: idea
+status: draft
 description: "Minimize clicks for common logging actions, fast landing page, and motivating stats page"
 tags: [area/frontend, area/ux, type/improvement]
 priority: high
 created: 2026-02-06
-updated: 2026-02-06
+updated: 2026-02-07
 ---
 
 # Workflow Optimization

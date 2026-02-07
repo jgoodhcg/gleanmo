@@ -32,17 +32,21 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 - [performance.md](./performance.md) - Performance monitoring and profiling dashboard
 - [dashboard-performance.md](./dashboard-performance.md) - Home page dashboard performance improvements
 - [backlog.md](./backlog.md) - Minor improvements without full work-unit docs
-
-### Paused
-
 - [roam-integration.md](./roam-integration.md) - Project timers shipped; Roam metrics integration pending
 
-### Idea
+### Ready
 
 - [dynamic-server-port.md](./dynamic-server-port.md) - Make the server dynamically choose a port to run on to support git worktree and multiple project development
+- [reading-schema-proposal.md](./reading-schema-proposal.md) - Draft Malli schemas for reading entities
+- [screenshot-runner.md](./screenshot-runner.md) - Authenticated screenshot capture for docs and CI
+- [search-filter.md](./search-filter.md) - Text search tool for CRUD and timer view pages
+- [timer-overlap-metrics.md](./timer-overlap-metrics.md) - Show overlap-aware daily and per-project timer metrics with clear unique vs. raw totals
+- [today-reorder-performance.md](./today-reorder-performance.md) - Fix slow response when reordering items on the today page
+
+### Draft
+
 - [plausible-user-identification.md](./plausible-user-identification.md) - Add user identifiers to Plausible analytics to distinguish individuals
 - [reading-tracker.md](./reading-tracker.md) - Lightweight Goodreads replacement with timer-backed sessions
-- [reading-schema-proposal.md](./reading-schema-proposal.md) - Draft Malli schemas for reading entities
 - [life-chart.md](./life-chart.md) - Lifetime view with years as rows and weeks as cells
 - [memento-mori.md](./memento-mori.md) - Finite-time visualization anchored to calendar data
 - [mood.md](./mood.md) - Structured mood logging with Airtable backfill
@@ -50,14 +54,10 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 - [bouldering.md](./bouldering.md) - Climbing sessions and problem attempts with Airtable backfill
 - [cognitive-games.md](./cognitive-games.md) - Cognitive games to track performance trends
 - [screenshots.md](./screenshots.md) - Visual changelog via periodic route screenshots
-- [screenshot-runner.md](./screenshot-runner.md) - Authenticated screenshot capture for docs and CI
 - [infrastructure.md](./infrastructure.md) - Database migration from Neon to DigitalOcean
-- [search-filter.md](./search-filter.md) - Text search tool for CRUD and timer view pages
 - [task-activity-logs.md](./task-activity-logs.md) - Spawn time logs from tasks and link habits/calendar events to tasks
-- [timer-overlap-metrics.md](./timer-overlap-metrics.md) - Show overlap-aware daily and per-project timer metrics with clear unique vs. raw totals
 - [drawing-practice.md](./drawing-practice.md) - Timed drawing session habit with tracking and motivation tools
 - [workflow-optimization.md](./workflow-optimization.md) - Minimize clicks for logging, fast landing page, and motivating stats
-- [today-reorder-performance.md](./today-reorder-performance.md) - Fix slow response when reordering items on the today page
 - [today-navigation.md](./today-navigation.md) - Page through dates on today view and richer focus date filtering
 
 ### Archived

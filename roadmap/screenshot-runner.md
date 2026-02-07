@@ -1,11 +1,11 @@
 ---
 title: "App-Level Screenshot Runner"
-status: idea
+status: ready
 description: "Authenticated screenshot capture for docs and CI"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-02
+updated: 2026-02-07
 ---
 
 # App-Level Screenshot Runner

@@ -4,7 +4,31 @@ Follows AGENT_BLUEPRINT.md
 
 ## Project Overview
 
-Gleanmo is a personal quantified-self web app built in Clojure 1.11.1 with Biff, XTDB (RocksDB), Rum + HTMX + Tailwind for UI, and ECharts for charting. It uses email-based auth with reCAPTCHA and tick/cheshire for time/JSON.
+Gleanmo is a personal quantified-self web app built in Clojure 1.11.1 with Biff, XTDB (RocksDB for local development and PostgreSQL-backed in production), Rum + HTMX + Tailwind for UI, and ECharts for charting. It uses email-based auth with reCAPTCHA and tick/cheshire for time/JSON.
+
+## Stack
+
+- Clojure 1.11.1
+- Biff + Rum + HTMX + Tailwind + ECharts
+- XTDB (RocksDB locally; PostgreSQL-backed in production)
+- Self-hosted web app
+
+## Commit Trailer Template
+
+Store a template, not concrete runtime values.
+
+```text
+Co-authored-by: [AI_PRODUCT_NAME] <[AI_PRODUCT_EMAIL]>
+AI-Provider: [AI_PROVIDER]
+AI-Product: [AI_PRODUCT_LINE]
+AI-Model: [AI_MODEL]
+```
+
+Template rules:
+- `AI_PRODUCT_LINE` must be one of: `codex|claude|gemini|opencode`.
+- Determine `AI_PRODUCT_LINE` from current session.
+- Determine `AI_PROVIDER` and `AI_MODEL` from runtime model metadata.
+- Fill this template at commit time; do not persist filled values in `AGENTS.md`.
 
 ## Validation Commands
 
@@ -51,6 +75,8 @@ Gleanmo is a personal quantified-self web app built in Clojure 1.11.1 with Biff,
 
 ## Project-Specific Rules
 
+- Execute `ready` roadmap work units autonomously and self-validate before returning.
+- Never commit without explicit user approval.
 - Validation first: reflect on current state and plan before executing; run validation after changes.
 - User control: never assume database state; ask the user if unsure.
 - Roadmap driven: canonical roadmap lives in `roadmap/` with `index.md` as canonical state and `README.md` as catalog.
@@ -86,6 +112,12 @@ Schema conventions
 - Schemas live in `src/tech/jgood/gleanmo/schema/` and follow the standard field ordering with `:closed true`.
 - Register new schemas in `src/tech/jgood/gleanmo/schema.clj`.
 - Add new field types by updating schema registry, input renderer, form converter, and list formatter in that order.
+
+## References
+
+- For roadmap conventions and work-unit lifecycle, see `roadmap/README.md`.
+- For canonical roadmap state, see `roadmap/index.md`.
+- For shared cross-project policy, see `AGENT_BLUEPRINT.md`.
 
 ## Key Files
 

@@ -1,11 +1,11 @@
 ---
 title: "Memento Mori Calendar"
-status: idea
+status: draft
 description: "Finite-time visualization anchored to calendar data"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-02
+updated: 2026-02-07
 ---
 
 # Memento Mori Calendar

@@ -1,11 +1,11 @@
 ---
 title: "Pain Log Roadmap"
-status: idea
+status: draft
 description: "Pain logs with Airtable history and CRUD/viz"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-02
+updated: 2026-02-07
 ---
 
 # Pain Log Roadmap

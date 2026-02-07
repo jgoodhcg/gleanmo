@@ -1,11 +1,11 @@
 ---
 title: "Drawing Practice"
-status: idea
+status: draft
 description: "Build a habit of short timed drawing sessions with tracking and motivation tools"
 tags: [area/habits, area/timers, type/feature]
 priority: medium
 created: 2026-02-06
-updated: 2026-02-06
+updated: 2026-02-07
 ---
 
 # Drawing Practice

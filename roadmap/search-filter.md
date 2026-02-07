@@ -1,11 +1,11 @@
 ---
 title: "Search Tool for CRUD and Timer Views"
-status: idea
+status: ready
 description: "Text search tool for CRUD and timer view pages"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-02
+updated: 2026-02-07
 ---
 
 # Search Tool for CRUD and Timer Views

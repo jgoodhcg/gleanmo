@@ -1,11 +1,11 @@
 ---
 title: "Plausible Analytics User Identification"
-status: idea
+status: draft
 description: "Add user identifiers to Plausible analytics to distinguish individuals"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-02
+updated: 2026-02-07
 ---
 
 # Plausible Analytics User Identification

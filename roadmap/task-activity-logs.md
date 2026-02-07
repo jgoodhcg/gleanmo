@@ -1,11 +1,11 @@
 ---
 title: "Task Activity Logs"
-status: idea
+status: draft
 description: "Spawn time logs from tasks and link habits/calendar events to tasks"
 tags: [area/tasks, area/timers, type/feature]
 priority: medium
 created: 2026-02-06
-updated: 2026-02-06
+updated: 2026-02-07
 ---
 
 # Task Activity Logs

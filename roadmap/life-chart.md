@@ -1,11 +1,11 @@
 ---
 title: "Life Chart Calendar Requirements"
-status: idea
+status: draft
 description: "Lifetime view with years as rows and weeks as cells"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-02
+updated: 2026-02-07
 ---
 
 # Life Chart Calendar Requirements

@@ -1,11 +1,11 @@
 ---
 title: "Cognitive Games Roadmap"
-status: idea
+status: draft
 description: "Cognitive games to track performance trends"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-02
+updated: 2026-02-07
 ---
 
 # Cognitive Games Roadmap

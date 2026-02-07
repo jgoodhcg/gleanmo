@@ -1,11 +1,11 @@
 ---
 title: "Bouldering Log Roadmap"
-status: idea
+status: draft
 description: "Climbing sessions and problem attempts with Airtable backfill"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-02
+updated: 2026-02-07
 ---
 
 # Bouldering Log Roadmap

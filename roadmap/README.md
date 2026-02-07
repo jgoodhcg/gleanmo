@@ -30,12 +30,12 @@ Every work unit file must begin with YAML frontmatter:
 ```yaml
 ---
 title: "Feature Name"
-status: idea | planned | active | paused | done | dropped
+status: draft | ready | active | done | dropped
 description: "One-line summary of what this work unit accomplishes"
-tags: [area/frontend, type/feature]
-priority: medium
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
+tags: []
+priority: medium                      # high | medium | low
 ---
 ```
 
@@ -43,25 +43,39 @@ Required fields:
 - `title`
 - `status`
 - `description`
-
-Recommended fields:
-- `tags` (use prefixes `area/`, `type/`, `tech/`)
-- `priority` (high | medium | low)
 - `created`
-- `updated` (update whenever the work unit changes)
+- `updated`
+- `tags`
+- `priority`
 
 Status lives in frontmatter, not in prose.
 
 ## Status Definitions
 
-| Status | Meaning |
-|--------|---------|
-| `idea` | Captured but not yet scoped |
-| `planned` | Scoped and ready to start |
-| `active` | Currently being worked on |
-| `paused` | Started but blocked or deprioritized |
-| `done` | Shipped and working |
-| `dropped` | Decided not to pursue |
+| Status | Meaning | Kanban Column |
+|--------|---------|---------------|
+| `draft` | Brain dump captured; has open questions | Backlog |
+| `ready` | Clarified and executable as-is | Backlog |
+| `active` | Currently being worked on | In Progress |
+| `done` | Shipped and working | Done |
+| `dropped` | Decided not to pursue | (hidden) |
+
+## Legacy Status Migration
+
+| Legacy Status | New Status | Migration Rule |
+|---|---|---|
+| `idea` | `draft` | Keep open questions in `Open Questions`. |
+| `planned` | `ready` | Ensure Definition of Ready checklist passes. |
+| `paused` | `active` | Keep status `active` and add blocked context in `Context`. |
+| `done` | `done` | No change. |
+| `dropped` | `dropped` | No change. |
+
+## Definition of Ready
+
+A work unit can be marked `ready` only if all are true:
+- `Intent` states what and why.
+- `Specification` is concrete and testable.
+- `Validation` includes concrete checks (tests/e2e/visual as relevant).
 
 ## Conventions
 

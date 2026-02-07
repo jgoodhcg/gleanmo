@@ -1,11 +1,11 @@
 ---
 title: "Today Page Navigation and Date Filtering"
-status: idea
+status: draft
 description: "Page through dates on today view and add richer focus date filtering"
 tags: [area/frontend, area/tasks, type/feature]
 priority: medium
 created: 2026-02-06
-updated: 2026-02-06
+updated: 2026-02-07
 ---
 
 # Today Page Navigation and Date Filtering

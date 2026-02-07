@@ -1,11 +1,11 @@
 ---
 title: "Today Reorder Performance"
-status: idea
+status: ready
 description: "Fix slow response when reordering items on the today page"
 tags: [area/frontend, area/performance, type/bug]
 priority: high
 created: 2026-02-06
-updated: 2026-02-06
+updated: 2026-02-07
 ---
 
 # Today Reorder Performance

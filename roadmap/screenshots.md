@@ -1,11 +1,11 @@
 ---
 title: "Automated App Screenshots - Implementation Requirements"
-status: idea
+status: draft
 description: "Visual changelog via periodic route screenshots"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-02
+updated: 2026-02-07
 ---
 
 # Automated App Screenshots - Implementation Requirements

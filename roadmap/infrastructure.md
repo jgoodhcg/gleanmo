@@ -1,11 +1,11 @@
 ---
 title: "Infrastructure Move (Neon to DigitalOcean)"
-status: idea
+status: draft
 description: "Database migration from Neon to DigitalOcean"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-02
+updated: 2026-02-07
 ---
 
 # Infrastructure Move (Neon to DigitalOcean)

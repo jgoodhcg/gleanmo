@@ -1,11 +1,11 @@
 ---
 title: "Project Timers (Shipped) + Roam Metrics (Planned)"
-status: paused
+status: active
 description: "Project timers shipped; Roam metrics integration pending"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-02
+updated: 2026-02-07
 ---
 
 # Project Timers (Shipped) + Roam Metrics (Planned)
@@ -19,6 +19,11 @@ updated: 2026-02-02
 **Status summary**
 - Project tracking and timers: implemented and functional in-app.
 - Roam metrics: planned only (this doc is primarily about the future Roam integration).
+
+## Context
+
+- Blocked context: Roam metrics work is intentionally deprioritized while other active roadmap items ship.
+- Dependency: Roam integration details (API access + metric selection) remain open and should be finalized before implementation resumes.
 
 ## Project Overview
 

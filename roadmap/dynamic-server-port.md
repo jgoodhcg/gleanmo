@@ -1,11 +1,11 @@
 ---
 title: "Dynamic Server Port Selection"
-status: idea
+status: ready
 description: "Make the server dynamically choose a port to run on to support git worktree and multiple project development"
 tags: [area/dev-tools, type/enhancement, tech/dev-server]
 priority: medium
 created: 2026-02-06
-updated: 2026-02-06
+updated: 2026-02-07
 ---
 
 # Dynamic Server Port Selection
