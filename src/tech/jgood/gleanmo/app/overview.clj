@@ -83,7 +83,7 @@
           secs    (t/seconds dur)
           suffix  (when-not in-future " ago")]
       (cond
-        (< secs 60)     (if in-future "in under a minute" (str "just now"))
+        (< secs 60)     (if in-future "in under a minute" "just now")
         (< secs 3600)   (let [m (t/minutes dur)]
                           (str (when in-future "in ")
                                m

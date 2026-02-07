@@ -13,8 +13,8 @@
        [:location/notes {:optional true :crud/priority 2} :string]
        [:location/archived {:optional true} :boolean]
        [:location/sensitive {:optional true} :boolean]]
-      (concat sm/legacy-meta)
-      ;; DEPRECATED
       (concat
+       sm/legacy-meta
+       ;; DEPRECATED
        [[:location/name {:optional true} :string]])
       vec))

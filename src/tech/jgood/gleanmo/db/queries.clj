@@ -377,6 +377,22 @@
          (sort-by (juxt (fn [t] (or (:task/focus-order t) Integer/MAX_VALUE))
                         :task/focus-date)))))
 
+(defn next-focus-order-for-date
+  "Return the next focus-order value for tasks with focus-date equal to date."
+  [db user-id date]
+  (let [{:keys [show-sensitive]} (get-user-settings db user-id)
+        all-tasks (all-entities-for-user
+                   db user-id :task
+                   :filter-sensitive show-sensitive
+                   :filter-archived false)]
+    (->> all-tasks
+         (filter (fn [task]
+                   (when-let [focus-date (:task/focus-date task)]
+                     (.isEqual focus-date date))))
+         (keep :task/focus-order)
+         (reduce max 0)
+         inc)))
+
 (defn tasks-completed-today
   "Get tasks completed today (for progress tracking)."
   [db user-id today]

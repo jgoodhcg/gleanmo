@@ -62,6 +62,7 @@
     :hx-select "#today-content"
     :hx-swap "outerHTML"}
    [:input {:type "hidden" :name "__anti-forgery-token" :value csrf/*anti-forgery-token*}]
+   [:input {:type "hidden" :name "origin" :value "today"}]
    [:button.px-2.py-1.text-xs.rounded.border.transition-all
     {:type "submit" :class color-class}
     label]])
@@ -135,10 +136,31 @@
     [:div.space-y-2
      (empty-state)]))
 
+(defn- quick-add-form
+  []
+  [:form#today-quick-add.flex.items-center.gap-2.mb-6
+   {:method     "post"
+    :action     "/app/task/quick-add-today"
+    :hx-post    "/app/task/quick-add-today"
+    :hx-target  "#today-content"
+    :hx-select  "#today-content"
+    :hx-swap    "outerHTML"}
+   [:input {:type "hidden" :name "__anti-forgery-token" :value csrf/*anti-forgery-token*}]
+   [:label.sr-only {:for "today-quick-add-label"} "Quick add task"]
+   [:input.form-input.flex-1
+    {:id "today-quick-add-label"
+     :name "label"
+     :placeholder "Quick add a task..."
+     :autocomplete "off"
+     :data-original-value ""}]
+   [:button.inline-flex.items-center.justify-center.rounded-md.bg-neon-cyan.text-dark.font-semibold.px-4.py-2.transition-all.hover:bg-transparent.hover:text-neon-cyan.border.border-neon-cyan
+    {:type "submit"}
+    "Add"]])
+
 (defn- backlog-picker-button
   []
   [:a.inline-flex.items-center.gap-2.px-4.py-2.bg-dark-surface.border.border-dark.rounded-lg.text-gray-300.hover:text-neon-cyan.hover:border-neon-cyan.transition-all
-   {:href "/app/task/focus?for-today=1"}
+   {:href "/app/task/focus?today-filter=exclude"}
    [:span "+"]
    [:span "Add from backlog"]])
 
@@ -169,6 +191,8 @@
        (.format today (java.time.format.DateTimeFormatter/ofPattern "EEE, MMM d"))]]
      ;; Stats
      (stats-block done-today total-today all-time this-week last-week)
+     ;; Quick add
+     (quick-add-form)
      ;; Task list
      (task-list focused-tasks project-by-id today)
      ;; Add from backlog

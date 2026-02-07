@@ -7,6 +7,7 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 
 ## Current Focus
 
+- [daily-focus.md](./daily-focus.md) - Daily planning ritual with progress stats and carry-forward
 - [calendar.md](./calendar.md) - Year-at-a-glance calendar with event interactions and external sync
 - [exercise.md](./exercise.md) - Exercise tracking with superset support and Airtable backfill
 - [medication.md](./medication.md) - Medication logging with Airtable history import
@@ -21,6 +22,7 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 
 ### Active
 
+- [daily-focus.md](./daily-focus.md) - Daily planning ritual with progress stats and carry-forward
 - [calendar.md](./calendar.md) - Year-at-a-glance calendar with event interactions and external sync
 - [exercise.md](./exercise.md) - Exercise tracking with superset support and Airtable backfill
 - [medication.md](./medication.md) - Medication logging with Airtable history import
@@ -37,6 +39,7 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 
 ### Idea
 
+- [dynamic-server-port.md](./dynamic-server-port.md) - Make the server dynamically choose a port to run on to support git worktree and multiple project development
 - [plausible-user-identification.md](./plausible-user-identification.md) - Add user identifiers to Plausible analytics to distinguish individuals
 - [reading-tracker.md](./reading-tracker.md) - Lightweight Goodreads replacement with timer-backed sessions
 - [reading-schema-proposal.md](./reading-schema-proposal.md) - Draft Malli schemas for reading entities
@@ -57,7 +60,6 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 - [archived/rewrite-analysis.md](./archived/rewrite-analysis.md) - Language/stack evaluation (deferred - staying with Clojure)
 - [archived/postgres-migration.md](./archived/postgres-migration.md) - Historical Postgres migration decision log
 - [archived/backlog-2025-10-31.md](./archived/backlog-2025-10-31.md) - Archived backlog snapshot
-- [archived/daily-focus.md](./archived/daily-focus.md) - Daily planning ritual with progress stats and carry-forward
 - [archived/task-management.md](./archived/task-management.md) - Task system with behavioral signals and actionable lists
 
 ## Quick Ideas

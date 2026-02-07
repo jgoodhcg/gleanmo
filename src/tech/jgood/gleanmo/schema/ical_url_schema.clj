@@ -17,7 +17,8 @@
        [:ical-url/label {:optional true} :string]
        [:ical-url/notes {:optional true} :string]
        [:ical-url/visibility {:optional true} [:enum :public :private]]]
-      (concat sm/legacy-meta)
-      ;; DEPRECATED
-      (concat [[:ical-url/name {:optional true} :string]])
+      (concat
+       sm/legacy-meta
+       ;; DEPRECATED
+       [[:ical-url/name {:optional true} :string]])
       vec))

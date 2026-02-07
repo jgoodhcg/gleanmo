@@ -87,6 +87,19 @@
       "exclude-future" (not future-snoozed?)
       true)))
 
+(defn- focused-today?
+  [task today]
+  (when-let [focus-date (:task/focus-date task)]
+    (or (.isEqual focus-date today)
+        (.isBefore focus-date today))))
+
+(defn- today-filter-match?
+  [task today-filter today]
+  (case today-filter
+    "only" (focused-today? task today)
+    "exclude" (not (focused-today? task today))
+    true))
+
 (defn- focus-base-tasks
   [db user-id state-filter state-any? state-not-done?]
   (cond
@@ -181,8 +194,8 @@
 (defn- focus-today-button
   "Add task to today's focus list, or show indicator if already focused.
    Uses HTMX to preserve filters."
-  [task-id focused-today?]
-  (if focused-today?
+  [task-id focused-today-flag?]
+  (if focused-today-flag?
     ;; Already focused - show indicator with option to remove
     [:form.inline
      {:method     "post",
@@ -196,6 +209,7 @@
       {:type  "hidden",
        :name  "__anti-forgery-token",
        :value csrf/*anti-forgery-token*}]
+     [:input {:type "hidden" :name "origin" :value "focus"}]
      [:button.inline-flex.items-center.justify-center.rounded-md.text-xs.font-medium.transition-all
       {:type "submit",
        :title "Remove from today",
@@ -215,6 +229,7 @@
       {:type  "hidden",
        :name  "__anti-forgery-token",
        :value csrf/*anti-forgery-token*}]
+     [:input {:type "hidden" :name "origin" :value "focus"}]
      [:button.inline-flex.items-center.justify-center.rounded-md.text-xs.font-medium.transition-all
       {:type "submit",
        :class
@@ -229,10 +244,7 @@
         project-label (get project-by-id project-id)
         domain        (:task/domain task)
         due-on        (:task/due-on task)
-        focus-date    (:task/focus-date task)
-        focused-today? (and focus-date
-                            (or (.isEqual focus-date today)
-                                (.isBefore focus-date today)))
+        focused-today-flag? (focused-today? task today)
         snooze-until    (:task/snooze-until task)
         snooze-count    (or (:task/snooze-count task) 0)
         future-snoozed? (and snooze-until (.isAfter snooze-until today))
@@ -274,7 +286,7 @@
      [:div.flex.flex-wrap.items-center.gap-2
       ;; Focus Today button (prominent)
       (when (not= state :done)
-        (focus-today-button id focused-today?))
+        (focus-today-button id focused-today-flag?))
       [:div.flex.items-center.gap-1
        (when (not= state :later)
          (secondary-button id :later "Later"))
@@ -317,6 +329,7 @@
            domain-selected
            due-selected
            due-status-selected
+           today-filter
            snoozed-filter
            sort-selected]}]
   (let [search-active?     (seq search)
@@ -325,6 +338,7 @@
         domain-active?     (seq domain-selected)
         due-on-active?     (seq due-selected)
         due-status-active? (not= due-status-selected "any")
+        today-filter-active? (not= today-filter "any")
         snoozed-active?    (not= snoozed-filter "any")
         sort-active?       (not= sort-selected "created-desc")]
     [:div.mb-8.bg-dark-surface.border.border-dark.rounded.p-4
@@ -440,6 +454,20 @@
            "Due later"]]]]
 
        [:div
+        [:label.form-label {:for "task-today-filter"} "Today items"]
+        [:div.mt-2
+         [:select.form-select
+          {:id    "task-today-filter",
+           :name  "today-filter",
+           :class (when today-filter-active? filter-active-class)}
+          [:option {:value "any", :selected (= today-filter "any")}
+           "Any"]
+          [:option {:value "only", :selected (= today-filter "only")}
+           "Only today"]
+          [:option {:value "exclude", :selected (= today-filter "exclude")}
+           "Exclude today"]]]]
+
+       [:div
         [:label.form-label {:for "task-snoozed"} "Availability"]
         [:div.mt-2
          [:select.form-select
@@ -493,7 +521,10 @@
         domain-param        (normalize-param (:domain params))
         project-param       (normalize-param (:project params))
         due-param           (normalize-param (:due-on params))
+        today-filter-param  (or (normalize-param (:today-filter params))
+                                (when (normalize-param (:for-today params)) "exclude"))
         due-status          (or (normalize-param (:due-status params)) "any")
+        today-filter        (or today-filter-param "any")
         snoozed-filter      (or (normalize-param (:snoozed params)) "any")
         sort-key            (or (normalize-param (:sort params)) "created-desc")
         state-any?          (= state-param "any")
@@ -533,6 +564,7 @@
                              (filter #(or (nil? due-filter)
                                           (due-on-or-before? % due-filter)))
                              (filter #(due-status-match? % due-status today))
+                             (filter #(today-filter-match? % today-filter today))
                              (filter #(snoozed-filter-match? %
                                                              snoozed-filter
                                                              today)))
@@ -545,6 +577,7 @@
         project-selected    (or project-param "")
         due-selected        due-param
         due-status-selected due-status
+        today-filter        today-filter
         sort-selected       sort-key]
 
     (ui/page
@@ -563,6 +596,7 @@
          :domain-selected     domain-selected,
          :due-selected        due-selected,
          :due-status-selected due-status-selected,
+         :today-filter        today-filter,
          :snoozed-filter      snoozed-filter,
          :sort-selected       sort-selected})
 

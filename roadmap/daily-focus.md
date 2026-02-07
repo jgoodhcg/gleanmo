@@ -1,6 +1,6 @@
 ---
 title: "Daily Focus"
-status: done
+status: active
 description: "Daily planning ritual with progress stats and carry-forward"
 tags: []
 priority: medium
@@ -15,6 +15,13 @@ updated: 2026-02-02
 - Constraints: Must be smooth and fun or it won't get used. Minimize friction (single-click actions). Build incrementally.
 - Implemented approach: Added `focus-date` to tasks. Dedicated "Today" page with progress stats, ordered list, and satisfying completion feedback. Unfinished tasks carry forward automatically with a visual indicator.
 - Current State: V1 (Core Loop) and V2 (Polish/Drag-and-Drop) are complete.
+
+## Feedback / Next Fixes
+
+- Today toggle on the Focus page does not seem to turn off once enabled.
+- Today feature attributes are not visible in CRUD forms; need to confirm whether they were intentionally hidden or never added.
+- Add quick task entry on the Today screen.
+- Add a Focus filter to include/exclude Today items.
 
 ## Design Philosophy
 

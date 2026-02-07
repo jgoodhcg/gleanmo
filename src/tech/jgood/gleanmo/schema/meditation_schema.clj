@@ -11,12 +11,13 @@
        [:user/id :user/id]
        [:meditation/label {:crud/priority 1} :string]
        [:meditation/notes {:optional true, :crud/priority 2} :string]]
-      (concat sm/legacy-meta)
-      ;; DEPRECATED
-      (concat [[:meditation/name {:optional true, :hide true} :string]
-               [:meditation-type/name {:optional true, :hide true} :string]
-               [:meditation-type/label {:optional true, :hide true} :string]
-               [:meditation-type/notes {:optional true, :hide true} :string]])
+      (concat
+       sm/legacy-meta
+       ;; DEPRECATED
+       [[:meditation/name {:optional true, :hide true} :string]
+        [:meditation-type/name {:optional true, :hide true} :string]
+        [:meditation-type/label {:optional true, :hide true} :string]
+        [:meditation-type/notes {:optional true, :hide true} :string]])
       vec))
 
 (def meditation-log

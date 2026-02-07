@@ -48,3 +48,15 @@ e2e-flow name="example":
 # Run Today page reorder test
 e2e-test-reorder:
     cd e2e && npm run test:today-reorder
+
+# Run Today page toggle test
+e2e-test-today-toggle:
+    cd e2e && npm run test:today-toggle
+
+# Run Today page quick add test
+e2e-test-today-quick-add:
+    cd e2e && npm run test:today-quick-add
+
+# Run Focus page Today filter test
+e2e-test-today-filter:
+    cd e2e && npm run test:today-filter

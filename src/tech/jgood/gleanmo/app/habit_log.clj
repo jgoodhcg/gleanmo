@@ -96,7 +96,7 @@
         [:div.mt-1
          [:select.form-select
           {:onchange "window.location.href=this.value;"}
-          [:option {:value (str base-url)} "-- Select habit --"]
+          [:option {:value base-url} "-- Select habit --"]
           (for [{id :xt/id, habit-label :habit/label} all-habits]
             [:option
              {:value    (str base-url

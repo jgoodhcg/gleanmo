@@ -5,6 +5,8 @@
    [tech.jgood.gleanmo.app.task-focus :as task-focus]
    [tech.jgood.gleanmo.app.task-today :as task-today]
    [tech.jgood.gleanmo.crud.routes :as crud]
+   [tech.jgood.gleanmo.db.mutations :as mutations]
+   [tech.jgood.gleanmo.db.queries :as queries]
    [tech.jgood.gleanmo.schema :refer [schema]]
    [tech.jgood.gleanmo.ui.sortable :as sortable]
    [xtdb.api :as xt]))
@@ -65,26 +67,32 @@
   [{:keys [biff/db biff.xtdb/node path-params], :as ctx}]
   (let [task-id (parse-uuid (:id path-params))
         today (java.time.LocalDate/now)
-        ;; Get max focus-order for today and add 1
-        existing-tasks (xt/q db
-                             '{:find [(pull ?e [:task/focus-order])]
-                               :where [[?e :task/focus-date today]
-                                       [?e :user/id user-id]]
-                               :in [today user-id]}
-                             today
-                             (:uid (:session ctx)))
-        max-order (or (->> existing-tasks
-                           (map first)
-                           (keep :task/focus-order)
-                           (apply max 0))
-                      0)]
-    (biff/submit-tx ctx
-                    [{:db/op :update
-                      :db/doc-type :task
-                      :xt/id task-id
-                      :task/focus-date today
-                      :task/focus-order (inc max-order)}])
+        next-order (queries/next-focus-order-for-date db
+                                                      (:uid (:session ctx))
+                                                      today)]
+    (mutations/update-entity! ctx
+                              {:entity-key :task
+                               :entity-id task-id
+                               :data {:task/focus-date today
+                                      :task/focus-order next-order}})
     (task-focus/focus-view (assoc ctx :biff/db (xt/db node)))))
+
+(defn quick-add-today!
+  "Quickly create a task and add it to today's focus list."
+  [{:keys [biff/db biff.xtdb/node session params], :as ctx}]
+  (let [label (some-> (:label params) str/trim)
+        user-id (:uid session)
+        today (java.time.LocalDate/now)]
+    (when (seq label)
+      (let [next-order (queries/next-focus-order-for-date db user-id today)]
+        (mutations/create-entity! ctx
+                                  {:entity-key :task
+                                   :data {:user/id user-id
+                                          :task/label label
+                                          :task/state :now
+                                          :task/focus-date today
+                                          :task/focus-order next-order}})))
+    (task-today/today-content (assoc ctx :biff/db (xt/db node)))))
 
 (defn complete-today!
   "Mark a task as done from the today view."
@@ -118,22 +126,37 @@
 (defn remove-from-today!
   "Remove a task from today's focus (back to backlog).
    Returns appropriate view based on referer (Focus page vs Today page)."
-  [{:keys [biff.xtdb/node path-params headers], :as ctx}]
+  [{:keys [biff.xtdb/node path-params headers params], :as ctx}]
   (let [task-id (parse-uuid (:id path-params))]
     (biff/submit-tx ctx
                     [{:db/op :update
                       :db/doc-type :task
                       :xt/id task-id
-                      :task/focus-date nil
-                      :task/focus-order nil}])
+                      :task/focus-date :db/dissoc
+                      :task/focus-order :db/dissoc}])
     ;; Return appropriate view based on where the request came from
-    (let [referer (get headers "referer" "")
-          from-focus-page? (or (str/includes? referer "/task/focus")
-                               (str/includes? referer "/task?")
-                               (str/ends-with? referer "/task"))]
-      (if from-focus-page?
+    (let [origin          (:origin params)
+          hx-target       (get headers "hx-target")
+          current-url     (or (get headers "hx-current-url")
+                              (get headers "referer")
+                              "")
+          from-focus-page? (or (= origin "focus")
+                               (= hx-target "task-list")
+                               (str/includes? current-url "/task/focus")
+                               (str/includes? current-url "/task?")
+                               (str/ends-with? current-url "/task"))
+          from-today-page? (or (= origin "today")
+                               (= hx-target "today-content")
+                               (str/includes? current-url "/task/today"))]
+      (cond
+        from-focus-page?
         (task-focus/focus-view (assoc ctx :biff/db (xt/db node)))
-        (task-today/today-content (assoc ctx :biff/db (xt/db node)))))))
+
+        from-today-page?
+        (task-today/today-content (assoc ctx :biff/db (xt/db node)))
+
+        :else
+        (task-focus/focus-view (assoc ctx :biff/db (xt/db node)))))))
 
 (defn reorder-today!
   "Reorder tasks in the today list via drag-and-drop."
@@ -147,6 +170,7 @@
    ["/focus" {:get task-focus/focus-view}]
    ["/today" {:get task-today/today-view}]
    ["/reorder-today" {:post reorder-today!}]
+   ["/quick-add-today" {:post quick-add-today!}]
    ["/:id/set-state" {:post set-state!}]
    ["/:id/snooze" {:post snooze!}]
    ["/:id/clear-snooze" {:post clear-snooze!}]

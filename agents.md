@@ -51,7 +51,6 @@ Gleanmo is a personal quantified-self web app built in Clojure 1.11.1 with Biff,
 
 ## Project-Specific Rules
 
-- One step at a time: perform a single logical task, then stop and ask for validation/feedback.
 - Validation first: reflect on current state and plan before executing; run validation after changes.
 - User control: never assume database state; ask the user if unsure.
 - Roadmap driven: canonical roadmap lives in `roadmap/` with `index.md` as canonical state and `README.md` as catalog.
