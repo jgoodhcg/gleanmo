@@ -9,7 +9,8 @@
     "test:today-reorder": "tsx scripts/test-today-reorder.ts",
     "test:today-toggle": "tsx scripts/test-today-toggle.ts",
     "test:today-quick-add": "tsx scripts/test-today-quick-add.ts",
-    "test:today-filter": "tsx scripts/test-today-filter.ts"
+    "test:today-filter": "tsx scripts/test-today-filter.ts",
+    "test:today-canceled": "tsx scripts/test-today-canceled.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.40.0",

@@ -10,6 +10,7 @@
    [tick.core :as t]
    [xtdb.api :as xt])
   (:import
+   [java.time LocalDate]
    [java.util UUID]))
 
 (defn get-context
@@ -730,3 +731,44 @@
               (is (pos? (count entities)) "Should return some entities")
               (is (<= query-count 5)
                   (format "Expected batched queries (<= 5), got %d" query-count)))))))))
+
+(deftest tasks-for-today-excludes-canceled-test
+  (testing "tasks-for-today excludes terminal states and keeps actionable focused tasks"
+    (with-open [node (test-xtdb-node [])]
+      (let [ctx      (get-context node)
+            user-id  (UUID/randomUUID)
+            today    (LocalDate/now)
+            yesterday (.minusDays today 1)
+            _        (mutations/create-entity!
+                      ctx
+                      {:entity-key :task
+                       :data {:user/id user-id
+                              :task/label "Now Today"
+                              :task/state :now
+                              :task/focus-date today}})
+            _        (mutations/create-entity!
+                      ctx
+                      {:entity-key :task
+                       :data {:user/id user-id
+                              :task/label "Done Today"
+                              :task/state :done
+                              :task/focus-date today}})
+            _        (mutations/create-entity!
+                      ctx
+                      {:entity-key :task
+                       :data {:user/id user-id
+                              :task/label "Canceled Carryover"
+                              :task/state :canceled
+                              :task/focus-date yesterday}})
+            _        (mutations/create-entity!
+                      ctx
+                      {:entity-key :task
+                       :data {:user/id user-id
+                              :task/label "Now Carryover"
+                              :task/state :now
+                              :task/focus-date yesterday}})
+            tasks    (queries/tasks-for-today (xt/db node) user-id today)
+            labels   (set (map :task/label tasks))]
+        (is (= #{"Now Today" "Now Carryover"} labels))
+        (is (not (contains? labels "Done Today")))
+        (is (not (contains? labels "Canceled Carryover")))))))

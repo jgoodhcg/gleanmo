@@ -107,11 +107,47 @@
           :data {:user/id user-id
                  :task/label "Waiting Task"
                  :task/state :waiting}})
+        (mutations/create-entity!
+         ctx
+         {:entity-key :task
+          :data {:user/id user-id
+                 :task/label "Canceled Task"
+                 :task/state :canceled}})
         (xt/sync node)
         (let [text (focus-text node user-id {:state "any"})]
           (is (str/includes? text "Now Task"))
           (is (str/includes? text "Later Task"))
-          (is (str/includes? text "Waiting Task")))))))
+          (is (str/includes? text "Waiting Task"))
+          (is (str/includes? text "Canceled Task")))))))
+
+(deftest focus-not-done-excludes-canceled-test
+  (testing "not-done shows actionable states and excludes terminal states"
+    (with-open [node (test-xtdb-node [])]
+      (let [user-id (UUID/randomUUID)
+            ctx     (get-context node)]
+        (mutations/create-entity!
+         ctx
+         {:entity-key :task
+          :data {:user/id user-id
+                 :task/label "Now Task"
+                 :task/state :now}})
+        (mutations/create-entity!
+         ctx
+         {:entity-key :task
+          :data {:user/id user-id
+                 :task/label "Done Task"
+                 :task/state :done}})
+        (mutations/create-entity!
+         ctx
+         {:entity-key :task
+          :data {:user/id user-id
+                 :task/label "Canceled Task"
+                 :task/state :canceled}})
+        (xt/sync node)
+        (let [text (focus-text node user-id {:state "not-done"})]
+          (is (str/includes? text "Now Task"))
+          (is (not (str/includes? text "Done Task")))
+          (is (not (str/includes? text "Canceled Task"))))))))
 
 (deftest focus-filter-combination-test
   (testing "project/domain/search/due filters narrow the list"

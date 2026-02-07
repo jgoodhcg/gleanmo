@@ -60,3 +60,7 @@ e2e-test-today-quick-add:
 # Run Focus page Today filter test
 e2e-test-today-filter:
     cd e2e && npm run test:today-filter
+
+# Run canceled-state behavior test (Focus + Today)
+e2e-test-today-canceled:
+    cd e2e && npm run test:today-canceled

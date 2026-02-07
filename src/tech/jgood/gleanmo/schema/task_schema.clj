@@ -15,7 +15,7 @@
     [:task/label {:crud/priority 1} :string]
     [:task/notes {:optional true, :crud/priority 2} :string]
     [:task/state {:crud/priority 3}
-     [:enum :inbox :now :later :waiting :done]]
+     [:enum :inbox :now :later :waiting :done :canceled]]
     [:task/sensitive {:optional true} :boolean]
 
      ;; Dates

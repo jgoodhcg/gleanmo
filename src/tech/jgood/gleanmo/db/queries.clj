@@ -359,8 +359,11 @@
         first
         :xtdb.api/tx-time)))
 
+(def ^:private terminal-task-states
+  #{:done :canceled})
+
 (defn tasks-for-today
-  "Get tasks focused for today (focus-date = today or focus-date < today with state != done).
+  "Get tasks focused for today (focus-date = today or focus-date < today and task is not terminal).
    Returns tasks sorted by focus-order, then by focus-date."
   [db user-id today]
   (let [{:keys [show-sensitive]} (get-user-settings db user-id)
@@ -371,7 +374,8 @@
     (->> all-tasks
          (filter (fn [task]
                    (when-let [focus-date (:task/focus-date task)]
-                     (and (not= (:task/state task) :done)
+                     (and (not (contains? terminal-task-states
+                                          (:task/state task)))
                           (or (.isEqual focus-date today)
                               (.isBefore focus-date today))))))
          (sort-by (juxt (fn [t] (or (:task/focus-order t) Integer/MAX_VALUE))

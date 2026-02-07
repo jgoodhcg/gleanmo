@@ -8,10 +8,10 @@
    [tech.jgood.gleanmo.ui :as ui]))
 
 (def ^:private task-states
-  [:inbox :now :later :waiting :done])
+  [:inbox :now :later :waiting :done :canceled])
 
 (def ^:private active-task-states
-  "Task states that are considered 'not done' (active tasks)."
+  "Task states that are considered actionable (not terminal)."
   #{:inbox :now :later :waiting})
 
 (def ^:private task-state-labels
@@ -19,7 +19,11 @@
    :now     "Now",
    :later   "Later",
    :waiting "Waiting",
-   :done    "Done"})
+   :done    "Done",
+   :canceled "Canceled"})
+
+(def ^:private terminal-task-states
+  #{:done :canceled})
 
 (def ^:private task-domains
   [:work :personal :home :health :admin])
@@ -285,7 +289,7 @@
 
      [:div.flex.flex-wrap.items-center.gap-2
       ;; Focus Today button (prominent)
-      (when (not= state :done)
+      (when-not (contains? terminal-task-states state)
         (focus-today-button id focused-today-flag?))
       [:div.flex.items-center.gap-1
        (when (not= state :later)
@@ -295,7 +299,9 @@
        (when (not= state :now)
          (secondary-button id :now "Now"))
        (when (not= state :done)
-         (secondary-button id :done "Done"))]
+         (secondary-button id :done "Done"))
+       (when (not= state :canceled)
+         (secondary-button id :canceled "Cancel"))]
       [:div.flex.items-center.gap-1
        [:span.text-xs.text-gray-500 "Snooze"]
        (snooze-button id 1 "+1d")
