@@ -93,6 +93,11 @@
     (when (and start end)
       (t/seconds (t/between start end)))))
 
+(defn- interval-seconds
+  "Calculate duration in seconds for a [start end] interval."
+  [[start end]]
+  (t/seconds (t/between start end)))
+
 (defn- format-duration
   "Format a duration in seconds as Xh Ym."
   [total-seconds]
@@ -103,49 +108,114 @@
       (zero? hours) (str minutes "m")
       :else (str hours "h " minutes "m"))))
 
+(defn- today-window
+  "Return today's [start, end) window as instants in the user's timezone."
+  [ctx]
+  (let [zone-id (java.time.ZoneId/of (or (get-user-time-zone ctx) "UTC"))
+        today   (.toLocalDate (java.time.ZonedDateTime/now zone-id))
+        start   (.toInstant (.atStartOfDay today zone-id))
+        end     (.toInstant (.atStartOfDay (.plusDays today 1) zone-id))]
+    {:start start
+     :end   end}))
+
+(defn- clamp-interval-to-window
+  "Clamp [start end] to [window-start window-end). Returns nil if no overlap."
+  [start end window-start window-end]
+  (let [start* (if (.isAfter start window-start) start window-start)
+        end*   (if (.isBefore end window-end) end window-end)]
+    (when (.isBefore start* end*)
+      [start* end*])))
+
+(defn- merge-overlapping-intervals
+  "Merge overlapping or adjacent intervals."
+  [intervals]
+  (reduce
+   (fn [acc [start end]]
+     (if-let [[acc-start acc-end] (peek acc)]
+       (if (not (.isAfter start acc-end))
+         (conj (pop acc)
+               [acc-start (if (.isAfter end acc-end) end acc-end)])
+         (conj acc [start end]))
+       [[start end]]))
+   []
+   (sort-by first intervals)))
+
+(defn- unique-interval-seconds
+  "Total unique seconds covered by a set of intervals."
+  [intervals]
+  (->> intervals
+       merge-overlapping-intervals
+       (map interval-seconds)
+       (reduce + 0)))
+
 (defn- today-logs
-  "Fetch completed logs from today."
+  "Fetch completed logs that overlap today. Each log is clamped to today's window."
   [ctx {:keys [entity-query beginning-key end-key]}]
-  (let [tz    (t/zone (or (get-user-time-zone ctx) "UTC"))
-        today (t/date (t/in (t/now) tz))]
+  (let [{:keys [start end]} (today-window ctx)]
     (->> (queries/all-for-user-query entity-query ctx)
-         (filter (fn [log]
-                   (and (get log beginning-key)
-                        (get log end-key)
-                        (= (t/date (t/in (get log beginning-key) tz)) today)))))))
+         (keep (fn [log]
+                 (let [log-start (get log beginning-key)
+                       log-end   (get log end-key)
+                       interval  (when (and log-start log-end)
+                                   (clamp-interval-to-window log-start
+                                                             log-end
+                                                             start
+                                                             end))]
+                   (when interval
+                     (assoc log :timer/day-interval interval))))))))
+
+(defn- metric-card
+  [label value value-classes]
+  [:div.rounded-lg.border.border-dark.p-3.bg-dark
+   [:p.text-xs.text-gray-400.uppercase.tracking-wide label]
+   [:p {:class (str "text-xl font-semibold mt-1 " value-classes)} value]])
 
 (defn- today-stats-section
-  "Render today's time stats broken down by parent entity, plus total."
-  [ctx {:keys [beginning-key end-key relationship-key parent-entity-key] :as config} parent-entities]
+  "Render overlap-aware day stats plus per-parent raw totals."
+  [ctx {:keys [relationship-key parent-entity-key parent-entity-str] :as config} parent-entities]
   (let [logs      (today-logs ctx config)
         label-key (schema-utils/entity-attr-key parent-entity-key "label")
+        labels-by-id (into {}
+                           (map (fn [parent]
+                                  [(:xt/id parent) (get parent label-key)]))
+                           parent-entities)
         by-parent (group-by #(get % relationship-key) logs)
         parent-stats (->> by-parent
                           (map (fn [[parent-id parent-logs]]
-                                 (let [parent (first (filter #(= (:xt/id %) parent-id) parent-entities))
-                                       secs   (->> parent-logs
-                                                   (map #(log-duration-seconds % beginning-key end-key))
+                                 (let [secs   (->> parent-logs
+                                                   (map :timer/day-interval)
+                                                   (map interval-seconds)
                                                    (filter some?)
                                                    (reduce + 0))]
-                                   {:label (or (some-> parent (get label-key)) "Unknown")
+                                   {:label (or (get labels-by-id parent-id) "Unknown")
                                     :seconds secs})))
                           (sort-by :seconds >)
                           (filter #(pos? (:seconds %))))
-        total-secs (->> logs
-                        (map #(log-duration-seconds % beginning-key end-key))
+        raw-secs   (->> logs
+                        (map :timer/day-interval)
+                        (map interval-seconds)
                         (filter some?)
-                        (reduce + 0))]
+                        (reduce + 0))
+        unique-secs (->> logs
+                         (map :timer/day-interval)
+                         unique-interval-seconds)
+        overlap-secs (max 0 (- raw-secs unique-secs))
+        parent-header (str "By " (str/capitalize parent-entity-str) " (raw)")]
     [:div.bg-dark-surface.rounded-lg.p-4.border.border-dark.space-y-3
+     [:div.grid.grid-cols-1.md:grid-cols-3.gap-3
+      (metric-card "Active (unique)" (format-duration unique-secs) "text-neon-cyan")
+      (metric-card "Logged (raw)" (format-duration raw-secs) "text-white")
+      (metric-card "Overlap removed" (format-duration overlap-secs) "text-neon-pink")]
      (when (seq parent-stats)
-       [:div.space-y-2
+       [:div.space-y-2.pt-1
+        [:p.text-xs.text-gray-400.uppercase.tracking-wide parent-header]
         (for [{:keys [label seconds]} parent-stats]
           ^{:key label}
           [:div.flex.items-center.justify-between
            [:span.text-sm.text-gray-300 label]
            [:span.text-sm.text-neon-cyan (format-duration seconds)]])])
-     [:div.flex.items-center.justify-between.border-t.border-dark.pt-2
-      [:span.text-sm.text-gray-400.uppercase.tracking-wide "Total"]
-      [:span.text-lg.font-semibold.text-neon-cyan (format-duration total-secs)]]]))
+     (when-not (seq logs)
+       [:p.text-sm.text-gray-400 "No completed logs for today."])]))
 
 (defn- recent-logs-section
   "Render a list of recent completed logs as edit links."

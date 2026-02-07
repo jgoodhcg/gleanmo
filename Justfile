@@ -64,3 +64,7 @@ e2e-test-today-filter:
 # Run canceled-state behavior test (Focus + Today)
 e2e-test-today-canceled:
     cd e2e && npm run test:today-canceled
+
+# Run timer overlap metrics test
+e2e-test-timer-overlap:
+    cd e2e && npm run test:timer-overlap

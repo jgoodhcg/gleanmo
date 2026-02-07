@@ -54,6 +54,7 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 - [infrastructure.md](./infrastructure.md) - Database migration from Neon to DigitalOcean
 - [search-filter.md](./search-filter.md) - Text search tool for CRUD and timer view pages
 - [task-activity-logs.md](./task-activity-logs.md) - Spawn time logs from tasks and link habits/calendar events to tasks
+- [timer-overlap-metrics.md](./timer-overlap-metrics.md) - Show overlap-aware daily and per-project timer metrics with clear unique vs. raw totals
 - [drawing-practice.md](./drawing-practice.md) - Timed drawing session habit with tracking and motivation tools
 - [workflow-optimization.md](./workflow-optimization.md) - Minimize clicks for logging, fast landing page, and motivating stats
 - [today-reorder-performance.md](./today-reorder-performance.md) - Fix slow response when reordering items on the today page
