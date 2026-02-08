@@ -9,6 +9,7 @@
   (:require
    [clojure.tools.cli :refer [parse-opts]]
    [com.biffweb :as biff]
+   [tasks.migrations.m001-airtable-import-medications :as m001]
    [tasks.util :as u]))
 
 ;; =============================================================================
@@ -49,7 +50,7 @@
 
 (def registry
   "Map of migration name to run fn. Populated as migrations are added."
-  {})
+  {"m001-airtable-import-medications" m001/run})
 
 ;; =============================================================================
 ;; Entry Point
@@ -61,7 +62,8 @@
    First arg is the migration name, remaining args are migration options."
   [& args]
   (let [migration-name             (first args)
-        {:keys [options errors summary]} (parse-opts (rest args) cli-options)]
+        {:keys [options errors summary]} (parse-opts (rest args) cli-options)
+        migration-fn               (get registry migration-name)]
 
     (when (or (:help options) (nil? migration-name) (#{"--help" "-h"} migration-name))
       (println "Usage: clj -M:dev migrate <migration-name> [options]")
@@ -80,8 +82,18 @@
         (u/print-red (str "ERROR: " e)))
       (System/exit 1))
 
+    (when-not migration-fn
+      (u/print-red (str "Unknown migration: " migration-name))
+      (println)
+      (println "Available migrations:")
+      (if (seq registry)
+        (doseq [k (sort (keys registry))]
+          (println (str "  " k)))
+        (println "  (none registered yet)"))
+      (System/exit 1))
+
     ;; For now, just test node startup and user lookup
-    (let [{:keys [target email]} options]
+    (let [{:keys [target email file]} options]
       (u/print-cyan (str "Starting XTDB node for target: " target))
       (let [node (start-node target)]
         (try
@@ -103,7 +115,14 @@
               (u/print-yellow "No --email provided, skipping user lookup"))
             (println)
             (println "Migration:" migration-name)
-            (println "Options:" (pr-str options)))
+            (println "Options:" (pr-str options))
+            (println)
+            (migration-fn {:ctx     ctx
+                           :db      db
+                           :file    file
+                           :email   email
+                           :target  target
+                           :options options}))
           (finally
             (.close node)
             (println)

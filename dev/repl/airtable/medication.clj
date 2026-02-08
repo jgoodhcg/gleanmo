@@ -261,7 +261,7 @@
   ;; 3. Preview conversions
   (convert-airtable-medications
    "airtable_data/medication_log_xxx.edn"
-   #uuid "your-user-id")
+   #uuid "00000000-0000-0000-0000-000000000000")
 
   ;; 4. Connect to prod and write
   (require '[repl :refer [prod-node-start get-prod-db-context]])
