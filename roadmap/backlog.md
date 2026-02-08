@@ -5,7 +5,7 @@ description: "Minor improvements without full work-unit docs"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-02
+updated: 2026-02-08
 ---
 
 # Backlog
@@ -91,3 +91,9 @@ Add optional color field to projects for visual organization and differentiation
   - Needs investigation: Check DOM structure and container divs
   - Likely: Section headers (h2) need proper container wrapping
   - See: `MEDITATION_TIMER_FIXES.md` for investigation steps
+
+### Timer List Scannability on Large Screens
+The current two-column timer page list layout makes alphabetical scanning harder when looking for a specific item.
+- Prefer a single vertical scan path on larger screens (single-column layout or a user-controlled list/grid toggle).
+- Preserve alphabetical ordering while improving findability and reducing cross-column eye jumps.
+- Validate with manual checks on long timer lists (desktop widths) to confirm quicker visual lookup.
