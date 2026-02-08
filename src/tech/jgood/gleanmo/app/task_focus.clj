@@ -2,7 +2,7 @@
   (:require
    [clojure.string :as str]
    [ring.middleware.anti-forgery :as csrf]
-   [tech.jgood.gleanmo.app.shared :refer [side-bar]]
+   [tech.jgood.gleanmo.app.shared :refer [side-bar user-local-date]]
    [tech.jgood.gleanmo.db.queries :as queries]
    [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.ui :as ui]))
@@ -543,7 +543,7 @@
         domain-filter       (parse-keyword-param domain-param)
         due-filter          (parse-local-date-param due-param)
         now                 (java.time.Instant/now)
-        today               (java.time.LocalDate/now)
+        today               (user-local-date ctx)
         projects            (queries/projects-for-user db user-id)
         project-by-id       (into {}
                                   (map (juxt :xt/id :project/label) projects))

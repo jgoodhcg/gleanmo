@@ -2,6 +2,7 @@
   (:require
    [clojure.string :as str]
    [com.biffweb :as biff]
+   [tech.jgood.gleanmo.app.shared :as shared]
    [tech.jgood.gleanmo.app.task-focus :as task-focus]
    [tech.jgood.gleanmo.app.task-today :as task-today]
    [tech.jgood.gleanmo.crud.routes :as crud]
@@ -39,7 +40,7 @@
   [{:keys [biff/db biff.xtdb/node path-params params], :as ctx}]
   (let [task-id      (parse-uuid (:id path-params))
         days         (Integer/parseInt (:days params))
-        snooze-until (.plusDays (java.time.LocalDate/now) days)
+        snooze-until (.plusDays (shared/user-local-date ctx) days)
         task         (xt/entity db task-id)
         snooze-count (or (:task/snooze-count task) 0)]
     (biff/submit-tx ctx
@@ -66,7 +67,7 @@
   "Add a task to today's focus list."
   [{:keys [biff/db biff.xtdb/node path-params], :as ctx}]
   (let [task-id (parse-uuid (:id path-params))
-        today (java.time.LocalDate/now)
+        today (shared/user-local-date ctx)
         next-order (queries/next-focus-order-for-date db
                                                       (:uid (:session ctx))
                                                       today)]
@@ -82,7 +83,7 @@
   [{:keys [biff/db biff.xtdb/node session params], :as ctx}]
   (let [label (some-> (:label params) str/trim)
         user-id (:uid session)
-        today (java.time.LocalDate/now)]
+        today (shared/user-local-date ctx)]
     (when (seq label)
       (let [next-order (queries/next-focus-order-for-date db user-id today)]
         (mutations/create-entity! ctx
@@ -115,7 +116,7 @@
   "Move a task to tomorrow."
   [{:keys [biff.xtdb/node path-params], :as ctx}]
   (let [task-id (parse-uuid (:id path-params))
-        tomorrow (.plusDays (java.time.LocalDate/now) 1)]
+        tomorrow (.plusDays (shared/user-local-date ctx) 1)]
     (biff/submit-tx ctx
                     [{:db/op :update
                       :db/doc-type :task

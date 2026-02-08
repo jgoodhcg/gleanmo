@@ -2,7 +2,7 @@
   "Daily focus page for task execution."
   (:require
    [ring.middleware.anti-forgery :as csrf]
-   [tech.jgood.gleanmo.app.shared :refer [side-bar]]
+   [tech.jgood.gleanmo.app.shared :refer [side-bar user-local-date]]
    [tech.jgood.gleanmo.db.queries :as queries]
    [tech.jgood.gleanmo.ui :as ui]
    [tech.jgood.gleanmo.ui.sortable :as sortable]))
@@ -166,9 +166,9 @@
 
 (defn today-content
   "The main content block (for HTMX partial updates)."
-  [{:keys [biff/db session]}]
+  [{:keys [biff/db session], :as ctx}]
   (let [user-id (:uid session)
-        today (java.time.LocalDate/now)
+        today (user-local-date ctx)
         ;; Get tasks for today
         focused-tasks (queries/tasks-for-today db user-id today)
         completed-today (queries/tasks-completed-today db user-id today)

@@ -199,6 +199,19 @@
             :user/time-zone)
         "UTC")))
 
+(defn user-zone-id
+  "Return the current user's ZoneId from settings, defaulting safely to UTC."
+  [ctx]
+  (try
+    (ZoneId/of (get-user-time-zone ctx))
+    (catch Exception _
+      (ZoneId/of "UTC"))))
+
+(defn user-local-date
+  "Return the current local date in the current user's timezone."
+  [ctx]
+  (java.time.LocalDate/now (user-zone-id ctx)))
+
 (defn ensure-vector
   [item]
   (if (vector? item)
