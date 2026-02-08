@@ -18,6 +18,7 @@
 
 (def cli-options
   [["-f" "--file FILE" "Path to the EDN data file"]
+   ["-p" "--mapping-file FILE" "Path to EDN overrides map for label reconciliation"]
    ["-t" "--target TARGET" "Target database: dev or prod"
     :default "dev"]
    ["-e" "--email EMAIL" "Email of the user to associate records with"]
@@ -93,7 +94,7 @@
       (System/exit 1))
 
     ;; For now, just test node startup and user lookup
-    (let [{:keys [target email file]} options]
+    (let [{:keys [target email file mapping-file]} options]
       (u/print-cyan (str "Starting XTDB node for target: " target))
       (let [node (start-node target)]
         (try
@@ -120,6 +121,7 @@
             (migration-fn {:ctx     ctx
                            :db      db
                            :file    file
+                           :mapping-file mapping-file
                            :email   email
                            :target  target
                            :options options}))
