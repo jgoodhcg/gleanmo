@@ -19,7 +19,9 @@
          cheshire/cheshire                   {:mvn/version "5.13.0"}
          com.taoensso/tufte                  {:mvn/version "2.5.0"}}
  :aliases
- {:dev  {:extra-deps  {com.biffweb/tasks {:git/url   "https://github.com/jacobobryant/biff"
+ {;; Temporary JDK 25 compatibility flags for XTDB/Agrona Unsafe/native-access behavior.
+  ;; Track whether each flag is still needed in roadmap/biff-upgrade-v1-9.md.
+  :dev  {:extra-deps  {com.biffweb/tasks {:git/url   "https://github.com/jacobobryant/biff"
                                           :git/tag   "v1.8.10", :git/sha "146f2b1"
                                           :deps/root "libs/tasks"}
                        tortue/spy        {:mvn/version "2.15.0"}}
@@ -32,6 +34,8 @@
          :main-opts   ["-m" "com.biffweb.task-runner" "tasks/tasks"]}
   :prod {:jvm-opts  ["-XX:-OmitStackTraceInFastThrow"
                      "-XX:+CrashOnOutOfMemoryError"
+                     "--enable-native-access=ALL-UNNAMED"
+                     "--sun-misc-unsafe-memory-access=allow"
                      "-Dbiff.env.BIFF_PROFILE=prod"]
          :main-opts ["-m" "tech.jgood.gleanmo"]}
   :cljfmt {:extra-deps {dev.weavejester/cljfmt {:mvn/version "0.13.0"}}

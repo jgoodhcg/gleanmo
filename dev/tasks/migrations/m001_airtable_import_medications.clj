@@ -8,6 +8,7 @@
    [com.biffweb :refer [q]]
    [repl.airtable.core :as core]
    [repl.airtable.medication :as med]
+   [tick.core :as t]
    [tasks.util :as u]))
 
 (defn- find-user-by-email
@@ -103,7 +104,9 @@
       {:airtable-label   label
        :normalized-label normalized
        :status           :create-new
-       :source           :override}
+       :source           :override
+       :resolved-id      (med/medication-uuid label)
+       :resolved-label   (str/trim label)}
 
       (string? override)
       (let [target-candidates (get existing-by-normalized (normalize-label override) [])]
@@ -159,6 +162,74 @@
        (reduce (fn [m label]
                  (assoc m label nil))
                {})))
+
+(defn- strip-doc-type
+  [doc]
+  (dissoc doc :db/doc-type))
+
+(defn- validate-docs
+  [docs validate-fn id-key]
+  (let [sanitized  (mapv strip-doc-type docs)
+        validation (validate-fn sanitized)
+        failed-set (set (map id-key (:failed validation)))
+        failed     (->> docs
+                        (filter #(contains? failed-set (id-key %)))
+                        vec)
+        passed     (->> docs
+                        (remove #(contains? failed-set (id-key %)))
+                        vec)]
+    {:validation validation
+     :passed     passed
+     :failed     failed}))
+
+(defn- build-medications-to-upsert
+  [resolution user-id]
+  (let [now (t/now)]
+    (->> resolution
+         (filter #(= :create-new (:status %)))
+         (map :resolved-label)
+         distinct
+         (map #(med/airtable->medication % user-id now))
+         (remove nil?)
+         vec)))
+
+(defn- build-medication-log-docs
+  [records resolution-by-label user-id]
+  (let [now (t/now)]
+    (reduce (fn [{:keys [logs rejected] :as acc} record]
+              (let [airtable-id (get record "id")
+                    label       (some-> (get-in record ["fields" "medication"])
+                                        str/trim)
+                    resolved    (get resolution-by-label label)]
+                (cond
+                  (str/blank? label)
+                  (assoc acc :rejected
+                         (conj rejected {:reason      :missing-medication-label
+                                         :airtable/id airtable-id}))
+
+                  (nil? resolved)
+                  (assoc acc :rejected
+                         (conj rejected {:reason            :label-not-in-resolution
+                                         :airtable/id       airtable-id
+                                         :airtable/med-label label}))
+
+                  (not (contains? #{:existing :create-new} (:status resolved)))
+                  (assoc acc :rejected
+                         (conj rejected {:reason             :unresolved-label
+                                         :airtable/id        airtable-id
+                                         :airtable/med-label label
+                                         :resolution-status  (:status resolved)}))
+
+                  :else
+                  (let [doc (med/airtable->medication-log record user-id (:resolved-id resolved) now)]
+                    (if doc
+                      (assoc acc :logs (conj logs doc))
+                      (assoc acc :rejected
+                             (conj rejected {:reason             :log-conversion-returned-nil
+                                             :airtable/id        airtable-id
+                                             :airtable/med-label label})))))))
+            {:logs [] :rejected []}
+            records)))
 
 (defn- valid-file?
   [file-path]
@@ -249,10 +320,82 @@
           (println "   -" overrides-path)
           (println "   -" preview-path)
 
-          (when (seq errors)
-            (u/print-red "  ERROR: ambiguous or invalid mappings found")
+          (when (or (seq errors) (pos? unresolved-count))
+            (u/print-red "  ERROR: mapping must resolve all labels before dry-run generation")
             (doseq [{:keys [airtable-label reason value]} errors]
               (println "   -" airtable-label "|" reason "|" value))
-            (throw (ex-info "Ambiguous/invalid mapping entries"
-                            {:error-count (count errors)
-                             :preview-file preview-path}))))))))
+            (when (pos? unresolved-count)
+              (println "   - unresolved label count:" unresolved-count))
+            (throw (ex-info "Invalid/incomplete mapping entries"
+                            {:error-count      (count errors)
+                             :unresolved-count unresolved-count
+                             :preview-file     preview-path})))
+
+          (let [resolution-by-label       (into {} (map (juxt :airtable-label identity)) resolution)
+                medications-to-upsert-all (build-medications-to-upsert resolution (:xt/id user))
+                medication-validation     (validate-docs medications-to-upsert-all
+                                                         med/validate-medications
+                                                         :medication/label)
+                {:keys [logs rejected]}   (build-medication-log-docs records
+                                                                     resolution-by-label
+                                                                     (:xt/id user))
+                log-validation            (validate-docs logs
+                                                         med/validate-medication-logs
+                                                         :airtable/id)
+                medication-upsert-path    (str output-dir "/medications-to-upsert.edn")
+                logs-write-path           (str output-dir "/medication-logs-to-write.edn")
+                rejected-path             (str output-dir "/rejected-rows.edn")
+                report-path               (str output-dir "/migration-report.edn")
+                rejected-medications      (->> (:failed medication-validation)
+                                               (map (fn [doc]
+                                                      {:reason            :invalid-medication-doc
+                                                       :medication/label (:medication/label doc)
+                                                       :doc               doc}))
+                                               vec)
+                rejected-logs             (->> (:failed log-validation)
+                                               (map (fn [doc]
+                                                      {:reason      :invalid-medication-log-doc
+                                                       :airtable/id (:airtable/id doc)
+                                                       :doc         doc}))
+                                               vec)
+                all-rejected              (vec (concat rejected rejected-medications rejected-logs))
+                report                    {:generated-at                (t/now)
+                                           :mode                       :dry-run
+                                           :file                       file
+                                           :mapping-file               mapping-file
+                                           :record-count               (count records)
+                                           :airtable-unique-labels     (count airtable-labels)
+                                           :existing-medications-count (count existing-medications)
+                                           :resolution                 {:auto-exact      auto-exact-count
+                                                                        :override-driven override-count
+                                                                        :create-new      create-new-count
+                                                                        :unresolved      unresolved-count
+                                                                        :errors          (count errors)}
+                                           :medications-upsert         {:total  (count medications-to-upsert-all)
+                                                                        :valid  (count (:passed medication-validation))
+                                                                        :failed (count (:failed medication-validation))}
+                                           :medication-logs            {:converted        (count logs)
+                                                                        :valid            (count (:passed log-validation))
+                                                                        :failed           (count (:failed log-validation))
+                                                                        :precheck-rejected (count rejected)}
+                                           :rejected-total             (count all-rejected)}]
+            (write-edn! medication-upsert-path (:passed medication-validation))
+            (write-edn! logs-write-path (:passed log-validation))
+            (write-edn! rejected-path all-rejected)
+            (write-edn! report-path report)
+
+            (println "  Dry-run artifacts:")
+            (println "   -" medication-upsert-path)
+            (println "   -" logs-write-path)
+            (println "   -" rejected-path)
+            (println "   -" report-path)
+            (println "  Dry-run summary:")
+            (println "    Medications to upsert (valid/total):"
+                     (count (:passed medication-validation))
+                     "/"
+                     (count medications-to-upsert-all))
+            (println "    Medication logs to write (valid/converted):"
+                     (count (:passed log-validation))
+                     "/"
+                     (count logs))
+            (println "    Total rejected rows/docs:" (count all-rejected))))))))

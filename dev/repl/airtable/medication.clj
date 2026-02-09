@@ -102,7 +102,9 @@
         dosage        (get fields "dosage")
         unit-str      (get fields "unit")
         notes         (get fields "notes")
-        injection-str (get fields "injection-site")]
+        injection-str (get fields "injection-site")
+        injection-key (some-> injection-str str/lower-case
+                              (get injection-site-mapping))]
     (-> {:xt/id                       (medication-log-uuid airtable-id)
          ::sm/type                    :medication-log
          ::sm/created-at              (or (core/parse-timestamp timestamp-str)
@@ -122,9 +124,8 @@
          (not (str/blank? notes))
           (assoc :medication-log/notes notes)
 
-          (not (str/blank? injection-str))
-          (assoc :medication-log/injection-site
-                 (get injection-site-mapping (str/lower-case injection-str)))))))
+          injection-key
+          (assoc :medication-log/injection-site injection-key)))))
 
 ;; =============================================================================
 ;; Batch Conversion

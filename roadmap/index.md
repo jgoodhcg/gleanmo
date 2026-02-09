@@ -36,6 +36,7 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 
 ### Ready
 
+- [biff-upgrade-v1-9.md](./biff-upgrade-v1-9.md) - Upgrade Biff and task libs to at least v1.9.0, then validate XTDB/Agrona changes and Java 25 compatibility
 - [dynamic-server-port.md](./dynamic-server-port.md) - Make the server dynamically choose a port to run on to support git worktree and multiple project development
 - [reading-schema-proposal.md](./reading-schema-proposal.md) - Draft Malli schemas for reading entities
 - [screenshot-runner.md](./screenshot-runner.md) - Authenticated screenshot capture for docs and CI

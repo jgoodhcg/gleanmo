@@ -16,7 +16,7 @@
 
 # This is the base builder image, construct the jar file in this one
 # it uses alpine for a small image
-FROM clojure:temurin-21-tools-deps-alpine AS jre-build
+FROM clojure:temurin-25-tools-deps-alpine AS jre-build
 
 ENV TAILWIND_VERSION=v3.2.4
 
@@ -36,7 +36,7 @@ RUN clj -M:dev uberjar && cp target/jar/app.jar . && rm -r target
 
 # This stage (see multi-stage builds) is a bare Java container
 # copy over the uberjar from the builder image and run the application
-FROM eclipse-temurin:21-alpine
+FROM eclipse-temurin:25-alpine
 WORKDIR /app
 
 # Take the uberjar from the base image and put it in the final image
@@ -47,4 +47,4 @@ EXPOSE 8080
 # By default, run in PROD profile
 ENV BIFF_PROFILE=prod
 ENV HOST=0.0.0.0
-CMD ["/opt/java/openjdk/bin/java", "-XX:-OmitStackTraceInFastThrow", "-XX:+CrashOnOutOfMemoryError", "-jar", "app.jar"]
+CMD ["/opt/java/openjdk/bin/java", "-XX:-OmitStackTraceInFastThrow", "-XX:+CrashOnOutOfMemoryError", "--enable-native-access=ALL-UNNAMED", "--sun-misc-unsafe-memory-access=allow", "-jar", "app.jar"]
