@@ -60,6 +60,7 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 - [drawing-practice.md](./drawing-practice.md) - Timed drawing session habit with tracking and motivation tools
 - [workflow-optimization.md](./workflow-optimization.md) - Minimize clicks for logging, fast landing page, and motivating stats
 - [today-navigation.md](./today-navigation.md) - Page through dates on today view and richer focus date filtering
+- [today-mobile-redesign.md](./today-mobile-redesign.md) - Redesign the today task page for better mobile ergonomics and responsiveness
 
 ### Archived
 
