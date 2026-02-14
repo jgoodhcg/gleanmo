@@ -5,7 +5,7 @@ description: "Year-at-a-glance calendar with event interactions and external syn
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-02
+updated: 2026-02-14
 ---
 
 # Calendar Implementation Requirements
@@ -100,13 +100,86 @@ updated: 2026-02-02
 - **Shared Color Schemes**: Consistent across calendar and other views
 - **Navigation Flow**: Seamless movement between calendar views
 
-## 🔮 FUTURE FEATURES
+## 🚀 READY: External Calendar Subscription (iCal Import)
 
-### External Calendar Integration
-- **Google Calendar Sync**: Via iCal URLs (pull-only or bidirectional)
-- **iCal URL Integration**: Extend existing ical-url entity to display events
-- **Event deduplication**: Prevent duplicate imports using external IDs
-- **Source tracking**: Mark imported events with source (`:google-cal`, `:hey-cal`, etc.)
+### Intent
+Enable read-only visualization of external calendars (Google, Hey, Outlook, Apple) by subscribing to their iCal feeds. Events are imported and displayed alongside native Gleanmo events with subscription-based coloring.
+
+### Schema Changes
+
+**`calendar-event` schema:**
+```clojure
+[:calendar-event/external-id {:optional true} :string]      ; UID from iCal for deduplication
+[:calendar-event/ical-url-id {:optional true} :ical-url/id] ; Links to subscription source
+
+;; Deprecate source field - ical-url-id presence now determines origin
+[:calendar-event/source {:optional true :deprecated true :crud/hidden true} [:enum :gleanmo]]
+```
+
+**`ical-url` schema:**
+```clojure
+[:ical-url/color-neon {:optional true} [:enum :blue :cyan :green :violet :red :orange]] ; Subscription color
+[:ical-url/last-error {:optional true} :string] ; Sync failure tracking
+```
+
+### New Logic
+
+**Namespace:** `src/tech/jgood/gleanmo/ical/sync.clj`
+
+- `sync-ical-subscriptions!` - Reusable sync function
+- Fetch all active `ical-url` subscriptions for user
+- Parse iCal feeds using ical4j (dependency already in deps.edn)
+- Map VEVENT → calendar-event:
+  - `external-id` ← VEVENT.UID
+  - `ical-url-id` ← subscription id
+  - `beginning` ← DTSTART
+  - `end` ← DTEND
+  - `label` ← SUMMARY
+  - `description` ← DESCRIPTION
+  - `all-day` ← determined from DATE vs DATETIME
+- Upsert using external-id for deduplication (update if exists, insert if new)
+- Store `last-fetched` timestamp and any errors on ical-url entity
+
+**Source detection from URL patterns (stored in `:ical-url/source` string):**
+- `calendar.google.com` → "Google Calendar"
+- `hey.com` → "Hey Calendar"
+- `outlook.live.com` / `outlook.office365.com` → "Outlook"
+- `icloud.com` → "Apple"
+- fallback → "iCal"
+
+### UI Changes
+
+**Routes:**
+- Re-enable `ical-url/crud-routes` in `app.clj` (currently commented out at line 452)
+
+**Calendar page (`/app/calendar/year`):**
+- On page load: call `sync-ical-subscriptions!`
+- Show spinner/indicator while sync runs
+- On completion: HTMX trigger (`HX-Trigger: calendar-synced`) to refresh calendar grid
+- Event rendering: lookup color from `ical-url` if `ical-url-id` present, else use event's own `color-neon`
+
+**ical-url CRUD pages:**
+- Add "Sync Now" button on edit page that triggers sync for that subscription
+- Show `last-fetched` timestamp and any `last-error`
+
+**Form renderer changes (`src/tech/jgood/gleanmo/crud/forms/`):**
+- If `ical-url-id` present on event → render all fields as `disabled` (read-only)
+- Native events (no `ical-url-id`) remain fully editable
+
+### Query Changes
+
+**`get-events-for-user-year`** (in `db/queries.clj`):
+- Join with `ical-url` to get subscription color for imported events
+- Filter: only show events from subscriptions where `ical-url/active` is true
+- Coalesce color: use `ical-url/color-neon` if imported, else `calendar-event/color-neon`
+
+### Validation
+
+- Unit tests for ical4j parsing and deduplication logic
+- Unit tests for source detection from URL patterns
+- Integration test: create ical-url, sync, verify events appear with correct color
+- Integration test: re-sync same feed, verify no duplicates
+- E2E: subscribe to a calendar, view calendar page, verify events render
 
 ### Calendar Enhancements
 - **Past Days Visual**: Dimmed/faded styling to distinguish past from future dates
@@ -189,18 +262,9 @@ updated: 2026-02-02
 18. Holiday display
 19. Lunar/solar phase indicators
 
-### 🔮 Phase 3: External Calendar Integration (FUTURE)
+### 🔮 Phase 3: Bidirectional Calendar Sync (FUTURE)
 
-#### iCal Read Sync (Import External Calendars)
-- **Google Calendar iCal URLs** - Read-only import via public/private iCal feeds
-- **Hey Calendar iCal** - Import events from Hey's calendar export
-- **User-triggered sync** - Manual sync button or automatic on page load
-- **Event deduplication** - Prevent duplicate imports using external IDs
-- **Source tracking** - Mark imported events as `:google-cal`, `:hey-cal`, etc.
-- **Read-only imported events** - External events locked from editing in Gleanmo
-- **Schema updates** - Add `:calendar-event/external-id` and `:calendar-event/sync-url` fields
-
-#### Google Calendar API Integration (Bidirectional Sync)
+#### Google Calendar API Integration
 - **OAuth 2.0 authentication** - One-time setup per user
 - **Bidirectional sync** - Create, read, update, delete events in Google Calendar
 - **Real-time updates** - Webhook notifications for external changes
@@ -215,7 +279,25 @@ updated: 2026-02-02
 - **No update capability** - Each email creates new event (cannot update existing)
 - **Good for one-time exports** - Suitable for sharing events rather than ongoing sync
 
-### 🔮 Phase 4: Advanced Features (FUTURE)
+### 🔮 Phase 4: External Calendar Subscription (READY)
+
+#### Core Sync
+24. User can create ical-url subscription with label and color
+25. On calendar page load, active subscriptions sync automatically
+26. Spinner/indicator shows sync in progress
+27. Calendar grid auto-refreshes when sync completes (HTMX trigger)
+28. Events from external calendars appear with subscription color
+29. Sync deduplicates events using external-id (no duplicates on re-sync)
+30. Source detected from URL and stored on ical-url
+
+#### UI/UX
+31. ical-url CRUD routes re-enabled at /app/ical-url/*
+32. "Sync Now" button on ical-url edit page
+33. Imported events open as read-only (all fields disabled)
+34. last-fetched timestamp visible on ical-url pages
+35. Sync errors displayed if last-error is set
+
+### 🔮 Phase 5: Advanced Features (FUTURE)
 26. Recurring events
 27. Event templates
 28. Advanced categorization
