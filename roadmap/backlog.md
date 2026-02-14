@@ -5,7 +5,7 @@ description: "Minor improvements without full work-unit docs"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-08
+updated: 2026-02-14
 ---
 
 # Backlog
@@ -97,3 +97,10 @@ The current two-column timer page list layout makes alphabetical scanning harder
 - Prefer a single vertical scan path on larger screens (single-column layout or a user-controlled list/grid toggle).
 - Preserve alphabetical ordering while improving findability and reducing cross-column eye jumps.
 - Validate with manual checks on long timer lists (desktop widths) to confirm quicker visual lookup.
+
+### Timer Stats Active Timer Inclusion
+Timer page stats do not account for currently active timers (project-logs with no end time).
+- **Issue**: Stats show only completed logs, so time spent on an in-progress timer is invisible until stopped.
+- **Fix**: When calculating stats, include active timers by using `now` as the effective end time for logs missing `:project-log/end-at`.
+- **Scope**: Day-level summary and per-project breakdowns should both reflect active time.
+- **Validation**: Manual check—start a timer, verify stats update before stopping it.
