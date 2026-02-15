@@ -1,11 +1,11 @@
 ---
 title: "Medication Logging Roadmap"
-status: active
+status: done
 description: "Medication logging with Airtable history import"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-02
+updated: 2026-02-15
 ---
 
 # Medication Logging Roadmap
@@ -19,8 +19,12 @@ updated: 2026-02-02
 Document the remaining work to import decades of Airtable medication history while keeping the existing CRUD + visualization flows unchanged.
 
 ## Status
-- XTDB schemas, forms, and calendar heatmaps are live (`src/tech/jgood/gleanmo/schema/medication_schema.clj`).
-- Only new entries captured directly in Gleanmo; Airtable history has not been migrated.
+- COMPLETE (2026-02-15): Airtable medication history fully migrated to production.
+  - 23 medications upserted, 1,305 medication logs written (2 batches).
+  - 13 rows rejected (missing/blank labels).
+  - Unit enum mapping fixed (mcg, capsule, trailing whitespace handling).
+  - Migration CLI (`clj -M:dev migrate m001-airtable-import-medications`) supports `--dry-run` flag.
+  - Deterministic UUIDs ensure idempotent re-runs.
 
 ## Objectives
 1. Preserve the full Airtable record set (dose history, notes, injection sites) in XTDB with deterministic IDs.

@@ -12,16 +12,26 @@
                 :activity-log "tblmfUTKwMIGQnNLC"})
 
 (defn get-page [url api-key]
-  (-> (client/get
-       url
-       {:headers       {"Authorization" (str "Bearer " api-key)}
-        :cookie-policy :none})
-      (:body)
-      (json/parse-string)))
+  (println "  GET" url)
+  (println "  Auth: Bearer" (str (subs api-key 0 (min 8 (count api-key))) "..."))
+  (try
+    (let [response (client/get
+                    url
+                    {:headers       {"Authorization" (str "Bearer " api-key)}
+                     :cookie-policy :none})]
+      (println "  Status:" (:status response))
+      (-> response :body (json/parse-string)))
+    (catch Exception e
+      (let [data (ex-data e)]
+        (println "  ERROR Status:" (:status data))
+        (println "  ERROR Body:" (some-> data :body (subs 0 (min 500 (count (:body data))))))
+        (throw e)))))
 
 (defn get-all-records [{:keys [api-key base-id table-id table-name]} writer]
   (let [table-path (or table-id (some-> table-name (URLEncoder/encode "UTF-8")))
         url        (str "https://api.airtable.com/v0/" base-id "/" table-path)]
+    (println "  Table path:" table-path)
+    (println "  Full URL:" url)
     (loop [response (get-page url api-key)
            page-num 1]
       (println (str "Getting page: " page-num))

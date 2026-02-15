@@ -5,7 +5,7 @@ description: "Tracker for Airtable backfills and remaining imports"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-02
+updated: 2026-02-15
 ---
 
 # Data Migration Status (Airtable + Other Sources)
@@ -19,20 +19,15 @@ updated: 2026-02-02
 ## Current State
 - Habits & habit logs: fully migrated from Airtable. Legacy runner left only for reference (`dev/airtable/activity.clj`).
 - BM logs: fully migrated; helper code in `dev/repl.clj` is archival/reference.
-- Medication: entities and logging are live in-app; Airtable backfill ready in `dev/repl/airtable/` pending execution.
+- Medication: fully migrated (2026-02-15). 23 medications + 1,305 logs written to prod via `m001-airtable-import-medications`.
 - Symptom (pain/mood): schema defined in `symptom_schema.clj`, CRUD routes not wired, no migration code.
 - Exercise: schema defined in `exercise_schema.clj` (needs type fix), no routes, no migration code.
 - Tasks & Projects: CRUD live in-app; historical data lives in other apps/spreadsheets, no migration code.
 - Not represented in app yet: reading, bouldering.
 - Priority: define and implement entities incrementally, then port data one by one.
 
-## Next Actions (medication backfill)
-1. Export Airtable `medication-log` table: `clj -M:dev download-airtable -k $API_KEY -b BASE_ID -n medication-log` → `airtable_data/...edn`.
-2. Confirm namespace UUIDs in `dev/repl/airtable/medication.clj` (use stable values).
-3. In REPL against prod, run runner in `dev/repl/airtable/medication_runner.clj`:
-   - `write-medications-to-db` first, then `write-medication-logs-to-db`.
-   - Ensure validation `passed == total`; abort if not.
-4. Record the run: file name, record counts, timestamp, user email used.
+## Next Actions
+- Pick the next entity to migrate (symptom/pain/mood recommended).
 
 ## Recommended Approach: Define-Then-Port Per Entity (Ascending Complexity)
 Define schema → wire CRUD → build/run migration for each entity sequentially. This provides:
@@ -43,9 +38,8 @@ Define schema → wire CRUD → build/run migration for each entity sequentially
 
 ## Recommended Sequence
 
-### 1. Medication (backfill ready)
-- Execute existing ingester in `dev/repl/airtable/`
-- **Estimated time: 0.5 day**
+### 1. Medication (DONE)
+- Migrated 2026-02-15 via CLI migration task `m001-airtable-import-medications`
 
 ### 2. Symptom (pain/mood)
 - Schema defined, wire CRUD for `symptom-episode` and `symptom-log`
@@ -85,7 +79,7 @@ Define schema → wire CRUD → build/run migration for each entity sequentially
 ### Breakdown
 | Entity | Status | Estimated Time |
 |--------|--------|----------------|
-| Medication backfill | Ready to run | 0.5 day |
+| Medication backfill | DONE (2026-02-15) | - |
 | Symptom | Schema defined | 1-2 days |
 | Task | CRUD live | 1-2 days |
 | Project | CRUD live | 1 day |
