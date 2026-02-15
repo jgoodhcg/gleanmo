@@ -56,7 +56,10 @@
    (parse-enum value mapping :n-a))
   ([value mapping default-val]
    (if value
-     (get mapping (str/lower-case value) default-val)
+     (let [result (get mapping (str/trim (str/lower-case value)) default-val)]
+       (when (= result default-val)
+         (println "  WARN: unmapped enum value:" (pr-str value)))
+       result)
      default-val)))
 
 ;; =============================================================================

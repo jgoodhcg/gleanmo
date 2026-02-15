@@ -45,11 +45,11 @@
 (def unit-mapping
   "Map Airtable unit strings to medication-log schema keywords."
   {"mg"      :mg
-   "g"       :g
-   "glob"    :glob
-   "sprays"  :sprays
    "mcg"     :mcg
-   "capsule" :capsule})
+   "g"       :g
+   "capsule" :capsule
+   "glob"    :glob
+   "sprays"  :sprays})
 
 (def injection-site-mapping
   "Map Airtable injection site strings to medication-log schema keywords."
