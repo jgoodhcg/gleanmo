@@ -95,15 +95,15 @@ Define schema → wire CRUD → build/run migration for each entity sequentially
 - Minimal UI/UX rework needed for simpler entities (symptom, task, project)
 - Exercise and bouldering may require schema iteration based on data quirks
 
-## Remaining Ingestions to Execute
-- Exercise: Fix schema (type, rep entity) per `roadmap/exercise.md`, then create Airtable ingester (deterministic IDs per record, enum normalization, validation). Export exercise tables to `airtable_data/` first.
-- Pain: Define schema (include Airtable trace fields), add ingester; export pain table to `airtable_data/`.
-- Mood: Same pattern—schema + ingester, then import from `airtable_data/`.
-- Reading: Schema + ingester; export reading base (books + sessions) to `airtable_data/`.
+## Remaining Ingestions
+- Symptom (pain/mood): Schema defined, wire CRUD + build ingester.
+- Exercise: Fix schema (type, rep entity) per `roadmap/exercise.md`, then create Airtable ingester.
+- Reading: Schema + ingester; export reading base (books + sessions).
 - Bouldering: Schema + ingester; export Airtable table.
-- Project time logs: Not in app; current data lives in other apps. Plan to export to spreadsheets, then write an importer (deterministic IDs, optional Airtable/lineage metadata).
+- Project time logs: Not in app; current data lives in other apps.
 
 ## Shared Guidance
 - Use `dev/repl/airtable/core.clj` helpers (deterministic UUIDs, timestamp parsing, enum mapping, EDN readers).
 - Keep Airtable trace fields (:airtable/id, :airtable/created-time, :airtable/ported-at) on imported records for lineage.
-- Document each import run (sources, counts, timestamps) so backfills are repeatable.***
+- Document each import run (sources, counts, timestamps) so backfills are repeatable.
+- Migration CLI pattern established with `m001-airtable-import-medications` — reuse for future entities.
