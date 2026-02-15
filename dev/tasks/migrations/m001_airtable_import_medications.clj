@@ -5,7 +5,7 @@
    [clojure.java.io :as io]
    [clojure.pprint :as pp]
    [clojure.string :as str]
-   [com.biffweb :refer [q]]
+   [com.biffweb :as biff :refer [q]]
    [repl.airtable.core :as core]
    [repl.airtable.medication :as med]
    [tick.core :as t]
@@ -255,7 +255,7 @@
    Slim mapping format:
    {\"Airtable Label\" \"Existing Label\"
     \"Another Airtable Label\" :create-new}"
-  [{:keys [file email db mapping-file]}]
+  [{:keys [file email db mapping-file ctx dry-run]}]
   (u/print-cyan "Running m001-airtable-import-medications")
   (println "  File:" file)
   (println "  Email:" email)
@@ -360,7 +360,7 @@
                                                vec)
                 all-rejected              (vec (concat rejected rejected-medications rejected-logs))
                 report                    {:generated-at                (t/now)
-                                           :mode                       :dry-run
+                                           :mode                       (if dry-run :dry-run :write)
                                            :file                       file
                                            :mapping-file               mapping-file
                                            :record-count               (count records)
@@ -398,4 +398,24 @@
                      (count (:passed log-validation))
                      "/"
                      (count logs))
-            (println "    Total rejected rows/docs:" (count all-rejected))))))))
+            (println "    Total rejected rows/docs:" (count all-rejected))
+
+            (if dry-run
+              (u/print-yellow "  Dry-run mode — skipping database writes.")
+              (let [med-docs    (:passed medication-validation)
+                    log-docs    (:passed log-validation)
+                    log-batches (partition-all 1000 log-docs)]
+                (println)
+                (u/print-cyan "  Writing to database...")
+                (biff/submit-tx ctx med-docs)
+                (u/print-green (str "  Wrote " (count med-docs) " medications."))
+                (doseq [[i batch] (map-indexed vector log-batches)]
+                  (biff/submit-tx ctx (vec batch))
+                  (u/print-green (str "  Wrote log batch " (inc i) "/" (count log-batches)
+                                      " (" (count batch) " docs)")))
+                (println)
+                (u/print-green
+                 (str "  Write complete: "
+                      (count med-docs) " medications, "
+                      (count log-docs) " logs ("
+                      (count log-batches) " batches)."))))))))))

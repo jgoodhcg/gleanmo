@@ -10,7 +10,8 @@
    [clojure.tools.cli :refer [parse-opts]]
    [com.biffweb :as biff]
    [tasks.migrations.m001-airtable-import-medications :as m001]
-   [tasks.util :as u]))
+   [tasks.util :as u]
+   [tech.jgood.gleanmo :as main]))
 
 ;; =============================================================================
 ;; CLI Options
@@ -22,6 +23,7 @@
    ["-t" "--target TARGET" "Target database: dev or prod"
     :default "dev"]
    ["-e" "--email EMAIL" "Email of the user to associate records with"]
+   ["-d" "--dry-run" "Generate artifacts only, skip database writes"]
    ["-h" "--help"]])
 
 ;; =============================================================================
@@ -43,7 +45,8 @@
 (defn build-ctx
   "Build a minimal Biff context from an XTDB node."
   [node]
-  (biff/assoc-db {:biff.xtdb/node node}))
+  (biff/assoc-db {:biff.xtdb/node  node
+                  :biff/malli-opts #'main/malli-opts}))
 
 ;; =============================================================================
 ;; Migration Registry
@@ -118,13 +121,14 @@
             (println "Migration:" migration-name)
             (println "Options:" (pr-str options))
             (println)
-            (migration-fn {:ctx     ctx
-                           :db      db
-                           :file    file
+            (migration-fn {:ctx          ctx
+                           :db           db
+                           :file         file
                            :mapping-file mapping-file
-                           :email   email
-                           :target  target
-                           :options options}))
+                           :email        email
+                           :target       target
+                           :dry-run      (:dry-run options)
+                           :options      options}))
           (finally
             (.close node)
             (println)
