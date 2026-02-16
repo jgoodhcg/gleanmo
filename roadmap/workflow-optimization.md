@@ -27,6 +27,9 @@ The most frequent actions -- logging a habit, starting a meditation, beginning a
 - **Habits:** One-tap completion from landing page or daily focus. No form navigation needed for simple done/not-done habits.
 - **Meditation:** One-tap to start a session with sensible defaults (last used duration, etc.). Skip the creation form when defaults suffice.
 - **Project sessions:** One-tap to start a timer for a recent/pinned project. Surface frequently used projects for instant access.
+  - Current flow is 4 clicks: /app/timers → /app/timer/project-log → start specific timer → save form
+  - Target: 1-2 clicks maximum from any page to start a project-log
+  - Consider: Floating action button, today page integration, or direct "start recent" shortcut
 - General pattern: identify the 2-3 most common logging workflows and make each achievable in 1-2 interactions from the landing page.
 
 ### Landing page (relevant, fast)

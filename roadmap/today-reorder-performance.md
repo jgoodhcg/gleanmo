@@ -33,6 +33,7 @@ Reordering items on the today page via drag-and-drop sorting triggers a noticeab
 - What is the actual bottleneck -- server-side processing, response size, or client-side re-render?
 - Is the current HTMX swap target too broad (swapping the whole page vs. just the list)?
 - Could optimistic reordering on the client fully mask the latency?
+- User reports a "weird refresh" during reorder -- is this a full page swap that could be scoped to just the list?
 
 ## Notes
 
