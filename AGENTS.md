@@ -1,6 +1,6 @@
 # AGENTS
 
-Follows AGENT_BLUEPRINT.md
+Follows `AGENT_BLUEPRINT.md` (version: 1.4.4)
 
 ## Project Overview
 
@@ -26,8 +26,17 @@ AI-Model: [AI_MODEL]
 
 Template rules:
 - `AI_PRODUCT_LINE` must be one of: `codex|claude|gemini|opencode`.
-- Determine `AI_PRODUCT_LINE` from current session.
+- Determine `AI_PRODUCT_LINE` from current session:
+  - Codex or ChatGPT coding agent -> `codex`
+  - Claude -> `claude`
+  - Gemini -> `gemini`
+  - OpenCode -> `opencode` (regardless underlying provider/model, including z.ai)
 - Determine `AI_PROVIDER` and `AI_MODEL` from runtime model metadata.
+- `AI_PRODUCT_NAME` and `AI_PRODUCT_EMAIL` format:
+  - `codex` -> `Codex <codex@users.noreply.github.com>`
+  - `claude` -> `Claude <claude@users.noreply.github.com>`
+  - `gemini` -> `Gemini <google-gemini@users.noreply.github.com>`
+  - `opencode` -> `GLM <zai-org@users.noreply.github.com>`
 - Fill this template at commit time; do not persist filled values in `AGENTS.md`.
 
 ## Validation Commands
@@ -113,11 +122,23 @@ Schema conventions
 - Register new schemas in `src/tech/jgood/gleanmo/schema.clj`.
 - Add new field types by updating schema registry, input renderer, form converter, and list formatter in that order.
 
+## Decision Artifacts
+
+- For high-impact or irreversible decisions, record a decision matrix in `.decisions/[name].json`.
+- Use `matrix-reloaded` format for structured comparison.
+- Do not run `matrix-reloaded` CLI commands from agent sessions; use project-provided matrix instructions/schema.
+- Optional: add `.decisions/[name].md` for human-readable narrative context.
+- Treat the JSON decision matrix as the authoritative record.
+
+## User Profile (optional)
+
+See `.agent-profile.md` (git-ignored) for interaction preferences. Create on project init or alignment.
+
 ## References
 
 - For roadmap conventions and work-unit lifecycle, see `roadmap/README.md`.
 - For canonical roadmap state, see `roadmap/index.md`.
-- For shared cross-project policy, see `AGENT_BLUEPRINT.md`.
+- For decision records and optional matrix format, see `AGENT_BLUEPRINT.md` section `Decision Artifacts [BP-DECISIONS]`.
 
 ## Key Files
 
