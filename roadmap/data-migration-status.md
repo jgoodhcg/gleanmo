@@ -5,7 +5,7 @@ description: "Tracker for Airtable backfills and remaining imports"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-15
+updated: 2026-02-16
 ---
 
 # Data Migration Status (Airtable + Other Sources)
@@ -44,49 +44,74 @@ Define schema → wire CRUD → build/run migration for each entity sequentially
 ### 2. Symptom (pain/mood)
 - Schema defined, wire CRUD for `symptom-episode` and `symptom-log`
 - Build ingester, export from Airtable, run migration
-- **Estimated time: 1-2 days**
+- **Estimated time: 0.5-1.5 days**
 
 ### 3. Task
 - CRUD live, design migration from existing sources
 - Build ingester, export data, run migration
-- **Estimated time: 1-2 days**
+- **Estimated time: 0.5-1.5 days**
 
 ### 4. Project
 - CRUD live, export time logs from current apps
 - Build ingester, run migration
-- **Estimated time: 1 day**
+- **Estimated time: 0.5-1 day**
 
 ### 5. Reading
 - Define `book` and `reading-session` schemas per `roadmap/reading-tracker.md`
 - Wire CRUD routes + metadata lookup UI (optional: defer lookup to phase 2)
 - Build ingester, export from Airtable, run migration
-- **Estimated time: 2-3 days**
+- **Estimated time: 1-2 days**
 
 ### 6. Exercise (most complex, defer to end)
 - Fix schema type error + address log/set/rep confusion
 - Wire CRUD for 4 entities (exercise, session, set, rep)
 - Build ingester, export from Airtable, run migration
-- **Estimated time: 3-4 days**
+- **Estimated time: 2-4 days**
 
 ### 7. Bouldering (complex, defer to end)
 - Define schema (check Airtable structure first)
 - Wire CRUD routes
 - Build ingester, export from Airtable, run migration
-- **Estimated time: 2-3 days**
+- **Estimated time: 1-2.5 days**
 
-## Total Estimated Time: 10.5-16.5 days (2-3 weeks)
+## Current Calibrated Estimate (2026-02-16)
+
+- **Execution estimate (entity work only): 5.5-12 focused days**
+- **End-to-end estimate (including validation/cleanup/context-switch buffer): 8-14 focused days**
+- **Most likely total:** ~10 focused days
 
 ### Breakdown
 | Entity | Status | Estimated Time |
 |--------|--------|----------------|
 | Medication backfill | DONE (2026-02-15) | - |
-| Symptom | Schema defined | 1-2 days |
-| Task | CRUD live | 1-2 days |
-| Project | CRUD live | 1 day |
-| Reading | Needs schema | 2-3 days |
-| Exercise | Schema exists, complex | 3-4 days |
-| Bouldering | Needs schema, complex | 2-3 days |
-| **Total** | | **10.5-16.5 days** |
+| Symptom | Schema defined | 0.5-1.5 days |
+| Task | CRUD live | 0.5-1.5 days |
+| Project | CRUD live | 0.5-1 day |
+| Reading | Needs schema | 1-2 days |
+| Exercise | Schema exists, complex | 2-4 days |
+| Bouldering | Needs schema, complex | 1-2.5 days |
+| **Execution subtotal** | | **5.5-12 days** |
+| Cross-cutting buffer (validation, cleanup, context switching) | - | 2.5-3 days |
+| **End-to-end total** | | **8-14 focused days** |
+
+## Estimate Baseline (for comparison)
+
+- **Initial estimate (2026-02-02):** 10.5-16.5 days
+- **Calibrated estimate (2026-02-16):** 8-14 focused days
+- **Reason for calibration:** Medication migration paid one-time setup costs (first CLI migration pattern, REPL dead ends, initial model definition), so subsequent migrations should reuse the established pattern and move faster.
+
+## Actuals Tracking (Fill As Work Completes)
+
+| Entity | Estimate | Actual Focused Days | Completed On | Notes |
+|--------|----------|---------------------|--------------|-------|
+| Symptom (pain/mood) | 0.5-1.5 days | TBD | TBD | |
+| Task history | 0.5-1.5 days | TBD | TBD | |
+| Project time logs | 0.5-1 days | TBD | TBD | |
+| Reading | 1-2 days | TBD | TBD | |
+| Exercise | 2-4 days | TBD | TBD | |
+| Bouldering | 1-2.5 days | TBD | TBD | |
+| Cross-cutting buffer | 2.5-3 days | TBD | TBD | |
+| **Total (remaining)** | **8-14 focused days** | TBD | TBD | |
 
 ### Assumptions
 - Full-time focused work (no context switching)
