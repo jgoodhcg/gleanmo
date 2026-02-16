@@ -86,6 +86,7 @@ Template rules:
 
 - Execute `ready` roadmap work units autonomously and self-validate before returning.
 - Never commit without explicit user approval.
+- Always include commit trailers (Co-authored-by, AI-Provider, AI-Product, AI-Model) using the template above.
 - Validation first: reflect on current state and plan before executing; run validation after changes.
 - User control: never assume database state; ask the user if unsure.
 - Roadmap driven: canonical roadmap lives in `roadmap/` with `index.md` as canonical state and `README.md` as catalog.
