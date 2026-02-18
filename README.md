@@ -1,314 +1,54 @@
 # Gleanmo
 
-A personal tracking and lifestyle management application built with Clojure. 
+Personal quantified-self web app I built for my own daily tracking and reflection.
 
-## About
+## What This Is
 
-I'm obsessed with tracking personal metrics. I find quantified information motivating. This project is an attempt to consolidate all the aspects of my life that I want to track digitally. It's also a playground to play with data visualizations of that information.
+- A real app I actively use.
+- Designed with me as the primary audience.
+- Public mostly so people can see how I build and think.
 
-## Project Structure
+Gleanmo is technically multi-user and schema-driven, but it is not positioned as a plug-and-play product.
 
-- `/src/tech/jgood/gleanmo/` - Core application code
-  - `/app/` - Domain-specific modules (habits, meditation, etc.)
-  - `/schema/` - Data models and validation
-  - `/crud/` - Generic CRUD operations
-- `/resources/` - Configuration and static assets
-- `/dev/` - Development utilities
-- `/test/` - Unit and integration tests
+## Why I Built It
 
-## Tech Stack
+- I wanted one place to track habits, exercise, projects, and other life data.
+- I wanted a flexible Clojure playground for personal data visualization.
 
-- **Backend**: Clojure with [Biff](https://biffweb.com/) framework
-- **Database**: [XTDB](https://xtdb.com/) (bitemporal database)
-- **Frontend**: [Rum](https://github.com/tonsky/rum) (React wrapper) + [HTMX](https://htmx.org/) + [Tailwind CSS](https://tailwindcss.com/)
-- **Authentication**: Email-based with reCAPTCHA protection
+## What It Supports
 
-## Development
+- Schema-driven CRUD for many personal data types
+- Temporal activity logs (point-in-time and interval-based)
+- Visualization pages (calendar heatmaps and related charts)
+- User settings and privacy-aware filtering
+- Email-based auth with reCAPTCHA
 
-### Development Environment
+## Built With
 
-The project can be run locally with a _standalone_ XTDB topology stored in `storage/xtdb`. Unit tests will run automatically on file saves.
+- Clojure 1.11.1
+- Biff + XTDB
+- Rum + HTMX + Tailwind + ECharts
 
-To run the development environment:
-```bash
-clj -M:dev dev
-```
+## Where To Look First
 
-### Running Tests
+- `src/tech/jgood/gleanmo/app/dashboards.clj` - entry points and app navigation
+- `src/tech/jgood/gleanmo/crud/routes.clj` - generic CRUD route generation
+- `src/tech/jgood/gleanmo/schema.clj` - schema registry
+- `src/tech/jgood/gleanmo/viz/routes.clj` - visualization route generation
+- `src/tech/jgood/gleanmo/db/queries.clj` - read layer
+- `src/tech/jgood/gleanmo/db/mutations.clj` - write layer
 
-The project uses the Clojure CLI with a custom test runner defined in `dev/tasks.clj`. Tests are organized under the `tech.jgood.gleanmo.test` namespace.
+## Notes For Visitors
 
-To run all tests:
-```bash
-clj -M:dev test
-```
+- This repo is optimized for active development, not end-user onboarding.
+- Setup and deployment are intentionally light on hand-holding.
 
-To run a specific test namespace just provide the namespace as the next argument:
-```bash
-clj -M:dev test tech.jgood.gleanmo.test.crud.handlers-test
-```
+## Maintainer Docs
 
-Tests use an in-memory XTDB database via `test-xtdb-node` from the Biff framework, making them fast and isolated from the development database.
-
-# Chart Rendering Pattern
-
-## Overview
-
-Charts are configured in Clojure and rendered with ECharts. Chart options are generated as JSON and auto-discovered by JavaScript.
-
-## Pattern Implementation
-
-### 1. Clojure Chart Configuration
-
-From `src/tech/jgood/gleanmo/viz/routes.clj` - Calendar heatmap generation:
-
-```clojure
-(defn render-chart-section
-  "Render a chart section with title and chart container."
-  [chart-id title chart-config]
-  [:div.mb-8
-   [:h2.text-xl.font-bold.mb-4 title]
-   [:div {:id chart-id 
-          :style {:height "300px" :width "100%"}
-          :data-chart-data (str chart-id "-data")}]
-   [:div {:id (str chart-id "-data") :class "hidden"}
-    (json/generate-string chart-config {:pretty true})]])
-
-(defn generate-calendar-heatmap-config
-  "Generate ECharts calendar heatmap configuration with entity details."
-  [temporal-pattern data ctx entity-key entity-schema entity-str]
-  (let [current-year (str (java.time.Year/now))
-        chart-data (map (fn [[date-str count entity-labels]] 
-                          [date-str count entity-labels entity-str]) grouped-data)]
-    {:backgroundColor "#0d1117"
-     :title {:text "Activity Calendar"
-             :left "center"
-             :textStyle {:color "#c9d1d9"}}
-     :tooltip {:backgroundColor "rgba(22, 27, 34, 0.95)"
-               :borderColor "#30363d"}
-     :calendar {:range current-year
-                :cellSize [18, 18]
-                :itemStyle {:color "#161b22"
-                            :borderWidth 1
-                            :borderColor "#30363d"}}
-     :series [{:type "heatmap"
-               :coordinateSystem "calendar"
-               :data chart-data}]}))
-```
-
-### 2. JavaScript Auto-Discovery
-
-From `resources/public/js/main.js` - Automatic chart initialization:
-
-```javascript
-// Auto-initialize any charts on page load
-document.addEventListener('DOMContentLoaded', function() {
-  const chartElements = document.querySelectorAll('[data-chart-data]');
-  chartElements.forEach(element => {
-    const dataElementId = element.getAttribute('data-chart-data');
-    renderEChartFromData(element.id, dataElementId);
-  });
-});
-
-function renderEChartFromData(chartElementId, dataElementId) {
-  const dataElement = document.getElementById(dataElementId);
-  const dataJson = dataElement.textContent || dataElement.innerText;
-  
-  try {
-    const options = JSON.parse(dataJson);
-    
-    // Apply theme and tooltip customizations for calendar heatmaps
-    if (options.calendar && options.series && options.series[0].type === 'heatmap') {
-      // Custom tooltip with grouped relationship data
-      options.tooltip = {
-        formatter: function(params) {
-          const entityLabels = params.value[2] || {};
-          // Show grouped relationships (e.g., "Meditation: • Mindfulness", "Location: • Living Room")
-          // ...tooltip formatting logic
-        }
-      };
-    }
-    
-    return renderEChart(chartElementId, options);
-  } catch (error) {
-    console.error('Failed to parse chart options:', error);
-  }
-}
-```
-
-### 3. Page Integration
-
-From `src/tech/jgood/gleanmo/viz/routes.clj` - How charts are embedded in pages:
-
-```clojure
-(defn viz-page
-  "Generate visualization page for an entity."
-  [ctx entity-key entity-schema entity-str plural-str]
-  (let [temporal-pattern (detect-temporal-pattern entity-schema)
-        entity-data (queries/all-for-user-query
-                     {:entity-type-str entity-str
-                      :schema entity-schema
-                      :filter-references true} ctx)
-        calendar-config (generate-calendar-heatmap-config 
-                         temporal-pattern entity-data ctx entity-key entity-schema entity-str)]
-    (ui/page
-     (assoc ctx ::ui/echarts true)  ; Include ECharts CDN
-     (side-bar ctx
-       [:div.container.mx-auto.p-6
-        [:h1.text-3xl.font-bold.mb-6 (str "Visualizations - " (str/capitalize entity-str))]
-        (render-chart-section "calendar-heatmap" "Activity Calendar" calendar-config)]))))
-```
-
-## Generic Visualization System
-
-Add to any entity namespace:
-
-```clojure
-(def viz-routes
-  (viz-routes/gen-routes {:entity-key :habit-log
-                          :entity-schema habit-schema/habit-log
-                          :entity-str "habit-log"
-                          :plural-str "habit-logs"}))
-```
-
-Features:
-- Temporal pattern detection (point events vs intervals)
-- Generic relationship resolution for tooltips  
-- User privacy settings compliance
-- Consistent theming
-
-# Adding New Entities
-
-## Complete Entity Creation Process
-
-To add a new entity with full CRUD and visualization support:
-
-### 1. Create Schema File
-
-Create `src/tech/jgood/gleanmo/schema/[entity]_schema.clj`:
-
-```clojure
-(ns tech.jgood.gleanmo.schema.entity-schema
-  (:require [tech.jgood.gleanmo.schema.meta :as sm]))
-
-(def entity
-  [:map {:closed true}
-   [:xt/id :entity/id]
-   [::sm/type [:enum :entity]]
-   [::sm/created-at :instant]
-   [::sm/deleted-at {:optional true} :instant]
-   [:user/id :user/id]
-   [:entity/label :string]
-   ;; Add entity-specific fields
-   ])
-```
-
-### 2. Register Schema
-
-Add to `src/tech/jgood/gleanmo/schema.clj`:
-
-```clojure
-;; In require section
-[tech.jgood.gleanmo.schema.entity-schema :as es]
-
-;; In schema map - add ID types
-:entity/id :uuid
-
-;; In schema map - add entity schemas  
-:entity es/entity
-```
-
-### 3. Create App Route Files
-
-**For base entity** - `src/tech/jgood/gleanmo/app/entity.clj`:
-```clojure
-(ns tech.jgood.gleanmo.app.entity
-  (:require
-   [tech.jgood.gleanmo.crud.routes :as crud]
-   [tech.jgood.gleanmo.schema      :refer [schema]]))
-
-(def crud-routes
-  (crud/gen-routes {:entity-key :entity,
-                    :entity-str "entity",
-                    :plural-str "entities",
-                    :schema     schema}))
-```
-
-**For log entity** - `src/tech/jgood/gleanmo/app/entity_log.clj`:
-```clojure
-(ns tech.jgood.gleanmo.app.entity-log
-  (:require
-   [tech.jgood.gleanmo.crud.routes :as crud]
-   [tech.jgood.gleanmo.viz.routes :as viz-routes]
-   [tech.jgood.gleanmo.schema      :refer [schema]]
-   [tech.jgood.gleanmo.schema.entity-schema :as es]))
-
-(def crud-routes
-  (crud/gen-routes {:entity-key :entity-log,
-                    :entity-str "entity-log", 
-                    :plural-str "entity-logs",
-                    :schema     schema}))
-
-(def viz-routes
-  (viz-routes/gen-routes {:entity-key :entity-log
-                          :entity-schema es/entity-log
-                          :entity-str "entity-log"
-                          :plural-str "entity-logs"}))
-```
-
-### 4. Register Routes
-
-Add to `src/tech/jgood/gleanmo/app.clj`:
-
-```clojure
-;; In require section
-[tech.jgood.gleanmo.app.entity :as entity]
-[tech.jgood.gleanmo.app.entity-log :as entity-log]
-
-;; In db-viz-supported-types set
-:entity
-:entity-log
-
-;; In routes section
-entity/crud-routes
-entity-log/crud-routes
-entity-log/viz-routes
-```
-
-### 5. Add Dashboard Links
-
-Add to `src/tech/jgood/gleanmo/app/dashboards.clj`:
-
-```clojure
-;; In entities-dashboard
-(dashboard-card "Entities" "Description" 
-                "/app/crud/entity" "🔗" "neon-color")
-
-;; In activity-logs-dashboard  
-(dashboard-card "Entity Logs" "Log description"
-                "/app/crud/entity-log" "📊" "neon-color")
-
-;; In analytics-dashboard (if temporal)
-(dashboard-card "Entity Calendar" "Calendar description"
-                "/app/viz/entity-log" "🗓️" "neon-color")
-```
-
-### 6. Add Quick Add (Optional)
-
-Add to `src/tech/jgood/gleanmo/app/shared.clj` in Quick Add section:
-
-```clojure
-[:a.link {:href "/app/crud/form/entity-log/new"} "entity log"]
-```
-
-This process gives you:
-- Full CRUD operations (`/app/crud/entity`, `/app/crud/entity-log`)
-- Automatic form generation with validation
-- Calendar heatmap visualization (`/app/viz/entity-log`) 
-- Database inspection (`/app/db/entity`, `/app/db/entity-log`)
-- Dashboard navigation
-- Quick-add sidebar links
+- `AGENTS.md` - project-specific agent/development rules
+- `docs/maintainer-reference.md` - internal implementation and extension notes
+- `roadmap/index.md` - canonical roadmap state
 
 ## License
 
-All rights reserved. This code is shared for demonstration and educational purposes.
+All rights reserved. Shared for reference and educational purposes.
