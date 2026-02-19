@@ -46,6 +46,7 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 
 ### Draft
 
+- [ui-juice.md](./ui-juice.md) - Micro-interactions, animations, and haptic feedback for delight
 - [plausible-user-identification.md](./plausible-user-identification.md) - Add user identifiers to Plausible analytics to distinguish individuals
 - [reading-tracker.md](./reading-tracker.md) - Lightweight Goodreads replacement with timer-backed sessions
 - [life-chart.md](./life-chart.md) - Lifetime view with years as rows and weeks as cells
