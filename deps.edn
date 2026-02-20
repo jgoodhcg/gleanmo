@@ -9,11 +9,13 @@
          org.clj-commons/digest              {:mvn/version "1.4.100"}
          danlentz/clj-uuid                   {:mvn/version "0.1.9"}
          org.clojure/data.csv                {:mvn/version "1.0.1"}
-         semantic-csv/semantic-csv           {:mvn/version "0.2.1-alpha1"}
-         io.github.nextjournal/clerk         {:mvn/version "0.15.957"}
+         ;; clerk and semantic-csv removed from base deps - only used in dev notebooks
+         ;; io.github.nextjournal/clerk         {:mvn/version "0.15.957"}
+         ;; semantic-csv/semantic-csv           {:mvn/version "0.2.1-alpha1"}
          org.slf4j/slf4j-simple              {:mvn/version "2.0.0-alpha5"}
          metosin/potpuri                     {:mvn/version "0.5.3"}
          tick/tick                           {:mvn/version "0.7.5"}
+         com.widdindustries/cljc.java-time  {:mvn/version "0.1.21"}
          org.mnode.ical4j/ical4j             {:mvn/version "4.0.2"}
          clj-http/clj-http                   {:mvn/version "3.13.0"}
          cheshire/cheshire                   {:mvn/version "5.13.0"}
@@ -29,8 +31,19 @@
          :jvm-opts    ["-XX:-OmitStackTraceInFastThrow"
                        "-XX:+CrashOnOutOfMemoryError"
                        "--enable-native-access=ALL-UNNAMED"
-                       "--sun-misc-unsafe-memory-access=allow"
+                       ;; "--sun-misc-unsafe-memory-access=allow" ;; JDK 23+ only, removed for JDK 21 CI compat
                        "-Dbiff.env.BIFF_PROFILE=dev"]
+         :main-opts   ["-m" "com.biffweb.task-runner" "tasks/tasks"]}
+  ;; CI profile: like :dev but uses BIFF_PROFILE=ci (no cider-nrepl middleware, plain nREPL)
+  :ci   {:extra-deps  {com.biffweb/tasks {:git/url   "https://github.com/jacobobryant/biff"
+                                          :git/tag   "v1.8.10", :git/sha "146f2b1"
+                                          :deps/root "libs/tasks"}
+                       tortue/spy        {:mvn/version "2.15.0"}}
+         :extra-paths ["dev" "test"]
+         :jvm-opts    ["-XX:-OmitStackTraceInFastThrow"
+                       "-XX:+CrashOnOutOfMemoryError"
+                       "--enable-native-access=ALL-UNNAMED"
+                       "-Dbiff.env.BIFF_PROFILE=ci"]
          :main-opts   ["-m" "com.biffweb.task-runner" "tasks/tasks"]}
   :prod {:jvm-opts  ["-XX:-OmitStackTraceInFastThrow"
                      "-XX:+CrashOnOutOfMemoryError"
