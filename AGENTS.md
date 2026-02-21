@@ -77,6 +77,17 @@ This installs a ~30MB static binary with no JVM or Clojars dependency. After set
 
 **Cloud agents must not run** Levels 2-7 commands (`clojure_eval`, `just check`, `clj -M:dev test`, `just validate`, e2e commands). These require a JVM and/or running dev server that cloud environments do not have.
 
+### CI Feedback Loop (cloud agents)
+
+After pushing a commit, cloud agents can check CI results using `gh`:
+
+```sh
+gh run watch --exit-status   # wait for the validate workflow to complete
+gh run view --log-failed     # on failure, view only the failed step logs
+```
+
+The `validate` workflow cascades: **lint-fast → check → test → e2e**. A failure in any stage cancels downstream stages, so the first failure reported is the one to fix. After fixing, push again and re-check.
+
 ## Allowed Commands
 
 - `just lint-fast` — fast standalone clj-kondo lint (primary validation, run after every edit)
