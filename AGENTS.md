@@ -41,18 +41,47 @@ Template rules:
 
 ## Validation Commands
 
-| Level | Command | When |
-|-------|---------|------|
-| 1 | `just check` | After every change |
-| 2 | `clojure_eval` (pure reads only) | Quick data checks / schema validation |
-| 3 | `clj -M:dev test <namespace>` | Specific logic changes |
-| 4 | `just validate` | Before commits / significant changes |
-| 5 | `just e2e-screenshot /path` | After UI changes (requires user-run dev server) |
-| 6 | `just e2e-flow <name>` | User flow regression checks (requires user-run dev server) |
+| Level | Command | When | Cost |
+|-------|---------|------|------|
+| 1 | `just lint-fast` or `just lint-fast <files>` | **After every edit** — run aggressively | ~200ms |
+| 2 | `clojure_eval` (pure reads only) | Quick data checks / schema validation | ~1s |
+| 3 | `just check` | After completing a subtask or batch of changes | ~10-15s |
+| 4 | `clj -M:dev test <namespace>` | Specific logic changes | ~20-30s |
+| 5 | `just validate` | Before commits / significant changes | ~60s+ |
+| 6 | `just e2e-screenshot /path` | After UI changes (requires user-run dev server) | varies |
+| 7 | `just e2e-flow <name>` | User flow regression checks (requires user-run dev server) | varies |
+
+### Environment Detection
+
+At the start of a session, detect your environment by running:
+
+```sh
+which java && java -version 2>&1 | head -1
+which clj-kondo
+```
+
+- **Full environment** (java + clj found): Use all validation levels (1-7) as described above.
+- **Lint-only environment** (no java, clj-kondo found): Use Level 1 only. Defer Levels 3-7 to GitHub Actions CI.
+- **Bare environment** (no java, no clj-kondo): Run `./script/setup-cloud-lint.sh` first, then operate as lint-only.
+
+### Cloud Environment Setup
+
+Remote/cloud agentic runtimes (Ubuntu 24+) that lack a JVM should run the setup script on first use:
+
+```sh
+./script/setup-cloud-lint.sh        # installs standalone clj-kondo to ~/.local/bin
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+This installs a ~30MB static binary with no JVM or Clojars dependency. After setup, `just lint-fast` works identically to local environments.
+
+**Cloud agents must not run** Levels 2-7 commands (`clojure_eval`, `just check`, `clj -M:dev test`, `just validate`, e2e commands). These require a JVM and/or running dev server that cloud environments do not have.
 
 ## Allowed Commands
 
-- `just check` — format + lint (primary validation)
+- `just lint-fast` — fast standalone clj-kondo lint (primary validation, run after every edit)
+- `just lint-fast <files>` — lint specific changed files only (fastest)
+- `just check` — format + lint via JVM (periodic validation)
 - `just validate` — full validation
 - `clj -M:dev test` — run all tests
 - `clj -M:dev test <namespace>` — run a specific test namespace

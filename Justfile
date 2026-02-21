@@ -11,12 +11,22 @@ fmt-check:
 fmt-fix:
     clj -M:cljfmt fix src test dev
 
-# Run linter
+# Fast lint using standalone clj-kondo binary (no JVM startup)
+# Usage: just lint-fast                    # lint all
+# Usage: just lint-fast src/tech/jgood/gleanmo/foo.clj  # lint specific files
+lint-fast *files:
+    #!/usr/bin/env sh
+    if [ -z "{{files}}" ]; then
+        clj-kondo --lint src --lint test --lint dev
+    else
+        clj-kondo --lint {{files}}
+    fi
+
+# Run linter (via deps.edn, slower - uses JVM)
 lint:
     clj -M:lint --lint src --lint test --lint dev
 
-# Quick validation (format + lint) - PRIMARY COMMAND FOR AGENTS
-# Run after every code change to catch syntax errors, unresolved symbols, invalid arity, etc.
+# Quick validation (format + lint) - RUN PERIODICALLY, NOT AFTER EVERY EDIT
 check: fmt-check lint
 
 # Run all tests
