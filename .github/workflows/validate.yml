@@ -26,7 +26,7 @@ jobs:
           sudo ./install-clj-kondo
 
       - name: Lint
-        run: clj-kondo --lint src --lint test --lint dev
+        run: clj-kondo --lint src --lint test --lint dev --fail-level error
 
   check:
     name: Format + Lint (JVM)

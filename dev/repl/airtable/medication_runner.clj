@@ -1,11 +1,11 @@
 (ns repl.airtable.medication-runner
-  {:deprecated "Use `clj -M:dev migrate-airtable` CLI task instead."}
   "DEPRECATED: Interactive REPL runner for medication Airtable migration.
 
    This REPL-based workflow is superseded by the CLI migration task.
    Use: clj -M:dev migrate-airtable --entity medication --file <path> --target dev|prod --user-id <uuid>
 
    Preserved for reference only."
+  {:deprecated "Use `clj -M:dev migrate-airtable` CLI task instead."}
   (:require
    [com.biffweb :as biff :refer [q]]
    [repl.airtable.core :as core]
@@ -17,8 +17,8 @@
 ;; =============================================================================
 
 (def config
-  {:file-path "airtable_data/medication_log_XXXX.edn"  ;; <-- YOUR FILE
-   :email     "YOUR_EMAIL_HERE"})                       ;; <-- YOUR EMAIL
+  {:file-path "airtable_data/medication_log_XXXX.edn" ;; <-- YOUR FILE
+   :email "YOUR_EMAIL_HERE"}) ;; <-- YOUR EMAIL
 
 ;; =============================================================================
 ;; Step 1: Verify the file - check field keys
@@ -40,25 +40,25 @@
 
   ;; Check your user exists
   (q (:biff/db local-ctx)
-     '{:find  (pull ?e [:xt/id :user/email])
+     '{:find (pull ?e [:xt/id :user/email])
        :where [[?e :user/email email]]
-       :in    [email]}
+       :in [email]}
      (:email config))
 
   ;; Preview medications that will be created
   (let [user-id (:xt/id (first (q (:biff/db local-ctx)
-                                  '{:find  (pull ?e [*])
+                                  '{:find (pull ?e [*])
                                     :where [[?e :user/email email]]
-                                    :in    [email]}
+                                    :in [email]}
                                   (:email config))))]
     (med/convert-airtable-medications (:file-path config) user-id))
 
   ;; Preview medication logs (first 3)
-  (let [db      (:biff/db local-ctx)
+  (let [db (:biff/db local-ctx)
         user-id (:xt/id (first (q db
-                                  '{:find  (pull ?e [*])
+                                  '{:find (pull ?e [*])
                                     :where [[?e :user/email email]]
-                                    :in    [email]}
+                                    :in [email]}
                                   (:email config))))]
     (->> (med/convert-airtable-medication-logs (:file-path config) user-id db)
          (take 3)))
@@ -76,9 +76,9 @@
 
   ;; Verify connection - check your user exists in prod
   (q (:biff/db prod-ctx)
-     '{:find  (pull ?e [:xt/id :user/email])
+     '{:find (pull ?e [:xt/id :user/email])
        :where [[?e :user/email email]]
-       :in    [email]}
+       :in [email]}
      (:email config))
   ;;
   )
@@ -112,12 +112,12 @@
 (comment
   ;; Count medications in prod
   (q (:biff/db prod-ctx)
-     '{:find  [(count ?e)]
+     '{:find [(count ?e)]
        :where [[?e :tech.jgood.gleanmo.schema.meta/type :medication]]})
 
   ;; Count medication logs in prod
   (q (:biff/db prod-ctx)
-     '{:find  [(count ?e)]
+     '{:find [(count ?e)]
        :where [[?e :tech.jgood.gleanmo.schema.meta/type :medication-log]]})
   ;;
   )

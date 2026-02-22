@@ -17,9 +17,9 @@ fmt-fix:
 lint-fast *files:
     #!/usr/bin/env sh
     if [ -z "{{files}}" ]; then
-        clj-kondo --lint src --lint test --lint dev
+        clj-kondo --lint src --lint test --lint dev --fail-level error
     else
-        clj-kondo --lint {{files}}
+        clj-kondo --lint {{files}} --fail-level error
     fi
 
 # Run linter (via deps.edn, slower - uses JVM)
