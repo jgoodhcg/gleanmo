@@ -131,8 +131,8 @@ jobs:
 
       - name: Generate ephemeral secrets
         run: |
-          echo "COOKIE_SECRET=$(openssl rand -hex 32)" >> config.env
-          echo "JWT_SECRET=$(openssl rand -hex 32)" >> config.env
+          echo "COOKIE_SECRET=$(openssl rand -base64 16 | head -c 16)" >> config.env
+          echo "JWT_SECRET=$(openssl rand -base64 16 | head -c 16)" >> config.env
 
       - name: Start dev server
         run: |
