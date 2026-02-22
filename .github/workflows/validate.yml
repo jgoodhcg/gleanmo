@@ -57,10 +57,10 @@ jobs:
           restore-keys: deps-
 
       - name: Format check
-        run: clj -M:cljfmt check src test dev
+        run: clojure -M:cljfmt check src test dev
 
       - name: Lint (JVM)
-        run: clj -M:lint --lint src --lint test --lint dev
+        run: clojure -M:lint --lint src --lint test --lint dev
 
   test:
     name: Unit Tests
@@ -91,7 +91,7 @@ jobs:
           restore-keys: deps-
 
       - name: Run tests
-        run: clj -M:dev test
+        run: clojure -M:dev test
 
   e2e:
     name: E2E Tests
@@ -133,7 +133,7 @@ jobs:
 
       - name: Start dev server
         run: |
-          clj -J--enable-native-access=ALL-UNNAMED -J--sun-misc-unsafe-memory-access=allow -M:dev -m tech.jgood.gleanmo &
+          clojure -J--enable-native-access=ALL-UNNAMED -J--sun-misc-unsafe-memory-access=allow -M:dev -m tech.jgood.gleanmo &
           echo "Waiting for server on port 8080..."
           timeout 120 bash -c 'until curl -sf http://localhost:8080 > /dev/null 2>&1; do sleep 2; done'
           echo "Server is up."
