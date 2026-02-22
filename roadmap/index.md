@@ -46,6 +46,7 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 
 ### Draft
 
+- [entity-merge.md](./entity-merge.md) - Combine logs from duplicate entities into one target entity
 - [ui-juice.md](./ui-juice.md) - Micro-interactions, animations, and haptic feedback for delight
 - [plausible-user-identification.md](./plausible-user-identification.md) - Add user identifiers to Plausible analytics to distinguish individuals
 - [reading-tracker.md](./reading-tracker.md) - Lightweight Goodreads replacement with timer-backed sessions
