@@ -5,7 +5,7 @@ description: "Tracker for Airtable backfills and remaining imports"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-16
+updated: 2026-02-22
 ---
 
 # Data Migration Status (Airtable + Other Sources)
@@ -19,7 +19,7 @@ updated: 2026-02-16
 ## Current State
 - Habits & habit logs: fully migrated from Airtable. Legacy runner left only for reference (`dev/airtable/activity.clj`).
 - BM logs: fully migrated; helper code in `dev/repl.clj` is archival/reference.
-- Medication: fully migrated (2026-02-15). 23 medications + 1,305 logs written to prod via `m001-airtable-import-medications`.
+- Medication: **needs remediation** (2026-02-22). Initial migration missing injection site data; notes may also be missing. Re-run required.
 - Symptom (pain/mood): schema defined in `symptom_schema.clj`, CRUD routes not wired, no migration code.
 - Exercise: schema defined in `exercise_schema.clj` (needs type fix), no routes, no migration code.
 - Tasks & Projects: CRUD live in-app; historical data lives in other apps/spreadsheets, no migration code.
@@ -27,6 +27,7 @@ updated: 2026-02-16
 - Priority: define and implement entities incrementally, then port data one by one.
 
 ## Next Actions
+- Remediate medication migration (injection site, notes) — see `roadmap/medication.md`.
 - Pick the next entity to migrate (symptom/pain/mood recommended).
 
 ## Recommended Approach: Define-Then-Port Per Entity (Ascending Complexity)
@@ -38,8 +39,10 @@ Define schema → wire CRUD → build/run migration for each entity sequentially
 
 ## Recommended Sequence
 
-### 1. Medication (DONE)
-- Migrated 2026-02-15 via CLI migration task `m001-airtable-import-medications`
+### 1. Medication (REMEDIATION NEEDED)
+- Initial migration 2026-02-15 via CLI migration task `m001-airtable-import-medications`
+- Missing injection site data; notes may also be missing
+- Re-run required to backfill missing fields
 
 ### 2. Symptom (pain/mood)
 - Schema defined, wire CRUD for `symptom-episode` and `symptom-log`
