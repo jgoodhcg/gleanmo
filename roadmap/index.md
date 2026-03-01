@@ -46,6 +46,7 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 
 ### Draft
 
+- [pwa-experience.md](./pwa-experience.md) - Improve progressive web app experience for native-like feel on iOS and Android
 - [entity-merge.md](./entity-merge.md) - Combine logs from duplicate entities into one target entity
 - [ui-juice.md](./ui-juice.md) - Micro-interactions, animations, and haptic feedback for delight
 - [plausible-user-identification.md](./plausible-user-identification.md) - Add user identifiers to Plausible analytics to distinguish individuals
