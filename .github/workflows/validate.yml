@@ -88,7 +88,7 @@ jobs:
           restore-keys: deps-
 
       - name: Load all namespaces
-        run: clojure -M:dev -e "(require 'tech.jgood.gleanmo)"
+        run: clojure -A:dev -e "(require 'tech.jgood.gleanmo)"
 
   test:
     name: Unit Tests
