@@ -86,7 +86,7 @@ gh run watch --exit-status   # wait for the validate workflow to complete
 gh run view --log-failed     # on failure, view only the failed step logs
 ```
 
-The `validate` workflow cascades: **lint-fast → check → test → e2e**. A failure in any stage cancels downstream stages, so the first failure reported is the one to fix. After fixing, push again and re-check.
+The `validate` workflow cascades: **lint-fast → format → compile → test → e2e**. A failure in any stage cancels downstream stages, so the first failure reported is the one to fix. After fixing, push again and re-check.
 
 ## Allowed Commands
 

@@ -28,8 +28,8 @@ jobs:
       - name: Lint
         run: clj-kondo --lint src --lint test --lint dev --fail-level error
 
-  check:
-    name: Format + Lint (JVM)
+  format:
+    name: Format Check
     needs: lint-fast
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -59,12 +59,40 @@ jobs:
       - name: Format check
         run: clojure -M:cljfmt check src test dev
 
-      - name: Lint (JVM)
-        run: clojure -M:lint --lint src --lint test --lint dev
+  compile:
+    name: Compile Check
+    needs: format
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Setup Clojure
+        uses: DeLaGuardo/setup-clojure@13.2
+        with:
+          cli: latest
+
+      - name: Cache deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.gitlibs
+          key: deps-${{ hashFiles('deps.edn') }}
+          restore-keys: deps-
+
+      - name: Load all namespaces
+        run: clojure -M:dev -e "(require 'tech.jgood.gleanmo)"
 
   test:
     name: Unit Tests
-    needs: check
+    needs: compile
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -131,8 +159,8 @@ jobs:
 
       - name: Generate ephemeral secrets
         run: |
-          echo "COOKIE_SECRET=$(openssl rand -base64 16 | head -c 16)" >> config.env
-          echo "JWT_SECRET=$(openssl rand -base64 16 | head -c 16)" >> config.env
+          echo "COOKIE_SECRET=$(openssl rand -base64 16)" >> config.env
+          echo "JWT_SECRET=$(openssl rand -base64 32)" >> config.env
 
       - name: Start dev server
         run: |
