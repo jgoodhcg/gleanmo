@@ -12,27 +12,30 @@ priority: medium
 
 ## Intent
 
-[Why this exists. What problem it solves.]
-
-## Constraints
-
-[Hard requirements or limitations.]
+[What this accomplishes and why it matters.]
 
 ## Specification
 
-[Concrete behavior and acceptance criteria.]
+[Concrete description of the change. What exists after this is done.]
 
 ## Validation
 
-[Specific checks: lint/tests/e2e/manual verification.]
+[How to know it's done:]
+- [ ] Tests to create/pass
+- [ ] E2E flows to run
+- [ ] Visual criteria (reference style guide if applicable)
+
+## Scope
+
+[What's not included. Boundaries to prevent drift.]
 
 ## Context
 
-[State, blockers, dependencies, and relevant background.]
+[Pointers to relevant files, prior decisions, or constraints.]
 
-## Open Questions
+## Open Questions (draft only)
 
-[Unresolved decisions or unknowns.]
+[Unresolved items. Clear this section before moving to ready.]
 
 ## Notes
 

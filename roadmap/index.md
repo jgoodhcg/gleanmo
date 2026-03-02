@@ -36,6 +36,10 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 
 ### Ready
 
+(No work units currently meet the Definition of Ready. Promote from Draft after adding Scope, Context, Validation, and clearing Open Questions.)
+
+### Draft
+
 - [biff-upgrade-v1-9.md](./biff-upgrade-v1-9.md) - Upgrade Biff and task libs to at least v1.9.0, then validate XTDB/Agrona changes and Java 25 compatibility
 - [dynamic-server-port.md](./dynamic-server-port.md) - Make the server dynamically choose a port to run on to support git worktree and multiple project development
 - [reading-schema-proposal.md](./reading-schema-proposal.md) - Draft Malli schemas for reading entities
@@ -43,9 +47,7 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 - [search-filter.md](./search-filter.md) - Text search tool for CRUD and timer view pages
 - [timer-overlap-metrics.md](./timer-overlap-metrics.md) - Show overlap-aware daily and per-project timer metrics with clear unique vs. raw totals
 - [today-reorder-performance.md](./today-reorder-performance.md) - Fix slow response when reordering items on the today page
-
-### Draft
-
+- [local-dev-db-locking.md](./local-dev-db-locking.md) - RocksDB file lock prevents running REPL and CLI migrations concurrently
 - [pwa-experience.md](./pwa-experience.md) - Improve progressive web app experience for native-like feel on iOS and Android
 - [entity-merge.md](./entity-merge.md) - Combine logs from duplicate entities into one target entity
 - [ui-juice.md](./ui-juice.md) - Micro-interactions, animations, and haptic feedback for delight

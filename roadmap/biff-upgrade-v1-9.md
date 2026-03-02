@@ -1,6 +1,6 @@
 ---
 title: "Upgrade Biff to v1.9.0+"
-status: ready
+status: draft
 description: "Upgrade Biff and task libs to at least v1.9.0, then validate XTDB/Agrona changes and Java 25 compatibility"
 tags: [area/dependencies, type/maintenance, tech/biff, tech/xtdb]
 priority: medium

@@ -1,6 +1,6 @@
 ---
 title: "Today Reorder Performance"
-status: ready
+status: draft
 description: "Fix slow response when reordering items on the today page"
 tags: [area/frontend, area/performance, type/bug]
 priority: high

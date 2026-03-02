@@ -1,6 +1,6 @@
 ---
 title: "Reading Schema Proposal (Malli Draft)"
-status: ready
+status: draft
 description: "Draft Malli schemas for reading entities"
 tags: []
 priority: medium

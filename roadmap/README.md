@@ -76,6 +76,9 @@ A work unit can be marked `ready` only if all are true:
 - `Intent` states what and why.
 - `Specification` is concrete and testable.
 - `Validation` includes concrete checks (tests/e2e/visual as relevant).
+- `Scope` explicitly defines boundaries.
+- `Context` points to key files/constraints.
+- `Open Questions` is empty or removed.
 
 ## Conventions
 

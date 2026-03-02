@@ -1,6 +1,6 @@
 ---
 title: "App-Level Screenshot Runner"
-status: ready
+status: draft
 description: "Authenticated screenshot capture for docs and CI"
 tags: []
 priority: medium
