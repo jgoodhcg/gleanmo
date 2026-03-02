@@ -5,7 +5,7 @@ description: "Tracker for Airtable backfills and remaining imports"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-22
+updated: 2026-02-21
 ---
 
 # Data Migration Status (Airtable + Other Sources)
@@ -13,14 +13,15 @@ updated: 2026-02-22
 ## Work Unit Summary
 - Problem / intent: Track Airtable backfills and remaining imports so we can fully exit Airtable.
 - Constraints: Preserve lineage fields and deterministic IDs; document each import run.
-- Proposed approach: Prioritize exercise migration, then move through pain, mood, reading, bouldering, and project time logs.
-- Open questions: Which import should follow exercise, and what is the default validation threshold?
+- Proposed approach: Prioritize symptom migration (unified with pain), then mood, reading, bouldering, and project time logs.
+- Open questions: Which import should follow symptom, and what is the default validation threshold?
 
 ## Current State
 - Habits & habit logs: fully migrated from Airtable. Legacy runner left only for reference (`dev/airtable/activity.clj`).
 - BM logs: fully migrated; helper code in `dev/repl.clj` is archival/reference.
 - Medication: **needs remediation** (2026-02-22). Initial migration missing injection site data; notes may also be missing. Re-run required.
-- Symptom (pain/mood): schema defined in `symptom_schema.clj`, CRUD routes not wired, no migration code.
+- Symptom (unified with pain): schema defined in `symptom_schema.clj`, CRUD routes not wired, no migration code. Airtable pain data will port as symptom-log with type `:pain`.
+- Mood: separate entity per `roadmap/mood.md`, needs schema definition.
 - Exercise: schema defined in `exercise_schema.clj` (needs type fix), no routes, no migration code.
 - Tasks & Projects: CRUD live in-app; historical data lives in other apps/spreadsheets, no migration code.
 - Not represented in app yet: reading, bouldering.
@@ -28,7 +29,7 @@ updated: 2026-02-22
 
 ## Next Actions
 - Remediate medication migration (injection site, notes) — see `roadmap/medication.md`.
-- Pick the next entity to migrate (symptom/pain/mood recommended).
+- Wire CRUD for symptom-episode and symptom-log, then build Airtable ingester (pain → :type :pain).
 
 ## Recommended Approach: Define-Then-Port Per Entity (Ascending Complexity)
 Define schema → wire CRUD → build/run migration for each entity sequentially. This provides:
@@ -44,34 +45,40 @@ Define schema → wire CRUD → build/run migration for each entity sequentially
 - Missing injection site data; notes may also be missing
 - Re-run required to backfill missing fields
 
-### 2. Symptom (pain/mood)
-- Schema defined, wire CRUD for `symptom-episode` and `symptom-log`
-- Build ingester, export from Airtable, run migration
+### 2. Symptom (unified with pain)
+- Schema refactored 2026-02-21; pain unified into symptom-log with `:pain` and `:chronic-pain` types
+- Wire CRUD for `symptom-episode` and `symptom-log`
+- Build ingester, export Airtable pain table, run migration (maps to `:type :pain`)
 - **Estimated time: 0.5-1.5 days**
 
-### 3. Task
+### 3. Mood (separate entity)
+- Define mood-log schema per `roadmap/mood.md`
+- Wire CRUD, build ingester, export from Airtable
+- **Estimated time: 0.5-1.5 days**
+
+### 4. Task
 - CRUD live, design migration from existing sources
 - Build ingester, export data, run migration
 - **Estimated time: 0.5-1.5 days**
 
-### 4. Project
+### 5. Project
 - CRUD live, export time logs from current apps
 - Build ingester, run migration
 - **Estimated time: 0.5-1 day**
 
-### 5. Reading
+### 6. Reading
 - Define `book` and `reading-session` schemas per `roadmap/reading-tracker.md`
 - Wire CRUD routes + metadata lookup UI (optional: defer lookup to phase 2)
 - Build ingester, export from Airtable, run migration
 - **Estimated time: 1-2 days**
 
-### 6. Exercise (most complex, defer to end)
+### 7. Exercise (most complex, defer to end)
 - Fix schema type error + address log/set/rep confusion
 - Wire CRUD for 4 entities (exercise, session, set, rep)
 - Build ingester, export from Airtable, run migration
 - **Estimated time: 2-4 days**
 
-### 7. Bouldering (complex, defer to end)
+### 8. Bouldering (complex, defer to end)
 - Define schema (check Airtable structure first)
 - Wire CRUD routes
 - Build ingester, export from Airtable, run migration
@@ -79,21 +86,22 @@ Define schema → wire CRUD → build/run migration for each entity sequentially
 
 ## Current Calibrated Estimate (2026-02-16)
 
-- **Execution estimate (entity work only): 5.5-12 focused days**
-- **End-to-end estimate (including validation/cleanup/context-switch buffer): 8-14 focused days**
-- **Most likely total:** ~10 focused days
+- **Execution estimate (entity work only): 6-13.5 focused days**
+- **End-to-end estimate (including validation/cleanup/context-switch buffer): 8.5-16.5 focused days**
+- **Most likely total:** ~12 focused days
 
 ### Breakdown
 | Entity | Status | Estimated Time |
 |--------|--------|----------------|
 | Medication backfill | DONE (2026-02-15) | - |
-| Symptom | Schema defined | 0.5-1.5 days |
+| Symptom (incl. pain) | Schema defined | 0.5-1.5 days |
+| Mood | Needs schema | 0.5-1.5 days |
 | Task | CRUD live | 0.5-1.5 days |
 | Project | CRUD live | 0.5-1 day |
 | Reading | Needs schema | 1-2 days |
 | Exercise | Schema exists, complex | 2-4 days |
 | Bouldering | Needs schema, complex | 1-2.5 days |
-| **Execution subtotal** | | **5.5-12 days** |
+| **Execution subtotal** | | **6-13.5 days** |
 | Cross-cutting buffer (validation, cleanup, context switching) | - | 2.5-3 days |
 | **End-to-end total** | | **8-14 focused days** |
 
@@ -101,20 +109,22 @@ Define schema → wire CRUD → build/run migration for each entity sequentially
 
 - **Initial estimate (2026-02-02):** 10.5-16.5 days
 - **Calibrated estimate (2026-02-16):** 8-14 focused days
-- **Reason for calibration:** Medication migration paid one-time setup costs (first CLI migration pattern, REPL dead ends, initial model definition), so subsequent migrations should reuse the established pattern and move faster.
+- **Recalibrated estimate (2026-02-21):** 8.5-16.5 focused days (mood split out as separate entity)
+- **Reason for calibration:** Medication migration paid one-time setup costs (first CLI migration pattern, REPL dead ends, initial model definition), so subsequent migrations should reuse the established pattern and move faster. Mood split from symptom adds 0.5-1.5 days.
 
 ## Actuals Tracking (Fill As Work Completes)
 
 | Entity | Estimate | Actual Focused Days | Completed On | Notes |
 |--------|----------|---------------------|--------------|-------|
-| Symptom (pain/mood) | 0.5-1.5 days | TBD | TBD | |
+| Symptom (incl. pain) | 0.5-1.5 days | TBD | TBD | |
+| Mood | 0.5-1.5 days | TBD | TBD | |
 | Task history | 0.5-1.5 days | TBD | TBD | |
 | Project time logs | 0.5-1 days | TBD | TBD | |
 | Reading | 1-2 days | TBD | TBD | |
 | Exercise | 2-4 days | TBD | TBD | |
 | Bouldering | 1-2.5 days | TBD | TBD | |
 | Cross-cutting buffer | 2.5-3 days | TBD | TBD | |
-| **Total (remaining)** | **8-14 focused days** | TBD | TBD | |
+| **Total (remaining)** | **8.5-16.5 focused days** | TBD | TBD | |
 
 ### Assumptions
 - Full-time focused work (no context switching)
@@ -124,7 +134,8 @@ Define schema → wire CRUD → build/run migration for each entity sequentially
 - Exercise and bouldering may require schema iteration based on data quirks
 
 ## Remaining Ingestions
-- Symptom (pain/mood): Schema defined, wire CRUD + build ingester.
+- Symptom (includes Airtable pain): Schema refactored, wire CRUD + build ingester. Pain maps to `:type :pain`.
+- Mood: Needs schema + ingester; export from Airtable.
 - Exercise: Fix schema (type, rep entity) per `roadmap/exercise.md`, then create Airtable ingester.
 - Reading: Schema + ingester; export reading base (books + sessions).
 - Bouldering: Schema + ingester; export Airtable table.

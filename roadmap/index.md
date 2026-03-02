@@ -54,7 +54,6 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 - [life-chart.md](./life-chart.md) - Lifetime view with years as rows and weeks as cells
 - [memento-mori.md](./memento-mori.md) - Finite-time visualization anchored to calendar data
 - [mood.md](./mood.md) - Structured mood logging with Airtable backfill
-- [pain.md](./pain.md) - Pain logs with Airtable history and CRUD/viz
 - [bouldering.md](./bouldering.md) - Climbing sessions and problem attempts with Airtable backfill
 - [cognitive-games.md](./cognitive-games.md) - Cognitive games to track performance trends
 - [screenshots.md](./screenshots.md) - Visual changelog via periodic route screenshots
@@ -68,6 +67,7 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 
 ### Archived
 
+- [archived/pain.md](./archived/pain.md) - Pain logs (unified into symptom schema 2026-02-21)
 - [archived/query-optimization.md](./archived/query-optimization.md) - Batched related entity lookups - 93% query reduction
 - [archived/rewrite-analysis.md](./archived/rewrite-analysis.md) - Language/stack evaluation (deferred - staying with Clojure)
 - [archived/postgres-migration.md](./archived/postgres-migration.md) - Historical Postgres migration decision log
