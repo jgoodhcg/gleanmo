@@ -1,3 +1,70 @@
+// PWA: Service Worker registration and install prompt
+(function() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js');
+  }
+
+  var deferredPrompt = null;
+
+  window.addEventListener('beforeinstallprompt', function(e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    showInstallBanner('android');
+  });
+
+  window.__pwaPrompt = function() {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(function() {
+        deferredPrompt = null;
+        hideInstallBanner();
+      });
+    }
+  };
+
+  function isStandalone() {
+    return window.matchMedia('(display-mode: standalone)').matches ||
+           window.navigator.standalone === true;
+  }
+
+  function isDismissed() {
+    var ts = localStorage.getItem('pwa-dismiss');
+    if (!ts) return false;
+    var thirtyDays = 30 * 24 * 60 * 60 * 1000;
+    return (Date.now() - parseInt(ts, 10)) < thirtyDays;
+  }
+
+  function showInstallBanner(platform) {
+    if (isStandalone() || isDismissed()) return;
+    var banner = document.getElementById('pwa-install-banner');
+    if (!banner) return;
+    banner.classList.remove('hidden');
+    var androidEl = banner.querySelector('[data-pwa-android]');
+    var iosEl = banner.querySelector('[data-pwa-ios]');
+    if (androidEl) androidEl.classList.toggle('hidden', platform !== 'android');
+    if (iosEl) iosEl.classList.toggle('hidden', platform !== 'ios');
+  }
+
+  function hideInstallBanner() {
+    var banner = document.getElementById('pwa-install-banner');
+    if (banner) banner.classList.add('hidden');
+  }
+
+  window.__pwaDismiss = function() {
+    localStorage.setItem('pwa-dismiss', Date.now().toString());
+    hideInstallBanner();
+  };
+
+  // On iOS Safari, no beforeinstallprompt fires — show iOS instructions
+  document.addEventListener('DOMContentLoaded', function() {
+    if (isStandalone() || isDismissed()) return;
+    var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (isIOS && !deferredPrompt) {
+      showInstallBanner('ios');
+    }
+  });
+})();
+
 function renderEChart(elementId, options) {
   const chartElement = document.getElementById(elementId);
   if (!chartElement) {

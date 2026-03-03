@@ -175,12 +175,31 @@
          [:span "Unsupported type, must be one of: "
           (str db-viz-supported-types)]])))))
 
+(defn- pwa-install-banner
+  []
+  [:div#pwa-install-banner.hidden.bg-dark-surface.border.border-dark.rounded-lg.p-4.mb-4.flex.items-center.justify-between
+   [:div.flex.items-center.gap-3
+    [:span.text-gold.text-xl "⊕"]
+    [:div
+     [:span.font-semibold "Install Gleanmo"]
+     [:div {:data-pwa-android ""}
+      [:button.text-gold.underline.ml-1
+       {:onclick "window.__pwaPrompt()"}
+       "Add to home screen"]]
+     [:div.hidden.text-sm.text-gray-400 {:data-pwa-ios ""}
+      "Tap Share → Add to Home Screen"]]]
+   [:button.text-gray-400.hover:text-white.ml-4
+    {:onclick "window.__pwaDismiss()"
+     :aria-label "Dismiss"}
+    "✕"]])
+
 (defn root
   [ctx]
   (ui/page
    ctx
    (side-bar
     ctx
+    (pwa-install-banner)
     (overview/overview-shell ctx))))
 
 (defn- super-user?

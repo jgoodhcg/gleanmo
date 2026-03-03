@@ -35,7 +35,12 @@
        (update :base/head (fn [head]
                             (cond->> head
                               :always
-                              (concat [[:link {:rel "stylesheet" :href "https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"}]
+                              (concat [[:link {:rel "manifest" :href "/manifest.json"}]
+                                       [:meta {:name "theme-color" :content "#0d1117"}]
+                                       [:meta {:name "apple-mobile-web-app-capable" :content "yes"}]
+                                       [:meta {:name "apple-mobile-web-app-status-bar-style" :content "black-translucent"}]
+                                       [:link {:rel "apple-touch-icon" :href "/img/icon-192.png"}]
+                                       [:link {:rel "stylesheet" :href "https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"}]
                                        [:link {:rel "stylesheet" :href (css-path)}]
                                        [:link {:rel "preconnect" :href "https://fonts.googleapis.com"}]
                                        [:link {:rel "preconnect" :href "https://fonts.gstatic.com" :crossorigin true}]
