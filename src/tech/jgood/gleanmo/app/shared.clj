@@ -95,7 +95,7 @@
         account-url (str "/app/users/" user-id)
         {:keys [super-user]} (query/get-user-authz db user-id)
         super-user? (true? super-user)]
-    [:div.flex.min-h-screen
+    [:div.flex.min-h-screen.overflow-x-hidden
      ;; Sidebar
      [:div#sidebar.hidden.md:flex.flex-col.space-y-4.bg-dark-surface.p-4.z-50.border-r.border-dark.w-64.flex-shrink-0
       ;; Wordmark
