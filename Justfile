@@ -75,6 +75,10 @@ e2e-test-today-filter:
 e2e-test-today-canceled:
     cd e2e && npm run test:today-canceled
 
+# Run Today page mobile redesign test
+e2e-test-today-mobile:
+    cd e2e && npm run test:today-mobile
+
 # Run timer overlap metrics test
 e2e-test-timer-overlap:
     cd e2e && npm run test:timer-overlap

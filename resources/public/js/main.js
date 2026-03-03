@@ -440,6 +440,12 @@ document.addEventListener('htmx:afterSettle', function(event) {
   });
 })();
 
+// Task Today — expand/collapse task row details
+function toggleTaskRow(rowId) {
+  var details = document.querySelector('#' + rowId + ' .task-row-details');
+  if (details) details.classList.toggle('hidden');
+}
+
 // Sortable Lists - Generic drag-and-drop reordering
 //
 // Auto-discovers elements with .sortable-list class and initializes
@@ -469,6 +475,7 @@ document.addEventListener('htmx:afterSettle', function(event) {
 
     new Sortable(container, {
       animation: 150,
+      handle: '.drag-handle',
       draggable: '.sortable-item',
       ghostClass: 'sortable-ghost',
       chosenClass: 'sortable-chosen',

@@ -152,6 +152,7 @@ jobs:
           npm run test:today-quick-add
           npm run test:today-filter
           npm run test:today-canceled
+          npm run test:today-mobile
           npm run test:timer-overlap
 
       - name: Upload screenshots

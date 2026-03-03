@@ -19,7 +19,9 @@ async function screenshot() {
   // Navigate to target page
   await page.goto(`${BASE_URL}${path}`, { waitUntil: 'networkidle' });
 
-  const filename = `screenshot-${Date.now()}.png`;
+  const phase = process.env.SCREENSHOT_PHASE;
+  const prefix = phase ? `${phase}-` : '';
+  const filename = `${prefix}screenshot-${Date.now()}.png`;
   await page.screenshot({ path: `screenshots/${filename}`, fullPage });
   console.log(`Screenshot saved: screenshots/${filename}`);
 

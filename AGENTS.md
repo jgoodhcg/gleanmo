@@ -151,6 +151,17 @@ Code style
 Testing philosophy
 - Unit tests for logic and compilation verification; avoid brittle tests.
 - E2E for user-facing flows and UI changes.
+- Before/after screenshots for UI changes: run the relevant `just e2e-test-*`
+  suite **before** starting edits, then again **after**, using the
+  `SCREENSHOT_PHASE` env var to prefix filenames:
+  ```
+  SCREENSHOT_PHASE=before just e2e-test-today-mobile   # baseline
+  # ... make UI changes ...
+  SCREENSHOT_PHASE=after just e2e-test-today-mobile     # new state
+  ```
+  This produces paired files in `e2e/screenshots/` for changelogs and blog posts:
+  `before-today-mobile-01-desktop-collapsed.png` / `after-today-mobile-01-desktop-collapsed.png`.
+  Without the env var, screenshots use no prefix (default behavior for CI).
 
 Styling rules
 - Do not use `px` values in Tailwind class names; use named sizes.

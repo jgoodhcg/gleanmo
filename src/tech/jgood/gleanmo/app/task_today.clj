@@ -82,34 +82,71 @@
     {:type "submit" :title "Complete"}
     [:span.text-transparent.hover:text-neon-cyan "✓"]]])
 
+(defn- format-due-date
+  "Format a due date for display, with overdue highlighting."
+  [due-on today]
+  (let [overdue? (and due-on (.isBefore due-on today))
+        formatted (.format due-on (java.time.format.DateTimeFormatter/ofPattern "MMM d"))]
+    (if overdue?
+      [:span.text-red-400.font-medium (str "Due: " formatted " (overdue)")]
+      [:span (str "Due: " formatted)])))
+
 (defn- task-row-content
-  "Render the content of a single task row (without sortable wrapper)."
-  [task order project-by-id today]
-  (let [id (:xt/id task)
+  "Render a two-line collapsed card with tap-to-expand details."
+  [task _order project-by-id today]
+  (let [id         (:xt/id task)
+        row-id     (str "task-row-" id)
         focus-date (:task/focus-date task)
-        carried-over? (and focus-date (.isBefore focus-date today))
+        carried?   (and focus-date (.isBefore focus-date today))
         project-id (:task/project-id task)
-        project-label (get project-by-id project-id)]
-    [:div.flex.items-center.gap-3.p-3.bg-dark-surface.rounded-lg.border.border-dark.group.cursor-move
-     ;; Complete button
-     (complete-button id)
-     ;; Order number
-     [:span.text-gray-500.text-sm.w-6 (str order ".")]
-     ;; Task content
-     [:div.flex-1.min-w-0
-      [:div.flex.items-center.gap-2
-       [:a.font-medium.text-white.hover:underline.truncate
-        {:href (str "/app/crud/form/task/edit/" id)}
-        (:task/label task)]
-       (when carried-over?
-         [:span.text-xs.text-yellow-500.border.border-yellow-500.rounded-full.px-2.py-0.5
-          "carried over"])
-       (when project-label
-         [:span.text-xs.text-gray-500 project-label])]]
-     ;; Actions (visible on hover)
-     [:div.flex.items-center.gap-1.opacity-0.group-hover:opacity-100.transition-opacity
-      (action-button id "defer-today" "tomorrow" "border-gray-600 text-gray-400 hover:border-neon-pink hover:text-neon-pink")
-      (action-button id "remove-from-today" "remove" "border-gray-600 text-gray-400 hover:border-red-500 hover:text-red-500")]]))
+        proj-label (get project-by-id project-id)
+        due-on     (:task/due-on task)
+        effort     (:task/effort task)
+        domain     (:task/domain task)
+        mode       (:task/mode task)
+        notes      (:task/notes task)]
+    [:div.bg-dark-surface.rounded-lg.border.border-dark {:id row-id}
+     ;; ── Collapsed row (always visible) ──
+     [:div.flex.items-center.gap-3.p-3
+      ;; Drag handle — outside clickable area
+      [:span.drag-handle.cursor-move.text-gray-500.select-none.flex-shrink-0
+       {:title "Drag to reorder"} "⠿"]
+      ;; Complete button — outside clickable area
+      (complete-button id)
+      ;; Clickable content area — toggles expansion
+      [:div.flex-1.min-w-0.cursor-pointer
+       {:onclick (str "toggleTaskRow('" row-id "')")}
+       [:div.flex.items-center.gap-2
+        [:span.font-medium.text-white.truncate (:task/label task)]
+        (when carried?
+          [:span.text-xs.text-yellow-500.border.border-yellow-500.rounded-full.px-2.py-0.5
+           "carried over"])]
+       (when proj-label
+         [:div.text-xs.text-gray-500.truncate proj-label])]]
+     ;; ── Expanded details (hidden by default) ──
+     [:div.task-row-details.hidden.px-3.pb-3
+      [:div.border-t.border-dark.pt-3.flex.flex-col.gap-2
+       ;; Metadata line
+       (let [meta-items (cond-> []
+                          due-on  (conj (format-due-date due-on today))
+                          effort  (conj [:span (str "Effort: " (name effort))])
+                          domain  (conj [:span (str "Domain: " (name domain))])
+                          mode    (conj [:span (str "Mode: " (name mode))]))]
+         (when (seq meta-items)
+           (into [:div.flex.flex-wrap.items-center.gap-3.text-xs.text-gray-500]
+                 (interpose [:span.text-gray-600 "·"] meta-items))))
+       ;; Notes (truncated)
+       (when notes
+         [:p.text-sm.text-gray-400.line-clamp-2 notes])
+       ;; Action buttons (always visible when expanded)
+       [:div.flex.items-center.gap-2.pt-1
+        (action-button id "defer-today" "tomorrow"
+                       "border-gray-600 text-gray-400 hover:border-neon-pink hover:text-neon-pink")
+        (action-button id "remove-from-today" "remove"
+                       "border-gray-600 text-gray-400 hover:border-red-500 hover:text-red-500")
+        [:a.px-2.py-1.text-xs.rounded.border.border-gray-600.text-gray-400.hover:border-neon-cyan.hover:text-neon-cyan.transition-all
+         {:href (str "/app/crud/form/task/edit/" id)}
+         "edit"]]]]]))
 
 (defn- empty-state
   "Render empty state when no tasks for today."

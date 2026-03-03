@@ -15,14 +15,16 @@ import { authenticateForDev } from './auth.js';
 const BASE_URL = process.env.BASE_URL || 'http://localhost:8080';
 
 async function captureScreenshot(page: Page, name: string) {
-  const filepath = `screenshots/today-reorder-${name}.png`;
+  const phase = process.env.SCREENSHOT_PHASE;
+  const prefix = phase ? `${phase}-` : '';
+  const filepath = `screenshots/${prefix}today-reorder-${name}.png`;
   await page.screenshot({ path: filepath });
   console.log(`  [screenshot] ${filepath}`);
 }
 
 async function getTaskLabelsInOrder(page: Page): Promise<string[]> {
   // Get all task labels in the sortable list in DOM order
-  const labels = await page.locator('.sortable-item a[href^="/app/crud/form/task/edit/"]').allTextContents();
+  const labels = await page.locator('.sortable-item .font-medium.text-white').allTextContents();
   return labels;
 }
 
@@ -130,11 +132,11 @@ async function main() {
     // 6. Perform drag-and-drop (move first item to last position)
     console.log('\n6. Performing drag-and-drop...');
     const sortableItems = page.locator('.sortable-item');
-    const firstItem = sortableItems.first();
+    const firstHandle = sortableItems.first().locator('.drag-handle');
     const lastItem = sortableItems.last();
 
     // Get bounding boxes
-    const firstBox = await firstItem.boundingBox();
+    const firstBox = await firstHandle.boundingBox();
     const lastBox = await lastItem.boundingBox();
 
     if (firstBox && lastBox) {

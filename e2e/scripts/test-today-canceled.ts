@@ -15,7 +15,9 @@ import { authenticateForDev } from './auth.js';
 const BASE_URL = process.env.BASE_URL || 'http://localhost:8080';
 
 async function captureScreenshot(page: Page, name: string) {
-  const filepath = `screenshots/today-canceled-${name}.png`;
+  const phase = process.env.SCREENSHOT_PHASE;
+  const prefix = phase ? `${phase}-` : '';
+  const filepath = `screenshots/${prefix}today-canceled-${name}.png`;
   await page.screenshot({ path: filepath });
   console.log(`  [screenshot] ${filepath}`);
 }
