@@ -5,6 +5,7 @@
    [tech.jgood.gleanmo.app.shared :refer [side-bar user-local-date]]
    [tech.jgood.gleanmo.db.queries :as queries]
    [tech.jgood.gleanmo.ui :as ui]
+   [tech.jgood.gleanmo.ui.icons :as icons]
    [tech.jgood.gleanmo.ui.sortable :as sortable]))
 
 (defn- week-boundaries
@@ -110,7 +111,7 @@
      [:div.flex.items-center.gap-3.p-3
       ;; Drag handle — outside clickable area
       [:span.drag-handle.cursor-move.text-gray-500.select-none.flex-shrink-0
-       {:title "Drag to reorder"} "⠿"]
+       {:title "Drag to reorder"} (icons/grip-vertical {:class "w-5 h-5"})]
       ;; Complete button — outside clickable area
       (complete-button id)
       ;; Clickable content area — toggles expansion
@@ -119,8 +120,7 @@
        [:div.flex.items-center.gap-2
         [:span.font-medium.text-white.truncate (:task/label task)]
         (when carried?
-          [:span.text-xs.text-yellow-500.border.border-yellow-500.rounded-full.px-2.py-0.5
-           "carried over"])]
+          [:span {:title "Carried over"} (icons/clock-arrow-up {:class "w-4 h-4 text-yellow-500 inline-block"})])]
        (when proj-label
          [:div.text-xs.text-gray-500.truncate proj-label])]]
      ;; ── Expanded details (hidden by default) ──
@@ -175,7 +175,7 @@
 
 (defn- quick-add-form
   []
-  [:form#today-quick-add.flex.items-center.gap-2.mb-6
+  [:form#today-quick-add.flex.flex-col.gap-2.sm:flex-row.sm:items-center.mb-6
    {:method     "post"
     :action     "/app/task/quick-add-today"
     :hx-post    "/app/task/quick-add-today"
@@ -190,7 +190,7 @@
      :placeholder "Quick add a task..."
      :autocomplete "off"
      :data-original-value ""}]
-   [:button.inline-flex.items-center.justify-center.rounded-md.bg-neon-cyan.text-dark.font-semibold.px-4.py-2.transition-all.hover:bg-transparent.hover:text-neon-cyan.border.border-neon-cyan
+   [:button.inline-flex.items-center.justify-center.rounded-md.bg-neon-cyan.text-dark.font-semibold.px-4.py-2.transition-all.hover:bg-transparent.hover:text-neon-cyan.border.border-neon-cyan.w-full.sm:w-auto
     {:type "submit"}
     "Add"]])
 
