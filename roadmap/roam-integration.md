@@ -1,6 +1,6 @@
 ---
 title: "Project Timers (Shipped) + Roam Metrics (Planned)"
-status: active
+status: draft
 description: "Project timers shipped; Roam metrics integration pending"
 tags: []
 priority: medium

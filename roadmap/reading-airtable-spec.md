@@ -1,6 +1,6 @@
 ---
 title: "Reading Airtable Schema (Reference)"
-status: active
+status: draft
 description: "Airtable schema reference for reading migration"
 tags: []
 priority: medium

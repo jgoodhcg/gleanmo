@@ -1,7 +1,7 @@
 ---
 title: "Overlap-Aware Timer Metrics"
 status: draft
-description: "Show unique active time per day and per project by de-duplicating overlapping logs"
+description: "Show overlap-aware daily and per-project timer metrics with clear unique vs. raw totals"
 tags: [area/timers, area/analytics, area/ux, type/improvement]
 priority: high
 created: 2026-02-07

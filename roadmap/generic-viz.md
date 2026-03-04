@@ -1,6 +1,6 @@
 ---
 title: "Gleanmo Generic Visualization System Requirements"
-status: active
+status: draft
 description: "Generic visualizations for timestamp/interval entities"
 tags: []
 priority: medium

@@ -12,8 +12,6 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 - [exercise.md](./exercise.md) - Exercise tracking with superset support and Airtable backfill
 - [medication.md](./medication.md) - Medication logging with Airtable history import
 - [data-migration-status.md](./data-migration-status.md) - Tracker for Airtable backfills and remaining imports
-- [reading-airtable-spec.md](./reading-airtable-spec.md) - Airtable schema reference for reading migration
-- [generic-viz.md](./generic-viz.md) - Generic visualizations for timestamp/interval entities
 - [performance.md](./performance.md) - Performance monitoring and profiling dashboard
 - [dashboard-performance.md](./dashboard-performance.md) - Home page dashboard performance improvements
 - [backlog.md](./backlog.md) - Minor improvements without full work-unit docs
@@ -27,12 +25,9 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 - [exercise.md](./exercise.md) - Exercise tracking with superset support and Airtable backfill
 - [medication.md](./medication.md) - Medication logging with Airtable history import
 - [data-migration-status.md](./data-migration-status.md) - Tracker for Airtable backfills and remaining imports
-- [reading-airtable-spec.md](./reading-airtable-spec.md) - Airtable schema reference for reading migration
-- [generic-viz.md](./generic-viz.md) - Generic visualizations for timestamp/interval entities
 - [performance.md](./performance.md) - Performance monitoring and profiling dashboard
 - [dashboard-performance.md](./dashboard-performance.md) - Home page dashboard performance improvements
 - [backlog.md](./backlog.md) - Minor improvements without full work-unit docs
-- [roam-integration.md](./roam-integration.md) - Project timers shipped; Roam metrics integration pending
 
 ### Ready
 
@@ -42,7 +37,10 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 
 - [biff-upgrade-v1-9.md](./biff-upgrade-v1-9.md) - Upgrade Biff and task libs to at least v1.9.0, then validate XTDB/Agrona changes and Java 25 compatibility
 - [dynamic-server-port.md](./dynamic-server-port.md) - Make the server dynamically choose a port to run on to support git worktree and multiple project development
+- [generic-viz.md](./generic-viz.md) - Generic visualizations for timestamp/interval entities
+- [reading-airtable-spec.md](./reading-airtable-spec.md) - Airtable schema reference for reading migration
 - [reading-schema-proposal.md](./reading-schema-proposal.md) - Draft Malli schemas for reading entities
+- [roam-integration.md](./roam-integration.md) - Project timers shipped; Roam metrics integration pending
 - [screenshot-runner.md](./screenshot-runner.md) - Authenticated screenshot capture for docs and CI
 - [search-filter.md](./search-filter.md) - Text search tool for CRUD and timer view pages
 - [timer-overlap-metrics.md](./timer-overlap-metrics.md) - Show overlap-aware daily and per-project timer metrics with clear unique vs. raw totals
