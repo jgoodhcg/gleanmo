@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* iOS Safari: prevent the html/body from expanding beyond the viewport
+   when any descendant has intrinsic width > screen.  Biff sets
+   body { position: absolute; width: 100% } via inline style, so the
+   max-width cap must live here to override the expansion. */
+html {
+  overflow-x: hidden;
+}
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
 :root {
   --gold: #ffd400;
   --azure: #3b82f6;

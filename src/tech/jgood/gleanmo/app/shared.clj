@@ -151,7 +151,7 @@
         "sign out"])]
 
      ;; Main content area
-     [:div.flex-grow.bg-dark.pt-12.px-4
+     [:div.flex-grow.bg-dark.pt-12.px-4.min-w-0
       {:id "side-bar-page-content"}
       content]
 
