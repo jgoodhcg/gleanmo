@@ -161,10 +161,15 @@ With the dashboard in place first:
 - [ ] Reduce stats `per-type-limit` from 200 to 50
 - [ ] Add baseline performance test to CI
 
-### Phase 2: Count Queries
-- [ ] Implement `count-entities-since` function
-- [ ] Refactor `dashboard-stats` to use count queries
-- [ ] Validate with performance metrics
+### Phase 2: Query Namespace Refactoring (Complete)
+- [x] Thread user-settings through request context via `wrap-user-settings` middleware
+- [x] Add `resolve-user-settings` helper (ctx-first, DB fallback)
+- [x] Add `direct-sensitivity-clauses` — schema-driven Datalog `:where` clauses
+- [x] Add `build-count-query` — lightweight ID-only queries
+- [x] Push state/date predicates into XTDB for task queries (`tasks-for-today`, `count-tasks-by-state`, etc.)
+- [x] Push direct sensitivity into `all-entities-for-user` via `build-entity-query :extra-where`
+- [x] Migrate all callers from `get-user-settings` to `resolve-user-settings`
+- [x] Remove superseded `PLAN-dashboard-perf.md`
 
 ### Phase 3: Performance Dashboard Enhancement
 - [ ] Add route to query performance history across instances

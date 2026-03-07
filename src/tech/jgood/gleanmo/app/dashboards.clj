@@ -6,8 +6,7 @@
 
 (defn- show-bm-logs?
   [ctx]
-  (let [user-id (:uid (:session ctx))]
-    (true? (:show-bm-logs (queries/get-user-settings (:biff/db ctx) user-id)))))
+  (true? (:show-bm-logs (queries/resolve-user-settings ctx))))
 
 (defn dashboard-card
   "Create a card for dashboard navigation"

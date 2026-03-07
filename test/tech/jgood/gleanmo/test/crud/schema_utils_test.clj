@@ -342,7 +342,7 @@
       (let [habit-schema (schema-utils/entity-schema :habit)
             fields (map schema-utils/prepare-field
                         (schema-utils/extract-schema-fields habit-schema))
-            label-field (some #(= (:field-key %) :habit/label) fields)]
+            label-field (some #(when (= (:field-key %) :habit/label) %) fields)]
         (is (not (nil? label-field)) "Habit schema should have a label field")
         (is (= 1 (:crud/priority (:opts label-field))) "Habit label should have priority 1")
         (is (= "Habit" (:crud/label (:opts label-field))) "Habit label should have custom label")))
@@ -351,9 +351,9 @@
       (let [habit-log-schema (schema-utils/entity-schema :habit-log)
             fields (map schema-utils/prepare-field
                         (schema-utils/extract-schema-fields habit-log-schema))
-            timestamp-field (some #(= (:field-key %) :habit-log/timestamp) fields)
-            habit-ids-field (some #(= (:field-key %) :habit-log/habit-ids) fields)
-            notes-field (some #(= (:field-key %) :habit-log/notes) fields)]
+            timestamp-field (some #(when (= (:field-key %) :habit-log/timestamp) %) fields)
+            habit-ids-field (some #(when (= (:field-key %) :habit-log/habit-ids) %) fields)
+            notes-field (some #(when (= (:field-key %) :habit-log/notes) %) fields)]
         (is (not (nil? timestamp-field)) "Habit-log schema should have timestamp field")
         (is (nil? (:crud/priority (:opts timestamp-field))) "Timestamp should not have priority")
 

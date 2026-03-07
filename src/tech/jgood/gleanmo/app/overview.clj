@@ -30,8 +30,7 @@
 
 (defn- overview-activity-types
   [ctx]
-  (let [user-id       (-> ctx :session :uid)
-        {:keys [show-bm-logs]} (db/get-user-settings (:biff/db ctx) user-id)]
+  (let [{:keys [show-bm-logs]} (db/resolve-user-settings ctx)]
     (if show-bm-logs
       recent-activity-types
       (vec (remove #{"bm-log"} recent-activity-types)))))
@@ -217,13 +216,15 @@
   "Compute lightweight dashboard stats using a bounded set of entities."
   [ctx]
   (let [user-id       (-> ctx :session :uid)
+        user-settings (db/resolve-user-settings ctx)
         zone          (user-zone ctx)
         items         (->> (db/dashboard-recent-entities
                             (:biff/db ctx)
                             user-id
                             {:entity-types    (overview-activity-types ctx)
                              :per-type-limit  200
-                             :order-keys      recent-activity-order-keys})
+                             :order-keys      recent-activity-order-keys
+                             :user-settings   user-settings})
                            (map #(assoc % ::activity-time (activity-time %))))
         now-zoned     (t/in (t/now) zone)
         today         (t/date now-zoned)
@@ -248,7 +249,8 @@
                        0
                        timers-app/timer-entities)
         distinct-types (count (distinct (map ::sm/type items)))
-        now-tasks (db/count-tasks-by-state (:biff/db ctx) user-id :now)]
+        now-tasks (db/count-tasks-by-state (:biff/db ctx) user-id :now
+                                           :user-settings user-settings)]
     (log/info "Dashboard stats"
               {:entries-today entries-today
                :entries-week  entries-week
@@ -269,7 +271,8 @@
     (db/dashboard-upcoming-events
      (:biff/db ctx)
      user-id
-     {:limit limit})))
+     {:limit         limit
+      :user-settings (db/resolve-user-settings ctx)})))
 
 (defn recent-activity
   "Fetch recent entities across primary log types."
@@ -280,7 +283,8 @@
           user-id
           {:entity-types   (overview-activity-types ctx)
            :per-type-limit (* 2 limit)
-           :order-keys     recent-activity-order-keys})
+           :order-keys     recent-activity-order-keys
+           :user-settings  (db/resolve-user-settings ctx)})
          (map #(assoc % ::activity-time (activity-time %)))
          (sort-by (comp :sort-instant ::activity-time) #(compare %2 %1))
          (take limit))))

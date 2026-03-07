@@ -205,20 +205,21 @@
   "The main content block (for HTMX partial updates)."
   [{:keys [biff/db session], :as ctx}]
   (let [user-id (:uid session)
+        user-settings (queries/resolve-user-settings ctx)
         today (user-local-date ctx)
         ;; Get tasks for today
-        focused-tasks (queries/tasks-for-today db user-id today)
-        completed-today (queries/tasks-completed-today db user-id today)
+        focused-tasks (queries/tasks-for-today db user-id today :user-settings user-settings)
+        completed-today (queries/tasks-completed-today db user-id today :user-settings user-settings)
         ;; Stats
         done-today (count completed-today)
         total-today (+ (count focused-tasks) done-today)
-        all-time (queries/count-tasks-completed-all-time db user-id)
+        all-time (queries/count-tasks-completed-all-time db user-id :user-settings user-settings)
         [this-week-start this-week-end] (week-boundaries today 0)
         [last-week-start last-week-end] (week-boundaries today -1)
-        this-week (queries/count-tasks-completed-in-range db user-id this-week-start this-week-end)
-        last-week (queries/count-tasks-completed-in-range db user-id last-week-start last-week-end)
+        this-week (queries/count-tasks-completed-in-range db user-id this-week-start this-week-end :user-settings user-settings)
+        last-week (queries/count-tasks-completed-in-range db user-id last-week-start last-week-end :user-settings user-settings)
         ;; Projects for display
-        projects (queries/projects-for-user db user-id)
+        projects (queries/projects-for-user db user-id :user-settings user-settings)
         project-by-id (into {} (map (juxt :xt/id :project/label) projects))]
     [:div#today-content
      ;; Header

@@ -66,7 +66,7 @@
               result (shared/side-bar sidebar-ctx [:div "test content"])]
           ;; Should return a valid hiccup structure
           (is (vector? result))
-          (is (= :div.flex.min-h-screen (first result)))))))
+          (is (= :div.flex.min-h-screen.overflow-x-hidden (first result)))))))
 
   (testing "should handle missing user gracefully"
     (with-open [node (test-xtdb-node [])]
@@ -78,7 +78,7 @@
             result (shared/side-bar sidebar-ctx [:div "test content"])]
         ;; Should still return a valid structure even with no user data
         (is (vector? result))
-        (is (= :div.flex.min-h-screen (first result))))))
+        (is (= :div.flex.min-h-screen.overflow-x-hidden (first result))))))
 
   (testing "should default to false for show-sensitive when no settings exist"
     (with-open [node (test-xtdb-node [])]

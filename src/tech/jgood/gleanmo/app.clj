@@ -461,7 +461,7 @@
 
 (def module
   {:static {"/about/" about-page},
-   :routes ["/app" {:middleware [mid/wrap-signed-in]}
+   :routes ["/app" {:middleware [mid/wrap-signed-in mid/wrap-user-settings]}
 
             cruddy/crud-routes
             calendar-event/crud-routes

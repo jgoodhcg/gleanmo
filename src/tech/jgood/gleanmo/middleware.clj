@@ -3,6 +3,7 @@
             [muuntaja.middleware :as muuntaja]
             [ring.middleware.anti-forgery :as csrf]
             [ring.middleware.defaults :as rd]
+            [tech.jgood.gleanmo.db.queries :as queries]
             [tech.jgood.gleanmo.observability :as obs])
   (:import [java.util UUID]))
 
@@ -19,6 +20,14 @@
       (handler ctx)
       {:status 303
        :headers {"location" "/signin?error=not-signed-in"}})))
+
+(defn wrap-user-settings
+  "Load user settings once per request and attach to context as :user/settings.
+   Must be applied after wrap-signed-in so :session :uid is available."
+  [handler]
+  (fn [{:keys [biff/db session] :as ctx}]
+    (let [settings (queries/get-user-settings db (:uid session))]
+      (handler (assoc ctx :user/settings settings)))))
 
 (defn wrap-user-authz [handler]
   (fn [{:keys [session path-params] :as ctx}]

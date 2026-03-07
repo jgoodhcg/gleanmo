@@ -56,6 +56,34 @@
        :show-archived  false,
        :show-bm-logs   true})))
 
+(defn resolve-user-settings
+  "Read user settings from request context if available, otherwise query DB.
+   Prefer ctx-based lookup (O(0) DB calls) over get-user-settings (1 DB call)."
+  ([ctx]
+   (resolve-user-settings ctx (-> ctx :session :uid)))
+  ([ctx user-id]
+   (or (:user/settings ctx)
+       (get-user-settings (:biff/db ctx) user-id))))
+
+(defn direct-sensitivity-clauses
+  "Generate Datalog :where clauses for direct sensitivity/archived fields only.
+   Does NOT include relationship joins — use for lightweight count/filter queries."
+  [entity-type user-settings]
+  (let [entity-type-str (name entity-type)
+        {:keys [show-sensitive show-archived]} user-settings]
+    (cond-> []
+      (and (not show-sensitive)
+           (some (fn [[k & _]] (= k (keyword entity-type-str "sensitive")))
+                 (schema-utils/extract-schema-fields
+                  (get schema-registry/schema entity-type))))
+      (conj (list 'not ['?e (keyword entity-type-str "sensitive") true]))
+
+      (and (not show-archived)
+           (some (fn [[k & _]] (= k (keyword entity-type-str "archived")))
+                 (schema-utils/extract-schema-fields
+                  (get schema-registry/schema entity-type))))
+      (conj (list 'not ['?e (keyword entity-type-str "archived") true])))))
+
 (defnp get-entity-for-user
   "Get a single entity by ID that belongs to a specific user.
    Returns the first result or nil if not found."
@@ -131,15 +159,17 @@
 (def ^:private default-order-direction :desc)
 
 (defn- build-entity-query
-  [_user-id entity-type order-key order-direction limit offset]
+  "Build a Datalog query for entities of a given type.
+   Accepts extra-where clauses (e.g. sensitivity) to push predicates into the DB."
+  [_user-id entity-type order-key order-direction limit offset & {:keys [extra-where]}]
   (let [order-direction (or order-direction default-order-direction)
         order-var       '?order-value
         base-where      ['[?e :user/id user-id]
                          ['?e ::sm/type entity-type]
                          '(not [?e ::sm/deleted-at])]
-        where-clauses   (if order-key
-                          (conj base-where (vec ['?e order-key order-var]))
-                          base-where)
+        where-clauses   (cond-> base-where
+                          order-key   (conj (vec ['?e order-key order-var]))
+                          extra-where (into extra-where))
         find-elements   (if order-key
                           '[(pull ?e [*]) ?order-value]
                           '[(pull ?e [*])])]
@@ -150,34 +180,49 @@
       limit     (assoc :limit limit)
       offset    (assoc :offset offset))))
 
+(defn build-count-query
+  "Build a lightweight count query — returns entity IDs only, no pull [*].
+   Accepts extra-where clauses for sensitivity/state filtering."
+  [entity-type & {:keys [extra-where]}]
+  (let [base-where ['[?e :user/id user-id]
+                    ['?e ::sm/type entity-type]
+                    '(not [?e ::sm/deleted-at])]
+        where-clauses (if extra-where
+                        (into base-where extra-where)
+                        base-where)]
+    {:find  '[?e]
+     :where where-clauses
+     :in    ['user-id]}))
+
 (defnp all-entities-for-user
   "Get all entities of a specific type that belong to a user.
-   Optionally includes or removes entities based on sensitivity, archive status, and related entities."
+   Pushes direct sensitivity/archived predicates into XTDB where clauses.
+   Related-entity filtering remains as post-filter (batch-fetched)."
   [db user-id entity-type &
    {:keys [filter-sensitive filter-archived filter-references
            relationship-fields limit offset order-key order-direction]}]
   (let [entity-type-str (name entity-type)
-        sensitive-key   (keyword entity-type-str "sensitive")
-        archived-key    (keyword entity-type-str "archived")
         time-stamp-key  (keyword entity-type-str "timestamp")
+        ;; Push direct sensitivity/archived into XTDB where clauses
+        direct-only (direct-sensitivity-clauses
+                     entity-type
+                     {:show-sensitive (boolean filter-sensitive)
+                      :show-archived  (boolean filter-archived)})
+        ;; Post-filter for related entity filtering only
         filter-entities (fn [entities]
-                          (let [basic-filtered (cond->> entities
-                                                 (not filter-sensitive) (remove #(get % sensitive-key))
-                                                 (not filter-archived)  (remove #(get % archived-key)))]
-                            (if (and filter-references relationship-fields)
-                              (let [remove-sensitive (not filter-sensitive)
-                                    remove-archived  (not filter-archived)
-                                    ;; Batch-fetch all related entities in one query
-                                    all-related-ids  (collect-related-ids basic-filtered relationship-fields)
-                                    related-lookup   (batch-fetch-entities db all-related-ids)]
-                                (remove #(should-remove-related-entity
-                                          %
-                                          relationship-fields
-                                          related-lookup
-                                          remove-sensitive
-                                          remove-archived)
-                                        basic-filtered))
-                              basic-filtered)))
+                          (if (and filter-references relationship-fields)
+                            (let [remove-sensitive (not filter-sensitive)
+                                  remove-archived  (not filter-archived)
+                                  all-related-ids  (collect-related-ids entities relationship-fields)
+                                  related-lookup   (batch-fetch-entities db all-related-ids)]
+                              (remove #(should-remove-related-entity
+                                        %
+                                        relationship-fields
+                                        related-lookup
+                                        remove-sensitive
+                                        remove-archived)
+                                      entities))
+                            entities))
         target-count    (when limit (+ (or offset 0) limit))
         batch-size      (let [candidate (max 32 (or limit 0))]
                           (if (pos? candidate) candidate 32))
@@ -189,7 +234,8 @@
                                               order-key
                                               order-direction
                                               batch-size
-                                              raw-offset)
+                                              raw-offset
+                                              :extra-where direct-only)
                                  raw-results (q db query-map user-id)
                                  fetched     (count raw-results)
                                  entities    (map first raw-results)
@@ -216,8 +262,9 @@
 
 (defn tasks-for-user
   "Get all tasks for a user, respecting the user's sensitive setting."
-  [db user-id]
-  (let [{:keys [show-sensitive show-archived]} (get-user-settings db user-id)]
+  [db user-id & {:keys [user-settings]}]
+  (let [{:keys [show-sensitive show-archived]}
+        (or user-settings (get-user-settings db user-id))]
     (all-entities-for-user
      db
      user-id
@@ -227,19 +274,30 @@
 
 (defn tasks-by-state
   "Get tasks for a user in a specific state, respecting sensitive settings."
-  [db user-id state]
-  (->> (tasks-for-user db user-id)
+  [db user-id state & {:keys [user-settings]}]
+  (->> (tasks-for-user db user-id :user-settings user-settings)
        (filter #(= (:task/state %) state))))
 
 (defn count-tasks-by-state
-  "Count tasks in a specific state for a user, respecting sensitive settings."
-  [db user-id state]
-  (count (tasks-by-state db user-id state)))
+  "Count tasks in a specific state for a user, pushing state predicate into XTDB."
+  [db user-id state & {:keys [user-settings]}]
+  (let [settings     (or user-settings (get-user-settings db user-id))
+        sens-clauses (direct-sensitivity-clauses :task settings)
+        base-where   (into ['[?e :user/id user-id]
+                            ['?e ::sm/type :task]
+                            '(not [?e ::sm/deleted-at])
+                            '[?e :task/state task-state]]
+                           sens-clauses)
+        query        {:find  '[?e]
+                      :where base-where
+                      :in    '[user-id task-state]}]
+    (count (q db query user-id state))))
 
 (defn projects-for-user
   "Get all projects for a user, respecting the user's sensitive setting."
-  [db user-id]
-  (let [{:keys [show-sensitive show-archived]} (get-user-settings db user-id)]
+  [db user-id & {:keys [user-settings]}]
+  (let [{:keys [show-sensitive show-archived]}
+        (or user-settings (get-user-settings db user-id))]
     (->> (all-entities-for-user
           db
           user-id
@@ -253,10 +311,10 @@
    This function is a higher-level wrapper around all-entities-for-user that handles
    user settings for including sensitive entities, archived entities, and related entity filtering."
   [{:keys [entity-type-str schema filter-references limit offset order-key order-direction]}
-   {:keys [biff/db session]}]
+   {:keys [biff/db session] :as ctx}]
   (let [user-id             (:uid session)
         ;; Get user's preferences from settings, with secure defaults
-        {:keys [show-sensitive show-archived]} (get-user-settings db user-id)
+        {:keys [show-sensitive show-archived]} (resolve-user-settings ctx user-id)
         sensitive           show-sensitive
         archived            show-archived
         entity-type         (keyword entity-type-str)
@@ -284,8 +342,9 @@
 
 (defnp dashboard-recent-entities
   "Fetch a bounded set of recent entities per type for the dashboard, respecting user settings and related-entity filters."
-  [db user-id {:keys [entity-types per-type-limit order-keys], :or {per-type-limit 20}}]
-  (let [{:keys [show-sensitive show-archived]} (get-user-settings db user-id)]
+  [db user-id {:keys [entity-types per-type-limit order-keys user-settings], :or {per-type-limit 20}}]
+  (let [{:keys [show-sensitive show-archived]}
+        (or user-settings (get-user-settings db user-id))]
     (mapcat
      (fn [entity-str]
        (let [entity-kw    (keyword entity-str)
@@ -309,8 +368,9 @@
 
 (defnp dashboard-upcoming-events
   "Fetch upcoming calendar events with visibility filtering and a small oversample to survive filtering."
-  [db user-id {:keys [limit], :or {limit 5}}]
-  (let [{:keys [show-sensitive show-archived]} (get-user-settings db user-id)
+  [db user-id {:keys [limit user-settings], :or {limit 5}}]
+  (let [{:keys [show-sensitive show-archived]}
+        (or user-settings (get-user-settings db user-id))
         entity-kw     :calendar-event
         entity-schema (get schema-registry/schema entity-kw)
         rel-fields    (schema-utils/extract-relationship-fields
@@ -359,82 +419,95 @@
         first
         :xtdb.api/tx-time)))
 
-(def ^:private terminal-task-states
-  #{:done :canceled})
-
 (defn tasks-for-today
-  "Get tasks focused for today (focus-date = today or focus-date < today and task is not terminal).
-   Returns tasks sorted by focus-order, then by focus-date."
-  [db user-id today]
-  (let [{:keys [show-sensitive]} (get-user-settings db user-id)
-        all-tasks (all-entities-for-user
-                   db user-id :task
-                   :filter-sensitive show-sensitive
-                   :filter-archived false)]
-    (->> all-tasks
-         (filter (fn [task]
-                   (when-let [focus-date (:task/focus-date task)]
-                     (and (not (contains? terminal-task-states
-                                          (:task/state task)))
-                          (or (.isEqual focus-date today)
-                              (.isBefore focus-date today))))))
+  "Get tasks focused for today (focus-date <= today, not terminal).
+   Pushes date and state predicates into XTDB, then sorts in Clojure."
+  [db user-id today & {:keys [user-settings]}]
+  (let [settings     (or user-settings (get-user-settings db user-id))
+        sens-clauses (direct-sensitivity-clauses :task settings)
+        base-where   (into ['[?e :user/id user-id]
+                            ['?e ::sm/type :task]
+                            '(not [?e ::sm/deleted-at])
+                            '[?e :task/focus-date ?fd]
+                            '[?e :task/state ?state]
+                            '[(not= ?state :done)]
+                            '[(not= ?state :canceled)]
+                            '[(<= ?fd today)]]
+                           sens-clauses)
+        query        {:find  '[(pull ?e [*])]
+                      :where base-where
+                      :in    '[user-id today]}
+        results      (q db query user-id today)]
+    (->> (map first results)
          (sort-by (juxt (fn [t] (or (:task/focus-order t) Integer/MAX_VALUE))
                         :task/focus-date)))))
 
 (defn next-focus-order-for-date
-  "Return the next focus-order value for tasks with focus-date equal to date."
-  [db user-id date]
-  (let [{:keys [show-sensitive]} (get-user-settings db user-id)
-        all-tasks (all-entities-for-user
-                   db user-id :task
-                   :filter-sensitive show-sensitive
-                   :filter-archived false)]
-    (->> all-tasks
-         (filter (fn [task]
-                   (when-let [focus-date (:task/focus-date task)]
-                     (.isEqual focus-date date))))
-         (keep :task/focus-order)
-         (reduce max 0)
-         inc)))
+  "Return the next focus-order value for tasks with focus-date equal to date.
+   Pushes focus-date equality into XTDB, only pulls focus-order."
+  [db user-id date & {:keys [user-settings]}]
+  (let [settings     (or user-settings (get-user-settings db user-id))
+        sens-clauses (direct-sensitivity-clauses :task settings)
+        base-where   (into ['[?e :user/id user-id]
+                            ['?e ::sm/type :task]
+                            '(not [?e ::sm/deleted-at])
+                            '[?e :task/focus-date focus-date]
+                            '[?e :task/focus-order ?fo]]
+                           sens-clauses)
+        query        {:find  '[?fo]
+                      :where base-where
+                      :in    '[user-id focus-date]}
+        results      (q db query user-id date)]
+    (inc (reduce max 0 (map first results)))))
 
 (defn tasks-completed-today
-  "Get tasks completed today (for progress tracking)."
-  [db user-id today]
-  (let [{:keys [show-sensitive]} (get-user-settings db user-id)
-        all-tasks (all-entities-for-user
-                   db user-id :task
-                   :filter-sensitive show-sensitive
-                   :filter-archived false)]
-    (->> all-tasks
-         (filter (fn [task]
-                   (and (= (:task/state task) :done)
-                        (when-let [focus-date (:task/focus-date task)]
-                          (.isEqual focus-date today))))))))
+  "Get tasks completed today — pushes state and focus-date into XTDB."
+  [db user-id today & {:keys [user-settings]}]
+  (let [settings     (or user-settings (get-user-settings db user-id))
+        sens-clauses (direct-sensitivity-clauses :task settings)
+        base-where   (into ['[?e :user/id user-id]
+                            ['?e ::sm/type :task]
+                            '(not [?e ::sm/deleted-at])
+                            '[?e :task/state :done]
+                            '[?e :task/focus-date today]]
+                           sens-clauses)
+        query        {:find  '[(pull ?e [*])]
+                      :where base-where
+                      :in    '[user-id today]}
+        results      (q db query user-id today)]
+    (map first results)))
 
 (defn count-tasks-completed-all-time
-  "Count all completed tasks for a user."
-  [db user-id]
-  (let [{:keys [show-sensitive]} (get-user-settings db user-id)]
-    (->> (all-entities-for-user
-          db user-id :task
-          :filter-sensitive show-sensitive
-          :filter-archived false)
-         (filter #(= (:task/state %) :done))
-         count)))
+  "Count all completed tasks for a user — pushes state into XTDB count query."
+  [db user-id & {:keys [user-settings]}]
+  (let [settings     (or user-settings (get-user-settings db user-id))
+        sens-clauses (direct-sensitivity-clauses :task settings)
+        base-where   (into ['[?e :user/id user-id]
+                            ['?e ::sm/type :task]
+                            '(not [?e ::sm/deleted-at])
+                            '[?e :task/state :done]]
+                           sens-clauses)
+        query        {:find  '[?e]
+                      :where base-where
+                      :in    '[user-id]}]
+    (count (q db query user-id))))
 
 (defn count-tasks-completed-in-range
-  "Count tasks completed within a date range (based on done-at instant)."
-  [db user-id start-instant end-instant]
-  (let [{:keys [show-sensitive]} (get-user-settings db user-id)]
-    (->> (all-entities-for-user
-          db user-id :task
-          :filter-sensitive show-sensitive
-          :filter-archived false)
-         (filter (fn [task]
-                   (when-let [done-at (:task/done-at task)]
-                     (and (not (.isBefore done-at start-instant))
-                          (.isBefore done-at end-instant)))))
-         count)))
+  "Count tasks completed within a date range — pushes done-at range into XTDB."
+  [db user-id start-instant end-instant & {:keys [user-settings]}]
+  (let [settings     (or user-settings (get-user-settings db user-id))
+        sens-clauses (direct-sensitivity-clauses :task settings)
+        base-where   (into ['[?e :user/id user-id]
+                            ['?e ::sm/type :task]
+                            '(not [?e ::sm/deleted-at])
+                            '[?e :task/done-at ?done-at]
+                            '[(>= ?done-at start-inst)]
+                            '[(< ?done-at end-inst)]]
+                           sens-clauses)
+        query        {:find  '[?e]
+                      :where base-where
+                      :in    '[user-id start-inst end-inst]}]
+    (count (q db query user-id start-instant end-instant))))
 
 (defnp get-events-for-user-year
   "Get all events for a user within a specific year, using user's timezone.

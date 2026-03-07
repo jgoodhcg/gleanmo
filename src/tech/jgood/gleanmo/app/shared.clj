@@ -88,12 +88,12 @@
          "🧻 BM logs"]]]])))
 
 (defn side-bar
-  [{:keys [biff/db session]} & content]
+  [{:keys [session] :as ctx} & content]
   (let [user-id     (:uid session)
         {:keys [show-sensitive show-archived show-bm-logs]}
-        (query/get-user-settings db user-id)
+        (query/resolve-user-settings ctx)
         account-url (str "/app/users/" user-id)
-        {:keys [super-user]} (query/get-user-authz db user-id)
+        {:keys [super-user]} (query/get-user-authz (:biff/db ctx) user-id)
         super-user? (true? super-user)]
     [:div.flex.min-h-screen.overflow-x-hidden
      ;; Sidebar
