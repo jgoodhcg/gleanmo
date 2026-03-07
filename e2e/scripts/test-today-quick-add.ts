@@ -42,7 +42,7 @@ async function main() {
     await input.fill(label);
     await input.press('Enter');
 
-    const taskLink = page.locator(`a:has-text("${label}")`);
+    const taskLink = page.locator(`text="${label}"`);
     await expect(taskLink).toBeVisible({ timeout: 10000 });
     await captureScreenshot(page, '02-after');
 

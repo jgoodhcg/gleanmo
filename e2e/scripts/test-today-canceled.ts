@@ -49,7 +49,7 @@ async function createTestTask(page: Page, label: string, email: string) {
 }
 
 async function taskRowForLabel(page: Page, label: string) {
-  return page.locator('.bg-dark-surface', { has: page.locator(`a:has-text("${label}")`) });
+  return page.locator('.bg-dark-surface', { has: page.locator(`text="${label}"`) });
 }
 
 async function main() {
@@ -80,7 +80,7 @@ async function main() {
     console.log('\n3. Verifying task appears on Today...');
     await page.goto(`${BASE_URL}/app/task/today`);
     await page.waitForLoadState('networkidle');
-    await expect(page.locator(`a:has-text("${taskLabel}")`)).toBeVisible({ timeout: 10000 });
+    await expect(page.locator(`text="${taskLabel}"`)).toBeVisible({ timeout: 10000 });
     await captureScreenshot(page, '02-on-today-before-cancel');
 
     console.log('\n4. Canceling task from Focus...');
@@ -96,19 +96,19 @@ async function main() {
     console.log('\n5. Verifying canceled task is excluded from Today...');
     await page.goto(`${BASE_URL}/app/task/today`);
     await page.waitForLoadState('networkidle');
-    await expect(page.locator(`a:has-text("${taskLabel}")`)).toHaveCount(0);
+    await expect(page.locator(`text="${taskLabel}"`)).toHaveCount(0);
     await captureScreenshot(page, '04-today-after-cancel');
 
     console.log('\n6. Verifying canceled task is excluded from "Not done"...');
     await page.goto(`${BASE_URL}/app/task/focus?state=not-done&search=${searchParam}`);
     await page.waitForLoadState('networkidle');
-    await expect(page.locator(`a:has-text("${taskLabel}")`)).toHaveCount(0);
+    await expect(page.locator(`text="${taskLabel}"`)).toHaveCount(0);
     await captureScreenshot(page, '05-not-done');
 
     console.log('\n7. Verifying canceled task is present in "Any state"...');
     await page.goto(`${BASE_URL}/app/task/focus?state=any&search=${searchParam}`);
     await page.waitForLoadState('networkidle');
-    await expect(page.locator(`a:has-text("${taskLabel}")`)).toBeVisible({ timeout: 10000 });
+    await expect(page.locator(`text="${taskLabel}"`)).toBeVisible({ timeout: 10000 });
     await captureScreenshot(page, '06-any-state');
 
     console.log('\n=== Test Passed ===\n');

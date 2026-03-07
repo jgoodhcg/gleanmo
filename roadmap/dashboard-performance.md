@@ -167,7 +167,8 @@ With the dashboard in place first:
 - [x] Add `direct-sensitivity-clauses` — schema-driven Datalog `:where` clauses
 - [x] Add `build-count-query` — lightweight ID-only queries
 - [x] Push state/date predicates into XTDB for task queries (`tasks-for-today`, `count-tasks-by-state`, etc.)
-- [x] Push direct sensitivity into `all-entities-for-user` via `build-entity-query :extra-where`
+- [x] Add `relationship-sensitivity-clauses` — `not-join` for related-entity sensitivity/archived filtering
+- [x] Push direct + relationship sensitivity into `all-entities-for-user` via `build-entity-query :extra-where`
 - [x] Migrate all callers from `get-user-settings` to `resolve-user-settings`
 - [x] Remove superseded `PLAN-dashboard-perf.md`
 
