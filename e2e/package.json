@@ -12,7 +12,8 @@
     "test:today-filter": "tsx scripts/test-today-filter.ts",
     "test:today-canceled": "tsx scripts/test-today-canceled.ts",
     "test:today-mobile": "tsx scripts/test-today-mobile.ts",
-    "test:timer-overlap": "tsx scripts/test-timer-overlap.ts"
+    "test:timer-overlap": "tsx scripts/test-timer-overlap.ts",
+    "test:smoke": "tsx scripts/test-smoke.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.40.0",
