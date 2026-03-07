@@ -7,7 +7,7 @@
    [tech.jgood.gleanmo.schema.meta :as sm]
    [tick.core :as t]
    [xtdb.api :as xt]
-   [taoensso.tufte :refer [defnp defnp-]]))
+   [taoensso.tufte :refer [defnp]]))
 
 (defnp get-entity-by-id
   "Get a single entity by ID.
@@ -65,6 +65,15 @@
    (or (:user/settings ctx)
        (get-user-settings (:biff/db ctx) user-id))))
 
+(defn- schema-has-field?
+  "Check whether a schema (by entity keyword) contains a given field key."
+  [entity-kw field-suffix]
+  (let [field-key     (keyword (name entity-kw) field-suffix)
+        entity-schema (get schema-registry/schema entity-kw)]
+    (when entity-schema
+      (some (fn [[k & _]] (= k field-key))
+            (schema-utils/extract-schema-fields entity-schema)))))
+
 (defn direct-sensitivity-clauses
   "Generate Datalog :where clauses for direct sensitivity/archived fields only.
    Does NOT include relationship joins — use for lightweight count/filter queries."
@@ -73,16 +82,52 @@
         {:keys [show-sensitive show-archived]} user-settings]
     (cond-> []
       (and (not show-sensitive)
-           (some (fn [[k & _]] (= k (keyword entity-type-str "sensitive")))
-                 (schema-utils/extract-schema-fields
-                  (get schema-registry/schema entity-type))))
+           (schema-has-field? entity-type "sensitive"))
       (conj (list 'not ['?e (keyword entity-type-str "sensitive") true]))
 
       (and (not show-archived)
-           (some (fn [[k & _]] (= k (keyword entity-type-str "archived")))
-                 (schema-utils/extract-schema-fields
-                  (get schema-registry/schema entity-type))))
+           (schema-has-field? entity-type "archived"))
       (conj (list 'not ['?e (keyword entity-type-str "archived") true])))))
+
+(defn relationship-sensitivity-clauses
+  "Generate not-join clauses that exclude entities whose related entities are
+   sensitive or archived. Uses not-join which correctly handles optional
+   relationships (missing field = entity passes) and many-relationships
+   (any sensitive member = entity excluded)."
+  [entity-type user-settings]
+  (let [{:keys [show-sensitive show-archived]} user-settings
+        entity-schema (get schema-registry/schema entity-type)
+        rel-fields    (when entity-schema
+                        (schema-utils/extract-relationship-fields
+                         entity-schema :remove-system-fields true))]
+    (when rel-fields
+      (->> rel-fields
+           (mapcat
+            (fn [{:keys [field-key related-entity-str]}]
+              (let [rel-kw   (keyword related-entity-str)
+                    rel-var  (symbol (str "?rel-" related-entity-str))
+                    sens-key (keyword related-entity-str "sensitive")
+                    arch-key (keyword related-entity-str "archived")]
+                (cond-> []
+                  (and (not show-sensitive)
+                       (schema-has-field? rel-kw "sensitive"))
+                  (conj (concat ['not-join ['?e]]
+                                [['?e field-key rel-var]
+                                 [rel-var sens-key true]]))
+
+                  (and (not show-archived)
+                       (schema-has-field? rel-kw "archived"))
+                  (conj (concat ['not-join ['?e]]
+                                [['?e field-key rel-var]
+                                 [rel-var arch-key true]]))))))
+           vec))))
+
+(defn sensitivity-clauses
+  "Generate all sensitivity/archived where clauses — both direct and relationship.
+   Suitable for pushing into XTDB queries that need full filtering."
+  [entity-type user-settings]
+  (into (direct-sensitivity-clauses entity-type user-settings)
+        (relationship-sensitivity-clauses entity-type user-settings)))
 
 (defnp get-entity-for-user
   "Get a single entity by ID that belongs to a specific user.
@@ -100,61 +145,6 @@
     (when (seq result)
       (-> result
           first))))
-
-(defn- collect-related-ids
-  "Collect all related entity IDs from a batch of entities based on relationship fields.
-   Returns a set of all related IDs.
-
-   This enables batch-fetching related entities in a single query, reducing
-   network round-trips from O(N × M × K) to O(1) where N=entities, M=relationship
-   fields, K=related IDs per field. Data processing remains O(n) but network
-   latency dominates in practice."
-  [entities relationship-fields]
-  (into #{}
-        (for [entity entities
-              {:keys [field-key input-type]} relationship-fields
-              :let [ids (if (= input-type :many-relationship)
-                          (get entity field-key)
-                          (when-let [id (get entity field-key)] #{id}))]
-              id ids
-              :when id]
-          id)))
-
-(defnp- batch-fetch-entities
-  "Fetch multiple entities by ID in a single query.
-   Returns a map of entity-id -> entity for O(1) lookup."
-  [db ids]
-  (when (seq ids)
-    (let [id-vec  (vec ids)
-          results (q db
-                     {:find  '[(pull ?e [*])]
-                      :where '[[?e :xt/id ?id]]
-                      :in    '[[?id ...]]}
-                     id-vec)]
-      (into {} (map (fn [[entity]] [(:xt/id entity) entity]) results)))))
-
-(defn- should-remove-related-entity
-  "Check if an entity has related entities that should be removed based on sensitivity or archive settings.
-   Uses a pre-fetched lookup map instead of individual queries.
-   Returns true if any related entity matches removal criteria."
-  [entity relationship-fields related-lookup remove-sensitive remove-archived]
-  (boolean
-   (some
-    (fn [{:keys [field-key input-type related-entity-str]}]
-      (let [rel-sensitive-key (keyword related-entity-str "sensitive")
-            rel-archived-key  (keyword related-entity-str "archived")
-            related-ids       (if (= input-type :many-relationship)
-                                (get entity field-key)
-                                (when-let [id (get entity field-key)] #{id}))]
-        (when (seq related-ids)
-          ;; Look up related entities from pre-fetched map
-          (let [related-entities (keep #(get related-lookup %) related-ids)]
-            ;; Check if any related entity matches our removal criteria
-            (some (fn [rel-entity]
-                    (or (and remove-sensitive (get rel-entity rel-sensitive-key))
-                        (and remove-archived (get rel-entity rel-archived-key))))
-                  related-entities)))))
-    relationship-fields)))
 
 (def ^:private default-order-direction :desc)
 
@@ -196,69 +186,29 @@
 
 (defnp all-entities-for-user
   "Get all entities of a specific type that belong to a user.
-   Pushes direct sensitivity/archived predicates into XTDB where clauses.
-   Related-entity filtering remains as post-filter (batch-fetched)."
+   Pushes sensitivity/archived predicates into XTDB where clauses, including
+   relationship filtering via not-join (no post-filter needed)."
   [db user-id entity-type &
    {:keys [filter-sensitive filter-archived filter-references
-           relationship-fields limit offset order-key order-direction]}]
+           limit offset order-key order-direction]}]
   (let [entity-type-str (name entity-type)
         time-stamp-key  (keyword entity-type-str "timestamp")
-        ;; Push direct sensitivity/archived into XTDB where clauses
-        direct-only (direct-sensitivity-clauses
-                     entity-type
-                     {:show-sensitive (boolean filter-sensitive)
-                      :show-archived  (boolean filter-archived)})
-        ;; Post-filter for related entity filtering only
-        filter-entities (fn [entities]
-                          (if (and filter-references relationship-fields)
-                            (let [remove-sensitive (not filter-sensitive)
-                                  remove-archived  (not filter-archived)
-                                  all-related-ids  (collect-related-ids entities relationship-fields)
-                                  related-lookup   (batch-fetch-entities db all-related-ids)]
-                              (remove #(should-remove-related-entity
-                                        %
-                                        relationship-fields
-                                        related-lookup
-                                        remove-sensitive
-                                        remove-archived)
-                                      entities))
-                            entities))
-        target-count    (when limit (+ (or offset 0) limit))
-        batch-size      (let [candidate (max 32 (or limit 0))]
-                          (if (pos? candidate) candidate 32))
-        filtered-results (loop [acc        []
-                                raw-offset 0]
-                           (let [query-map   (build-entity-query
-                                              user-id
-                                              entity-type
-                                              order-key
-                                              order-direction
-                                              batch-size
-                                              raw-offset
-                                              :extra-where direct-only)
-                                 raw-results (q db query-map user-id)
-                                 fetched     (count raw-results)
-                                 entities    (map first raw-results)
-                                 filtered    (filter-entities entities)
-                                 new-acc     (into acc filtered)
-                                 enough?     (and target-count
-                                                  (>= (count new-acc) target-count))
-                                 exhausted?  (< fetched batch-size)]
-                             (if (or exhausted? enough?)
-                               new-acc
-                               (recur new-acc (+ raw-offset fetched)))))
-        ordered-results (cond->> filtered-results
-                          (nil? order-key)
-                          (sort-by #(or (time-stamp-key %) (::sm/created-at %)))
-                          (nil? order-key)
-                          reverse)
-        offset'         (max 0 (or offset 0))
-        after-offset    (if (zero? offset')
-                          ordered-results
-                          (drop offset' ordered-results))]
-
-    (cond->> after-offset
-      limit (take limit))))
+        user-settings   {:show-sensitive (boolean filter-sensitive)
+                         :show-archived  (boolean filter-archived)}
+        ;; Push all sensitivity clauses into XTDB
+        ;; Direct clauses always; relationship not-join clauses when requested
+        extra-where     (if filter-references
+                          (sensitivity-clauses entity-type user-settings)
+                          (direct-sensitivity-clauses entity-type user-settings))
+        query-map       (build-entity-query
+                         user-id entity-type order-key order-direction
+                         limit offset :extra-where extra-where)
+        raw-results     (q db query-map user-id)
+        entities        (map first raw-results)]
+    ;; When no order-key, sort by timestamp desc in Clojure
+    (cond->> entities
+      (nil? order-key) (sort-by #(or (time-stamp-key %) (::sm/created-at %)))
+      (nil? order-key) reverse)))
 
 (defn tasks-for-user
   "Get all tasks for a user, respecting the user's sensitive setting."
