@@ -101,8 +101,9 @@
     new-system))
 
 (defn -main []
-  (let [{:keys [biff.nrepl/args]} (start)]
-    (apply nrepl-cmd/-main args)))
+  (let [{:keys [biff.nrepl/args biff.nrepl/enabled]} (start)]
+    (when enabled
+      (apply nrepl-cmd/-main args))))
 
 (defn refresh []
   (doseq [f (:biff/stop @system)]
