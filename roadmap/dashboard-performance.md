@@ -16,7 +16,7 @@ updated: 2026-02-02
 - Proposed approach: Add count-only queries for stats, reduce redundant `all-entities-for-user` calls
 - Open questions: Should we combine endpoints or add request-level caching?
 
-## Current Baseline (2025-01-30)
+## Original Baseline (2025-01-30)
 
 ### Endpoint Timing (Production)
 
@@ -48,6 +48,88 @@ get-app-overview-recent:
 ```
 
 **Key insight:** Stats endpoint fetches 200 entities per type (1200 total) just to count them.
+
+## Pre-Deploy Baseline (2026-03-07)
+
+Production snapshots taken before query refactoring deploy. Data has grown significantly since original baseline.
+
+Git SHA: `a647002` | Two snapshots collected.
+
+### Snapshot 1 (cold)
+
+| Endpoint | Mean | Calls | Min | Max | Notes |
+|----------|------|-------|-----|-----|-------|
+| `get-app` | 4.71ms | 1 | - | - | Fast - shell only |
+| `get-app-overview-events` | 22.53ms | 1 | - | - | Fast |
+| `get-app-overview-recent` | **7.88s** | 3 | 4.46s | 10.70s | SLOW |
+| `get-app-overview-stats` | **7.27s** | 3 | 5.40s | 10.77s | SLOW |
+| `get-app-monitoring-performance` | 703.94ms | 1 | - | - | |
+| `post-app-monitoring-performance` | 6.83s | 1 | - | - | |
+
+### Snapshot 2 (warm)
+
+| Endpoint | Mean | Calls | Min | Max | Notes |
+|----------|------|-------|-----|-----|-------|
+| `get-app` | 2.96ms | 1 | - | - | Fast |
+| `get-app-overview-events` | 71.96ms | 1 | - | - | Fast |
+| `get-app-overview-recent` | **4.40s** | 1 | - | - | SLOW |
+| `get-app-overview-stats` | **4.95s** | 1 | - | - | SLOW |
+| `get-app-monitoring-performance` | 93.33ms | 1 | - | - | |
+| `post-app-monitoring-performance` | 311.15ms | 1 | - | - | |
+
+### Summary: Pre-Deploy Range
+
+| Endpoint | Cold | Warm | Range |
+|----------|------|------|-------|
+| `get-app-overview-recent` | 7.88s | 4.40s | **4.4–10.7s** |
+| `get-app-overview-stats` | 7.27s | 4.95s | **4.9–10.8s** |
+
+### Hot Path Breakdown (stats — snapshot 1, 3 calls)
+
+| Span | Calls | Mean | Total |
+|------|-------|------|-------|
+| `all-entities-for-user` | 24 | 907.82ms | 21.79s |
+| `batch-fetch-entities` | 56 | 5.59ms | 313.04ms |
+| `dashboard-recent-entities` | 3 | 6.20s | 18.61s |
+| `all-for-user-query` | 6 | 504.22ms | 3.03s |
+
+### Hot Path Breakdown (stats — snapshot 2, 1 call)
+
+| Span | Calls | Mean | Total |
+|------|-------|------|-------|
+| `all-entities-for-user` | 9 | 549.26ms | 4.94s |
+| `batch-fetch-entities` | 19 | 4.62ms | 87.83ms |
+| `dashboard-recent-entities` | 1 | 4.39s | 4.39s |
+| `all-for-user-query` | 2 | 272.80ms | 545.60ms |
+
+### Hot Path Breakdown (recent — snapshot 1, 3 calls)
+
+| Span | Calls | Mean | Total |
+|------|-------|------|-------|
+| `all-entities-for-user` | 15 | 1.50s | 22.57s |
+| `batch-fetch-entities` | 15 | 12.49ms | 187.31ms |
+| `dashboard-recent-entities` | 3 | 7.52s | 22.57s |
+| `get-entity-by-id` | 101 | 9.82ms | 991.51ms |
+
+### Hot Path Breakdown (recent — snapshot 2, 1 call)
+
+| Span | Calls | Mean | Total |
+|------|-------|------|-------|
+| `all-entities-for-user` | 6 | 718.67ms | 4.31s |
+| `batch-fetch-entities` | 6 | 968.21µs | 5.81ms |
+| `dashboard-recent-entities` | 1 | 4.31s | 4.31s |
+| `get-entity-by-id` | 34 | 2.29ms | 77.81ms |
+
+## Post-Deploy Baseline (2026-03-07)
+
+_To be filled after deploying query refactoring (commits 7d3ee01, a78a8fa)._
+
+| Endpoint | Mean | Notes |
+|----------|------|-------|
+| `get-app` | | |
+| `get-app-overview-events` | | |
+| `get-app-overview-recent` | | |
+| `get-app-overview-stats` | | |
 
 ### Recent Improvements
 
