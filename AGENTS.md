@@ -116,9 +116,17 @@ The `validate` workflow cascades: **lint-fast → format → test → e2e**. A f
 - Running unfamiliar scripts
 - `(require ... :reload)` in nREPL
 
+## User Shell Aliases
+
+The user has `biff` aliased to `clj -M:dev` in their shell. Agents must never run
+`biff` or `clj -M:dev` directly for long-running processes, but when suggesting
+commands for the user to run, prefer the `biff` shorthand (e.g., `biff notebook`,
+`biff dev`).
+
 ## Never Run
 
-- `clj -M:dev dev` — dev server (user must run)
+- `clj -M:dev dev` / `biff dev` — dev server (user must run)
+- `clj -M:dev notebook` / `biff notebook` — Clerk notebook server (user must run)
 - `clj -M:repl` — REPL (user must run)
 - `lein repl` — REPL (user must run)
 

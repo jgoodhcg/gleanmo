@@ -50,12 +50,34 @@
          (catch java.io.FileNotFoundException _
            (println "Namespace" ns-sym "not found.")))))))
 
+(defn notebook
+  "Start Clerk notebook server on port 7777.
+
+  Usage:
+  - clj -M:dev notebook                              — serve all notebooks
+  - clj -M:dev notebook dev/notebooks/my_notebook.clj — show a specific notebook"
+  ([]
+   (require 'nextjournal.clerk)
+   (let [serve! (resolve 'nextjournal.clerk/serve!)]
+     (serve! {:browse true :watch-paths ["dev/notebooks"]})
+     (println "Clerk serving at http://localhost:7777 — Ctrl-C to stop")
+     @(promise)))
+  ([path]
+   (require 'nextjournal.clerk)
+   (let [serve! (resolve 'nextjournal.clerk/serve!)
+         show!  (resolve 'nextjournal.clerk/show!)]
+     (serve! {:browse true :watch-paths ["dev/notebooks"]})
+     (show! path)
+     (println "Clerk serving at http://localhost:7777 — Ctrl-C to stop")
+     @(promise))))
+
 ;; Tasks should be vars (#'hello instead of hello) so that `clj -Mdev help` can
 ;; print their docstrings.
 (def custom-tasks
   {"hello"              #'hello
    "download-airtable"  #'airtable/download-all-records
    "migrate"            #'migrate/run
-   "test"               #'run-tests})
+   "test"               #'run-tests
+   "notebook"           #'notebook})
 
 (def tasks (merge tasks/tasks custom-tasks))

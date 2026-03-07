@@ -10,7 +10,7 @@
          danlentz/clj-uuid                   {:mvn/version "0.1.9"}
          org.clojure/data.csv                {:mvn/version "1.0.1"}
          semantic-csv/semantic-csv           {:mvn/version "0.2.1-alpha1"}
-         io.github.nextjournal/clerk         {:mvn/version "0.15.957"}
+         io.github.nextjournal/clerk         {:mvn/version "0.18.1158"}
          org.slf4j/slf4j-simple              {:mvn/version "2.0.0-alpha5"}
          metosin/potpuri                     {:mvn/version "0.5.3"}
          tick/tick                           {:mvn/version "0.7.5"}
