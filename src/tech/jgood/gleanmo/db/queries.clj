@@ -89,11 +89,10 @@
            (schema-has-field? entity-type "archived"))
       (conj (list 'not ['?e (keyword entity-type-str "archived") true])))))
 
-(defn relationship-sensitivity-clauses
-  "Generate not-join clauses that exclude entities whose related entities are
-   sensitive or archived. Uses not-join which correctly handles optional
-   relationships (missing field = entity passes) and many-relationships
-   (any sensitive member = entity excluded)."
+(defn ^:deprecated relationship-sensitivity-clauses
+  "DEPRECATED: Causes O(N×M) nested-loop evaluation in XTDB 1.x.
+   Use two-phase exclusion via build-exclusion-map + apply-relationship-exclusions instead.
+   Kept for rollback safety."
   [entity-type user-settings]
   (let [{:keys [show-sensitive show-archived]} user-settings
         entity-schema (get schema-registry/schema entity-type)
@@ -128,6 +127,79 @@
   [entity-type user-settings]
   (into (direct-sensitivity-clauses entity-type user-settings)
         (relationship-sensitivity-clauses entity-type user-settings)))
+
+(defn- excluded-parent-ids
+  "Phase 1: Query for sensitive/archived parent IDs of a given entity type.
+   Returns a set of UUIDs to exclude."
+  [db user-id parent-entity-type {:keys [check-sensitive check-archived]}]
+  (let [or-clauses (cond-> []
+                     check-sensitive
+                     (conj [(keyword (name parent-entity-type) "sensitive") true])
+                     check-archived
+                     (conj [(keyword (name parent-entity-type) "archived") true]))
+        ;; Build where clauses with (or ...) for both flags
+        base-where (cond-> ['[?p :user/id user-id]
+                            ['?p ::sm/type parent-entity-type]
+                            '(not [?p ::sm/deleted-at])]
+                     (= (count or-clauses) 1)
+                     (conj ['?p (ffirst or-clauses) (second (first or-clauses))])
+                     (> (count or-clauses) 1)
+                     (conj (concat ['or]
+                                   (map (fn [[k v]] ['?p k v]) or-clauses))))]
+    (when (seq or-clauses)
+      (->> (q db {:find  '[?p]
+                  :where base-where
+                  :in    ['user-id]}
+              user-id)
+           (map first)
+           set))))
+
+(defn- build-exclusion-map
+  "Phase 1: Build a map of {field-key #{excluded-parent-ids}} for relationship filtering.
+   Mirrors the field iteration in relationship-sensitivity-clauses but returns data
+   instead of Datalog clauses."
+  [db user-id entity-type user-settings]
+  (let [{:keys [show-sensitive show-archived]} user-settings
+        entity-schema (get schema-registry/schema entity-type)
+        rel-fields    (when entity-schema
+                        (schema-utils/extract-relationship-fields
+                         entity-schema :remove-system-fields true))]
+    (when rel-fields
+      (let [result (->> rel-fields
+                        (keep
+                         (fn [{:keys [field-key related-entity-str]}]
+                           (let [rel-kw          (keyword related-entity-str)
+                                 check-sensitive (and (not show-sensitive)
+                                                     (schema-has-field? rel-kw "sensitive"))
+                                 check-archived  (and (not show-archived)
+                                                      (schema-has-field? rel-kw "archived"))
+                                 excluded        (when (or check-sensitive check-archived)
+                                                   (excluded-parent-ids
+                                                    db user-id rel-kw
+                                                    {:check-sensitive check-sensitive
+                                                     :check-archived  check-archived}))]
+                             (when (seq excluded)
+                               [field-key excluded]))))
+                        (into {}))]
+        (when (seq result) result)))))
+
+(defn- apply-relationship-exclusions
+  "Phase 2: Post-filter entities whose related parent IDs intersect with exclusion sets.
+   Handles both set-valued (many-relationship) and single-valued (single-relationship) fields.
+   Short-circuits when exclusion-map is nil or all sets are empty."
+  [exclusion-map entities]
+  (if-not (seq exclusion-map)
+    entities
+    (remove
+     (fn [entity]
+       (some (fn [[field-key excluded-ids]]
+               (let [v (get entity field-key)]
+                 (cond
+                   (set? v)     (some excluded-ids v)
+                   (some? v)    (contains? excluded-ids v)
+                   :else        false)))
+             exclusion-map))
+     entities)))
 
 (defnp get-entity-for-user
   "Get a single entity by ID that belongs to a specific user.
@@ -186,8 +258,8 @@
 
 (defnp all-entities-for-user
   "Get all entities of a specific type that belong to a user.
-   Pushes sensitivity/archived predicates into XTDB where clauses, including
-   relationship filtering via not-join (no post-filter needed)."
+   Uses two-phase filtering: direct clauses in XTDB, relationship exclusion
+   via post-filter with O(1) set lookups (replaces slow not-join approach)."
   [db user-id entity-type &
    {:keys [filter-sensitive filter-archived filter-references
            limit offset order-key order-direction]}]
@@ -195,20 +267,26 @@
         time-stamp-key  (keyword entity-type-str "timestamp")
         user-settings   {:show-sensitive (boolean filter-sensitive)
                          :show-archived  (boolean filter-archived)}
-        ;; Push all sensitivity clauses into XTDB
-        ;; Direct clauses always; relationship not-join clauses when requested
-        extra-where     (if filter-references
-                          (sensitivity-clauses entity-type user-settings)
-                          (direct-sensitivity-clauses entity-type user-settings))
+        ;; Always use direct-only clauses for XTDB (fast (not ...) clauses)
+        extra-where     (direct-sensitivity-clauses entity-type user-settings)
+        ;; Phase 1: build exclusion map when filter-references requested
+        exclusion-map   (when filter-references
+                          (build-exclusion-map db user-id entity-type user-settings))
+        ;; When post-filtering, don't limit in XTDB — apply after filtering
+        effective-limit  (if (and limit (seq exclusion-map)) nil limit)
+        effective-offset (if (and offset (seq exclusion-map)) nil offset)
         query-map       (build-entity-query
                          user-id entity-type order-key order-direction
-                         limit offset :extra-where extra-where)
+                         effective-limit effective-offset :extra-where extra-where)
         raw-results     (q db query-map user-id)
         entities        (map first raw-results)]
-    ;; When no order-key, sort by timestamp desc in Clojure
+    ;; Phase 2: post-filter, sort, then apply pagination in Clojure
     (cond->> entities
-      (nil? order-key) (sort-by #(or (time-stamp-key %) (::sm/created-at %)))
-      (nil? order-key) reverse)))
+      (seq exclusion-map)  (apply-relationship-exclusions exclusion-map)
+      (nil? order-key)     (sort-by #(or (time-stamp-key %) (::sm/created-at %)))
+      (nil? order-key)     reverse
+      (and (seq exclusion-map) offset) (drop offset)
+      (and (seq exclusion-map) limit)  (take limit))))
 
 (defn tasks-for-user
   "Get all tasks for a user, respecting the user's sensitive setting."
