@@ -120,6 +120,70 @@ Git SHA: `a647002` | Two snapshots collected.
 | `dashboard-recent-entities` | 1 | 4.31s | 4.31s |
 | `get-entity-by-id` | 34 | 2.29ms | 77.81ms |
 
+## Pre-Deploy Baseline: Two-Phase Exclusion (2026-03-08)
+
+Snapshot taken before deploying commit `718b8f5` (replace not-join with two-phase exclusion filtering).
+Still running the old not-join code in production at this point.
+
+Git SHA: `1d1004b` | Snapshot at 2026-03-08T20:24:38Z
+
+| Endpoint | Mean | Calls | Min | Max | Notes |
+|----------|------|-------|-----|-----|-------|
+| `get-app` | 12.06ms | 1 | - | - | Fast - shell only |
+| `get-app-monitoring-performance` | 15.65ms | 1 | - | - | Fast |
+| `get-app-overview-events` | 15.49ms | 1 | - | - | Fast |
+| `get-app-overview-recent` | **5.94s** | 1 | - | - | SLOW |
+| `get-app-overview-stats` | **6.10s** | 1 | - | - | SLOW |
+| `post-app-monitoring-performance` | 721.56ms | 1 | - | - | |
+
+### Hot Path Breakdown
+
+| Span | Calls | Mean | Total |
+|------|-------|------|-------|
+| `all-entities-for-user` (recent) | 6 | 974.01ms | 5.84s |
+| `all-entities-for-user` (stats) | 8 | 753.43ms | 6.03s |
+| `dashboard-recent-entities` (recent) | 1 | 5.84s | 5.84s |
+| `dashboard-recent-entities` (stats) | 1 | 5.78s | 5.78s |
+| `all-for-user-query` (stats) | 2 | 121.81ms | 243.62ms |
+
+**Key metric to watch post-deploy:** `all-entities-for-user` mean should drop significantly
+as not-join O(N×M) is replaced by O(1) set lookups in the two-phase approach.
+
+## Post-Deploy Baseline: Two-Phase Exclusion (2026-03-08)
+
+Git SHA: `718b8f5` | 4 snapshots collected. Cold start was slow (15s) but warmed up quickly.
+
+### Warm Snapshots (snapshots 3-4, stable)
+
+| Endpoint | Snap 3 | Snap 4 | Mean | Notes |
+|----------|--------|--------|------|-------|
+| `get-app` | 7.58ms | 5.78ms | 6.68ms | Fast |
+| `get-app-overview-events` | 76.15ms | 96.67ms | 86.41ms | Fast |
+| `get-app-overview-recent` | **4.78s** | **4.62s** | **4.70s** | Improved |
+| `get-app-overview-stats` | **4.98s** | **4.81s** | **4.90s** | Improved |
+| `post-app-monitoring-performance` | 322.41ms | 322.13ms | 322.27ms | Stable |
+
+### Hot Path Breakdown (warm average)
+
+| Span | Calls | Snap 3 Mean | Snap 4 Mean | Avg |
+|------|-------|-------------|-------------|-----|
+| `all-entities-for-user` (recent) | 6 | 779ms | 737ms | **758ms** |
+| `all-entities-for-user` (stats) | 8 | 614ms | 592ms | **603ms** |
+| `dashboard-recent-entities` | 1 | 4.68s | 4.42s | 4.55s |
+| Max single call | - | 2.41s | 2.50s | **2.46s** |
+
+### Comparison: Pre vs Post Two-Phase Deploy (warm)
+
+| Metric | Pre-deploy | Post-deploy | Change |
+|--------|-----------|-------------|--------|
+| `get-app-overview-recent` | 5.94s | 4.70s | **-21%** |
+| `get-app-overview-stats` | 6.10s | 4.90s | **-20%** |
+| `all-entities-for-user` mean (recent) | 974ms | 758ms | **-22%** |
+| `all-entities-for-user` mean (stats) | 753ms | 603ms | **-20%** |
+| Max single call | 3.65s | 2.46s | **-33%** |
+
+**Conclusion:** Two-phase exclusion delivers ~20% improvement on warm queries and ~33% reduction in worst-case single call. Cold start is slower due to pulling all entities without limit, but stabilizes quickly.
+
 ## Post-Deploy Baseline (2026-03-07)
 
 _To be filled after deploying query refactoring (commits 7d3ee01, a78a8fa)._
