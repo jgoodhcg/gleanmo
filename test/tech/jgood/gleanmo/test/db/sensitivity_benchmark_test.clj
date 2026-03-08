@@ -141,6 +141,71 @@
                 (some excluded-ids (:habit-log/habit-ids log)))
               all-logs))))
 
+(defn approach-two-phase-pushdown
+  "Approach 4: Pre-query excluded IDs, push them into Datalog as explicit (not) clauses.
+   Each (not [?e :field excluded-id]) is O(1) index lookup — no nested loop."
+  [db user-id]
+  (let [;; Phase 1: find excluded parent IDs in a single query
+        excluded-ids (set (map first
+                              (biff/q db
+                                      {:find '[?h]
+                                       :where '[[?h :user/id user-id]
+                                                 [?h ::sm/type :habit]
+                                                 (or [?h :habit/sensitive true]
+                                                     [?h :habit/archived true])]
+                                       :in '[user-id]}
+                                      user-id)))
+        ;; Phase 2: build query with explicit (not) per excluded ID
+        base-where ['[?e :user/id user-id]
+                     ['?e ::sm/type :habit-log]
+                     '(not [?e ::sm/deleted-at])]
+        not-clauses (mapv (fn [id] (list 'not ['?e :habit-log/habit-ids id]))
+                          excluded-ids)
+        query {:find '(pull ?e [*])
+               :where (into base-where not-clauses)
+               :in '[user-id]}]
+    (biff/q db query user-id)))
+
+(defn approach-include-predicate
+  "Approach 5: Pre-query allowed parent IDs, push into Datalog via contains? predicate.
+   Flips the logic: instead of excluding a small set, constrain to the allowed set."
+  [db user-id]
+  (let [;; Phase 1: find allowed parent IDs (the complement of excluded)
+        allowed-ids (set (map first
+                             (biff/q db
+                                     {:find '[?h]
+                                      :where '[[?h :user/id user-id]
+                                                [?h ::sm/type :habit]
+                                                (not [?h :habit/sensitive true])
+                                                (not [?h :habit/archived true])]
+                                      :in '[user-id]}
+                                     user-id)))]
+    (if (empty? allowed-ids)
+      []
+      ;; Phase 2: query with contains? predicate on the allowed set
+      (biff/q db
+              {:find '(pull ?e [*])
+               :where '[[?e :user/id user-id]
+                         [?e ::sm/type :habit-log]
+                         (not [?e ::sm/deleted-at])
+                         [?e :habit-log/habit-ids ?hid]
+                         [(contains? allowed-ids ?hid)]]
+               :in '[user-id allowed-ids]}
+              user-id
+              allowed-ids))))
+
+(defn approach-baseline
+  "Approach 0: No filtering at all — the theoretical minimum for the main query.
+   Measures the cost floor: pull [*] over all habit-logs with no sensitivity logic."
+  [db user-id]
+  (biff/q db
+          {:find '(pull ?e [*])
+           :where '[[?e :user/id user-id]
+                     [?e ::sm/type :habit-log]
+                     (not [?e ::sm/deleted-at])]
+           :in '[user-id]}
+          user-id))
+
 ;; ---------------------------------------------------------------------------
 ;; Benchmark runner
 ;; ---------------------------------------------------------------------------
@@ -172,10 +237,17 @@
         (let [db (xt/db node)
               ;; Warm up JIT
               _ (dotimes [_ 2]
+                  (doall (approach-baseline db user-id))
                   (doall (approach-post-filter db user-id))
                   (doall (approach-not-join db user-id))
-                  (doall (approach-two-phase db user-id)))
+                  (doall (approach-two-phase db user-id))
+                  (doall (approach-two-phase-pushdown db user-id))
+                  (doall (approach-include-predicate db user-id)))
               ;; Benchmark each approach
+              [_ bl-pstats]
+              (tufte/profiled {}
+                (dotimes [_ iterations]
+                  (tufte/p :baseline (doall (approach-baseline db user-id)))))
               [_ pf-pstats]
               (tufte/profiled {}
                 (dotimes [_ iterations]
@@ -187,13 +259,24 @@
               [_ tp-pstats]
               (tufte/profiled {}
                 (dotimes [_ iterations]
-                  (tufte/p :two-phase (doall (approach-two-phase db user-id)))))]
-          {:scale          scale
-           :n-logs         n-logs
-           :n-excluded     n-excluded
-           :post-filter-ms (mean-ms pf-pstats :post-filter)
-           :not-join-ms    (mean-ms nj-pstats :not-join)
-           :two-phase-ms   (mean-ms tp-pstats :two-phase)})))))
+                  (tufte/p :two-phase (doall (approach-two-phase db user-id)))))
+              [_ tpp-pstats]
+              (tufte/profiled {}
+                (dotimes [_ iterations]
+                  (tufte/p :two-phase-pushdown (doall (approach-two-phase-pushdown db user-id)))))
+              [_ ip-pstats]
+              (tufte/profiled {}
+                (dotimes [_ iterations]
+                  (tufte/p :include-predicate (doall (approach-include-predicate db user-id)))))]
+          {:scale                   scale
+           :n-logs                  n-logs
+           :n-excluded              n-excluded
+           :baseline-ms             (mean-ms bl-pstats :baseline)
+           :post-filter-ms          (mean-ms pf-pstats :post-filter)
+           :not-join-ms             (mean-ms nj-pstats :not-join)
+           :two-phase-ms            (mean-ms tp-pstats :two-phase)
+           :two-phase-pushdown-ms   (mean-ms tpp-pstats :two-phase-pushdown)
+           :include-predicate-ms    (mean-ms ip-pstats :include-predicate)})))))
 
 (defn run-scaling-benchmark
   "Run the sensitivity filtering benchmark at all scale levels.
@@ -206,33 +289,47 @@
 ;; ---------------------------------------------------------------------------
 
 (deftest sensitivity-filtering-correctness-test
-  (testing "All three approaches return the same correct results"
+  (testing "All approaches return the same correct results"
     (with-open [node (test-xtdb-node [])]
       (let [ctx (get-context node)
             user-id (UUID/randomUUID)
             habits (seed-habits! ctx user-id 10 2 2)]
         (seed-habit-logs! ctx user-id (:all habits) 3)
         (let [db (xt/db node)
-              post-filter-results (set (map :xt/id (approach-post-filter db user-id)))
-              not-join-results    (set (map :xt/id (approach-not-join db user-id)))
-              two-phase-results   (set (map :xt/id (approach-two-phase db user-id)))
+              post-filter-results        (set (map :xt/id (approach-post-filter db user-id)))
+              not-join-results           (set (map :xt/id (approach-not-join db user-id)))
+              two-phase-results          (set (map :xt/id (approach-two-phase db user-id)))
+              two-phase-pushdown-results (set (map :xt/id (approach-two-phase-pushdown db user-id)))
+              include-predicate-results  (set (map :xt/id (approach-include-predicate db user-id)))
+              baseline-results           (set (map :xt/id (approach-baseline db user-id)))
               ;; Expected: logs for 6 normal habits × 3 logs = 18
-              expected-count (* 6 3)]
+              expected-count (* 6 3)
+              ;; Baseline returns ALL logs (no filtering) = 10 habits × 3 logs = 30
+              baseline-count (* 10 3)]
           (is (= expected-count (count post-filter-results))
               "Post-filter should return only logs for non-sensitive, non-archived habits")
+          (is (= baseline-count (count baseline-results))
+              "Baseline should return all logs without filtering")
           (is (= post-filter-results not-join-results)
               "not-join should match post-filter results")
           (is (= post-filter-results two-phase-results)
-              "two-phase should match post-filter results"))))))
+              "two-phase should match post-filter results")
+          (is (= post-filter-results two-phase-pushdown-results)
+              "two-phase-pushdown should match post-filter results")
+          (is (= post-filter-results include-predicate-results)
+              "include-predicate should match post-filter results"))))))
 
 (deftest sensitivity-filtering-benchmark
   (testing "Scaling benchmark writes results EDN"
     (let [results (run-scaling-benchmark)]
       (is (= 3 (count results)) "Should have results for 3 scale levels")
       (doseq [r results]
-        (is (pos? (:post-filter-ms r)) (str "post-filter should be > 0 at " (:scale r)))
-        (is (pos? (:not-join-ms r))    (str "not-join should be > 0 at " (:scale r)))
-        (is (pos? (:two-phase-ms r))   (str "two-phase should be > 0 at " (:scale r))))
+        (is (pos? (:baseline-ms r))             (str "baseline should be > 0 at " (:scale r)))
+        (is (pos? (:post-filter-ms r))        (str "post-filter should be > 0 at " (:scale r)))
+        (is (pos? (:not-join-ms r))           (str "not-join should be > 0 at " (:scale r)))
+        (is (pos? (:two-phase-ms r))          (str "two-phase should be > 0 at " (:scale r)))
+        (is (pos? (:two-phase-pushdown-ms r)) (str "two-phase-pushdown should be > 0 at " (:scale r)))
+        (is (pos? (:include-predicate-ms r))  (str "include-predicate should be > 0 at " (:scale r))))
       ;; Write results to EDN for the Clerk notebook
       (let [out-file (io/file "notebook_data/sensitivity_benchmark_results.edn")]
         (io/make-parents out-file)

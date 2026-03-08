@@ -35,3 +35,5 @@ e2e/screenshots/
 screenshots/
 
 e2e/screenshots/
+
+.clj-kondo/
