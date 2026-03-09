@@ -5,7 +5,7 @@ description: "Improve task completion feedback and add project selection to quic
 tags: [area/frontend, area/ux, type/improvement]
 priority: high
 created: 2026-02-16
-updated: 2026-02-16
+updated: 2026-03-09
 ---
 
 # Today Page UX Polish
@@ -30,6 +30,12 @@ The today page has two friction points that hurt the user experience:
 - Prevent "dead time" where the UI appears unresponsive
 - Goal: User never wonders if their click registered
 - Consider: CSS transition for opacity/transform, HTMX `hx-on::before-request` for loading state
+
+### Post-Completion Focus Management
+
+- After checking off a task, focus should not automatically move to the next item's checkbox
+- Options: (a) clear focus entirely, (b) move focus to a neutral location (e.g., page header, quick-add input)
+- Current behavior (focus on next checkbox) causes accidental completions when user clicks multiple times
 
 ### Quick-Add Project Selection
 
