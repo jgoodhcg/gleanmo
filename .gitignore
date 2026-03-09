@@ -36,4 +36,6 @@ screenshots/
 
 e2e/screenshots/
 
+test-results/
+
 .clj-kondo/

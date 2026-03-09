@@ -43,13 +43,25 @@ Template rules:
 
 | Level | Command | When | Cost |
 |-------|---------|------|------|
-| 1 | `just lint-fast` or `just lint-fast <files>` | **After every edit** — run aggressively | ~200ms |
+| 1 | `just lint-fast` or `just lint-fast <files>` | **After every Clojure edit** — run aggressively | ~200ms |
 | 2 | `clojure_eval` (pure reads only) | Quick data checks / schema validation | ~1s |
 | 3 | `just check` | After completing a subtask or batch of changes | ~10-15s |
 | 4 | `clj -M:dev test <namespace>` | Specific logic changes | ~20-30s |
 | 5 | `just validate` | Before commits / significant changes | ~60s+ |
 | 6 | `just e2e-screenshot /path` | After UI changes (requires user-run dev server) | varies |
 | 7 | `just e2e-flow <name>` | User flow regression checks (requires user-run dev server) | varies |
+
+### File-Type Specific Validation
+
+**Clojure files (`.clj`, `.cljs`, `.cljc`):** Run `just lint-fast <files>` after every edit.
+
+**Roadmap files (`roadmap/*.md`):** No automated validation. Manually verify:
+- Frontmatter has required fields: `title`, `status`, `description`, `created`, `updated`, `tags`, `priority`
+- Status is one of: `draft`, `ready`, `active`, `done`, `dropped`
+- File is listed in `roadmap/index.md` under the correct status section
+- `updated` field reflects current date when editing existing work units
+
+**Other markdown files:** No automated validation required.
 
 ### Environment Detection
 
@@ -90,8 +102,8 @@ The `validate` workflow cascades: **lint-fast → format → test → e2e**. A f
 
 ## Allowed Commands
 
-- `just lint-fast` — fast standalone clj-kondo lint (primary validation, run after every edit)
-- `just lint-fast <files>` — lint specific changed files only (fastest)
+- `just lint-fast` — fast standalone clj-kondo lint (for Clojure files only)
+- `just lint-fast <files>` — lint specific changed Clojure files only (fastest)
 - `just check` — format + lint via JVM (periodic validation)
 - `just validate` — full validation
 - `clj -M:dev test` — run all tests
@@ -135,7 +147,7 @@ commands for the user to run, prefer the `biff` shorthand (e.g., `biff notebook`
 - Execute `ready` roadmap work units autonomously and self-validate before returning.
 - Never commit without explicit user approval.
 - Always include commit trailers (Co-authored-by, AI-Provider, AI-Product, AI-Model) using the template above.
-- Validation first: reflect on current state and plan before executing; run validation after changes.
+- Validation first: reflect on current state and plan before executing; run validation after changes (Clojure files only).
 - User control: never assume database state; ask the user if unsure.
 - Roadmap driven: canonical roadmap lives in `roadmap/` with `index.md` as canonical state and `README.md` as catalog.
 
