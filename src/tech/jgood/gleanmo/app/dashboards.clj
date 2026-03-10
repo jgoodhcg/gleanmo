@@ -70,16 +70,16 @@
       (dashboard-card "Project Logs" "Time tracking entries"
                       "/app/crud/project-log" "⏰" "neon-yellow")]])))
 
-(defn analytics-dashboard
-  "Dashboard for visualizations and analytics"
+(defn stats-dashboard
+  "Dashboard for visualizations and statistics"
   [ctx]
   (ui/page
    ctx
    (side-bar
     ctx
     [:div.container.mx-auto.p-6
-     [:h1.text-3xl.font-bold.mb-8.text-white "Analytics & Insights"]
-     [:p.mb-8.text-gray-400 "Visualize patterns and analyze your data"]
+     [:h1.text-3xl.font-bold.mb-8.text-white "Stats & Charts"]
+     [:p.mb-8.text-gray-400 "Visualize patterns and explore your data"]
 
      [:div.grid.grid-cols-1.md:grid-cols-2.lg:grid-cols-3.gap-6
       ;; Visualizations
@@ -98,20 +98,22 @@
       (dashboard-card "Project Calendar" "Time tracking calendar"
                       "/app/viz/project-log" "🗓️" "neon-yellow")
 
-      ;; Analytics
+      ;; Statistics
       [:div.lg:col-span-3.mt-8
        [:h2.text-xl.font-semibold.mb-4.text-neon-cyan "📊 Statistics"]]
 
       (dashboard-card "Habit Patterns" "Pattern detection and date predictions"
-                      "/app/dv/habit-dates" "🔍" "neon-lime")
+                      "/app/stats/habit-patterns" "🔍" "neon-lime")
       (dashboard-card "Meditation Stats" "Session duration and frequency stats"
-                      "/app/dv/meditation-stats" "📊" "neon-cyan")
+                      "/app/stats/meditation" "📊" "neon-cyan")
       (when (show-bm-logs? ctx)
         (dashboard-card "BM Stats" "BM tracking statistics"
-                        "/app/dv/bm-stats" "🧻" "neon-azure"))]])))
+                        "/app/stats/bm" "🧻" "neon-azure"))
+      (dashboard-card "Medication History" "Per-medication dosage timeline"
+                      "/app/stats/medication-history" "💊" "neon-pink")]])))
 
 (def routes
   ["/dashboards" {}
    ["/entities" {:get entities-dashboard}]
    ["/activity-logs" {:get activity-logs-dashboard}]
-   ["/analytics" {:get analytics-dashboard}]])
+   ["/stats" {:get stats-dashboard}]])

@@ -173,7 +173,7 @@
 ;; ---------------------------------------------------------------------------
 
 (defn medication-history-page
-  "GET /app/medication-history — full page with medication picker, date range,
+  "GET /app/stats/medication-history — full page with medication picker, date range,
    stats, dosage chart, and filtered log table."
   [{:keys [params] :as ctx}]
   (let [time-zone      (get-user-time-zone ctx)
@@ -259,7 +259,7 @@
 
        ;; ── Filter form ──────────────────────────────────────────────
        [:div.bg-dark-surface.p-6.rounded-lg.border.border-dark.mb-6
-        [:form {:method "get" :action "/app/medication-history"}
+        [:form {:method "get" :action "/app/stats/medication-history"}
          [:div.flex.flex-col.space-y-4
 
           ;; Medication picker
@@ -288,7 +288,7 @@
           ;; Preset buttons + actions
           [:div.flex.flex-wrap.items-center.gap-2
            (for [[label preset-val] [["7d" "7d"] ["30d" "30d"] ["90d" "90d"] ["1yr" "1yr"]]]
-             [:a {:href  (str "/app/medication-history?"
+             [:a {:href  (str "/app/stats/medication-history?"
                               (when selected-med (str "medication-id=" (:xt/id selected-med) "&"))
                               "preset=" preset-val)
                   :class (str "px-3 py-1 rounded text-sm font-medium border transition-all duration-200 "
@@ -299,7 +299,7 @@
            [:div.flex-grow]
            [:button.form-button-primary.font-bold {:type "submit"} "Apply"]
            [:a.form-button-secondary.text-center
-            {:href "/app/medication-history"} "Clear"]]]]]
+            {:href "/app/stats/medication-history"} "Clear"]]]]]
 
        ;; ── Results ──────────────────────────────────────────────────
        (when selected-med
@@ -357,10 +357,3 @@
            (str (:medication/label selected-med) " Logs"
                 (when filtering? (str " (" total-doses ")")))]
           (log-table filtered-logs zone-id)])]))))
-
-;; ---------------------------------------------------------------------------
-;; Routes
-;; ---------------------------------------------------------------------------
-
-(def routes
-  ["/medication-history" {:get medication-history-page}])

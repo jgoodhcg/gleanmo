@@ -33,7 +33,7 @@
      [:a.link {:href "/app/visualizations"} "visualizations"]
      [:a.link {:href "/app/meditation-logs"} "meditation-logs"]
      [:a.link {:href "/app/ical-urls"} "ical-urls"]
-     [:a.link {:href "/app/dv/habit-logs"} "habit-logs data viz"]
+     [:a.link {:href "/app/stats/habit-patterns"} "habit-logs data viz"]
      (biff/form
       {:action "/auth/signout",
        :class  "inline"}
@@ -138,8 +138,8 @@
       [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Dashboards"]
       [:a.link {:href "/app/dashboards/entities"} "📦 manage entities"]
       [:a.link {:href "/app/dashboards/activity-logs"} "📋 activity logs"]
-      [:a.link {:href "/app/dashboards/analytics"} "📊 analytics & insights"]
-      [:a.link {:href "/app/medication-history"} "💊 medication history"]
+      [:a.link {:href "/app/dashboards/stats"} "📊 stats & charts"]
+      [:a.link {:href "/app/stats/medication-history"} "💊 medication history"]
       [:a.link {:href "/app/timers"} "⏱️ timers"]
       (when super-user?
         [:a.link {:href "/app/monitoring/performance"} "🛡️ monitoring"])

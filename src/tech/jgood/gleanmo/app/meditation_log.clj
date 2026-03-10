@@ -133,7 +133,7 @@
 
          ;; Date Range Filter Form
        (biff/form
-        {:hx-post   "/app/dv/meditation-stats",
+        {:hx-post   "/app/stats/meditation",
          :hx-swap   "outerHTML",
          :hx-target "#meditation-stats-container",
          :hx-select "#meditation-stats-container",
@@ -164,7 +164,7 @@
           [:button.bg-neon.hover:bg-neon-bright.text-dark.font-bold.py-2.px-4.rounded
            {:type "submit"} "Apply Filter"]
           [:a.bg-dark.hover:bg-dark-light.text-gray-300.border.border-dark.font-bold.py-2.px-4.rounded.text-center
-           {:href "/app/dv/meditation-stats"} "Clear Filter"]]])
+           {:href "/app/stats/meditation"} "Clear Filter"]]])
 
        [:div#meditation-stats-container.mt-8
           ;; Filter status indicator

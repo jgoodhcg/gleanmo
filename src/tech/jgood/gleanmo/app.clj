@@ -479,7 +479,6 @@
             medication/crud-routes
             med-log/crud-routes
             med-log/viz-routes
-            med-history/routes
             project/crud-routes
             project-log/crud-routes
             project-log/viz-routes
@@ -534,11 +533,13 @@
             ;; data viz
             ;;
 
-            ["/dv/habit-dates" {:get habit-log/habit-dates}]
-            ["/dv/meditation-stats"
+            ["/stats/habit-patterns" {:get habit-log/habit-dates}]
+            ["/stats/meditation"
              {:get  meditation-log/meditation-stats,
               :post meditation-log/meditation-stats}]
-            ["/dv/bm-stats" {:get bm-log/bm-stats}]
+            ["/stats/bm" {:get bm-log/bm-stats}]
+            ["/stats/medication-history"
+             {:get med-history/medication-history-page}]
 
             ;; Calendar views
             ["/calendar/year" {:get calendar/year-calendar}]

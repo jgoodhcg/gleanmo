@@ -81,7 +81,7 @@
         predictions     (when (and habit-id (>= (count dates-only) 2))
                           (pred/get-predictions dates-only))
         has-predictions (and predictions (seq predictions))
-        base-url        "/app/dv/habit-dates"]
+        base-url        "/app/stats/habit-patterns"]
     ;; Render the page with list of dates when habit was logged
     (ui/page
      {}
