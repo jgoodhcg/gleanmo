@@ -139,6 +139,7 @@
       [:a.link {:href "/app/dashboards/entities"} "📦 manage entities"]
       [:a.link {:href "/app/dashboards/activity-logs"} "📋 activity logs"]
       [:a.link {:href "/app/dashboards/analytics"} "📊 analytics & insights"]
+      [:a.link {:href "/app/medication-history"} "💊 medication history"]
       [:a.link {:href "/app/timers"} "⏱️ timers"]
       (when super-user?
         [:a.link {:href "/app/monitoring/performance"} "🛡️ monitoring"])

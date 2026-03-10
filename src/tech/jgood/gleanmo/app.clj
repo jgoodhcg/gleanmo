@@ -11,6 +11,7 @@
    [tech.jgood.gleanmo.app.habit-log :as habit-log]
    [tech.jgood.gleanmo.app.location :as location]
    [tech.jgood.gleanmo.app.medication :as medication]
+   [tech.jgood.gleanmo.app.medication-history :as med-history]
    [tech.jgood.gleanmo.app.medication-log :as med-log]
    [tech.jgood.gleanmo.app.meditation :as meditation]
    [tech.jgood.gleanmo.app.meditation-log :as meditation-log]
@@ -478,6 +479,7 @@
             medication/crud-routes
             med-log/crud-routes
             med-log/viz-routes
+            med-history/routes
             project/crud-routes
             project-log/crud-routes
             project-log/viz-routes
