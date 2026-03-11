@@ -10,7 +10,6 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 - [daily-focus.md](./daily-focus.md) - Daily planning ritual with progress stats and carry-forward
 - [calendar.md](./calendar.md) - Year-at-a-glance calendar with event interactions and external sync
 - [exercise.md](./exercise.md) - Exercise tracking with superset support and Airtable backfill
-- [medication.md](./medication.md) - Medication logging with Airtable history import
 - [data-migration-status.md](./data-migration-status.md) - Tracker for Airtable backfills and remaining imports
 - [performance.md](./performance.md) - Performance monitoring and profiling dashboard
 - [dashboard-performance.md](./dashboard-performance.md) - Home page dashboard performance improvements
@@ -23,7 +22,6 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 - [daily-focus.md](./daily-focus.md) - Daily planning ritual with progress stats and carry-forward
 - [calendar.md](./calendar.md) - Year-at-a-glance calendar with event interactions and external sync
 - [exercise.md](./exercise.md) - Exercise tracking with superset support and Airtable backfill
-- [medication.md](./medication.md) - Medication logging with Airtable history import
 - [data-migration-status.md](./data-migration-status.md) - Tracker for Airtable backfills and remaining imports
 - [performance.md](./performance.md) - Performance monitoring and profiling dashboard
 - [dashboard-performance.md](./dashboard-performance.md) - Home page dashboard performance improvements
@@ -69,6 +67,7 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 
 ### Archived
 
+- [archived/medication.md](./archived/medication.md) - Medication logging with Airtable history import
 - [archived/pain.md](./archived/pain.md) - Pain logs (unified into symptom schema 2026-02-21)
 - [archived/query-optimization.md](./archived/query-optimization.md) - Batched related entity lookups - 93% query reduction
 - [archived/rewrite-analysis.md](./archived/rewrite-analysis.md) - Language/stack evaluation (deferred - staying with Clojure)

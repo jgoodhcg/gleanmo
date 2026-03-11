@@ -1,11 +1,11 @@
 ---
 title: "Medication Logging Roadmap"
-status: active
+status: done
 description: "Medication logging with Airtable history import"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-22
+updated: 2026-03-10
 ---
 
 # Medication Logging Roadmap
@@ -19,16 +19,11 @@ updated: 2026-02-22
 Document the remaining work to import decades of Airtable medication history while keeping the existing CRUD + visualization flows unchanged.
 
 ## Status
-- PARTIAL COMPLETE (2026-02-22): Initial migration complete, but missing injection site data.
-  - 23 medications upserted, 1,305 medication logs written (2 batches).
-  - 13 rows rejected (missing/blank labels).
-  - Unit enum mapping fixed (mcg, capsule, trailing whitespace handling).
+- COMPLETE (2026-03-10): Medication import finished successfully.
+  - 23 medications upserted, 1,305 medication logs written.
+  - Injection site and notes data included in final migration.
   - Migration CLI (`clj -M:dev migrate m001-airtable-import-medications`) supports `--dry-run` flag.
   - Deterministic UUIDs ensure idempotent re-runs.
-- **REMEDIATION NEEDED (2026-02-22)**:
-  - Injection site data not ported during initial migration.
-  - Notes field may also have been missed — needs verification.
-  - Action: Update migration to include `injection_site` and `note` fields, then re-run.
 
 ## Objectives
 1. Preserve the full Airtable record set (dose history, notes, injection sites) in XTDB with deterministic IDs.
@@ -75,23 +70,6 @@ All historical data currently lives in a single Airtable “Medication Log” ta
    - Cross-check counts between Airtable and XTDB (`q` by `::sm/type`).  
    - Spot-check timeline charts (`/app/viz/calendar/medication-log`) for distant history and ensure injection-site data renders.  
    - Optionally verify that each medication catalog entry now appears in `/app/crud/medication`.
-
-## Remediation: Missing Fields (2026-02-22)
-
-### Issue
-Initial migration did not include `injection_site` data. Notes may also have been missed.
-
-### Tasks
-- [ ] Verify which fields were missed (injection_site, note, or others)
-- [ ] Update migration converter to include missing fields
-- [ ] Update schema if injection_site needs enum normalization
-- [ ] Re-run migration (deterministic IDs ensure idempotent update)
-- [ ] Verify data in production
-
-### Acceptance Criteria
-- All medication logs have injection site data where present in Airtable
-- All medication logs have notes where present in Airtable
-- Spot-check viz routes show injection site rendering
 
 ## Follow-ups
 - Add a notebook similar to `dev/notebooks/20231231_airtable_ingest.clj` that documents the medication import run (filenames, timestamps, record counts).  
