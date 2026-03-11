@@ -101,10 +101,11 @@
         timestamp-str (get fields "timestamp")
         dosage        (get fields "dosage")
         unit-str      (get fields "unit")
-        notes         (get fields "notes")
-        injection-str (get fields "injection-site")
+        notes         (get fields "note")
+        injection-str (get fields "injection site")
         injection-key (some-> injection-str str/lower-case
-                              (get injection-site-mapping))]
+                              str/trim
+                              injection-site-mapping)]
     (-> {:xt/id                       (medication-log-uuid airtable-id)
          ::sm/type                    :medication-log
          ::sm/created-at              (or (core/parse-timestamp timestamp-str)
