@@ -33,7 +33,6 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 
 ### Draft
 
-- [timer-stale-start-time.md](./timer-stale-start-time.md) - Fix timer starting with old timestamp when PWA has been idle on timers page
 - [form-tab-ordering.md](./form-tab-ordering.md) - Ensure logical tab order across all CRUD forms for keyboard accessibility
 - [redirect-audit.md](./redirect-audit.md) - Audit all actions to implement intuitive redirects with query parameter support
 - [biff-upgrade-v1-9.md](./biff-upgrade-v1-9.md) - Upgrade Biff and task libs to at least v1.9.0, then validate XTDB/Agrona changes and Java 25 compatibility
@@ -66,6 +65,10 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 - [today-mobile-redesign.md](./today-mobile-redesign.md) - Redesign the today task page for better mobile ergonomics and responsiveness
 - [today-ux-polish.md](./today-ux-polish.md) - Improve task completion feedback and add project selection to quick-add
 - [exercise-insights.md](./exercise-insights.md) - Visual daily exercise summary with muscle heatmap and session stats
+
+### Done
+
+- [timer-stale-start-time.md](./timer-stale-start-time.md) - Fix timer starting with old timestamp when PWA has been idle on timers page
 
 ### Archived
 

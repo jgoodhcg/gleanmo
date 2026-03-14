@@ -82,3 +82,7 @@ e2e-test-today-mobile:
 # Run timer overlap metrics test
 e2e-test-timer-overlap:
     cd e2e && npm run test:timer-overlap
+
+# Run timer start timestamp freshness test
+e2e-test-timer-start:
+    cd e2e && npm run test:timer-start

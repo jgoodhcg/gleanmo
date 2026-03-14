@@ -1,9 +1,10 @@
 ---
 title: "Timer Stale Start Time"
-status: draft
+status: done
 description: "Fix timer starting with old timestamp when PWA has been idle on timers page"
 created: 2026-03-14
 updated: 2026-03-14
+completed: 2026-03-14
 tags: [area/timers, type/bug, pwa]
 priority: high
 ---

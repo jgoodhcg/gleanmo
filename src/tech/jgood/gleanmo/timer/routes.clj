@@ -246,12 +246,10 @@
 
 (defn start-timer-card
   "Render a start button for a parent entity."
-  [parent {:keys [entity-str parent-entity-key relationship-key beginning-key]}]
+  [parent {:keys [entity-str parent-entity-key relationship-key]}]
   (let [label-key          (schema-utils/entity-attr-key parent-entity-key "label")
         notes-key          (schema-utils/entity-attr-key parent-entity-key "notes")
         rel-param-name     (schema-utils/ns-keyword->input-name relationship-key)
-        beginning-param    (schema-utils/ns-keyword->input-name beginning-key)
-        encoded-beginning  (java.net.URLEncoder/encode (str (t/now)) "UTF-8")
         encoded-redirect   (java.net.URLEncoder/encode (str "/app/timer/" entity-str)
                                                        "UTF-8")]
     [:div.bg-dark-surface.rounded-lg.p-4.border.border-dark.transition-all.duration-300.hover:shadow-lg.hover:border-neon-yellow
@@ -265,7 +263,6 @@
        {:href (str "/app/crud/form/" entity-str
                    "/new?"
                    rel-param-name "=" (:xt/id parent)
-                   "&" beginning-param "=" encoded-beginning
                    "&redirect=" encoded-redirect)}
        "Start Timer"]]]))
 
