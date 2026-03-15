@@ -86,3 +86,11 @@ e2e-test-timer-overlap:
 # Run timer start timestamp freshness test
 e2e-test-timer-start:
     cd e2e && npm run test:timer-start
+
+# Run reading CRUD test
+e2e-test-reading-crud:
+    cd e2e && npm run test:reading-crud
+
+# Run reading timer test
+e2e-test-reading-timer:
+    cd e2e && npm run test:reading-timer

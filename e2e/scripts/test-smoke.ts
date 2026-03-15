@@ -102,6 +102,8 @@ async function main() {
       { path: '/app/crud/project', label: 'projects' },
       { path: '/app/crud/habit-log', label: 'habit-logs' },
       { path: '/app/crud/meditation-log', label: 'meditation-logs' },
+      { path: '/app/crud/book', label: 'books' },
+      { path: '/app/crud/reading-log', label: 'reading-logs' },
     ];
 
     console.log('\n4. CRUD list pages...');
@@ -115,6 +117,7 @@ async function main() {
       { path: '/app/crud/form/task/new', label: 'new-task-form' },
       { path: '/app/crud/form/habit/new', label: 'new-habit-form' },
       { path: '/app/crud/form/project/new', label: 'new-project-form' },
+      { path: '/app/crud/form/book/new', label: 'new-book-form' },
     ];
 
     console.log('\n5. CRUD new form pages...');
@@ -130,6 +133,12 @@ async function main() {
     console.log('\n6. Calendar page...');
     await loadPage(page, '/app/calendar/year', 'calendar-year');
     await captureScreenshot(page, '06-calendar');
+
+    // ── 7. Reading-log timer page ──
+    console.log('\n7. Reading-log timer page...');
+    await loadPage(page, '/app/timer/reading-log', 'reading-log-timer');
+    await assertSidebar(page, 'reading-log-timer');
+    await captureScreenshot(page, '07-reading-log-timer');
 
     console.log('\n=== Smoke Test Passed ===\n');
   } catch (error) {

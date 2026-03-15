@@ -15,7 +15,9 @@
     "test:timer-overlap": "tsx scripts/test-timer-overlap.ts",
     "test:timer-start": "tsx scripts/test-timer-start.ts",
     "test:smoke": "tsx scripts/test-smoke.ts",
-    "test:settings-filter": "tsx scripts/test-settings-filter.ts"
+    "test:settings-filter": "tsx scripts/test-settings-filter.ts",
+    "test:reading-crud": "tsx scripts/test-reading-crud.ts",
+    "test:reading-timer": "tsx scripts/test-reading-timer.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.40.0",
