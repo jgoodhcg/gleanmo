@@ -2,6 +2,17 @@
   (:require
    [tech.jgood.gleanmo.schema.meta :as sm]))
 
+(def book-source
+  (-> [:map {:closed true}
+       [:xt/id :book-source/id]
+       [::sm/type [:enum :book-source]]
+       [::sm/deleted-at {:optional true} :instant]
+       [::sm/created-at :instant]
+       [:user/id :user/id]
+       [:book-source/label {:crud/priority 1} :string]
+       [:book-source/notes {:optional true, :crud/priority 2} :string]]
+      vec))
+
 (def book
   (-> [:map {:closed true}
        [:xt/id :book/id]
@@ -14,12 +25,8 @@
        [:book/formats {:optional true, :crud/priority 3}
         [:set [:enum :audiobook :paperback :hardcover]]]
        [:book/published {:optional true, :crud/priority 4} :local-date]
-       [:book/from {:optional true, :crud/priority 5}
-        [:enum :library-of-america :amazon :audible
-         :barnes-and-nobles-woodland-mall :the-gallery-bookstore-chicago
-         :curious-book-shop-east-lansing :argos-comics-and-used-books-grand-rapids
-         :kurzgesagt-shop :grpl-friends-of-the-library-sale
-         :black-dog-books-and-records-grand-rapids :schuler-books :other]]
+       [:book/book-source-ids {:optional true, :crud/priority 5, :crud/label "Sources"}
+        [:set :book-source/id]]
        [:book/notes {:optional true, :crud/priority 6} :string]
        [:airtable/id {:optional true} :string]
        [:airtable/created-time {:optional true} :instant]

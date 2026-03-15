@@ -119,6 +119,17 @@
     [:span.bg-enum.text-white.text-xs.font-medium.px-2.py-0.5.rounded-full
      (name value)]))
 
+(defmethod format-cell-value :set-enum
+  [_ values _]
+  (cond
+    (nil? values)   [:span.text-secondary "—"]
+    (empty? values) [:span.text-secondary "—"]
+    :else
+    [:div.flex.flex-wrap.gap-1
+     (for [v (sort-by name values)]
+       [:span.bg-enum.text-white.text-xs.font-medium.px-2.py-0.5.rounded-full
+        (name v)])]))
+
 (defmethod format-cell-value :boolean-or-enum
   [_ value _]
   (cond

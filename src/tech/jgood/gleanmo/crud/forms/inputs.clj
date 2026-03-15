@@ -328,6 +328,36 @@
            :selected (= (keyword opt) value)}
           (name opt)]))]]))
 
+(defmethod render :set-enum
+  [field _]
+  (let [{:keys [enum-options
+                input-name
+                input-label
+                input-required
+                value]}
+        field
+        value-set (when value (set (map #(if (keyword? %) (name %) (str %)) value)))
+        original-val-str (if (seq value)
+                           (str/join "," (sort (map #(if (keyword? %) (name %) (str %)) value)))
+                           "")]
+    [:div
+     [:label.form-label {:for input-name}
+      input-label]
+     [:div.mt-2
+      (into
+       [:select.form-select
+        {:name                input-name
+         :multiple            true
+         :required            input-required
+         :data-enhance        "choices"
+         :data-remove-item    "true"
+         :data-original-value original-val-str}]
+       (for [opt enum-options]
+         [:option
+          {:value    (name opt)
+           :selected (and value-set (contains? value-set (name opt)))}
+          (name opt)]))]]))
+
 (defmethod render :boolean-or-enum
   [field _]
   (let [{:keys [enum-options

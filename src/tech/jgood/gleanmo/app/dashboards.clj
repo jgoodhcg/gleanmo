@@ -44,7 +44,11 @@
       (dashboard-card "Locations" "Places where activities happen"
                       "/app/crud/location" "📍" "neon-azure")
       (dashboard-card "Projects" "Time tracking projects"
-                      "/app/crud/project" "🚀" "neon-yellow")]])))
+                      "/app/crud/project" "🚀" "neon-yellow")
+      (dashboard-card "Books" "Books you're reading or have read"
+                      "/app/crud/book" "📚" "neon-azure")
+      (dashboard-card "Book Sources" "Where books come from"
+                      "/app/crud/book-source" "🏪" "neon-azure")]])))
 
 (defn activity-logs-dashboard
   "Dashboard for viewing activity logs"
@@ -68,7 +72,9 @@
       (dashboard-card "Medication Logs" "Medication intake records"
                       "/app/crud/medication-log" "📊" "neon-pink")
       (dashboard-card "Project Logs" "Time tracking entries"
-                      "/app/crud/project-log" "⏰" "neon-yellow")]])))
+                      "/app/crud/project-log" "⏰" "neon-yellow")
+      (dashboard-card "Reading Logs" "Book reading session records"
+                      "/app/crud/reading-log" "📖" "neon-azure")]])))
 
 (defn stats-dashboard
   "Dashboard for visualizations and statistics"

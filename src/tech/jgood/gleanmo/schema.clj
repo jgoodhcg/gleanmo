@@ -38,6 +38,7 @@
    :calendar-event/id   :uuid
    :project/id          :uuid
    :project-log/id      :uuid
+   :book-source/id      :uuid
    :book/id             :uuid
    :reading-log/id      :uuid
    :symptom-episode/id  :uuid
@@ -60,6 +61,7 @@
    :exercise-set        es/exercise-set
    :project             ps/project
    :project-log         ps/project-log
+   :book-source         rs/book-source
    :book                rs/book
    :reading-log         rs/reading-log
    :symptom-episode     ss/symptom-episode

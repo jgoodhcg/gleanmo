@@ -26,7 +26,7 @@
                                  (schema-utils/determine-input-type type)]
                              ;; Skip empty values for optional fields, otherwise
                              ;; convert
-                             (if (and optional? (or (nil? v) (str/blank? v)))
+                             (if (and optional? (or (nil? v) (and (string? v) (str/blank? v))))
                                acc ; Skip this field
                                (let [converted-value
                                      (convert-field-value input-type v ctx)]

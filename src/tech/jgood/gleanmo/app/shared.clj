@@ -127,6 +127,7 @@
         [:a.link {:href "/app/crud/form/bm-log/new"} "bm log"])
       [:a.link {:href "/app/crud/form/medication-log/new"} "medication log"]
       [:a.link {:href "/app/crud/form/project-log/new"} "project log"]
+      [:a.link {:href "/app/crud/form/reading-log/new"} "reading log"]
       [:hr.border-dark]
 
       ;; Calendar

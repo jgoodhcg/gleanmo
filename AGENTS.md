@@ -194,6 +194,17 @@ Schema conventions
 - Register new schemas in `src/tech/jgood/gleanmo/schema.clj`.
 - Add new field types by updating schema registry, input renderer, form converter, and list formatter in that order.
 
+New entity checklist — when adding a new entity, complete ALL of these steps:
+1. Define schema in `src/tech/jgood/gleanmo/schema/` with standard field ordering
+2. Register ID type and schema in `src/tech/jgood/gleanmo/schema.clj`
+3. Create `src/tech/jgood/gleanmo/app/<entity>.clj` with `crud-routes` (and timer/viz routes if applicable)
+4. Register the entity key in `crud-entities` set in `src/tech/jgood/gleanmo/app.clj`
+5. Register routes in the route vector in `src/tech/jgood/gleanmo/app.clj`
+6. Add to entities dashboard in `src/tech/jgood/gleanmo/app/dashboards.clj` (or activity logs dashboard for log entities)
+7. Add sidebar Quick Add link in `src/tech/jgood/gleanmo/app/shared.clj` (for log entities)
+8. Add to timers dashboard in `src/tech/jgood/gleanmo/app/timers.clj` (if timer-enabled)
+9. Add to smoke test in `e2e/scripts/test-smoke.ts`
+
 ## Decision Artifacts
 
 - For high-impact or irreversible decisions, record a decision matrix in `.decisions/[name].json`.

@@ -84,6 +84,14 @@
     (and (vector? ftype)
          (= :set (first ftype))
          (let [elem (second ftype)]
+           (and (vector? elem) (= :enum (first elem)))))
+    {:input-type         :set-enum,
+     :enum-options       (vec (rest (second ftype))),
+     :related-entity-str nil}
+
+    (and (vector? ftype)
+         (= :set (first ftype))
+         (let [elem (second ftype)]
            (and (keyword? elem) (= "id" (name elem)))))
     {:input-type         :many-relationship,
      :enum-options       nil,

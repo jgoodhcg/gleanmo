@@ -16,7 +16,13 @@
     :display-name "Meditation"
     :description "Log focused meditation sessions"
     :icon "🧘"
-    :route "/app/timer/meditation-log"}])
+    :route "/app/timer/meditation-log"}
+   {:entity-key :reading-log
+    :entity-str "reading-log"
+    :display-name "Reading"
+    :description "Track time spent reading books"
+    :icon "📖"
+    :route "/app/timer/reading-log"}])
 
 (defn timer-entity-card
   "Create a card for a timer-enabled entity"

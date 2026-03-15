@@ -94,6 +94,11 @@
                                                 :type :many-relationship})))))
                                     values))))
 
+(defmethod convert-field-value :set-enum
+  [_ values _]
+  (cond (string? values) (when (not-empty values) #{(keyword values)})
+        :else            (into #{} (map keyword) values)))
+
 (defmethod convert-field-value :enum
   [_ value _]
   (when (not-empty value) (keyword value)))
