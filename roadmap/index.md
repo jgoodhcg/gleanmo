@@ -33,6 +33,7 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 
 ### Draft
 
+- [schema-consistency.md](./schema-consistency.md) - Audit and standardize all Malli schemas for naming, field ordering, and conventions
 - [form-tab-ordering.md](./form-tab-ordering.md) - Ensure logical tab order across all CRUD forms for keyboard accessibility
 - [redirect-audit.md](./redirect-audit.md) - Audit all actions to implement intuitive redirects with query parameter support
 - [biff-upgrade-v1-9.md](./biff-upgrade-v1-9.md) - Upgrade Biff and task libs to at least v1.9.0, then validate XTDB/Agrona changes and Java 25 compatibility
