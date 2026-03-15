@@ -5,7 +5,7 @@ description: "Tracker for Airtable backfills and remaining imports"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-21
+updated: 2026-03-15
 ---
 
 # Data Migration Status (Airtable + Other Sources)
@@ -19,7 +19,7 @@ updated: 2026-02-21
 ## Current State
 - Habits & habit logs: fully migrated from Airtable. Legacy runner left only for reference (`dev/airtable/activity.clj`).
 - BM logs: fully migrated; helper code in `dev/repl.clj` is archival/reference.
-- Medication: **needs remediation** (2026-02-22). Initial migration missing injection site data; notes may also be missing. Re-run required.
+- Medication: **COMPLETE** (2026-03-10). 23 medications, 1,305 logs. Injection site and notes included in final migration.
 - Symptom (unified with pain): schema defined in `symptom_schema.clj`, CRUD routes not wired, no migration code. Airtable pain data will port as symptom-log with type `:pain`.
 - Mood: separate entity per `roadmap/mood.md`, needs schema definition.
 - Exercise: schema defined in `exercise_schema.clj` (needs type fix), no routes, no migration code.
@@ -28,7 +28,8 @@ updated: 2026-02-21
 - Priority: define and implement entities incrementally, then port data one by one.
 
 ## Next Actions
-- Remediate medication migration (injection site, notes) — see `roadmap/medication.md`.
+- ~~Remediate medication migration (injection site, notes)~~ — DONE (2026-03-10).
+- Define reading schema, wire CRUD, build Airtable ingester for books + reading-logs.
 - Wire CRUD for symptom-episode and symptom-log, then build Airtable ingester (pain → :type :pain).
 
 ## Recommended Approach: Define-Then-Port Per Entity (Ascending Complexity)
@@ -40,10 +41,10 @@ Define schema → wire CRUD → build/run migration for each entity sequentially
 
 ## Recommended Sequence
 
-### 1. Medication (REMEDIATION NEEDED)
+### 1. Medication — COMPLETE
 - Initial migration 2026-02-15 via CLI migration task `m001-airtable-import-medications`
-- Missing injection site data; notes may also be missing
-- Re-run required to backfill missing fields
+- Remediation completed 2026-03-10: injection site and notes backfilled
+- 23 medications, 1,305 logs total
 
 ### 2. Symptom (unified with pain)
 - Schema refactored 2026-02-21; pain unified into symptom-log with `:pain` and `:chronic-pain` types
