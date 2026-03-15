@@ -1,11 +1,11 @@
 ---
 title: "Reading Tracker Roadmap"
-status: draft
+status: active
 description: "Lightweight Goodreads replacement with timer-backed sessions"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-07
+updated: 2026-03-15
 ---
 
 # Reading Tracker Roadmap

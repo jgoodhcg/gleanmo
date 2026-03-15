@@ -24,7 +24,8 @@ updated: 2026-03-15
 - Mood: separate entity per `roadmap/mood.md`, needs schema definition.
 - Exercise: schema defined in `exercise_schema.clj` (needs type fix), no routes, no migration code.
 - Tasks & Projects: CRUD live in-app; historical data lives in other apps/spreadsheets, no migration code.
-- Not represented in app yet: reading, bouldering.
+- Reading: Schema defined, CRUD wired, timer + viz routes live, migration task `m002-airtable-import-reading` ready.
+- Not represented in app yet: bouldering.
 - Priority: define and implement entities incrementally, then port data one by one.
 
 ## Next Actions
@@ -99,7 +100,7 @@ Define schema → wire CRUD → build/run migration for each entity sequentially
 | Mood | Needs schema | 0.5-1.5 days |
 | Task | CRUD live | 0.5-1.5 days |
 | Project | CRUD live | 0.5-1 day |
-| Reading | Needs schema | 1-2 days |
+| Reading | Schema defined, CRUD wired | 0.5-1 day (migration run) |
 | Exercise | Schema exists, complex | 2-4 days |
 | Bouldering | Needs schema, complex | 1-2.5 days |
 | **Execution subtotal** | | **6-13.5 days** |

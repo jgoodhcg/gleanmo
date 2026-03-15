@@ -10,6 +10,7 @@
    [clojure.tools.cli :refer [parse-opts]]
    [com.biffweb :as biff]
    [tasks.migrations.m001-airtable-import-medications :as m001]
+   [tasks.migrations.m002-airtable-import-reading :as m002]
    [tasks.util :as u]
    [tech.jgood.gleanmo :as main]))
 
@@ -20,6 +21,8 @@
 (def cli-options
   [["-f" "--file FILE" "Path to the EDN data file"]
    ["-p" "--mapping-file FILE" "Path to EDN overrides map for label reconciliation"]
+   ["-b" "--books-file FILE" "Path to books EDN file (m002)"]
+   ["-l" "--logs-file FILE" "Path to reading-log EDN file (m002)"]
    ["-t" "--target TARGET" "Target database: dev or prod"
     :default "dev"]
    ["-e" "--email EMAIL" "Email of the user to associate records with"]
@@ -54,7 +57,8 @@
 
 (def registry
   "Map of migration name to run fn. Populated as migrations are added."
-  {"m001-airtable-import-medications" m001/run})
+  {"m001-airtable-import-medications" m001/run
+   "m002-airtable-import-reading"     m002/run})
 
 ;; =============================================================================
 ;; Entry Point

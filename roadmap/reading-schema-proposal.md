@@ -1,11 +1,11 @@
 ---
 title: "Reading Schema Proposal (Malli Draft)"
-status: draft
+status: active
 description: "Draft Malli schemas for reading entities"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-07
+updated: 2026-03-15
 ---
 
 # Reading Schema Proposal (Malli Draft)

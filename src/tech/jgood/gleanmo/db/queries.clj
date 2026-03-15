@@ -170,7 +170,7 @@
                          (fn [{:keys [field-key related-entity-str]}]
                            (let [rel-kw          (keyword related-entity-str)
                                  check-sensitive (and (not show-sensitive)
-                                                     (schema-has-field? rel-kw "sensitive"))
+                                                      (schema-has-field? rel-kw "sensitive"))
                                  check-archived  (and (not show-archived)
                                                       (schema-has-field? rel-kw "archived"))
                                  excluded        (when (or check-sensitive check-archived)

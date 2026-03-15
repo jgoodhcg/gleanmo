@@ -239,16 +239,16 @@ benchmark-data
       :data     {:values rows}
       :mark     {:type "bar" :cornerRadiusTopLeft 3 :cornerRadiusTopRight 3}
       :encoding {:x       {:field "scale"
-                            :type  "nominal"
-                            :sort  scale-order
-                            :axis  {:title "Scale" :labelAngle 0}}
+                           :type  "nominal"
+                           :sort  scale-order
+                           :axis  {:title "Scale" :labelAngle 0}}
                  :y       {:field "time-ms"
-                            :type  "quantitative"
-                            :axis  {:title "Mean time (ms)"}}
+                           :type  "quantitative"
+                           :axis  {:title "Mean time (ms)"}}
                  :color   {:field  "approach"
-                            :type   "nominal"
-                            :scale  {:scheme "tableau10"}
-                            :legend {:title "Approach"}}
+                           :type   "nominal"
+                           :scale  {:scheme "tableau10"}
+                           :legend {:title "Approach"}}
                  :xOffset {:field "approach" :type "nominal"}}})))
 
 ;; ### Scaling Analysis (all approaches, log scale)
@@ -276,16 +276,16 @@ benchmark-data
       :data     {:values rows}
       :mark     {:type "line" :point {:size 100 :filled true} :strokeWidth 2.5}
       :encoding {:x     {:field "scale"
-                          :type  "ordinal"
-                          :sort  scale-order
-                          :axis  {:title "Scale (number of habit-logs)"}}
+                         :type  "ordinal"
+                         :sort  scale-order
+                         :axis  {:title "Scale (number of habit-logs)"}}
                  :y     {:field "time-ms"
-                          :type  "quantitative"
-                          :axis  {:title "Mean time (ms)"}}
+                         :type  "quantitative"
+                         :axis  {:title "Mean time (ms)"}}
                  :color {:field  "approach"
-                          :type   "nominal"
-                          :scale  {:scheme "tableau10"}
-                          :legend {:title "Approach"}}}})))
+                         :type   "nominal"
+                         :scale  {:scheme "tableau10"}
+                         :legend {:title "Approach"}}}})))
 
 ;; ## Why Pushing Into Datalog Fails in XTDB 1.x
 ;;

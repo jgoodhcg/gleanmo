@@ -93,16 +93,16 @@
   [db user-id]
   (let [query {:find '(pull ?e [*])
                :where ['[?e :user/id user-id]
-                        ['?e ::sm/type :habit-log]
-                        '(not [?e ::sm/deleted-at])
+                       ['?e ::sm/type :habit-log]
+                       '(not [?e ::sm/deleted-at])
                         ;; not-join for sensitive parents
-                        '(not-join [?e]
-                                   [?e :habit-log/habit-ids ?rel]
-                                   [?rel :habit/sensitive true])
+                       '(not-join [?e]
+                                  [?e :habit-log/habit-ids ?rel]
+                                  [?rel :habit/sensitive true])
                         ;; not-join for archived parents
-                        '(not-join [?e]
-                                   [?e :habit-log/habit-ids ?rel]
-                                   [?rel :habit/archived true])]
+                       '(not-join [?e]
+                                  [?e :habit-log/habit-ids ?rel]
+                                  [?rel :habit/archived true])]
                :in '[user-id]}]
     (biff/q db query user-id)))
 
@@ -111,19 +111,19 @@
   [db user-id]
   (let [;; Phase 1: find excluded parent IDs (tiny set)
         sensitive-ids (set (map first
-                               (biff/q db
-                                       {:find '[?h]
-                                        :where '[[?h :user/id user-id]
+                                (biff/q db
+                                        {:find '[?h]
+                                         :where '[[?h :user/id user-id]
                                                   [?h ::sm/type :habit]
                                                   [?h :habit/sensitive true]]
-                                        :in '[user-id]}
-                                       user-id)))
+                                         :in '[user-id]}
+                                        user-id)))
         archived-ids  (set (map first
                                 (biff/q db
                                         {:find '[?h]
                                          :where '[[?h :user/id user-id]
-                                                   [?h ::sm/type :habit]
-                                                   [?h :habit/archived true]]
+                                                  [?h ::sm/type :habit]
+                                                  [?h :habit/archived true]]
                                          :in '[user-id]}
                                         user-id)))
         excluded-ids  (into sensitive-ids archived-ids)
@@ -147,18 +147,18 @@
   [db user-id]
   (let [;; Phase 1: find excluded parent IDs in a single query
         excluded-ids (set (map first
-                              (biff/q db
-                                      {:find '[?h]
-                                       :where '[[?h :user/id user-id]
+                               (biff/q db
+                                       {:find '[?h]
+                                        :where '[[?h :user/id user-id]
                                                  [?h ::sm/type :habit]
                                                  (or [?h :habit/sensitive true]
                                                      [?h :habit/archived true])]
-                                       :in '[user-id]}
-                                      user-id)))
+                                        :in '[user-id]}
+                                       user-id)))
         ;; Phase 2: build query with explicit (not) per excluded ID
         base-where ['[?e :user/id user-id]
-                     ['?e ::sm/type :habit-log]
-                     '(not [?e ::sm/deleted-at])]
+                    ['?e ::sm/type :habit-log]
+                    '(not [?e ::sm/deleted-at])]
         not-clauses (mapv (fn [id] (list 'not ['?e :habit-log/habit-ids id]))
                           excluded-ids)
         query {:find '(pull ?e [*])
@@ -172,24 +172,24 @@
   [db user-id]
   (let [;; Phase 1: find allowed parent IDs (the complement of excluded)
         allowed-ids (set (map first
-                             (biff/q db
-                                     {:find '[?h]
-                                      :where '[[?h :user/id user-id]
+                              (biff/q db
+                                      {:find '[?h]
+                                       :where '[[?h :user/id user-id]
                                                 [?h ::sm/type :habit]
                                                 (not [?h :habit/sensitive true])
                                                 (not [?h :habit/archived true])]
-                                      :in '[user-id]}
-                                     user-id)))]
+                                       :in '[user-id]}
+                                      user-id)))]
     (if (empty? allowed-ids)
       []
       ;; Phase 2: query with contains? predicate on the allowed set
       (biff/q db
               {:find '(pull ?e [*])
                :where '[[?e :user/id user-id]
-                         [?e ::sm/type :habit-log]
-                         (not [?e ::sm/deleted-at])
-                         [?e :habit-log/habit-ids ?hid]
-                         [(contains? allowed-ids ?hid)]]
+                        [?e ::sm/type :habit-log]
+                        (not [?e ::sm/deleted-at])
+                        [?e :habit-log/habit-ids ?hid]
+                        [(contains? allowed-ids ?hid)]]
                :in '[user-id allowed-ids]}
               user-id
               allowed-ids))))
@@ -201,8 +201,8 @@
   (biff/q db
           {:find '(pull ?e [*])
            :where '[[?e :user/id user-id]
-                     [?e ::sm/type :habit-log]
-                     (not [?e ::sm/deleted-at])]
+                    [?e ::sm/type :habit-log]
+                    (not [?e ::sm/deleted-at])]
            :in '[user-id]}
           user-id))
 
@@ -246,28 +246,28 @@
               ;; Benchmark each approach
               [_ bl-pstats]
               (tufte/profiled {}
-                (dotimes [_ iterations]
-                  (tufte/p :baseline (doall (approach-baseline db user-id)))))
+                              (dotimes [_ iterations]
+                                (tufte/p :baseline (doall (approach-baseline db user-id)))))
               [_ pf-pstats]
               (tufte/profiled {}
-                (dotimes [_ iterations]
-                  (tufte/p :post-filter (doall (approach-post-filter db user-id)))))
+                              (dotimes [_ iterations]
+                                (tufte/p :post-filter (doall (approach-post-filter db user-id)))))
               [_ nj-pstats]
               (tufte/profiled {}
-                (dotimes [_ iterations]
-                  (tufte/p :not-join (doall (approach-not-join db user-id)))))
+                              (dotimes [_ iterations]
+                                (tufte/p :not-join (doall (approach-not-join db user-id)))))
               [_ tp-pstats]
               (tufte/profiled {}
-                (dotimes [_ iterations]
-                  (tufte/p :two-phase (doall (approach-two-phase db user-id)))))
+                              (dotimes [_ iterations]
+                                (tufte/p :two-phase (doall (approach-two-phase db user-id)))))
               [_ tpp-pstats]
               (tufte/profiled {}
-                (dotimes [_ iterations]
-                  (tufte/p :two-phase-pushdown (doall (approach-two-phase-pushdown db user-id)))))
+                              (dotimes [_ iterations]
+                                (tufte/p :two-phase-pushdown (doall (approach-two-phase-pushdown db user-id)))))
               [_ ip-pstats]
               (tufte/profiled {}
-                (dotimes [_ iterations]
-                  (tufte/p :include-predicate (doall (approach-include-predicate db user-id)))))]
+                              (dotimes [_ iterations]
+                                (tufte/p :include-predicate (doall (approach-include-predicate db user-id)))))]
           {:scale                   scale
            :n-logs                  n-logs
            :n-excluded              n-excluded

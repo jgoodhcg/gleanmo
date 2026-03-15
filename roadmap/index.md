@@ -26,6 +26,8 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 - [performance.md](./performance.md) - Performance monitoring and profiling dashboard
 - [dashboard-performance.md](./dashboard-performance.md) - Home page dashboard performance improvements
 - [backlog.md](./backlog.md) - Minor improvements without full work-unit docs
+- [reading-tracker.md](./reading-tracker.md) - Lightweight Goodreads replacement with timer-backed sessions
+- [reading-schema-proposal.md](./reading-schema-proposal.md) - Draft Malli schemas for reading entities
 
 ### Ready
 
@@ -40,7 +42,6 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 - [dynamic-server-port.md](./dynamic-server-port.md) - Make the server dynamically choose a port to run on to support git worktree and multiple project development
 - [generic-viz.md](./generic-viz.md) - Generic visualizations for timestamp/interval entities
 - [reading-airtable-spec.md](./reading-airtable-spec.md) - Airtable schema reference for reading migration
-- [reading-schema-proposal.md](./reading-schema-proposal.md) - Draft Malli schemas for reading entities
 - [roam-integration.md](./roam-integration.md) - Project timers shipped; Roam metrics integration pending
 - [screenshot-runner.md](./screenshot-runner.md) - Authenticated screenshot capture for docs and CI
 - [search-filter.md](./search-filter.md) - Text search tool for CRUD and timer view pages
@@ -51,7 +52,6 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 - [entity-merge.md](./entity-merge.md) - Combine logs from duplicate entities into one target entity
 - [ui-juice.md](./ui-juice.md) - Micro-interactions, animations, and haptic feedback for delight
 - [plausible-user-identification.md](./plausible-user-identification.md) - Add user identifiers to Plausible analytics to distinguish individuals
-- [reading-tracker.md](./reading-tracker.md) - Lightweight Goodreads replacement with timer-backed sessions
 - [life-chart.md](./life-chart.md) - Lifetime view with years as rows and weeks as cells
 - [memento-mori.md](./memento-mori.md) - Finite-time visualization anchored to calendar data
 - [mood.md](./mood.md) - Structured mood logging with Airtable backfill

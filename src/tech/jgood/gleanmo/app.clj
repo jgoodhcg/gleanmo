@@ -13,6 +13,8 @@
    [tech.jgood.gleanmo.app.medication :as medication]
    [tech.jgood.gleanmo.app.medication-history :as med-history]
    [tech.jgood.gleanmo.app.medication-log :as med-log]
+   [tech.jgood.gleanmo.app.book :as book]
+   [tech.jgood.gleanmo.app.reading-log :as reading-log]
    [tech.jgood.gleanmo.app.meditation :as meditation]
    [tech.jgood.gleanmo.app.meditation-log :as meditation-log]
    [tech.jgood.gleanmo.app.project :as project]
@@ -51,6 +53,8 @@
     :calendar-event
     :project
     :project-log
+    :book
+    :reading-log
     :task
     :cruddy})
 
@@ -479,6 +483,10 @@
             medication/crud-routes
             med-log/crud-routes
             med-log/viz-routes
+            book/crud-routes
+            reading-log/crud-routes
+            reading-log/viz-routes
+            reading-log/timer-routes
             project/crud-routes
             project-log/crud-routes
             project-log/viz-routes

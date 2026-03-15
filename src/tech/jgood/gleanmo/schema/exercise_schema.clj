@@ -1,11 +1,13 @@
-(ns tech.jgood.gleanmo.schema.exercise-schema)
+(ns tech.jgood.gleanmo.schema.exercise-schema
+  (:require
+   [tech.jgood.gleanmo.schema.meta :as sm]))
 
 (def exercise
   [:map {:closed true}
    [:xt/id :exercise/id]
-   [:sm/type [:enum :habit-log]]
-   [:sm/deleted-at {:optional true} :instant]
-   [:sm/created-at :instant]
+   [::sm/type [:enum :exercise]]
+   [::sm/deleted-at {:optional true} :instant]
+   [::sm/created-at :instant]
    [:user/id :user/id]
    [:exercise/label :string]
    [:exercise/source {:optional true} :string]
@@ -19,9 +21,9 @@
 (def exercise-session
   [:map {:closed true}
    [:xt/id :exercise-session/id]
-   [:sm/type [:enum :exercise-session]]
-   [:sm/deleted-at {:optional true} :instant]
-   [:sm/created-at :instant]
+   [::sm/type [:enum :exercise-session]]
+   [::sm/deleted-at {:optional true} :instant]
+   [::sm/created-at :instant]
    [:user/id :user/id]
    [:exercise-session/beginning :instant]
    [:exercise-session/end {:optional true} :instant]
@@ -30,9 +32,9 @@
 (def exercise-log
   [:map {:closed true}
    [:xt/id :uuid]
-   [:sm/type [:enum :exercise-log]]
-   [:sm/deleted-at {:optional true} :instant]
-   [:sm/created-at :instant]
+   [::sm/type [:enum :exercise-log]]
+   [::sm/deleted-at {:optional true} :instant]
+   [::sm/created-at :instant]
    [:user/id :user/id]
    [:exercise-session/id :exercise-session/id]
    [:exercise-log.interval/beginning :instant]
@@ -45,9 +47,9 @@
 (def exercise-set
   [:map {:closed true}
    [:xt/id :uuid]
-   [:sm/type [:enum :exercise-set]]
-   [:sm/deleted-at {:optional true} :instant]
-   [:sm/created-at :instant]
+   [::sm/type [:enum :exercise-set]]
+   [::sm/deleted-at {:optional true} :instant]
+   [::sm/created-at :instant]
    [:user/id :user/id]
    [:exercise/id :exercise/id]
    [:exercise-log/id :exercise-log/id]

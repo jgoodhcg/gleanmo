@@ -10,6 +10,7 @@
             [tech.jgood.gleanmo.schema.medication-schema :as meds]
             [tech.jgood.gleanmo.schema.calendar-event-schema :as ces]
             [tech.jgood.gleanmo.schema.project-schema :as ps]
+            [tech.jgood.gleanmo.schema.reading-schema :as rs]
             [tech.jgood.gleanmo.schema.cruddy :as cs]
             [tech.jgood.gleanmo.schema.symptom-schema :as ss]
             [tech.jgood.gleanmo.schema.performance-schema :as perf]
@@ -37,6 +38,8 @@
    :calendar-event/id   :uuid
    :project/id          :uuid
    :project-log/id      :uuid
+   :book/id             :uuid
+   :reading-log/id      :uuid
    :symptom-episode/id  :uuid
    :symptom-log/id      :uuid
    :task/id             :uuid
@@ -57,6 +60,8 @@
    :exercise-set        es/exercise-set
    :project             ps/project
    :project-log         ps/project-log
+   :book                rs/book
+   :reading-log         rs/reading-log
    :symptom-episode     ss/symptom-episode
    :symptom-log         ss/symptom-log
    :task                ts/task
