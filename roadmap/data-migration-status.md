@@ -5,7 +5,7 @@ description: "Tracker for Airtable backfills and remaining imports"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-03-15
+updated: 2026-03-16
 ---
 
 # Data Migration Status (Airtable + Other Sources)
@@ -20,17 +20,27 @@ updated: 2026-03-15
 - Habits & habit logs: fully migrated from Airtable. Legacy runner left only for reference (`dev/airtable/activity.clj`).
 - BM logs: fully migrated; helper code in `dev/repl.clj` is archival/reference.
 - Medication: **COMPLETE** (2026-03-10). 23 medications, 1,305 logs. Injection site and notes included in final migration.
+- Reading: **READY TO RUN** (2026-03-16). Schema defined (book-source, book, reading-log), CRUD wired, timer + viz routes live, e2e tests passing, migration task `m002-airtable-import-reading` updated for book-source entities and location-id references. Needs Airtable data download then dry-run.
 - Symptom (unified with pain): schema defined in `symptom_schema.clj`, CRUD routes not wired, no migration code. Airtable pain data will port as symptom-log with type `:pain`.
 - Mood: separate entity per `roadmap/mood.md`, needs schema definition.
 - Exercise: schema defined in `exercise_schema.clj` (needs type fix), no routes, no migration code.
 - Tasks & Projects: CRUD live in-app; historical data lives in other apps/spreadsheets, no migration code.
-- Reading: Schema defined, CRUD wired, timer + viz routes live, migration task `m002-airtable-import-reading` ready.
 - Not represented in app yet: bouldering.
 - Priority: define and implement entities incrementally, then port data one by one.
 
 ## Next Actions
 - ~~Remediate medication migration (injection site, notes)~~ — DONE (2026-03-10).
-- Define reading schema, wire CRUD, build Airtable ingester for books + reading-logs.
+- ~~Define reading schema, wire CRUD, build Airtable ingester for books + reading-logs~~ — DONE (2026-03-16).
+- **NEXT: Download Airtable reading data, dry-run m002, validate artifacts, then write to dev DB.**
+  ```bash
+  clj -M:dev download-airtable -k $API_KEY -b $BASE_ID -n books
+  clj -M:dev download-airtable -k $API_KEY -b $BASE_ID -n reading-log
+  clj -M:dev migrate m002-airtable-import-reading \
+    --books-file airtable_data/books_*.edn \
+    --logs-file airtable_data/reading_log_*.edn \
+    --email <your-email> --target dev --dry-run
+  ```
+  Review `tmp/migrations/reading/` artifacts, then re-run without `--dry-run`.
 - Wire CRUD for symptom-episode and symptom-log, then build Airtable ingester (pain → :type :pain).
 
 ## Recommended Approach: Define-Then-Port Per Entity (Ascending Complexity)
@@ -68,11 +78,12 @@ Define schema → wire CRUD → build/run migration for each entity sequentially
 - Build ingester, run migration
 - **Estimated time: 0.5-1 day**
 
-### 6. Reading
-- Define `book` and `reading-session` schemas per `roadmap/reading-tracker.md`
-- Wire CRUD routes + metadata lookup UI (optional: defer lookup to phase 2)
-- Build ingester, export from Airtable, run migration
-- **Estimated time: 1-2 days**
+### 6. Reading — READY TO RUN
+- Schema defined (book-source, book, reading-log) with e2e tests passing
+- CRUD, timer, viz routes all wired; book-source entity added for user-defined acquisition sources
+- `reading-log/location` changed from enum to `reading-log/location-id` (references location entity)
+- Migration task `m002-airtable-import-reading` handles: location reconciliation (matches existing DB locations), book-source extraction from "from" field, book/label defaulting from title
+- **Remaining: download Airtable data, dry-run, validate, write**
 
 ### 7. Exercise (most complex, defer to end)
 - Fix schema type error + address log/set/rep confusion
@@ -136,10 +147,10 @@ Define schema → wire CRUD → build/run migration for each entity sequentially
 - Exercise and bouldering may require schema iteration based on data quirks
 
 ## Remaining Ingestions
+- Reading: **Download data, dry-run m002, validate, write.** All code is ready.
 - Symptom (includes Airtable pain): Schema refactored, wire CRUD + build ingester. Pain maps to `:type :pain`.
 - Mood: Needs schema + ingester; export from Airtable.
 - Exercise: Fix schema (type, rep entity) per `roadmap/exercise.md`, then create Airtable ingester.
-- Reading: Schema + ingester; export reading base (books + sessions).
 - Bouldering: Schema + ingester; export Airtable table.
 - Project time logs: Not in app; current data lives in other apps.
 

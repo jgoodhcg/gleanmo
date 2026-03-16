@@ -1,9 +1,11 @@
 (ns tasks.migrations.m002-airtable-import-reading
-  "Airtable import for book and reading-log entities.
+  "Airtable import for book-source, book, and reading-log entities.
 
    Unlike m001 (medications), reading has two separate Airtable tables:
-   books and reading-log. No label reconciliation is needed since books
-   are a standalone table with their own Airtable IDs."
+   books and reading-log. Book-source entities are extracted from the
+   'from' field in the books table. Location entities are reconciled
+   against existing DB locations by label, creating new ones only for
+   unmatched labels."
   (:require
    [clojure.java.io :as io]
    [clojure.pprint :as pp]
@@ -70,7 +72,7 @@
      :failed     failed}))
 
 (defn run
-  "Import books and reading-logs from Airtable EDN exports.
+  "Import book-sources, books, locations, and reading-logs from Airtable EDN exports.
 
    Requires --books-file and --logs-file options."
   [{:keys [email db ctx dry-run options]}]
@@ -103,8 +105,19 @@
               output-dir "tmp/migrations/reading"
               now        (t/now)
 
-              ;; Phase 1: Transform books
-              _          (u/print-cyan "  Phase 1: Transforming books...")
+              ;; Phase 1: Extract and transform book-sources from "from" field
+              _                (u/print-cyan "  Phase 1: Extracting book-sources...")
+              source-labels    (reading/extract-unique-book-sources books-file)
+              source-docs      (->> source-labels
+                                    (map #(reading/airtable->book-source % user-id now))
+                                    (remove nil?)
+                                    vec)
+              source-validation (validate-docs source-docs
+                                              reading/validate-book-sources
+                                              :book-source/label)
+
+              ;; Phase 2: Transform books
+              _          (u/print-cyan "  Phase 2: Transforming books...")
               book-records    (core/read-airtable-file books-file)
               book-docs       (->> book-records
                                    (map #(reading/airtable->book % user-id now))
@@ -114,13 +127,24 @@
                                              reading/validate-books
                                              :book/title)
 
-              ;; Phase 2: Build lookup and transform reading-logs
-              _               (u/print-cyan "  Phase 2: Transforming reading-logs...")
+              ;; Phase 3: Reconcile locations from reading-log data
+              _               (u/print-cyan "  Phase 3: Reconciling locations...")
+              location-labels (reading/extract-unique-location-labels logs-file)
+              location-lookup (reading/build-location-label->uuid db user-id location-labels)
+              new-loc-docs    (reading/locations-to-create db user-id location-labels now)
+              loc-validation  (if (seq new-loc-docs)
+                                (validate-docs new-loc-docs
+                                               reading/validate-locations
+                                               :location/label)
+                                {:passed [] :failed []})
+
+              ;; Phase 4: Build lookup and transform reading-logs
+              _               (u/print-cyan "  Phase 4: Transforming reading-logs...")
               airtable-book-lookup (reading/build-airtable-book-id-lookup books-file)
               log-records     (core/read-airtable-file logs-file)
               log-docs        (->> log-records
                                    (map #(reading/airtable->reading-log
-                                          % user-id airtable-book-lookup now))
+                                          % user-id airtable-book-lookup location-lookup now))
                                    (remove nil?)
                                    vec)
               log-validation  (validate-docs log-docs
@@ -128,13 +152,27 @@
                                              :airtable/id)
 
               ;; Write artifacts
+              sources-path    (str output-dir "/book-sources-to-write.edn")
               books-path      (str output-dir "/books-to-write.edn")
+              locations-path  (str output-dir "/locations-to-create.edn")
               logs-path       (str output-dir "/reading-logs-to-write.edn")
+              rejected-sources (->> (:failed source-validation)
+                                    (map (fn [doc]
+                                           {:reason            :invalid-book-source-doc
+                                            :book-source/label (:book-source/label doc)
+                                            :doc               doc}))
+                                    vec)
               rejected-books  (->> (:failed book-validation)
                                    (map (fn [doc]
                                           {:reason     :invalid-book-doc
                                            :book/title (:book/title doc)
                                            :doc        doc}))
+                                   vec)
+              rejected-locs   (->> (:failed loc-validation)
+                                   (map (fn [doc]
+                                          {:reason          :invalid-location-doc
+                                           :location/label  (:location/label doc)
+                                           :doc             doc}))
                                    vec)
               rejected-logs   (->> (:failed log-validation)
                                    (map (fn [doc]
@@ -142,33 +180,58 @@
                                            :airtable/id (:airtable/id doc)
                                            :doc         doc}))
                                    vec)
-              all-rejected    (vec (concat rejected-books rejected-logs))
+              all-rejected    (vec (concat rejected-sources rejected-books
+                                          rejected-locs rejected-logs))
               rejected-path   (str output-dir "/rejected-rows.edn")
-              report          {:generated-at  now
-                               :mode          (if dry-run :dry-run :write)
-                               :books-file    books-file
-                               :logs-file     logs-file
-                               :books         {:records (count book-records)
-                                               :transformed (count book-docs)
-                                               :valid (count (:passed book-validation))
-                                               :failed (count (:failed book-validation))}
-                               :reading-logs  {:records (count log-records)
-                                               :transformed (count log-docs)
-                                               :valid (count (:passed log-validation))
-                                               :failed (count (:failed log-validation))}
+              matched-count   (- (count location-labels) (count new-loc-docs))
+              report          {:generated-at   now
+                               :mode           (if dry-run :dry-run :write)
+                               :books-file     books-file
+                               :logs-file      logs-file
+                               :book-sources   {:labels (count source-labels)
+                                                :transformed (count source-docs)
+                                                :valid (count (:passed source-validation))
+                                                :failed (count (:failed source-validation))}
+                               :books          {:records (count book-records)
+                                                :transformed (count book-docs)
+                                                :valid (count (:passed book-validation))
+                                                :failed (count (:failed book-validation))}
+                               :locations      {:labels (count location-labels)
+                                                :matched-existing matched-count
+                                                :new-to-create (count new-loc-docs)
+                                                :valid (count (:passed loc-validation))
+                                                :failed (count (:failed loc-validation))}
+                               :reading-logs   {:records (count log-records)
+                                                :transformed (count log-docs)
+                                                :valid (count (:passed log-validation))
+                                                :failed (count (:failed log-validation))}
                                :rejected-total (count all-rejected)}
               report-path     (str output-dir "/migration-report.edn")]
 
+          (write-edn! sources-path (:passed source-validation))
           (write-edn! books-path (:passed book-validation))
+          (write-edn! locations-path (:passed loc-validation))
           (write-edn! logs-path (:passed log-validation))
           (write-edn! rejected-path all-rejected)
           (write-edn! report-path report)
 
           (println)
+          (u/print-green (str "  Book-source labels found: " (count source-labels)))
+          (println "    Transformed:" (count source-docs))
+          (println "    Valid:" (count (:passed source-validation)))
+          (println "    Failed:" (count (:failed source-validation)))
+          (println)
           (u/print-green (str "  Book records loaded: " (count book-records)))
           (println "    Transformed:" (count book-docs))
           (println "    Valid:" (count (:passed book-validation)))
           (println "    Failed:" (count (:failed book-validation)))
+          (println)
+          (u/print-green (str "  Location labels found: " (count location-labels)))
+          (println "    Matched existing:" matched-count)
+          (println "    New to create:" (count new-loc-docs))
+          (when (seq new-loc-docs)
+            (println "    Valid:" (count (:passed loc-validation)))
+            (println "    Failed:" (count (:failed loc-validation))))
           (println)
           (u/print-green (str "  Reading-log records loaded: " (count log-records)))
           (println "    Transformed:" (count log-docs))
@@ -176,18 +239,27 @@
           (println "    Failed:" (count (:failed log-validation)))
           (println)
           (println "  Wrote artifacts:")
+          (println "   -" sources-path)
           (println "   -" books-path)
+          (println "   -" locations-path)
           (println "   -" logs-path)
           (println "   -" rejected-path)
           (println "   -" report-path)
 
           (if dry-run
             (u/print-yellow "  Dry-run mode — skipping database writes.")
-            (let [book-docs-to-write (:passed book-validation)
-                  log-docs-to-write  (:passed log-validation)
-                  log-batches        (partition-all 1000 log-docs-to-write)]
+            (let [loc-docs-to-write    (:passed loc-validation)
+                  source-docs-to-write (:passed source-validation)
+                  book-docs-to-write   (:passed book-validation)
+                  log-docs-to-write    (:passed log-validation)
+                  log-batches          (partition-all 1000 log-docs-to-write)]
               (println)
               (u/print-cyan "  Writing to database...")
+              (when (seq loc-docs-to-write)
+                (biff/submit-tx ctx loc-docs-to-write)
+                (u/print-green (str "  Wrote " (count loc-docs-to-write) " new locations.")))
+              (biff/submit-tx ctx source-docs-to-write)
+              (u/print-green (str "  Wrote " (count source-docs-to-write) " book-sources."))
               (biff/submit-tx ctx book-docs-to-write)
               (u/print-green (str "  Wrote " (count book-docs-to-write) " books."))
               (doseq [[i batch] (map-indexed vector log-batches)]
@@ -197,6 +269,8 @@
               (println)
               (u/print-green
                (str "  Write complete: "
+                    (count loc-docs-to-write) " locations, "
+                    (count source-docs-to-write) " book-sources, "
                     (count book-docs-to-write) " books, "
                     (count log-docs-to-write) " reading-logs ("
                     (count log-batches) " batches).")))))))))

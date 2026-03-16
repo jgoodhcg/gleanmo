@@ -88,10 +88,42 @@ async function getUserTodayDate(page: Page, email: string) {
   return beginning.slice(0, 10);
 }
 
+async function createLocation(page: Page, email: string, label: string) {
+  await authenticateForDev(page, email);
+  await page.goto(`${BASE_URL}/app/crud/form/location/new`);
+  await page.waitForLoadState('networkidle');
+
+  const form = page.locator('#location-new-form');
+  await expect(form).toBeVisible({ timeout: 10000 });
+  await form.locator('input[name="location/label"]').fill(label);
+  await submitHtmxForm(form, '/app/crud/location');
+  await page.waitForLoadState('networkidle');
+  await page.waitForTimeout(300);
+  console.log(`  [+] Created location "${label}"`);
+}
+
+async function getLocationId(page: Page, email: string) {
+  await authenticateForDev(page, email);
+  await page.goto(`${BASE_URL}/app/crud/form/reading-log/new`);
+  await page.waitForLoadState('networkidle');
+
+  const values = await page
+    .locator('select[name="reading-log/location-id"] option')
+    .evaluateAll((nodes) =>
+      nodes
+        .map((node) => (node as HTMLOptionElement).value)
+        .filter((v) => v && v.length > 0));
+
+  if (values.length === 0) {
+    throw new Error('No location options found in reading-log form');
+  }
+  return values[0];
+}
+
 async function createReadingLog(
   page: Page,
   email: string,
-  data: { bookId: string; beginning: string; end?: string; location?: string; format?: string }
+  data: { bookId: string; beginning: string; end?: string; locationId?: string; format?: string }
 ) {
   await authenticateForDev(page, email);
   await page.goto(`${BASE_URL}/app/crud/form/reading-log/new`);
@@ -105,8 +137,8 @@ async function createReadingLog(
     await form.locator('input[name="reading-log/end"]').fill(data.end);
   }
   await setHiddenOrVisibleSelectValue(form.locator('select[name="reading-log/time-zone"]'), 'UTC');
-  if (data.location) {
-    await setHiddenOrVisibleSelectValue(form.locator('select[name="reading-log/location"]'), data.location);
+  if (data.locationId) {
+    await setHiddenOrVisibleSelectValue(form.locator('select[name="reading-log/location-id"]'), data.locationId);
   }
   if (data.format) {
     await setHiddenOrVisibleSelectValue(form.locator('select[name="reading-log/format"]'), data.format);
@@ -170,9 +202,15 @@ async function main() {
     console.log('  [+] Updated author visible in list');
     await captureScreenshot(page, '04-book-updated');
 
-    // 5. Create a reading-log referencing the book
-    console.log('\n5. Creating reading log...');
+    // 5. Create a location for the reading log
+    console.log('\n5. Creating location...');
+    const locationLabel = `Test Location ${Date.now()}`;
+    await createLocation(page, email, locationLabel);
+
+    // 6. Create a reading-log referencing the book and location
+    console.log('\n6. Creating reading log...');
     const bookId = await getBookId(page, email);
+    const locationId = await getLocationId(page, email);
     const date = await getUserTodayDate(page, email);
     const beginning = `${date}T09:00`;
     const end = `${date}T10:00`;
@@ -181,13 +219,13 @@ async function main() {
       bookId,
       beginning,
       end,
-      location: 'couch',
+      locationId,
       format: 'paperback',
     });
     await captureScreenshot(page, '05-reading-log-created');
 
-    // 6. Verify reading-log appears in list
-    console.log('\n6. Verifying reading log in list...');
+    // 7. Verify reading-log appears in list
+    console.log('\n7. Verifying reading log in list...');
     await authenticateForDev(page, email);
     await page.goto(`${BASE_URL}/app/crud/reading-log`);
     await page.waitForLoadState('networkidle');

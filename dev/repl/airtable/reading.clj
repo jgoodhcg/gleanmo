@@ -1,5 +1,5 @@
 (ns repl.airtable.reading
-  "Airtable migration for book and reading-log entities.
+  "Airtable migration for book-source, book, and reading-log entities.
 
    Workflow:
    1. Download tables:
@@ -13,14 +13,17 @@
       ;; Preview transformations
       (convert-airtable-books \"airtable_data/books_xxx.edn\" user-id)
 
-      ;; Validate and write
-      (write-books-to-db ctx \"airtable_data/books_xxx.edn\" \"email@example.com\")"
+      ;; Validate and write (book-sources first, then books, then logs)
+      (write-book-sources-to-db ctx \"airtable_data/books_xxx.edn\" \"email@example.com\")
+      (write-books-to-db ctx \"airtable_data/books_xxx.edn\" \"email@example.com\")
+      (write-reading-logs-to-db ctx ...)"
   (:require
    [clojure.string :as str]
    [com.biffweb :as biff :refer [q]]
    [malli.core :as m]
    [repl.airtable.core :as core]
    [tech.jgood.gleanmo :as main]
+   [tech.jgood.gleanmo.schema.location-schema :as ls]
    [tech.jgood.gleanmo.schema.reading-schema :as rs]
    [tech.jgood.gleanmo.schema.meta :as sm]
    [tick.core :as t]))
@@ -28,6 +31,16 @@
 ;; =============================================================================
 ;; Namespace UUIDs for Deterministic ID Generation
 ;; =============================================================================
+
+(def location-namespace-uuid
+  "Namespace UUID for location entities created during reading migration.
+   Used as fallback when no existing location matches by label."
+  #uuid "a1b2c3d4-e5f6-7890-abcd-0123456789ab")
+
+(def book-source-namespace-uuid
+  "Namespace UUID for book-source catalog entries.
+   Derived from normalized source labels."
+  #uuid "b2c3d4e5-f6a7-8901-bcde-1234567890ab")
 
 (def book-namespace-uuid
   "Namespace UUID for book catalog entries.
@@ -43,22 +56,22 @@
 ;; Enum Mappings
 ;; =============================================================================
 
-(def location-mapping
-  "Map Airtable location strings to reading-log schema keywords."
-  {"dog park"               :dog-park
-   "bed"                    :bed
-   "stressless wing chair"  :stressless-wing-chair
-   "car"                    :car
-   "chair"                  :chair
-   "gym"                    :gym
-   "kaiti's bed"            :kaitis-bed
-   "couch"                  :couch
-   "other"                  :other
-   "porch"                  :porch
-   "beach"                  :beach
-   "desk (gaming)"          :desk-gaming
-   "deck"                   :deck
-   "hammock"                :hammock})
+(def location-label-mapping
+  "Map Airtable location strings (lowercased) to properly capitalized location labels."
+  {"dog park"               "Dog Park"
+   "bed"                    "Bed"
+   "stressless wing chair"  "Stressless Wing Chair"
+   "car"                    "Car"
+   "chair"                  "Chair"
+   "gym"                    "Gym"
+   "kaiti's bed"            "Kaiti's Bed"
+   "couch"                  "Couch"
+   "other"                  "Other"
+   "porch"                  "Porch"
+   "beach"                  "Beach"
+   "desk (gaming)"          "Desk (Gaming)"
+   "deck"                   "Deck"
+   "hammock"                "Hammock"})
 
 (def format-mapping
   "Map Airtable format strings to reading-log schema keywords."
@@ -66,24 +79,40 @@
    "paperback"  :paperback
    "hardcover"  :hardcover})
 
-(def from-mapping
-  "Map Airtable 'from' strings to book schema keywords."
-  {"library of america"                         :library-of-america
-   "amazon"                                     :amazon
-   "audible"                                    :audible
-   "barnes and nobles woodland mall"            :barnes-and-nobles-woodland-mall
-   "the gallery bookstore chicago"              :the-gallery-bookstore-chicago
-   "curious book shop east lansing"             :curious-book-shop-east-lansing
-   "argos comics and used books grand rapids"   :argos-comics-and-used-books-grand-rapids
-   "kurzgesagt shop"                            :kurzgesagt-shop
-   "grpl friends of the library sale"           :grpl-friends-of-the-library-sale
-   "black dog books and records grand rapids"   :black-dog-books-and-records-grand-rapids
-   "schuler books"                              :schuler-books
-   "other"                                      :other})
+(def from-label-mapping
+  "Map Airtable 'from' strings (lowercased) to properly capitalized book-source labels."
+  {"library of america"                         "Library of America"
+   "amazon"                                     "Amazon"
+   "audible"                                    "Audible"
+   "barnes and nobles woodland mall"            "Barnes and Nobles Woodland Mall"
+   "the gallery bookstore chicago"              "The Gallery Bookstore Chicago"
+   "curious book shop east lansing"             "Curious Book Shop East Lansing"
+   "argos comics and used books grand rapids"   "Argos Comics and Used Books Grand Rapids"
+   "kurzgesagt shop"                            "Kurzgesagt Shop"
+   "grpl friends of the library sale"           "GRPL Friends of the Library Sale"
+   "black dog books and records grand rapids"   "Black Dog Books and Records Grand Rapids"
+   "schuler books"                              "Schuler Books"
+   "other"                                      "Other"})
 
 ;; =============================================================================
 ;; UUID Generation
 ;; =============================================================================
+
+(defn location-uuid
+  "Generate a deterministic UUID for a location from its label.
+   Used as fallback when no existing location matches by label."
+  [label]
+  (when-not (str/blank? label)
+    (let [normalized (-> label str/trim str/lower-case)]
+      (core/deterministic-uuid location-namespace-uuid normalized))))
+
+(defn book-source-uuid
+  "Generate a deterministic UUID for a book-source from its label.
+   The label is normalized (lowercased and trimmed) for consistency."
+  [label]
+  (when-not (str/blank? label)
+    (let [normalized (-> label str/trim str/lower-case)]
+      (core/deterministic-uuid book-source-namespace-uuid normalized))))
 
 (defn book-uuid
   "Generate a deterministic UUID for a book from its title.
@@ -103,8 +132,25 @@
 ;; Record Transformation
 ;; =============================================================================
 
+(defn location-str->label
+  "Resolve an Airtable location string to a properly capitalized location label.
+   Falls back to the trimmed original string if not in the mapping."
+  [location-raw]
+  (when-not (str/blank? location-raw)
+    (let [normalized (-> location-raw str/trim str/lower-case)]
+      (get location-label-mapping normalized (str/trim location-raw)))))
+
+(defn from-str->book-source-label
+  "Resolve an Airtable 'from' string to a properly capitalized book-source label.
+   Falls back to the trimmed original string if not in the mapping."
+  [from-raw]
+  (when-not (str/blank? from-raw)
+    (let [normalized (-> from-raw str/trim str/lower-case)]
+      (get from-label-mapping normalized (str/trim from-raw)))))
+
 (defn airtable->book
-  "Transform an Airtable book record into a book entity."
+  "Transform an Airtable book record into a book entity.
+   Maps the 'from' field to :book/book-source-ids (set of book-source UUIDs)."
   [airtable-record user-id now]
   (let [fields       (get airtable-record "fields")
         airtable-id  (get airtable-record "id")
@@ -116,40 +162,44 @@
         from-raw     (get fields "from")
         notes        (get fields "notes")]
     (when-not (str/blank? title)
-      (-> {:xt/id                  (book-uuid title)
-           ::sm/type               :book
-           ::sm/created-at         (or (core/parse-timestamp created-time) now)
-           :db/doc-type            :book
-           :user/id                user-id
-           :book/title             (str/trim title)
-           :airtable/id            airtable-id
-           :airtable/created-time  (core/parse-timestamp created-time)
-           :airtable/ported-at     now}
-          (cond->
-           (not (str/blank? author))
-            (assoc :book/author (str/trim author))
+      (let [trimmed-title (str/trim title)]
+        (-> {:xt/id                  (book-uuid title)
+             ::sm/type               :book
+             ::sm/created-at         (or (core/parse-timestamp created-time) now)
+             :db/doc-type            :book
+             :user/id                user-id
+             :book/title             trimmed-title
+             :book/label             trimmed-title
+             :airtable/id            airtable-id
+             :airtable/created-time  (core/parse-timestamp created-time)
+             :airtable/ported-at     now}
+            (cond->
+             (not (str/blank? author))
+              (assoc :book/author (str/trim author))
 
-            (seq formats-raw)
-            (assoc :book/formats
-                   (->> formats-raw
-                        (map #(get format-mapping (str/lower-case (str/trim %))))
-                        (remove nil?)
-                        set))
+              (seq formats-raw)
+              (assoc :book/formats
+                     (->> formats-raw
+                          (map #(get format-mapping (str/lower-case (str/trim %))))
+                          (remove nil?)
+                          set))
 
-            (not (str/blank? published))
-            (assoc :book/published (t/date published))
+              (not (str/blank? published))
+              (assoc :book/published (t/date published))
 
-            (not (str/blank? from-raw))
-            (assoc :book/from
-                   (core/parse-enum from-raw from-mapping :other))
+              (not (str/blank? from-raw))
+              (assoc :book/book-source-ids
+                     (let [label (from-str->book-source-label from-raw)]
+                       #{(book-source-uuid label)}))
 
-            (not (str/blank? notes))
-            (assoc :book/notes notes))))))
+              (not (str/blank? notes))
+              (assoc :book/notes notes)))))))
 
 (defn airtable->reading-log
   "Transform an Airtable reading-log record into a reading-log entity.
-   Requires a lookup map from Airtable book IDs to book UUIDs."
-  [airtable-record user-id airtable-book-id->uuid now]
+   Requires a lookup map from Airtable book IDs to book UUIDs and a
+   location label→UUID lookup for resolving location references."
+  [airtable-record user-id airtable-book-id->uuid location-label->uuid now]
   (let [fields        (get airtable-record "fields")
         airtable-id   (get airtable-record "id")
         created-time  (get airtable-record "createdTime")
@@ -162,7 +212,14 @@
         notes         (get fields "notes")
         book-ids-raw  (get fields "book")
         book-at-id    (first book-ids-raw)
-        book-uuid     (when book-at-id (get airtable-book-id->uuid book-at-id))]
+        book-uuid     (when book-at-id (get airtable-book-id->uuid book-at-id))
+        loc-label     (when-not (str/blank? location-str)
+                        (location-str->label location-str))
+        loc-uuid      (when loc-label
+                        (let [uuid (get location-label->uuid loc-label)]
+                          (when-not uuid
+                            (println "  WARN: no location UUID for:" (pr-str loc-label)))
+                          uuid))]
     (when book-uuid
       (-> {:xt/id                  (reading-log-uuid airtable-id)
            ::sm/type               :reading-log
@@ -183,9 +240,8 @@
            (not (str/blank? end-str))
             (assoc :reading-log/end (core/parse-timestamp end-str))
 
-            (not (str/blank? location-str))
-            (assoc :reading-log/location
-                   (core/parse-enum location-str location-mapping :other))
+            loc-uuid
+            (assoc :reading-log/location-id loc-uuid)
 
             (not (str/blank? format-str))
             (assoc :reading-log/format
@@ -196,6 +252,109 @@
 
             (not (str/blank? notes))
             (assoc :reading-log/notes notes))))))
+
+;; =============================================================================
+;; Book-Source Extraction
+;; =============================================================================
+
+(defn airtable->book-source
+  "Create a book-source entity from a source label string."
+  [label user-id now]
+  (when-not (str/blank? label)
+    {:xt/id              (book-source-uuid label)
+     ::sm/type           :book-source
+     ::sm/created-at     now
+     :db/doc-type        :book-source
+     :user/id            user-id
+     :book-source/label  label}))
+
+(defn extract-unique-book-sources
+  "Extract unique book-source labels from the 'from' field across all book records."
+  [books-file-path]
+  (let [records (core/read-airtable-file books-file-path)]
+    (->> records
+         (map #(get-in % ["fields" "from"]))
+         (remove str/blank?)
+         (map from-str->book-source-label)
+         (remove nil?)
+         distinct
+         vec)))
+
+(defn convert-airtable-book-sources
+  "Convert unique 'from' values from the books file into book-source entities."
+  [books-file-path user-id]
+  (let [labels (extract-unique-book-sources books-file-path)
+        now    (t/now)]
+    (->> labels
+         (map #(airtable->book-source % user-id now))
+         (remove nil?)
+         vec)))
+
+;; =============================================================================
+;; Location Extraction & Reconciliation
+;; =============================================================================
+
+(defn extract-unique-location-labels
+  "Extract unique location labels from the 'location' field across all reading-log records."
+  [logs-file-path]
+  (let [records (core/read-airtable-file logs-file-path)]
+    (->> records
+         (map #(get-in % ["fields" "location"]))
+         (remove str/blank?)
+         (map location-str->label)
+         (remove nil?)
+         distinct
+         vec)))
+
+(defn build-location-label->uuid
+  "Build a lookup from normalized location label to UUID.
+   First checks the database for existing locations (by label match),
+   then generates deterministic UUIDs for any unmatched labels."
+  [db user-id labels]
+  (let [existing (->> (q db
+                         '{:find  (pull ?e [:xt/id :location/label])
+                           :where [[?e :location/label]
+                                   [?e :user/id uid]
+                                   (not [?e :tech.jgood.gleanmo.schema.meta/deleted-at])]
+                           :in    [uid]}
+                         user-id)
+                      (map (fn [{:keys [xt/id location/label]}]
+                             [(str/lower-case (str/trim label)) id]))
+                      (into {}))
+        lookup   (->> labels
+                      (map (fn [label]
+                             (let [normalized (str/lower-case (str/trim label))
+                                   uuid       (or (get existing normalized)
+                                                  (location-uuid label))]
+                               [label uuid])))
+                      (into {}))]
+    lookup))
+
+(defn locations-to-create
+  "Return location entities that need to be created (not already in DB).
+   Uses the label→UUID lookup to identify which are new."
+  [db user-id labels now]
+  (let [existing-ids (->> (q db
+                              '{:find  [?id]
+                                :where [[?e :location/label]
+                                        [?e :user/id uid]
+                                        [?e :xt/id ?id]
+                                        (not [?e :tech.jgood.gleanmo.schema.meta/deleted-at])]
+                                :in    [uid]}
+                              user-id)
+                          (map first)
+                          set)
+        lookup       (build-location-label->uuid db user-id labels)]
+    (->> lookup
+         (remove (fn [[_ uuid]] (contains? existing-ids uuid)))
+         (map (fn [[label uuid]]
+                {:xt/id             uuid
+                 ::sm/type          :location
+                 ::sm/created-at    now
+                 :db/doc-type       :location
+                 :user/id           user-id
+                 :location/label    label}))
+         vec)))
 
 ;; =============================================================================
 ;; Batch Conversion
@@ -226,19 +385,50 @@
 
 (defn convert-airtable-reading-logs
   "Convert Airtable reading-log records to reading-log entities.
-   Requires a books file to build the airtable-id → book-uuid lookup."
-  [logs-file-path books-file-path user-id]
+   Requires a books file to build the airtable-id → book-uuid lookup
+   and a location label→UUID lookup for resolving location references."
+  [logs-file-path books-file-path user-id location-label->uuid]
   (let [records              (core/read-airtable-file logs-file-path)
         airtable-book-lookup (build-airtable-book-id-lookup books-file-path)
         now                  (t/now)]
     (->> records
-         (map #(airtable->reading-log % user-id airtable-book-lookup now))
+         (map #(airtable->reading-log % user-id airtable-book-lookup location-label->uuid now))
          (remove nil?)
          vec)))
 
 ;; =============================================================================
 ;; Validation
 ;; =============================================================================
+
+(defn validate-locations
+  "Validate location entities against Malli schema.
+   Returns {:passed N, :failed [...], :total N}."
+  [locations]
+  (let [registry  (:registry main/malli-opts)
+        validator (m/validator ls/location {:registry registry})
+        results   (map (fn [loc]
+                         {:entity loc
+                          :valid? (validator loc)})
+                       locations)
+        failed    (filter #(not (:valid? %)) results)]
+    {:passed (count (filter :valid? results))
+     :failed (map :entity failed)
+     :total  (count results)}))
+
+(defn validate-book-sources
+  "Validate book-source entities against Malli schema.
+   Returns {:passed N, :failed [...], :total N}."
+  [sources]
+  (let [registry  (:registry main/malli-opts)
+        validator (m/validator rs/book-source {:registry registry})
+        results   (map (fn [src]
+                         {:entity src
+                          :valid? (validator src)})
+                       sources)
+        failed    (filter #(not (:valid? %)) results)]
+    {:passed (count (filter :valid? results))
+     :failed (map :entity failed)
+     :total  (count results)}))
 
 (defn validate-books
   "Validate book entities against Malli schema.
@@ -274,6 +464,28 @@
 ;; Database Operations
 ;; =============================================================================
 
+(defn write-book-sources-to-db
+  "Write book-source entities to the database.
+   Must be called before write-books-to-db."
+  [{:keys [biff/db] :as ctx} books-file-path email]
+  (let [{user-id :xt/id}
+        (first (q db
+                  '{:find  (pull ?e [*])
+                    :where [[?e :user/email email]]
+                    :in    [email]}
+                  email))
+        sources    (convert-airtable-book-sources books-file-path user-id)
+        validation (validate-book-sources sources)]
+    (println "Book sources to import:" (:total validation))
+    (println "  Passed validation:" (:passed validation))
+    (println "  Failed validation:" (count (:failed validation)))
+    (when (seq (:failed validation))
+      (println "  First failed:" (first (:failed validation))))
+    (when (= (:passed validation) (:total validation))
+      (println "Submitting book sources...")
+      (biff/submit-tx ctx sources)
+      (println "Done."))))
+
 (defn write-books-to-db
   "Write book entities to the database."
   [{:keys [biff/db] :as ctx} file-path email]
@@ -297,7 +509,7 @@
 
 (defn write-reading-logs-to-db
   "Write reading-log entities to the database.
-   Books must already exist."
+   Books and locations must already exist."
   [{:keys [biff/db] :as ctx} logs-file-path books-file-path email]
   (let [{user-id :xt/id}
         (first (q db
@@ -305,7 +517,9 @@
                     :where [[?e :user/email email]]
                     :in    [email]}
                   email))
-        logs       (convert-airtable-reading-logs logs-file-path books-file-path user-id)
+        loc-labels (extract-unique-location-labels logs-file-path)
+        loc-lookup (build-location-label->uuid db user-id loc-labels)
+        logs       (convert-airtable-reading-logs logs-file-path books-file-path user-id loc-lookup)
         validation (validate-reading-logs logs)]
     (println "Reading logs to import:" (:total validation))
     (println "  Passed validation:" (:passed validation))
@@ -331,6 +545,7 @@
   (core/get-field-keys "airtable_data/reading_log_xxx.edn")
 
   ;; 3. Preview conversions
+  (extract-unique-book-sources "airtable_data/books_xxx.edn")
   (convert-airtable-books
    "airtable_data/books_xxx.edn"
    #uuid "00000000-0000-0000-0000-000000000000")
@@ -340,10 +555,13 @@
   (def prod-node (prod-node-start))
   (def ctx (get-prod-db-context prod-node))
 
-  ;; Write books first (catalog)
+  ;; Write book-sources first (catalog of where books came from)
+  (write-book-sources-to-db ctx "airtable_data/books_xxx.edn" "email@example.com")
+
+  ;; Then write books (reference book-sources)
   (write-books-to-db ctx "airtable_data/books_xxx.edn" "email@example.com")
 
-  ;; Then write reading logs
+  ;; Then write reading logs (reference books)
   (write-reading-logs-to-db ctx
                             "airtable_data/reading_log_xxx.edn"
                             "airtable_data/books_xxx.edn"

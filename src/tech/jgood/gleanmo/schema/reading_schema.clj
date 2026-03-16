@@ -46,9 +46,8 @@
        [:reading-log/beginning :instant]
        [:reading-log/end {:optional true} :instant]
        [:reading-log/time-zone :string]
-       [:reading-log/location {:optional true, :crud/priority 2}
-        [:enum :dog-park :bed :stressless-wing-chair :car :chair :gym
-         :kaitis-bed :couch :other :porch :beach :desk-gaming :deck :hammock]]
+       [:reading-log/location-id {:optional true, :crud/priority 2, :crud/label "Location"}
+        :location/id]
        [:reading-log/format {:optional true, :crud/priority 3}
         [:enum :audiobook :paperback :hardcover]]
        [:reading-log/finished? {:optional true} :boolean]
