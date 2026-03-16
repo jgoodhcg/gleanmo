@@ -48,6 +48,24 @@
                              {}
                              fields))))))
 
+(defn default-label-from-field
+  "If entity has a /label field in schema but no label value was provided,
+   default it from a fallback field (e.g. :book/title -> :book/label)."
+  [data entity-key label-fallbacks]
+  (let [label-key (keyword (name entity-key) "label")]
+    (if (and (contains? label-fallbacks entity-key)
+             (not (contains? data label-key)))
+      (let [fallback-key (get label-fallbacks entity-key)
+            fallback-val (get data fallback-key)]
+        (if fallback-val
+          (assoc data label-key fallback-val)
+          data))
+      data)))
+
+(def label-fallbacks
+  "Map of entity-key -> fallback field to use when label is not provided."
+  {:book :book/title})
+
 (defn create-entity!
   "Handle entity creation from form submission"
   [{:keys [schema entity-key entity-str]}
@@ -56,7 +74,8 @@
         user           (db/get-entity-by-id db user-id)
         redirect-url   (or (get params "redirect") (get params :redirect))
         schema-params  (dissoc params :__anti-forgery-token :redirect "redirect")
-        data           (form->schema schema-params schema ctx)
+        data           (-> (form->schema schema-params schema ctx)
+                           (default-label-from-field entity-key label-fallbacks))
         ;; Add user ID to data
         data-with-user (assoc data :user/id (:xt/id user))
         ;; Check if time zone is being updated
@@ -120,7 +139,8 @@
                                params
                                (schema-utils/extract-schema-fields schema))
 
-        form-data      (form->schema updated-params schema ctx)
+        form-data      (-> (form->schema updated-params schema ctx)
+                           (default-label-from-field entity-key label-fallbacks))
         time-zone      (-> params
                            (get (str entity-str "/time-zone")))
         user-time-zone (get-user-time-zone ctx)

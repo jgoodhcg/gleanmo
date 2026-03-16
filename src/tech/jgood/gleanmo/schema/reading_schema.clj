@@ -20,14 +20,15 @@
        [::sm/deleted-at {:optional true} :instant]
        [::sm/created-at :instant]
        [:user/id :user/id]
-       [:book/title {:crud/priority 1} :string]
-       [:book/author {:optional true, :crud/priority 2} :string]
-       [:book/formats {:optional true, :crud/priority 3}
+       [:book/label {:optional true, :crud/priority 1} :string]
+       [:book/title {:crud/priority 2} :string]
+       [:book/author {:optional true, :crud/priority 3} :string]
+       [:book/formats {:optional true, :crud/priority 4}
         [:set [:enum :audiobook :paperback :hardcover]]]
-       [:book/published {:optional true, :crud/priority 4} :local-date]
-       [:book/book-source-ids {:optional true, :crud/priority 5, :crud/label "Sources"}
+       [:book/published {:optional true, :crud/priority 5} :local-date]
+       [:book/book-source-ids {:optional true, :crud/priority 6, :crud/label "Sources"}
         [:set :book-source/id]]
-       [:book/notes {:optional true, :crud/priority 6} :string]
+       [:book/notes {:optional true, :crud/priority 7} :string]
        [:airtable/id {:optional true} :string]
        [:airtable/created-time {:optional true} :instant]
        [:airtable/ported-at {:optional true} :instant]]
