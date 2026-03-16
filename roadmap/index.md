@@ -35,6 +35,8 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 
 ### Draft
 
+- [config-cleanup.md](./config-cleanup.md) - Audit and consolidate configuration files to remove legacy artifacts
+- [email-auth.md](./email-auth.md) - Restore email-based magic link authentication for user sign-in
 - [inline-entity-creation.md](./inline-entity-creation.md) - Create related entities mid-form without losing context
 - [schema-consistency.md](./schema-consistency.md) - Audit and standardize all Malli schemas for naming, field ordering, and conventions
 - [form-tab-ordering.md](./form-tab-ordering.md) - Ensure logical tab order across all CRUD forms for keyboard accessibility
