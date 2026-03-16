@@ -94,3 +94,7 @@ e2e-test-reading-crud:
 # Run reading timer test
 e2e-test-reading-timer:
     cd e2e && npm run test:reading-timer
+
+# Run timer stop (End Session) test
+e2e-test-timer-stop:
+    cd e2e && npm run test:timer-stop
