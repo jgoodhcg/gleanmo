@@ -10,7 +10,8 @@
        [::sm/created-at :instant]
        [:user/id :user/id]
        [:book-source/label {:crud/priority 1} :string]
-       [:book-source/notes {:optional true, :crud/priority 2} :string]]
+       [:book-source/notes {:optional true, :crud/priority 2} :string]
+       [:airtable/ported-at {:optional true} :instant]]
       vec))
 
 (def book
@@ -54,5 +55,6 @@
        [:reading-log/notes {:optional true, :crud/priority 4} :string]
        [:airtable/id {:optional true} :string]
        [:airtable/created-time {:optional true} :instant]
-       [:airtable/ported-at {:optional true} :instant]]
+       [:airtable/ported-at {:optional true} :instant]
+       [:airtable/original-location {:optional true} :string]]
       vec))

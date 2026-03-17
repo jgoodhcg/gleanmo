@@ -217,7 +217,7 @@
         time-zone     (or (get fields "time-zone") "US/Eastern")
         location-str  (get fields "location")
         format-str    (get fields "format")
-        finished?     (get fields "finished?")
+        finished?     (get fields "finished")
         notes         (get fields "notes")
         book-ids-raw  (get fields "book")
         book-at-id    (first book-ids-raw)
@@ -251,6 +251,9 @@
 
             loc-uuid
             (assoc :reading-log/location-id loc-uuid)
+
+            (not (str/blank? location-str))
+            (assoc :airtable/original-location (str/trim location-str))
 
             (not (str/blank? format-str))
             (assoc :reading-log/format
@@ -379,12 +382,13 @@
                   {:uuid uuid :label label :exists? (contains? existing-id-set uuid)})))
          (remove :exists?)
          (map (fn [{:keys [uuid label]}]
-                {:xt/id             uuid
-                 ::sm/type          :location
-                 ::sm/created-at    now
-                 :db/doc-type       :location
-                 :user/id           user-id
-                 :location/label    label}))
+                {:xt/id              uuid
+                 ::sm/type           :location
+                 ::sm/created-at     now
+                 :db/doc-type        :location
+                 :user/id            user-id
+                 :location/label     label
+                 :airtable/ported-at now}))
          vec)))
 
 ;; =============================================================================

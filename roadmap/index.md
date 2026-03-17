@@ -64,6 +64,7 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 - [infrastructure.md](./infrastructure.md) - Database migration from Neon to DigitalOcean
 - [task-activity-logs.md](./task-activity-logs.md) - Spawn time logs from tasks and link habits/calendar events to tasks
 - [drawing-practice.md](./drawing-practice.md) - Timed drawing session habit with tracking and motivation tools
+- [airtable-metadata-consistency.md](./airtable-metadata-consistency.md) - Retroactively align airtable lineage fields across all migrated entity schemas
 - [workflow-optimization.md](./workflow-optimization.md) - Minimize clicks for logging, fast landing page, and motivating stats
 - [today-navigation.md](./today-navigation.md) - Page through dates on today view and richer focus date filtering
 - [today-mobile-redesign.md](./today-mobile-redesign.md) - Redesign the today task page for better mobile ergonomics and responsiveness

@@ -16,5 +16,7 @@
       (concat
        sm/legacy-meta
        ;; DEPRECATED
-       [[:location/name {:optional true} :string]])
+       [[:location/name {:optional true} :string]]
+       ;; Airtable lineage
+       [[:airtable/ported-at {:optional true} :instant]])
       vec))

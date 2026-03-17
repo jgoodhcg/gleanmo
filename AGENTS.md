@@ -194,6 +194,29 @@ Schema conventions
 - Register new schemas in `src/tech/jgood/gleanmo/schema.clj`.
 - Add new field types by updating schema registry, input renderer, form converter, and list formatter in that order.
 
+### Airtable lineage fields
+
+Any entity that participates in an Airtable migration must carry metadata for traceability. There are two categories:
+
+**Direct imports** (1:1 with an Airtable record — e.g., book, reading-log, medication-log):
+```clojure
+[:airtable/id           {:optional true} :string]   ; Airtable record ID
+[:airtable/created-time {:optional true} :instant]   ; Airtable creation timestamp
+[:airtable/ported-at    {:optional true} :instant]   ; when we imported it
+```
+
+**Derived entities** (created from field values in other records — e.g., book-source from "from" strings, location from "location" strings):
+```clojure
+[:airtable/ported-at {:optional true} :instant]      ; when it was created during migration
+```
+
+**Original value fields** — when a value is transformed during migration (e.g., Airtable "couch" → location "Living room"), preserve the original with an `airtable/original-*` field:
+```clojure
+[:airtable/original-location {:optional true} :string] ; raw Airtable value before mapping
+```
+
+All `airtable/*` fields are optional and must not affect entities created through the app UI. See `roadmap/airtable-metadata-consistency.md` for known inconsistencies in already-deployed schemas.
+
 New entity checklist — when adding a new entity, complete ALL of these steps:
 1. Define schema in `src/tech/jgood/gleanmo/schema/` with standard field ordering
 2. Register ID type and schema in `src/tech/jgood/gleanmo/schema.clj`
