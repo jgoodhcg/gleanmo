@@ -74,10 +74,13 @@
 (defn run
   "Import book-sources, books, locations, and reading-logs from Airtable EDN exports.
 
-   Requires --books-file and --logs-file options."
-  [{:keys [email db ctx dry-run options]}]
+   Requires --books-file and --logs-file options.
+   In production (--target prod), throws if mapped location labels are missing from DB.
+   In dev, creates any missing locations automatically."
+  [{:keys [email db ctx dry-run target options]}]
   (let [books-file (:books-file options)
-        logs-file  (:logs-file options)]
+        logs-file  (:logs-file options)
+        strict?    (= target "prod")]
     (u/print-cyan "Running m002-airtable-import-reading")
     (println "  Books file:" (or books-file "(none)"))
     (println "  Logs file:" (or logs-file "(none)"))
@@ -128,9 +131,11 @@
                                              :book/title)
 
               ;; Phase 3: Reconcile locations from reading-log data
-              _               (u/print-cyan "  Phase 3: Reconciling locations...")
+              _               (u/print-cyan (str "  Phase 3: Reconciling locations"
+                                                 (when strict? " (strict/prod mode)")
+                                                 "..."))
               location-labels (reading/extract-unique-location-labels logs-file)
-              location-lookup (reading/build-location-label->uuid db user-id location-labels)
+              location-lookup (reading/build-location-label->uuid db user-id location-labels strict?)
               new-loc-docs    (reading/locations-to-create db user-id location-labels now)
               loc-validation  (if (seq new-loc-docs)
                                 (validate-docs new-loc-docs

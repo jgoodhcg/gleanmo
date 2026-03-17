@@ -56,22 +56,28 @@
 ;; Enum Mappings
 ;; =============================================================================
 
-(def location-label-mapping
-  "Map Airtable location strings (lowercased) to properly capitalized location labels."
-  {"dog park"               "Dog Park"
-   "bed"                    "Bed"
-   "stressless wing chair"  "Stressless Wing Chair"
-   "car"                    "Car"
-   "chair"                  "Chair"
-   "gym"                    "Gym"
-   "kaiti's bed"            "Kaiti's Bed"
-   "couch"                  "Couch"
-   "other"                  "Other"
+(def airtable-location->prod-label
+  "Map Airtable location strings (lowercased) to existing production location labels.
+   These MUST exist in the production database. In dev mode, they are created if missing.
+   Airtable values NOT in this map are treated as new locations to create."
+  {"bed"                    "Bed"
+   "kaiti\u2019s bed"       "Bed"
    "porch"                  "Porch"
-   "beach"                  "Beach"
-   "desk (gaming)"          "Desk (Gaming)"
-   "deck"                   "Deck"
-   "hammock"                "Hammock"})
+   "stressless wing chair"  "Stressless Wingback Chair"
+   "hammock"                "Hammock"
+   "couch"                  "Living room"
+   "desk (gaming)"          "Office desk"
+   "chair"                  "Living room"})
+
+(def unmapped-location-labels
+  "Airtable location strings (lowercased) that have no production equivalent.
+   These become new location entities in both dev and prod."
+  {"dog park"  "Dog Park"
+   "deck"      "Deck"
+   "beach"     "Beach"
+   "car"       "Car"
+   "gym"       "Gym"
+   "other"     "Other"})
 
 (def format-mapping
   "Map Airtable format strings to reading-log schema keywords."
@@ -133,12 +139,15 @@
 ;; =============================================================================
 
 (defn location-str->label
-  "Resolve an Airtable location string to a properly capitalized location label.
-   Falls back to the trimmed original string if not in the mapping."
+  "Resolve an Airtable location string to a target location label.
+   Checks the production mapping first, then the unmapped (new) mapping,
+   then falls back to the trimmed original string."
   [location-raw]
   (when-not (str/blank? location-raw)
     (let [normalized (-> location-raw str/trim str/lower-case)]
-      (get location-label-mapping normalized (str/trim location-raw)))))
+      (or (get airtable-location->prod-label normalized)
+          (get unmapped-location-labels normalized)
+          (str/trim location-raw)))))
 
 (defn from-str->book-source-label
   "Resolve an Airtable 'from' string to a properly capitalized book-source label.
@@ -245,7 +254,7 @@
 
             (not (str/blank? format-str))
             (assoc :reading-log/format
-                   (core/parse-enum format-str format-mapping :audiobook))
+                   (core/parse-enum format-str format-mapping nil))
 
             (some? finished?)
             (assoc :reading-log/finished? (boolean finished?))
@@ -294,8 +303,15 @@
 ;; Location Extraction & Reconciliation
 ;; =============================================================================
 
+(def prod-required-labels
+  "The set of location labels that must already exist in production.
+   Derived from the values of airtable-location->prod-label."
+  (set (vals airtable-location->prod-label)))
+
 (defn extract-unique-location-labels
-  "Extract unique location labels from the 'location' field across all reading-log records."
+  "Extract unique location labels from the 'location' field across all reading-log records.
+   Returns the target labels (after mapping through airtable-location->prod-label
+   and unmapped-location-labels)."
   [logs-file-path]
   (let [records (core/read-airtable-file logs-file-path)]
     (->> records
@@ -306,48 +322,63 @@
          distinct
          vec)))
 
+(defn- fetch-existing-locations
+  "Fetch all non-deleted locations for a user from the database.
+   Returns a map of normalized-label → UUID."
+  [db user-id]
+  (->> (q db
+          '{:find  (pull ?e [:xt/id :location/label])
+            :where [[?e :location/label]
+                    [?e :user/id uid]
+                    (not [?e :tech.jgood.gleanmo.schema.meta/deleted-at])]
+            :in    [uid]}
+          user-id)
+       (map (fn [{:keys [xt/id location/label]}]
+              [(str/lower-case (str/trim label)) id]))
+       (into {})))
+
 (defn build-location-label->uuid
-  "Build a lookup from normalized location label to UUID.
-   First checks the database for existing locations (by label match),
-   then generates deterministic UUIDs for any unmatched labels."
-  [db user-id labels]
-  (let [existing (->> (q db
-                         '{:find  (pull ?e [:xt/id :location/label])
-                           :where [[?e :location/label]
-                                   [?e :user/id uid]
-                                   (not [?e :tech.jgood.gleanmo.schema.meta/deleted-at])]
-                           :in    [uid]}
-                         user-id)
-                      (map (fn [{:keys [xt/id location/label]}]
-                             [(str/lower-case (str/trim label)) id]))
-                      (into {}))
-        lookup   (->> labels
-                      (map (fn [label]
-                             (let [normalized (str/lower-case (str/trim label))
-                                   uuid       (or (get existing normalized)
-                                                  (location-uuid label))]
-                               [label uuid])))
-                      (into {}))]
-    lookup))
+  "Build a lookup from target location label to UUID.
+
+   For labels found in the DB: uses the existing UUID.
+   For labels NOT found in the DB: generates a deterministic UUID.
+
+   When strict? is true (production), throws if any label from
+   `prod-required-labels` is missing from the DB."
+  [db user-id labels strict?]
+  (let [existing (fetch-existing-locations db user-id)
+        missing-prod (->> labels
+                          (filter #(contains? prod-required-labels %))
+                          (remove #(contains? existing (str/lower-case (str/trim %))))
+                          vec)]
+    (when (and strict? (seq missing-prod))
+      (throw (ex-info
+              (str "Production locations not found in DB: " (pr-str missing-prod)
+                   "\nThese must exist before running the migration in production.")
+              {:missing-labels missing-prod})))
+    (->> labels
+         (map (fn [label]
+                (let [normalized (str/lower-case (str/trim label))
+                      uuid       (or (get existing normalized)
+                                     (location-uuid label))]
+                  [label uuid])))
+         (into {}))))
 
 (defn locations-to-create
   "Return location entities that need to be created (not already in DB).
-   Uses the label→UUID lookup to identify which are new."
+   In dev mode this creates any missing location; in prod mode the caller
+   should have already validated via build-location-label->uuid with strict?=true."
   [db user-id labels now]
-  (let [existing-ids (->> (q db
-                              '{:find  [?id]
-                                :where [[?e :location/label]
-                                        [?e :user/id uid]
-                                        [?e :xt/id ?id]
-                                        (not [?e :tech.jgood.gleanmo.schema.meta/deleted-at])]
-                                :in    [uid]}
-                              user-id)
-                          (map first)
-                          set)
-        lookup       (build-location-label->uuid db user-id labels)]
-    (->> lookup
-         (remove (fn [[_ uuid]] (contains? existing-ids uuid)))
-         (map (fn [[label uuid]]
+  (let [existing    (fetch-existing-locations db user-id)
+        existing-id-set (set (vals existing))]
+    (->> labels
+         (map (fn [label]
+                (let [normalized (str/lower-case (str/trim label))
+                      uuid       (or (get existing normalized)
+                                     (location-uuid label))]
+                  {:uuid uuid :label label :exists? (contains? existing-id-set uuid)})))
+         (remove :exists?)
+         (map (fn [{:keys [uuid label]}]
                 {:xt/id             uuid
                  ::sm/type          :location
                  ::sm/created-at    now
@@ -518,7 +549,7 @@
                     :in    [email]}
                   email))
         loc-labels (extract-unique-location-labels logs-file-path)
-        loc-lookup (build-location-label->uuid db user-id loc-labels)
+        loc-lookup (build-location-label->uuid db user-id loc-labels false)
         logs       (convert-airtable-reading-logs logs-file-path books-file-path user-id loc-lookup)
         validation (validate-reading-logs logs)]
     (println "Reading logs to import:" (:total validation))
