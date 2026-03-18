@@ -5,7 +5,7 @@ description: "Minimize clicks for common logging actions, fast landing page, and
 tags: [area/frontend, area/ux, type/improvement]
 priority: high
 created: 2026-02-06
-updated: 2026-02-07
+updated: 2026-03-17
 ---
 
 # Workflow Optimization
@@ -21,6 +21,27 @@ The most frequent actions -- logging a habit, starting a meditation, beginning a
 - Stats page can be heavier since it's browsed intentionally, but still shouldn't feel sluggish.
 
 ## Areas
+
+### Dashboard Quick Reference
+
+The home dashboard should be a glanceable hub for things I want to see frequently:
+
+**Frequent stats** (user-configurable or discovered over time):
+- Current streak counts (habits, meditation)
+- Today's progress indicators
+- Active timer status
+- Key metrics that matter to the user (TBD which ones through usage)
+
+**Recent entities for quick editing**:
+- Last N items I might want to correct (wrong timestamp, forgot a field)
+- Direct edit links without navigating through list pages
+- Entity-type filtering or mixed chronological view
+
+**Action shortcuts**:
+- One-click access to start common timers
+- Quick-add buttons for frequent log types
+- Keyboard shortcuts for power users
+- Consider floating action button (FAB) pattern
 
 ### Quick logging (minimize clicks)
 
@@ -49,7 +70,9 @@ The most frequent actions -- logging a habit, starting a meditation, beginning a
 
 ## Open Questions
 
+- Which stats do I actually look at frequently? (Discover through usage analytics or manual tracking)
 - Should quick-log actions live on the landing page, in a global floating action button, or both?
+- How many recent entities should be shown? Should they be filterable by type?
 - What's the right balance of information density vs. speed on the landing page?
 - Should the stats page be a single scrollable view or broken into tabs/sections by domain (habits, timers, tasks)?
 - How much overlap is there with the generic-viz work ([generic-viz.md](./generic-viz.md)) and streak features from [drawing-practice.md](./drawing-practice.md)?
@@ -59,3 +82,4 @@ The most frequent actions -- logging a habit, starting a meditation, beginning a
 - This cuts across multiple features rather than being one isolated system. Implementation will likely touch daily focus, dashboard, timer views, and habit views.
 - The quick-log pattern could be generalized: any entity type with sensible defaults could support a "log with one tap" mode.
 - Stats/motivation features may share infrastructure with the generic visualization work.
+- Related: [activity-timeline.md](./activity-timeline.md) for a dedicated timeline view with day separation.
