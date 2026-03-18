@@ -14,6 +14,8 @@
        [:habit/notes {:optional true :crud/priority 2} :string]
        [:habit/archived {:optional true} :boolean]
        [:airtable/id {:optional true} :string]
+       ;; TODO: Missing airtable/created-time
+       ;; See roadmap/airtable-metadata-consistency.md #2
        [:airtable/ported-at {:optional true} :instant]]
       (concat
        sm/legacy-meta
@@ -22,12 +24,8 @@
       vec))
 
 (def habit-log
-  ;; NOTE: This schema is missing :airtable/id, :airtable/created-time, and
-  ;; :airtable/ported-at fields that would have been useful for traceability
-  ;; during the original Airtable migration. This was an oversight discovered
-  ;; during the medication-log migration. Cannot be added retroactively as data
-  ;; has been migrated for too long. Future migrations should include airtable
-  ;; metadata on log entities following the exercise-log pattern.
+  ;; TODO: Missing airtable/id, airtable/created-time, airtable/ported-at
+  ;; See roadmap/airtable-metadata-consistency.md #3
   (-> [:map {:closed true}
        [:xt/id :habit-log/id]
        [::sm/type [:enum :habit-log]]

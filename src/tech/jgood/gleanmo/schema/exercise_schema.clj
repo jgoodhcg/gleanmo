@@ -12,11 +12,12 @@
    [:exercise/label :string]
    [:exercise/source {:optional true} :string]
    [:exercise/notes {:optional true} :string]
-   [:airtable/exercise-log {:optional true} :string]
-   [:airtable/log-count {:optional true} :instant]
    [:airtable/id {:optional true} :string]
-   [:airtable/ported {:optional true} :boolean]
-   [:airtable/created-time {:optional true} :instant]])
+   [:airtable/created-time {:optional true} :instant]
+   [:airtable/ported-at {:optional true} :instant]
+   ;; Entity-specific airtable fields
+   [:airtable/exercise-log {:optional true} :string]
+   [:airtable/log-count {:optional true} :instant]])
 
 (def exercise-session
   [:map {:closed true}
@@ -41,7 +42,9 @@
    [:exercise-log.interval/end {:optional true} :instant]
    [:exercise-log.interval/global-median-end {:optional true} :boolean]
    [:exercise-log/notes {:optional true} :string]
-   [:airtable/ported {:optional true} :boolean]
+   [:airtable/id {:optional true} :string]
+   [:airtable/created-time {:optional true} :instant]
+   [:airtable/ported-at {:optional true} :instant]
    [:airtable/missing-duration {:optional true} :number]])
 
 (def exercise-set
@@ -62,6 +65,9 @@
    [:exercise-set/weight-amount {:optional true} :number]
    [:exercise-set/notes {:optional true} :string]
    [:exercise-set.interval/global-median-end {:optional true} :boolean]
-   [:airtable/ported {:optional true} :boolean]
+   [:airtable/id {:optional true} :string]
+   [:airtable/created-time {:optional true} :instant]
+   [:airtable/ported-at {:optional true} :instant]
+   ;; Entity-specific airtable fields
    [:airtable/exercise-id {:optional true} :string]
    [:airtable/missing-duration {:optional true} :number]])

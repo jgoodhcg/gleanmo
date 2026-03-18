@@ -11,7 +11,11 @@
        [:user/id :user/id]
        [:medication/label {:crud/priority 1} :string]
        [:medication/notes {:optional true, :crud/priority 2} :string]]
-      (concat sm/legacy-meta)
+      (concat
+       sm/legacy-meta
+       ;; TODO: Missing airtable/id, airtable/created-time, airtable/ported-at
+       ;; See roadmap/airtable-metadata-consistency.md #1
+       )
       vec))
 
 (def medication-log

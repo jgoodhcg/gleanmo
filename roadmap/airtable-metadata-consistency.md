@@ -39,10 +39,10 @@ Airtable lineage fields were added incrementally as each entity was migrated, re
 | book-source (derived) | - | - | yes | Compliant for derived entity. |
 | location (derived) | - | - | yes | Compliant for derived entity. |
 | symptom-log | yes | yes | yes | Compliant. |
-| symptom-episode | - | - | - | Needs at minimum `ported-at` if episodes are created during migration. |
-| exercise | yes | yes | - | Has non-standard `airtable/ported` (boolean) instead of `ported-at` (instant). Also has entity-specific fields (`airtable/exercise-log`, `airtable/log-count`). |
-| exercise-log | - | - | - | Has `airtable/ported` (boolean) and `airtable/missing-duration`. Non-standard. |
-| exercise-set | - | - | - | Has `airtable/ported` (boolean), `airtable/exercise-id`, `airtable/missing-duration`. Non-standard. |
+| symptom-episode | - | - | yes | Has `ported-at` for migration-created episodes. Compliant for derived entity. |
+| exercise | yes | yes | yes | Compliant. Also has entity-specific `airtable/exercise-log`, `airtable/log-count`. |
+| exercise-log | yes | yes | yes | Compliant. Also has `airtable/missing-duration`. |
+| exercise-set | yes | yes | yes | Compliant. Also has `airtable/exercise-id`, `airtable/missing-duration`. |
 
 ## Retroactive Fixes (deployed entities)
 
@@ -74,15 +74,16 @@ These require schema changes + data backfill on production data. Low priority si
 ### ~~5. book-source — add `airtable/ported-at`~~ DONE
 - Schema field added. Migration code already sets it.
 
-### 6. exercise, exercise-log, exercise-set — standardize naming
-- Replace `airtable/ported` (boolean) with `airtable/ported-at` (instant)
-- Rename entity-specific fields or keep alongside standard fields
-- Do this before first exercise migration run
+### ~~6. exercise, exercise-log, exercise-set — standardize naming~~ DONE
+- Replaced `airtable/ported` (boolean) with `airtable/ported-at` (instant)
+- Added `airtable/id` and `airtable/created-time` to exercise-log and exercise-set
+- Kept entity-specific fields alongside standard fields
 
-### 7. symptom-episode — add `airtable/ported-at` if created during migration
-- Decide during symptom migration implementation
+### ~~7. symptom-episode — add `airtable/ported-at`~~ DONE
+- Added `airtable/ported-at` for migration-created episodes
 
 ## Recommendation
 
-- Fix items 5-7 now (no production impact, prevents future debt).
+- ~~Fix items 5-7 now (no production impact, prevents future debt).~~ All done.
 - Items 1-4 are nice-to-have auditing improvements. Only pursue if actively debugging migration issues or doing a second pass on those entities.
+- TODO comments added to deployed schemas referencing this doc.

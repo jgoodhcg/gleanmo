@@ -39,7 +39,8 @@
        [:symptom-episode/end {:optional true} :instant]
        [:symptom-episode/overall-severity {:optional true} severity-enum]
        [:symptom-episode/overall-impact {:optional true} impact-enum]
-       [:symptom-episode/notes {:optional true} :string]]
+       [:symptom-episode/notes {:optional true} :string]
+       [:airtable/ported-at {:optional true} :instant]]
       (concat sm/legacy-meta)
       vec))
 
