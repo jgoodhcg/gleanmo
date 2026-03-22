@@ -13,6 +13,13 @@
                                        "standalone"]
  :biff.xtdb.jdbc/jdbcUrl #biff/secret "XTDB_JDBC_URL"
 
+ ;; HikariCP 3.4.5 pool settings for Neon Postgres (which suspends idle connections)
+ :biff.xtdb.jdbc-pool/maxLifetime       #profile {:prod 300000 :default nil} ; 5 min — rotate before Neon suspends
+ :biff.xtdb.jdbc-pool/idleTimeout       #profile {:prod 120000 :default nil} ; 2 min — evict idle connections quickly
+ :biff.xtdb.jdbc-pool/maximumPoolSize   #profile {:prod 5      :default nil} ; smaller pool for Neon
+ :biff.xtdb.jdbc-pool/minimumIdle       #profile {:prod 1      :default nil} ; allow pool to shrink when idle
+ :biff.xtdb.jdbc-pool/connectionTimeout #profile {:prod 20000  :default nil} ; 20s timeout to acquire connection
+
  :biff.beholder/enabled         #profile {:dev true :default false}
  :biff.middleware/secure        #profile {:dev false :default true}
  :biff.middleware/cookie-secret #biff/secret COOKIE_SECRET
