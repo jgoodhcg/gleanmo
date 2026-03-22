@@ -17,9 +17,15 @@ updated: 2026-02-07
 - Open questions: Which DigitalOcean offering (managed vs self-hosted)? What is the acceptable downtime window? What backup and rollback plan do we want before cutover?
 
 ## Notes
+
+### Current backup method
+- Existing backup script uses `pg_dump -Fc` (custom format) with Neon credentials.
+- After migration, backups need updating: either update the script credentials to point at the new DigitalOcean database, or switch to a DigitalOcean-native backup strategy (e.g., managed database automatic backups).
+
 ### Migration outline
 - Inventory current Neon database size, extensions, and retention requirements.
 - Decide on target: DigitalOcean Managed Postgres or a self-hosted Postgres droplet.
 - Plan data transfer (logical dump/restore vs streaming replication).
+- Current dumps are custom format (`-Fc`), so restore will use `pg_restore`.
 - Set up monitoring, backups, and alerts before cutover.
 - Execute a timed cutover and update config/secrets.
