@@ -35,6 +35,8 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 
 ### Draft
 
+- [bm-log-bloating.md](./bm-log-bloating.md) - Add bloating tracking to bm-log schema with flexible modeling options
+- [reading-log-pages.md](./reading-log-pages.md) - Add page number tracking to reading-log schema
 - [config-cleanup.md](./config-cleanup.md) - Audit and consolidate configuration files to remove legacy artifacts
 - [email-auth.md](./email-auth.md) - Restore email-based magic link authentication for user sign-in
 - [inline-entity-creation.md](./inline-entity-creation.md) - Create related entities mid-form without losing context
