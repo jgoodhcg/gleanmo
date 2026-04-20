@@ -5,7 +5,7 @@ description: "Minor improvements without full work-unit docs"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-14
+updated: 2026-04-19
 ---
 
 # Backlog
@@ -72,6 +72,13 @@ Reduce O(n) request patterns when fetching habit labels. Target a single query (
 - Update AGENTS.md with linting commands
 - Establish linting rules for codebase consistency
 - Pre-commit hooks for automated linting
+
+## Task Focus Search
+
+### Focus Date Filter
+The task focus search page (`/app/task/focus`) has no way to filter by the actual focus date value. The "Today items" dropdown only offers "Only today" and "Exclude today" (which checks `focus-date <= today`), but there's no date picker or date-based options (e.g., "Before today", "After today", specific date) for the focus date field, unlike the "Due by date" filter which has both a date picker and a "Due status" dropdown.
+- **Scope**: Add a focus date picker and/or focus date status options to the task focus filter form in `src/tech/jgood/gleanmo/app/task_focus.clj`.
+- **See also**: `today-navigation.md` covers richer focus date filtering on the today page specifically.
 
 ## Entity-Specific Improvements
 
