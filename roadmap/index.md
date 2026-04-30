@@ -73,6 +73,7 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 - [today-mobile-redesign.md](./today-mobile-redesign.md) - Redesign the today task page for better mobile ergonomics and responsiveness
 - [today-ux-polish.md](./today-ux-polish.md) - Improve task completion feedback and add project selection to quick-add
 - [exercise-insights.md](./exercise-insights.md) - Visual daily exercise summary with muscle heatmap and session stats
+- [cronometer-integration.md](./cronometer-integration.md) - Pull nutrition and biometric data from Cronometer into Gleanmo for LLM context and unified health tracking
 
 ### Done
 
