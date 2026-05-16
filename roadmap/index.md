@@ -35,6 +35,7 @@ goal: "Build a personal quantified-self system that is fast, reliable, and fully
 
 ### Draft
 
+- [auth-expired-home-layout.md](./auth-expired-home-layout.md) - Fix home page showing login form inside authenticated layout when session expires
 - [bm-log-bloating.md](./bm-log-bloating.md) - Add bloating tracking to bm-log schema with flexible modeling options
 - [reading-log-pages.md](./reading-log-pages.md) - Add page number tracking to reading-log schema
 - [config-cleanup.md](./config-cleanup.md) - Audit and consolidate configuration files to remove legacy artifacts
