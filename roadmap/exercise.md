@@ -3,9 +3,9 @@ title: "Exercise Tracking Requirements"
 status: active
 description: "Exercise tracking with superset support and Airtable backfill"
 tags: []
-priority: medium
+priority: high
 created: 2026-02-02
-updated: 2026-02-02
+updated: 2026-05-16
 ---
 
 # Exercise Tracking Requirements

@@ -3,9 +3,9 @@ title: "Mood Tracking Roadmap"
 status: draft
 description: "Structured mood logging with Airtable backfill"
 tags: []
-priority: medium
+priority: high
 created: 2026-02-02
-updated: 2026-02-07
+updated: 2026-05-16
 ---
 
 # Mood Tracking Roadmap

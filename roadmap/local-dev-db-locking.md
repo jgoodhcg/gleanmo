@@ -3,9 +3,9 @@ title: "Local Dev Database Locking"
 status: draft
 description: "RocksDB file lock prevents running REPL and CLI migrations concurrently"
 created: 2026-02-15
-updated: 2026-02-15
+updated: 2026-05-16
 tags: [dx, infrastructure]
-priority: medium
+priority: high
 ---
 
 # Local Dev Database Locking
@@ -13,6 +13,8 @@ priority: medium
 ## Intent
 
 The standalone XTDB node uses RocksDB, which holds an exclusive file lock on `storage/xtdb`. This means the dev server (with REPL) and CLI migration tasks cannot run at the same time. You have to stop the dev server to run a migration, losing REPL access for debugging.
+
+This is high priority while Airtable exit work is active because every import needs fast local iteration and validation.
 
 ## Constraints
 

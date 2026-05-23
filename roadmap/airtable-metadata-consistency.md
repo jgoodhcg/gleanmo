@@ -1,11 +1,11 @@
 ---
 title: "Airtable Metadata Consistency"
-status: backlog
+status: draft
 description: "Retroactively align airtable lineage fields across all migrated entity schemas"
 tags: [schema, airtable, tech-debt]
-priority: low
+priority: medium
 created: 2026-03-17
-updated: 2026-03-17
+updated: 2026-05-16
 ---
 
 # Airtable Metadata Consistency
@@ -46,7 +46,7 @@ Airtable lineage fields were added incrementally as each entity was migrated, re
 
 ## Retroactive Fixes (deployed entities)
 
-These require schema changes + data backfill on production data. Low priority since the data is already imported and these fields are only useful for auditing.
+These require schema changes + data backfill on production data. Medium priority while exiting Airtable: do the fixes when they improve import confidence or make final Airtable shutdown auditable.
 
 ### 1. medication — add `airtable/id`, `airtable/created-time`, `airtable/ported-at`
 - Schema change: add 3 optional fields

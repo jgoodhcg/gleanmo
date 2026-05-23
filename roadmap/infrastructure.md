@@ -1,20 +1,20 @@
 ---
 title: "Infrastructure Move (Neon to DigitalOcean)"
-status: draft
+status: active
 description: "Database migration from Neon to DigitalOcean"
 tags: []
-priority: medium
+priority: high
 created: 2026-02-02
-updated: 2026-02-07
+updated: 2026-05-16
 ---
 
 # Infrastructure Move (Neon to DigitalOcean)
 
 ## Work Unit Summary
-- Problem / intent: Move the database off Neon to DigitalOcean for cost/control and infrastructure consolidation.
+- Problem / intent: Move the database off Neon to DigitalOcean to eliminate recurring Hikari/Neon connection friction and consolidate infrastructure.
 - Constraints: Preserve data integrity, avoid extended downtime, and keep backups and rollbacks available.
-- Proposed approach: Select a target hosting model (managed Postgres or self-managed), stage a replica or export/import, validate consistency, then cut over with a brief maintenance window.
-- Open questions: Which DigitalOcean offering (managed vs self-hosted)? What is the acceptable downtime window? What backup and rollback plan do we want before cutover?
+- Proposed approach: Choose the lowest-maintenance DigitalOcean target, stage an export/import or replica, validate consistency, then cut over with a brief maintenance window.
+- Open questions: Which DigitalOcean offering (managed vs self-hosted)? What is the acceptable downtime window? What backup and rollback plan do we want before cutover? Which Hikari settings should be carried forward or simplified after leaving Neon?
 
 ## Notes
 
