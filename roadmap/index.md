@@ -68,7 +68,6 @@ Immediate work should remove infrastructure friction or reduce dependency on Air
 - [activity-timeline.md](./activity-timeline.md) - Chronological timeline view with day separation and quick edit access
 - [task-activity-logs.md](./task-activity-logs.md) - Spawn time logs from tasks and link habits/calendar events to tasks
 - [workflow-optimization.md](./workflow-optimization.md) - Dashboard quick reference, minimize clicks for logging, and motivating stats
-- [auth-expired-home-layout.md](./auth-expired-home-layout.md) - Fix home page showing login form inside authenticated layout when session expires
 - [email-auth.md](./email-auth.md) - Restore email-based magic link authentication for user sign-in
 - [inline-entity-creation.md](./inline-entity-creation.md) - Create related entities mid-form without losing context
 - [bm-log-bloating.md](./bm-log-bloating.md) - Add bloating tracking to bm-log schema with flexible modeling options
@@ -97,6 +96,7 @@ Immediate work should remove infrastructure friction or reduce dependency on Air
 
 ### Done
 
+- [auth-expired-home-layout.md](./auth-expired-home-layout.md) - Fix home page showing login form inside authenticated layout when session expires
 - [timer-stale-start-time.md](./timer-stale-start-time.md) - Fix timer starting with old timestamp when PWA has been idle on timers page
 
 ### Archived

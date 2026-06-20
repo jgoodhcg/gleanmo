@@ -1,9 +1,10 @@
 ---
 title: "Auth Expired Home Page Layout Bug"
-status: draft
+status: done
 description: "Home page shows login form inside authenticated layout with sidebar when session expires"
 created: 2026-05-02
-updated: 2026-05-02
+updated: 2026-06-20
+completed: 2026-06-20
 tags: [area/auth, type/bug, ux]
 priority: high
 ---
@@ -35,12 +36,49 @@ The fix should ensure that when auth expires, the user is either redirected to a
 2. **Client-side redirect**: On auth expiry detection, redirect to `/login` or equivalent clean login route
 3. **Layout-level check**: Make the layout wrapper auth-aware so it suppresses the sidebar when the user is not authenticated
 
+## Resolution
+
+Root cause was the HTMX request path, not full-page navigation. A normal browser
+navigation to `/app` after expiry already redirected cleanly: `wrap-signed-in`
+returns a `303` to `/signin`, which the browser follows to a sidebar-less page.
+
+The broken state came from in-page HTMX actions. Authenticated pages fire
+`hx-post`/`hx-get` calls against `/app/...` endpoints with targets *inside* the
+authenticated shell (e.g. `/app/task/today` completing a task swaps into
+`#today-content`). When the session had expired, `wrap-signed-in` returned a
+`303` to `/signin`, the XHR transparently followed it, and HTMX swapped the full
+sign-in page HTML into that inner target — producing the sidebar-around-a-login-form
+state described above.
+
+Fix (`src/tech/jgood/gleanmo/middleware.clj`, `wrap-signed-in`): detect the
+`hx-request` header on unauthenticated requests and respond `200` with an
+`HX-Redirect: /signin?error=not-signed-in` header instead of a `303`. HTMX turns
+that into a full-page browser navigation to the clean sign-in page. Non-HTMX
+requests keep the original `303` redirect behavior, so the normal sign-in flow is
+unchanged.
+
+This applies to every route under the `/app` middleware stack, not just the home
+page, so all authenticated routes degrade to a clean sign-in page on expiry.
+
+Tested in `test/tech/jgood/gleanmo/test/middleware_test.clj`.
+
+### Open Questions — answered
+
+- **Built-in Biff mechanism?** Biff's `wrap-signed-in` equivalent only does a plain
+  redirect; HTMX-awareness is not built in, hence the manual `HX-Redirect` branch.
+- **Home page only, or all authenticated routes?** All authenticated routes share
+  the `wrap-signed-in` middleware, so the fix covers all of them uniformly.
+- **Client-side HTMX detection?** Handled server-side via `HX-Redirect`, which is
+  the idiomatic HTMX way to convert an auth failure into a full-page navigation —
+  no client JS needed.
+
 ## Validation
 
-- [ ] Test: open app, wait for session to expire, navigate to home page → should see clean login (no sidebar)
-- [ ] Test: background PWA, wait for session expiry, reopen → should see clean login
-- [ ] Test: normal unauthenticated visit to home page still works as expected
-- [ ] Test: after re-authenticating from the expired state, full layout restores correctly
+- [x] Anonymous HTMX request returns `200` + `HX-Redirect` to clean sign-in (unit test)
+- [x] Anonymous browser navigation still returns `303` redirect, no `HX-Redirect` (unit test)
+- [x] Signed-in requests (HTMX and non-HTMX) still pass through to the handler (unit test)
+- [x] `just lint-fast` clean; full test suite green (76 tests, 622 assertions)
+- [ ] Manual: background PWA, wait for session expiry, trigger an in-page action → clean login (verify on device)
 
 ## Scope
 

@@ -116,8 +116,8 @@
                                     (remove nil?)
                                     vec)
               source-validation (validate-docs source-docs
-                                              reading/validate-book-sources
-                                              :book-source/label)
+                                               reading/validate-book-sources
+                                               :book-source/label)
 
               ;; Phase 2: Transform books
               _          (u/print-cyan "  Phase 2: Transforming books...")
@@ -186,7 +186,7 @@
                                            :doc         doc}))
                                    vec)
               all-rejected    (vec (concat rejected-sources rejected-books
-                                          rejected-locs rejected-logs))
+                                           rejected-locs rejected-logs))
               rejected-path   (str output-dir "/rejected-rows.edn")
               matched-count   (- (count location-labels) (count new-loc-docs))
               report          {:generated-at   now

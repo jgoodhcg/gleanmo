@@ -14,10 +14,25 @@
        :headers {"location" "/app"}}
       (handler ctx))))
 
-(defn wrap-signed-in [handler]
-  (fn [{:keys [session] :as ctx}]
-    (if (some? (:uid session))
+(defn wrap-signed-in
+  "Require a signed-in session for the wrapped handler.
+
+   Anonymous browser navigations get a 303 redirect to the sign-in page.
+   Anonymous HTMX requests get an HX-Redirect header instead — a plain 303
+   would be followed transparently by the XHR and the sign-in page would be
+   swapped into the authenticated layout (sidebar around a login form).
+   HX-Redirect makes HTMX do a full-page navigation to a clean sign-in page."
+  [handler]
+  (fn [{:keys [session headers] :as ctx}]
+    (cond
+      (some? (:uid session))
       (handler ctx)
+
+      (some? (get headers "hx-request"))
+      {:status 200
+       :headers {"HX-Redirect" "/signin?error=not-signed-in"}}
+
+      :else
       {:status 303
        :headers {"location" "/signin?error=not-signed-in"}})))
 
