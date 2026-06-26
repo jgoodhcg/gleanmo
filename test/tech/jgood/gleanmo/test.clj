@@ -2,6 +2,7 @@
   (:require
    [clojure.test :refer [deftest is]]
    [tech.jgood.gleanmo.test.app.calendar-test]
+   [tech.jgood.gleanmo.test.app.overview-test]
    [tech.jgood.gleanmo.test.app.shared-test]
    [tech.jgood.gleanmo.test.app.task-test]
    [tech.jgood.gleanmo.test.app.user-test]
@@ -19,5 +20,4 @@
 
 (deftest example-test
   (is (= 2 (+ 1 1))))
-
 

@@ -19,14 +19,28 @@
    "meditation-log"
    "bm-log"
    "medication-log"
-   "project-log"])
+   "project-log"
+   "reading-log"
+   "calendar-event"
+   "exercise-session"
+   "exercise-log"
+   "exercise-set"
+   "symptom-episode"
+   "symptom-log"])
 
 (def recent-activity-order-keys
   {"habit-log"      :habit-log/timestamp,
    "meditation-log" :meditation-log/beginning,
    "bm-log"         :bm-log/timestamp,
    "medication-log" :medication-log/timestamp,
-   "project-log"    :project-log/beginning})
+   "project-log"    :project-log/beginning,
+   "reading-log"    :reading-log/beginning,
+   "calendar-event" :calendar-event/beginning,
+   "exercise-session" :exercise-session/beginning,
+   "exercise-log"   :exercise-log.interval/beginning,
+   "exercise-set"   :exercise-set.interval/beginning,
+   "symptom-episode" :symptom-episode/beginning,
+   "symptom-log"    :symptom-log/timestamp})
 
 (defn- overview-activity-types
   [ctx]
@@ -69,6 +83,24 @@
     (catch Exception _
       (java.time.ZoneId/of "UTC"))))
 
+(defn- local-date->instant
+  [zone local-date]
+  (-> local-date
+      (t/at (t/time "00:00"))
+      (t/in zone)
+      t/instant))
+
+(defn- ->instant
+  [ctx v]
+  (cond
+    (nil? v) nil
+    (instance? java.time.Instant v) v
+    (instance? java.time.LocalDate v) (local-date->instant (user-zone ctx) v)
+    :else (try
+            (t/instant v)
+            (catch Exception _
+              nil))))
+
 (defn- relative-time
   [ctx inst]
   (when inst
@@ -108,24 +140,57 @@
                                (when (not= w 1) "s")
                                suffix))))))
 
-(defn- activity-time
-  "Pick the most meaningful instant for an entity so recent activity can be ordered consistently."
+(defn- find-time-field
+  [entity etype pattern]
+  (->> entity
+       (filter (fn [[k v]]
+                 (let [k-ns (namespace k)]
+                   (and v
+                        (keyword? k)
+                        (or (= k-ns etype)
+                            (str/starts-with? k-ns (str etype ".")))
+                        (str/includes? (name k) pattern)))))
+       first))
+
+(defn- task-anchor
   [entity]
-  (let [etype      (some-> entity
-                           ::sm/type
-                           name)
-        timestamp  (when etype (get entity (keyword etype "timestamp")))
-        beginning  (when etype (get entity (keyword etype "beginning")))
-        created-at (::sm/created-at entity)
-        instant    (or timestamp beginning created-at)
-        source     (cond
-                     timestamp  :timestamp
-                     beginning  :beginning
-                     created-at :created-at
-                     :else      :unknown)]
-    {:instant      instant,
-     :sort-instant (or instant created-at (t/epoch)),
-     :source       source}))
+  (or (:task/done-at entity)
+      (:task/due-on entity)
+      (:task/focus-date entity)))
+
+(defn- activity-time
+  "Pick the most meaningful timeline bounds for an entity."
+  [ctx entity]
+  (let [etype            (some-> entity
+                                 ::sm/type
+                                 name)
+        [timestamp-key timestamp] (when etype
+                                    (find-time-field entity etype "timestamp"))
+        [beginning-key beginning] (when etype
+                                    (find-time-field entity etype "beginning"))
+        [end-key end]             (when etype
+                                    (find-time-field entity etype "end"))
+        task-time        (when (= etype "task")
+                           (task-anchor entity))
+        created-at       (::sm/created-at entity)
+        start-instant    (or (->instant ctx timestamp)
+                             (->instant ctx beginning)
+                             (->instant ctx task-time)
+                             (->instant ctx created-at))
+        end-instant      (->instant ctx end)
+        source           (cond
+                           timestamp  :timestamp
+                           beginning  :beginning
+                           task-time  :task-date
+                           created-at :created-at
+                           :else      :unknown)]
+    {:instant       start-instant,
+     :end-instant   end-instant,
+     :sort-instant  (or start-instant created-at (t/epoch)),
+     :source        source,
+     :timestamp-key timestamp-key,
+     :beginning-key beginning-key,
+     :end-key       end-key}))
 
 (defn- readable-label
   [s]
@@ -212,6 +277,42 @@
            :duration duration
            :relative relative})))))
 
+(defn- timeline-date
+  [ctx instant]
+  (some-> instant
+          (t/in (user-zone ctx))
+          t/date))
+
+(defn- date-label
+  [ctx instant]
+  (let [zone  (user-zone ctx)
+        now   (t/date (t/in (t/now) zone))
+        date  (timeline-date ctx instant)]
+    (cond
+      (nil? date) ""
+      (= date now) "Today"
+      (= date (t/>> now (t/new-period 1 :days))) "Tomorrow"
+      (= date (t/<< now (t/new-period 1 :days))) "Yesterday"
+      :else (str date))))
+
+(defn- timeline-item-sort-key
+  [_ctx entity]
+  (let [now     (t/now)
+        instant (get-in entity [::activity-time :sort-instant])
+        future? (and instant (t/> instant now))
+        millis  (some-> instant t/long)]
+    (if future?
+      [0 millis]
+      [1 (- (or millis 0))])))
+
+(defn- dedupe-entities
+  [entities]
+  (vals
+   (reduce (fn [acc entity]
+             (assoc acc (:xt/id entity) entity))
+           {}
+           entities)))
+
 (defn dashboard-stats
   "Compute lightweight dashboard stats using a bounded set of entities."
   [ctx]
@@ -225,7 +326,7 @@
                              :per-type-limit  200
                              :order-keys      recent-activity-order-keys
                              :user-settings   user-settings})
-                           (map #(assoc % ::activity-time (activity-time %))))
+                           (map #(assoc % ::activity-time (activity-time ctx %))))
         now-zoned     (t/in (t/now) zone)
         today         (t/date now-zoned)
         week-start    (t/<< today (t/new-period 6 :days))
@@ -277,7 +378,8 @@
 (defn recent-activity
   "Fetch recent entities across primary log types."
   [ctx {:keys [limit], :or {limit 10}}]
-  (let [user-id (-> ctx :session :uid)]
+  (let [user-id (-> ctx :session :uid)
+        now     (t/now)]
     (->> (db/dashboard-recent-entities
           (:biff/db ctx)
           user-id
@@ -285,8 +387,20 @@
            :per-type-limit (* 2 limit)
            :order-keys     recent-activity-order-keys
            :user-settings  (db/resolve-user-settings ctx)})
-         (map #(assoc % ::activity-time (activity-time %)))
+         (map #(assoc % ::activity-time (activity-time ctx %)))
+         (remove #(t/> (get-in % [::activity-time :sort-instant]) now))
          (sort-by (comp :sort-instant ::activity-time) #(compare %2 %1))
+         (take limit))))
+
+(defn timeline-activity
+  "Fetch past and near-future timeline entries across timeline-worthy entities."
+  [ctx {:keys [limit upcoming-limit], :or {limit 18 upcoming-limit 6}}]
+  (let [recent   (recent-activity ctx {:limit (* 2 limit)})
+        upcoming (upcoming-events ctx {:limit upcoming-limit})]
+    (->> (concat recent upcoming)
+         dedupe-entities
+         (map #(assoc % ::activity-time (activity-time ctx %)))
+         (sort-by #(timeline-item-sort-key ctx %))
          (take limit))))
 
 (defn render-upcoming-events
@@ -329,15 +443,87 @@
        [:span.text-gray-400.uppercase.tracking-wide.text-xs label]
        [:span.text-white.font-semibold (or value "—")]])]])
 
+(defn- duration-minutes
+  [start end]
+  (when (and start end)
+    (max 1 (t/minutes (t/between start end)))))
+
+(defn- duration-width
+  [minutes]
+  (cond
+    (nil? minutes) 0
+    (< minutes 15) 24
+    (< minutes 45) 38
+    (< minutes 90) 54
+    (< minutes 180) 70
+    :else 86))
+
+(defn- timeline-marker
+  [{:keys [accent muted interval?]}]
+  [:span.absolute.left-0.top-5.flex.w-8.justify-center
+   (if interval?
+     [:span.block.h-12.w-2.rounded-full
+      {:style {:background accent
+               :box-shadow (str "0 0 0 5px rgba(13,17,23,1), 0 0 0 8px " muted)}}]
+     [:span.block.h-3.w-3.rounded-full
+      {:style {:background accent
+               :box-shadow (str "0 0 0 5px rgba(13,17,23,1), 0 0 0 8px " muted)}}])])
+
+(defn- render-primary-value
+  [primary]
+  (case (:kind primary)
+    :relationship
+    [:div.flex.flex-wrap.items-center.gap-2
+     (for [label (:labels primary)]
+       [:span.inline-flex.items-center.rounded-md.border.border-dark.bg-dark-light.px-2.py-1.text-sm.font-medium.text-white
+        {:key (str label)}
+        label])]
+
+    :formatted
+    [:div.text-base.font-semibold.text-white.truncate
+     (:node primary)]
+
+    [:div.text-base.font-semibold.text-white.truncate
+     (:node primary)]))
+
+(defn- render-time-meta
+  [time-meta]
+  (when time-meta
+    (case (:mode time-meta)
+      :duration
+      [:div.flex.items-center.flex-wrap.gap-2.text-xs.text-gray-500
+       [:span (:duration time-meta)]
+       (when-let [relative (:relative time-meta)]
+         [:span.uppercase.tracking-wide relative])]
+      (:timestamp :beginning)
+      [:div.flex.items-center.flex-wrap.gap-2.text-xs.text-gray-500
+       (when-let [label (:label time-meta)]
+         [:span.font-medium (str label ":")])
+       [:span (:time-str time-meta)]
+       (when-let [tz (:time-zone time-meta)]
+         [:span.font-mono (str "TZ " tz)])
+       (when-let [relative (:relative time-meta)]
+         [:span.uppercase.tracking-wide relative])]
+      nil)))
+
+(defn- render-duration-bar
+  [minutes duration]
+  (when (and minutes duration)
+    [:div.mt-3.flex.items-center.gap-2
+     [:div.h-1.5.flex-1.rounded-full.bg-dark-light.overflow-hidden
+      [:div.h-full.rounded-full.bg-neon-cyan
+       {:style {:width (str (duration-width minutes) "%")}}]]
+     [:span.text-xs.text-gray-500.whitespace-nowrap duration]]))
+
 (defn render-activity-feed
-  "Render recent activity in a single chronological stream across entity types."
+  "Render activity in a single chronological timeline across entity types."
   [ctx recent-items]
   (let [items recent-items]
     (if (seq items)
       [:div.relative
-       [:div {:class "absolute left-[14px] top-1 bottom-1 w-px bg-dark-border pointer-events-none"}]
-       [:div.space-y-3
-        (for [entity items]
+       [:div.absolute.left-4.top-1.bottom-1.w-px.bg-dark-border.pointer-events-none]
+       [:div.space-y-4
+        (for [[idx entity] (map-indexed vector items)]
           (let [etype         (name (::sm/type entity))
                 {:keys [accent muted]} (accent-style etype)
                 href          (str "/app/crud/form/" etype "/edit/" (:xt/id entity))
@@ -345,61 +531,40 @@
                                   {:kind :fallback
                                    :node (entity-title entity)})
                 time-meta     (activity-time-meta entity ctx)
-                id-short      (subs (str (:xt/id entity)) 0 8)]
-            [:a.group.relative.block.pl-12.pr-4.py-4.rounded-xl.border.transition-all.duration-200
-             {:key   (str (:xt/id entity))
-              :href  href
-              :style {:background   (str "linear-gradient(90deg," muted ", rgba(13,17,23,0.85))")
-                      :border-color "rgba(48,54,61,0.9)"
-                      :box-shadow   "0 10px 30px rgba(0,0,0,0.35)"}}
-             [:span {:class "absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 rounded-full"
-                     :style {:background accent
-                             :box-shadow (str "0 0 0 6px rgba(13,17,23,1), 0 0 0 10px " muted)}}]
+                id-short      (subs (str (:xt/id entity)) 0 8)
+                start         (get-in entity [::activity-time :instant])
+                end           (get-in entity [::activity-time :end-instant])
+                minutes       (duration-minutes start end)
+                interval?     (boolean minutes)
+                date          (timeline-date ctx start)
+                prev-date     (when (pos? idx)
+                                (timeline-date
+                                 ctx
+                                 (get-in (nth items (dec idx))
+                                         [::activity-time :instant])))]
+            [:div {:key (str (:xt/id entity))}
+             (when (not= date prev-date)
+               [:div.relative.pl-12.pt-2.pb-1
+                [:div.inline-flex.items-center.rounded-md.border.border-dark.bg-dark-surface.px-2.py-1.text-xs.font-semibold.uppercase.tracking-wide.text-gray-400
+                 (date-label ctx start)]])
+             [:a.group.relative.block.pl-12.pr-4.rounded-lg.border.transition-colors.duration-200
+              {:class (if interval? "py-5 hover:bg-dark-light" "py-4 hover:bg-dark-light")
+               :href  href
+               :style {:background   "rgba(13,17,23,0.78)"
+                       :border-color "rgba(48,54,61,0.85)"}}
+              (timeline-marker {:accent accent
+                                :muted muted
+                                :interval? interval?})
 
-             [:div.space-y-3.min-w-0
-              [:div.flex.items-center.flex-wrap.gap-2.text-xs.text-gray-400
-               [:span.inline-flex.items-center.rounded-full.border.px-3.py-1.font-semibold
-                {:style {:color accent
-                         :border-color accent
-                         :background muted}}
-                (readable-label etype)]]
+              [:div.space-y-2.min-w-0
+               [:div.flex.items-center.gap-2.text-xs.text-gray-500
+                [:span.h-1.5.w-1.5.rounded-full {:style {:background accent}}]
+                [:span.uppercase.tracking-wide (readable-label etype)]
+                [:span.ml-auto.font-mono.opacity-60 (str id-short "...")]]
 
-              (case (:kind primary)
-                :relationship
-                [:div.flex.flex-wrap.items-center.gap-2
-                 (for [label (:labels primary)]
-                   [:span.inline-flex.items-center.rounded-full.border.border-dark.bg-dark-light.px-3.py-1.text-sm.font-semibold.text-white
-                    {:key (str label)}
-                    label])]
-
-                :formatted
-                [:div.text-lg.font-semibold.text-white.truncate
-                 (:node primary)]
-
-                [:div.text-lg.font-semibold.text-white.truncate
-                 (:node primary)])
-
-              (when time-meta
-                (case (:mode time-meta)
-                  :duration
-                  [:div.flex.items-center.flex-wrap.gap-2.text-xs.text-gray-500
-                   [:span.font-medium "Duration:"]
-                   [:span (:duration time-meta)]
-                   (when-let [relative (:relative time-meta)]
-                     [:span.text-xs.uppercase.tracking-wide.text-gray-500 relative])]
-                  (:timestamp :beginning)
-                  [:div.flex.items-center.flex-wrap.gap-2.text-xs.text-gray-500
-                   (when-let [label (:label time-meta)]
-                     [:span.font-medium (str label ":")])
-                   [:span (:time-str time-meta)]
-                   (when-let [tz (:time-zone time-meta)]
-                     [:span.text-xs.font-mono.text-gray-500 (str "TZ " tz)])
-                   (when-let [relative (:relative time-meta)]
-                     [:span.text-xs.uppercase.tracking-wide.text-gray-500 relative])]
-                  nil))
-
-              [:div.flex.items-center.justify-between.text-xs.text-gray-500
-               [:span.font-mono.opacity-70 (str id-short "...")]]]]))]]
+               (render-primary-value primary)
+               (render-time-meta time-meta)
+               (render-duration-bar minutes (:duration time-meta))]]]))]]
       [:p.text-sm.text-gray-400 "No recent activity yet. Keep logging!"])))
 
 (defn render-recent-activity
@@ -408,9 +573,9 @@
   (let [items recent-items
         stats (dashboard-stats ctx)]
     [:div.space-y-4
-     (stats-strip stats)
-     (render-upcoming-events ctx)
-     (render-activity-feed ctx items)]))
+     (render-activity-feed ctx items)
+     [:div.opacity-70
+      (stats-strip stats)]]))
 
 (defn- lazy-container
   "HTMX-enabled wrapper so sections can stream in after the shell renders."
@@ -444,17 +609,18 @@
   (let [limit (try
                 (some-> (:limit params) Integer/parseInt)
                 (catch Exception _ nil))
-        items (recent-activity ctx {:limit (or limit 10)})]
+        items (timeline-activity ctx {:limit (or limit 18)})]
     [:div#overview-recent
      (render-activity-feed ctx items)]))
 
 (defn overview-shell
   "Top-level layout for the home overview page; sections hydrate via HTMX."
   [_ctx]
-  [:div.flex.flex-col.space-y-6
-   (lazy-container "overview-events" "/app/overview/events" "Loading events")
-   (lazy-container "overview-stats" "/app/overview/stats" "Loading stats")
-   (lazy-container "overview-recent" "/app/overview/recent" "Loading recent activity")])
+  [:div.flex.flex-col.space-y-5
+   (lazy-container "overview-recent" "/app/overview/recent" "Loading timeline")
+   [:div.opacity-70
+    (lazy-container "overview-stats" "/app/overview/stats" "Loading stats"
+                    {:delay-ms 120})]])
 
 (defn stats-fragment
   [ctx]
