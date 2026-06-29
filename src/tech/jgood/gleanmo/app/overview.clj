@@ -233,34 +233,6 @@
               (get entity label-key))
             (str (subs (str entity-id) 0 8) "..."))))))
 
-(defn- primary-field-value
-  "Find the highest-priority display field with a value and return a display map."
-  [entity {:keys [biff/db], :as ctx}]
-  (when-let [etype (some-> entity
-                           ::sm/type
-                           name)]
-    (when-let [entity-schema (get schema-registry/schema (keyword etype))]
-      (let [display-fields (crud-views/get-display-fields entity-schema)
-            prioritized    (sort-by #(or (:crud/priority (:opts %)) 99)
-                                    display-fields)]
-        (when-let [{:keys [input-type], :as field}
-                   (some (fn [f]
-                           (let [v (get entity (:field-key f))]
-                             (when (present-value? v)
-                               (assoc f :value v))))
-                         prioritized)]
-          (case input-type
-            :single-relationship
-            {:kind   :relationship,
-             :labels (keep #(relationship-label db %) [(:value field)])}
-
-            :many-relationship
-            {:kind   :relationship,
-             :labels (keep #(relationship-label db %) (:value field))}
-
-            {:kind :formatted,
-             :node (fmt/format-cell-value input-type (:value field) ctx)}))))))
-
 (defn- activity-time-meta
   [entity ctx]
   (when-let [etype (some-> entity ::sm/type name)]
@@ -277,11 +249,67 @@
            :duration duration
            :relative relative})))))
 
+(declare timeline-time)
+
+(defn- elapsed-duration
+  [start]
+  (when start
+    (crud-views/format-duration start (t/now))))
+
+(defn- active-timer-summaries
+  [ctx]
+  (->> timers-app/timer-entities
+       (mapcat
+        (fn [{:keys [entity-key entity-str display-name route]}]
+          (let [{:keys [relationship-key beginning-key] :as config}
+                (timer-routes/timer-config {:entity-key entity-key
+                                            :entity-str entity-str})]
+            (for [timer (timer-routes/fetch-active-timers ctx config)
+                  :let [start     (get timer beginning-key)
+                        parent-id (get timer relationship-key)]]
+              {:id        (:xt/id timer)
+               :href      route
+               :entity-str entity-str
+               :type      display-name
+               :label     (or (relationship-label (:biff/db ctx) parent-id)
+                              "Active timer")
+               :start     start
+               :elapsed   (elapsed-duration start)}))))))
+
+(defn- render-active-timers
+  [ctx]
+  (let [timers (active-timer-summaries ctx)]
+    (when (seq timers)
+      [:div.space-y-2
+       [:div.flex.items-center.gap-3
+        [:div.h-px.flex-1.bg-dark-border]
+        [:div.text-xs.font-semibold.uppercase.tracking-wide.text-neon-cyan
+         "Running now"]
+        [:div.h-px.flex-1.bg-dark-border]]
+       [:div.grid.grid-cols-1.md:grid-cols-3.gap-2
+        (for [{:keys [id href type label start elapsed]} timers]
+          [:a.block.rounded-md.border.border-neon-cyan.bg-dark-surface.px-3.py-2.no-underline.hover:bg-dark-light.transition-colors
+           {:key  (str id)
+            :href href}
+           [:div.flex.items-center.justify-between.gap-3
+            [:div.min-w-0
+             [:div.text-sm.font-semibold.text-white.truncate label]
+             [:div.text-xs.text-gray-500.uppercase.tracking-wide type]]
+            [:div.text-right.shrink-0
+             [:div.text-xs.text-neon-cyan elapsed]
+             [:div.text-xs.text-gray-500 (or (timeline-time ctx start) "")]]]])]])))
+
 (defn- timeline-date
   [ctx instant]
   (some-> instant
           (t/in (user-zone ctx))
           t/date))
+
+(defn- timeline-time
+  [ctx instant]
+  (when instant
+    (->> (t/in instant (user-zone ctx))
+         (t/format (t/formatter "h:mm a")))))
 
 (defn- date-label
   [ctx instant]
@@ -448,72 +476,95 @@
   (when (and start end)
     (max 1 (t/minutes (t/between start end)))))
 
-(defn- duration-width
+(defn- duration-height
   [minutes]
-  (cond
-    (nil? minutes) 0
-    (< minutes 15) 24
-    (< minutes 45) 38
-    (< minutes 90) 54
-    (< minutes 180) 70
-    :else 86))
+  (when minutes
+    (let [day-ratio (/ minutes 1440.0)
+          scaled    (+ 24 (* 128 (Math/sqrt day-ratio)))]
+      (int (min 160 (max 28 scaled))))))
 
 (defn- timeline-marker
-  [{:keys [accent muted interval?]}]
-  [:span.absolute.left-0.top-5.flex.w-8.justify-center
+  [{:keys [accent muted interval? minutes]}]
+  [:span.absolute.left-0.top-4.flex.w-8.justify-center
    (if interval?
-     [:span.block.h-12.w-2.rounded-full
+     [:span.block.w-2.rounded-full
       {:style {:background accent
+               :height     (str (duration-height minutes) "px")
                :box-shadow (str "0 0 0 5px rgba(13,17,23,1), 0 0 0 8px " muted)}}]
      [:span.block.h-3.w-3.rounded-full
       {:style {:background accent
                :box-shadow (str "0 0 0 5px rgba(13,17,23,1), 0 0 0 8px " muted)}}])])
 
-(defn- render-primary-value
-  [primary]
-  (case (:kind primary)
-    :relationship
-    [:div.flex.flex-wrap.items-center.gap-2
-     (for [label (:labels primary)]
-       [:span.inline-flex.items-center.rounded-md.border.border-dark.bg-dark-light.px-2.py-1.text-sm.font-medium.text-white
-        {:key (str label)}
-        label])]
+(defn- formatted-field-value
+  [entity {:keys [field-key input-type]} {:keys [biff/db], :as ctx}]
+  (let [value (get entity field-key)]
+    (case input-type
+      :single-relationship
+      (or (relationship-label db value) "")
 
-    :formatted
-    [:div.text-base.font-semibold.text-white.truncate
-     (:node primary)]
+      :many-relationship
+      (str/join ", " (keep #(relationship-label db %) value))
 
-    [:div.text-base.font-semibold.text-white.truncate
-     (:node primary)]))
+      :enum
+      (some-> value name)
 
-(defn- render-time-meta
-  [time-meta]
-  (when time-meta
-    (case (:mode time-meta)
-      :duration
-      [:div.flex.items-center.flex-wrap.gap-2.text-xs.text-gray-500
-       [:span (:duration time-meta)]
-       (when-let [relative (:relative time-meta)]
-         [:span.uppercase.tracking-wide relative])]
-      (:timestamp :beginning)
-      [:div.flex.items-center.flex-wrap.gap-2.text-xs.text-gray-500
-       (when-let [label (:label time-meta)]
-         [:span.font-medium (str label ":")])
-       [:span (:time-str time-meta)]
-       (when-let [tz (:time-zone time-meta)]
-         [:span.font-mono (str "TZ " tz)])
-       (when-let [relative (:relative time-meta)]
-         [:span.uppercase.tracking-wide relative])]
-      nil)))
+      :set-enum
+      (str/join ", " (map name (sort-by name value)))
 
-(defn- render-duration-bar
-  [minutes duration]
-  (when (and minutes duration)
-    [:div.mt-3.flex.items-center.gap-2
-     [:div.h-1.5.flex-1.rounded-full.bg-dark-light.overflow-hidden
-      [:div.h-full.rounded-full.bg-neon-cyan
-       {:style {:width (str (duration-width minutes) "%")}}]]
-     [:span.text-xs.text-gray-500.whitespace-nowrap duration]]))
+      :boolean
+      (if value "Yes" "No")
+
+      (:string :number :float :int :local-date)
+      (str value)
+
+      (fmt/format-cell-value input-type value ctx))))
+
+(defn- priority-field-values
+  [entity ctx]
+  (when-let [etype (some-> entity ::sm/type name)]
+    (when-let [entity-schema (get schema-registry/schema (keyword etype))]
+      (let [display-fields (crud-views/get-display-fields entity-schema)]
+        (->> display-fields
+             (filter crud-views/prioritized-field?)
+             (sort-by crud-views/get-field-priority)
+             (keep (fn [{:keys [field-key input-label], :as field}]
+                     (let [value (get entity field-key)]
+                       (when (present-value? value)
+                         {:field-key field-key
+                          :label     input-label
+                          :priority  (crud-views/get-field-priority field)
+                          :node      (formatted-field-value entity field ctx)})))))))))
+
+(defn- render-title-field
+  [field fallback]
+  [:div.text-base.font-semibold.text-white.truncate
+   (or (:node field) fallback)])
+
+(defn- priority-detail-class
+  [priority]
+  (cond
+    (= priority 1) "text-sm text-gray-200"
+    (= priority 2) "text-sm text-gray-300"
+    (= priority 3) "text-xs text-gray-400"
+    :else "text-xs text-gray-500"))
+
+(defn- render-priority-detail
+  [{:keys [field-key label node priority]}]
+  [:span.inline-flex.items-baseline.gap-1.min-w-0
+   {:key (str field-key)
+    :class (priority-detail-class priority)}
+   [:span.text-gray-500.whitespace-nowrap (str label ":")]
+   [:span.truncate node]])
+
+(defn- render-meta
+  [{:keys [etype id-short relative duration]}]
+  [:div.flex.items-center.justify-end.gap-2.text-xs.text-gray-500.uppercase.tracking-wide
+   [:span (readable-label etype)]
+   (when relative
+     [:span relative])
+   (when duration
+     [:span duration])
+   [:span.font-mono.normal-case.tracking-normal.opacity-70 (str id-short "...")]])
 
 (defn render-activity-feed
   "Render activity in a single chronological timeline across entity types."
@@ -522,49 +573,63 @@
     (if (seq items)
       [:div.relative
        [:div.absolute.left-4.top-1.bottom-1.w-px.bg-dark-border.pointer-events-none]
-       [:div.space-y-4
+       [:div.space-y-2
         (for [[idx entity] (map-indexed vector items)]
-          (let [etype         (name (::sm/type entity))
+          (let [etype           (name (::sm/type entity))
                 {:keys [accent muted]} (accent-style etype)
-                href          (str "/app/crud/form/" etype "/edit/" (:xt/id entity))
-                primary       (or (primary-field-value entity ctx)
-                                  {:kind :fallback
-                                   :node (entity-title entity)})
-                time-meta     (activity-time-meta entity ctx)
-                id-short      (subs (str (:xt/id entity)) 0 8)
-                start         (get-in entity [::activity-time :instant])
-                end           (get-in entity [::activity-time :end-instant])
-                minutes       (duration-minutes start end)
-                interval?     (boolean minutes)
-                date          (timeline-date ctx start)
-                prev-date     (when (pos? idx)
-                                (timeline-date
-                                 ctx
-                                 (get-in (nth items (dec idx))
-                                         [::activity-time :instant])))]
+                href            (str "/app/crud/form/" etype "/edit/" (:xt/id entity))
+                priority-fields (priority-field-values entity ctx)
+                title-field     (first priority-fields)
+                detail-fields   (rest priority-fields)
+                time-meta       (activity-time-meta entity ctx)
+                id-short        (subs (str (:xt/id entity)) 0 8)
+                start           (get-in entity [::activity-time :instant])
+                end             (get-in entity [::activity-time :end-instant])
+                minutes         (duration-minutes start end)
+                interval?       (boolean minutes)
+                date            (timeline-date ctx start)
+                prev-date       (when (pos? idx)
+                                  (timeline-date
+                                   ctx
+                                   (get-in (nth items (dec idx))
+                                           [::activity-time :instant])))]
             [:div {:key (str (:xt/id entity))}
              (when (not= date prev-date)
-               [:div.relative.pl-12.pt-2.pb-1
-                [:div.inline-flex.items-center.rounded-md.border.border-dark.bg-dark-surface.px-2.py-1.text-xs.font-semibold.uppercase.tracking-wide.text-gray-400
-                 (date-label ctx start)]])
-             [:a.group.relative.block.pl-12.pr-4.rounded-lg.border.transition-colors.duration-200
-              {:class (if interval? "py-5 hover:bg-dark-light" "py-4 hover:bg-dark-light")
+               [:div.relative.flex.items-center.gap-3.pl-12.pt-6.pb-2
+                [:div.h-px.flex-1.bg-dark-border]
+                [:div.text-xs.font-semibold.uppercase.tracking-wide.text-gray-500
+                 (date-label ctx start)]
+                [:div.h-px.flex-1.bg-dark-border]])
+             [:a.group.relative.block.pl-12.pr-3.rounded-md.border.transition-colors.duration-200
+              {:class "py-3 hover:bg-dark-light"
                :href  href
                :style {:background   "rgba(13,17,23,0.78)"
                        :border-color "rgba(48,54,61,0.85)"}}
               (timeline-marker {:accent accent
                                 :muted muted
-                                :interval? interval?})
-
+                                :interval? interval?
+                                :minutes minutes})
               [:div.space-y-2.min-w-0
-               [:div.flex.items-center.gap-2.text-xs.text-gray-500
-                [:span.h-1.5.w-1.5.rounded-full {:style {:background accent}}]
-                [:span.uppercase.tracking-wide (readable-label etype)]
-                [:span.ml-auto.font-mono.opacity-60 (str id-short "...")]]
-
-               (render-primary-value primary)
-               (render-time-meta time-meta)
-               (render-duration-bar minutes (:duration time-meta))]]]))]]
+               [:div.flex.items-start.justify-between.gap-4
+                [:div.flex.items-baseline.gap-3.min-w-0
+                 [:div.w-16.shrink-0.text-sm.font-semibold.text-white
+                  (or (timeline-time ctx start) "")]
+                 [:div.min-w-0.flex-1
+                  (render-title-field title-field (entity-title entity))]]
+                [:div.shrink-0.hidden.sm:block
+                 (render-meta {:etype etype
+                               :id-short id-short
+                               :relative (:relative time-meta)
+                               :duration (:duration time-meta)})]]
+               (when (seq detail-fields)
+                 [:div.ml-20.flex.flex-wrap.gap-x-3.gap-y-1
+                  (for [field detail-fields]
+                    (render-priority-detail field))])
+               [:div.ml-20.sm:hidden
+                (render-meta {:etype etype
+                              :id-short id-short
+                              :relative (:relative time-meta)
+                              :duration (:duration time-meta)})]]]]))]]
       [:p.text-sm.text-gray-400 "No recent activity yet. Keep logging!"])))
 
 (defn render-recent-activity
@@ -611,7 +676,9 @@
                 (catch Exception _ nil))
         items (timeline-activity ctx {:limit (or limit 18)})]
     [:div#overview-recent
-     (render-activity-feed ctx items)]))
+     [:div.space-y-5
+      (render-active-timers ctx)
+      (render-activity-feed ctx items)]]))
 
 (defn overview-shell
   "Top-level layout for the home overview page; sections hydrate via HTMX."

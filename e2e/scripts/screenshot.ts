@@ -14,7 +14,7 @@ async function screenshot() {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 
   // Authenticate first
-  await authenticateForDev(page);
+  await authenticateForDev(page, process.env.E2E_EMAIL || 'e2e-test@localhost');
 
   // Navigate to target page
   await page.goto(`${BASE_URL}${path}`, { waitUntil: 'networkidle' });
