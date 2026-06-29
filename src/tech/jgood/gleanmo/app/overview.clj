@@ -76,6 +76,111 @@
   [etype]
   (get recent-activity-accents etype (get recent-activity-accents :default)))
 
+(def timeline-type-order
+  ["reading-log"
+   "meditation-log"
+   "project-log"
+   "task"
+   "medication-log"
+   "habit-log"
+   "bm-log"
+   "symptom-log"
+   "calendar-event"
+   "exercise-session"
+   "exercise-log"
+   "exercise-set"])
+
+(def timeline-type-meta
+  {"reading-log"      {:code "READ" :label "reading log" :icon-key :book}
+   "meditation-log"  {:code "MED" :label "meditation log" :icon-key :medit}
+   "project-log"     {:code "PROJ" :label "project log" :icon-key :project}
+   "task"            {:code "TASK" :label "task" :icon-key :task}
+   "medication-log"  {:code "MEDS" :label "medication log" :icon-key :pill}
+   "habit-log"       {:code "HABIT" :label "habit log" :icon-key :habit}
+   "bm-log"          {:code "BM" :label "bm log" :icon-key :drop}
+   "symptom-log"     {:code "SYMP" :label "symptom log" :icon-key :pulse}
+   "calendar-event"  {:code "CAL" :label "calendar event" :icon-key :calendar}
+   "exercise-session" {:code "EX" :label "exercise session" :icon-key :pulse}
+   "exercise-log"    {:code "EX" :label "exercise log" :icon-key :pulse}
+   "exercise-set"    {:code "SET" :label "exercise set" :icon-key :pulse}
+   :default          {:code "ITEM" :label "item" :icon-key :pin}})
+
+(def status-styles
+  {:running    {:ring "#22d3ee" :icon "#22d3ee" :shadow "0 0 0 4px rgba(34,211,238,.10)"
+                :badge "LIVE" :badge-style {:color "#22d3ee" :background "rgba(34,211,238,0.12)"}}
+   :actionable {:ring "#f5a524" :icon "#f5a524" :shadow "none"
+                :badge "DUE TODAY" :badge-style {:color "#f5a524" :background "rgba(245,165,36,0.12)"}}
+   :scheduled  {:ring "#8b5cf6" :icon "#a78bfa" :shadow "none"
+                :badge "SCHEDULED" :badge-style {:color "#a78bfa" :background "rgba(139,92,246,0.12)"}}
+   :normal     {:ring "#2a3140" :icon "#9aa4b2" :shadow "none"
+                :badge nil :badge-style nil}})
+
+(defn- type-meta
+  [etype]
+  (get timeline-type-meta etype (get timeline-type-meta :default)))
+
+(defn- icon-svg
+  [icon-key size]
+  (let [attrs {:width size
+               :height size
+               :viewBox "0 0 24 24"
+               :fill "none"
+               :stroke "currentColor"
+               :stroke-width "1.7"
+               :stroke-linecap "round"
+               :stroke-linejoin "round"}]
+    (case icon-key
+      :book
+      [:svg attrs
+       [:rect {:x "5" :y "4" :width "14" :height "16" :rx "1.5"}]
+       [:line {:x1 "9" :y1 "4" :x2 "9" :y2 "20"}]]
+
+      :medit
+      [:svg attrs
+       [:circle {:cx "12" :cy "12" :r "7.5"}]
+       [:circle {:cx "12" :cy "12" :r "2.5"}]]
+
+      :project
+      [:svg attrs
+       [:rect {:x "3.5" :y "8" :width "17" :height "11.5" :rx "1.5"}]
+       [:rect {:x "3.5" :y "5" :width "9" :height "4" :rx "1"}]]
+
+      :task
+      [:svg attrs
+       [:rect {:x "4" :y "4" :width "16" :height "16" :rx "3"}]
+       [:polyline {:points "8 12 11 15 16 9"}]]
+
+      :pill
+      [:svg attrs
+       [:rect {:x "3.5" :y "8.5" :width "17" :height "7" :rx "3.5"}]
+       [:line {:x1 "12" :y1 "8.5" :x2 "12" :y2 "15.5"}]]
+
+      :habit
+      [:svg attrs
+       [:circle {:cx "12" :cy "12" :r "7.5"}]
+       [:polyline {:points "12.5 5 16 8 12.5 9.6"}]]
+
+      :drop
+      [:svg attrs
+       [:circle {:cx "12" :cy "13.5" :r "6"}]
+       [:polyline {:points "12 3 7.6 9.6"}]
+       [:polyline {:points "12 3 16.4 9.6"}]]
+
+      :pulse
+      [:svg attrs
+       [:polyline {:points "3 12 8 12 10.5 5 14 19 16.5 12 21 12"}]]
+
+      :calendar
+      [:svg attrs
+       [:rect {:x "4" :y "5.5" :width "16" :height "14.5" :rx "1.5"}]
+       [:line {:x1 "4" :y1 "10" :x2 "20" :y2 "10"}]
+       [:line {:x1 "9" :y1 "3" :x2 "9" :y2 "7"}]
+       [:line {:x1 "15" :y1 "3" :x2 "15" :y2 "7"}]]
+
+      [:svg attrs
+       [:circle {:cx "12" :cy "10" :r "6"}]
+       [:polyline {:points "7.5 14.5 12 21 16.5 14.5"}]])))
+
 (defn- user-zone
   [ctx]
   (try
@@ -192,12 +297,6 @@
      :beginning-key beginning-key,
      :end-key       end-key}))
 
-(defn- readable-label
-  [s]
-  (-> s
-      (str/replace "-" " ")
-      (str/capitalize)))
-
 (defn- entity-title
   [entity]
   (let [etype   (name (::sm/type entity))
@@ -280,24 +379,34 @@
   [ctx]
   (let [timers (active-timer-summaries ctx)]
     (when (seq timers)
-      [:div.space-y-2
+      [:section.space-y-3
        [:div.flex.items-center.gap-3
-        [:div.h-px.flex-1.bg-dark-border]
+        [:span.h-2.w-2.rounded-full.bg-neon-cyan.animate-pulse]
         [:div.text-xs.font-semibold.uppercase.tracking-wide.text-neon-cyan
          "Running now"]
-        [:div.h-px.flex-1.bg-dark-border]]
-       [:div.grid.grid-cols-1.md:grid-cols-3.gap-2
-        (for [{:keys [id href type label start elapsed]} timers]
-          [:a.block.rounded-md.border.border-neon-cyan.bg-dark-surface.px-3.py-2.no-underline.hover:bg-dark-light.transition-colors
-           {:key  (str id)
-            :href href}
+        [:div.h-px.flex-1.bg-dark-border]
+        [:div.text-xs.text-gray-500 (str (count timers) " active")]]
+       [:div.grid.grid-cols-1.md:grid-cols-3.gap-3
+        (for [{:keys [id href entity-str label start elapsed]} timers
+              :let [meta (type-meta entity-str)
+                    {:keys [icon-key code]} meta
+                    type-label (:label meta)]]
+          [:a.block.relative.overflow-hidden.rounded-lg.bg-dark-surface.px-4.py-3.no-underline.hover:bg-dark-light.transition-colors
+           {:key (str id)
+            :href href
+            :style {:border "1px solid #1e2430"}}
+           [:div.absolute.left-0.top-0.bottom-0.w-1.bg-neon-cyan]
            [:div.flex.items-center.justify-between.gap-3
-            [:div.min-w-0
-             [:div.text-sm.font-semibold.text-white.truncate label]
-             [:div.text-xs.text-gray-500.uppercase.tracking-wide type]]
+            [:div.flex.items-center.gap-3.min-w-0
+             [:div.flex.h-8.w-8.shrink-0.items-center.justify-center.rounded-full.bg-dark.text-neon-cyan
+              (icon-svg icon-key 16)]
+             [:div.min-w-0
+              [:div.text-sm.font-semibold.text-white.truncate label]
+              [:div.text-xs.text-gray-500.uppercase.tracking-wide
+               (or type-label code)]]]
             [:div.text-right.shrink-0
-             [:div.text-xs.text-neon-cyan elapsed]
-             [:div.text-xs.text-gray-500 (or (timeline-time ctx start) "")]]]])]])))
+             [:div.text-sm.font-semibold.text-neon-cyan elapsed]
+             [:div.text-xs.text-gray-500 (str "started " (or (timeline-time ctx start) ""))]]]])]])))
 
 (defn- timeline-date
   [ctx instant]
@@ -310,18 +419,6 @@
   (when instant
     (->> (t/in instant (user-zone ctx))
          (t/format (t/formatter "h:mm a")))))
-
-(defn- date-label
-  [ctx instant]
-  (let [zone  (user-zone ctx)
-        now   (t/date (t/in (t/now) zone))
-        date  (timeline-date ctx instant)]
-    (cond
-      (nil? date) ""
-      (= date now) "Today"
-      (= date (t/>> now (t/new-period 1 :days))) "Tomorrow"
-      (= date (t/<< now (t/new-period 1 :days))) "Yesterday"
-      :else (str date))))
 
 (defn- timeline-item-sort-key
   [_ctx entity]
@@ -471,30 +568,6 @@
        [:span.text-gray-400.uppercase.tracking-wide.text-xs label]
        [:span.text-white.font-semibold (or value "—")]])]])
 
-(defn- duration-minutes
-  [start end]
-  (when (and start end)
-    (max 1 (t/minutes (t/between start end)))))
-
-(defn- duration-height
-  [minutes]
-  (when minutes
-    (let [day-ratio (/ minutes 1440.0)
-          scaled    (+ 24 (* 128 (Math/sqrt day-ratio)))]
-      (int (min 160 (max 28 scaled))))))
-
-(defn- timeline-marker
-  [{:keys [accent muted interval? minutes]}]
-  [:span.absolute.left-0.top-4.flex.w-8.justify-center
-   (if interval?
-     [:span.block.w-2.rounded-full
-      {:style {:background accent
-               :height     (str (duration-height minutes) "px")
-               :box-shadow (str "0 0 0 5px rgba(13,17,23,1), 0 0 0 8px " muted)}}]
-     [:span.block.h-3.w-3.rounded-full
-      {:style {:background accent
-               :box-shadow (str "0 0 0 5px rgba(13,17,23,1), 0 0 0 8px " muted)}}])])
-
 (defn- formatted-field-value
   [entity {:keys [field-key input-type]} {:keys [biff/db], :as ctx}]
   (let [value (get entity field-key)]
@@ -537,15 +610,15 @@
 
 (defn- render-title-field
   [field fallback]
-  [:div.text-base.font-semibold.text-white.truncate
+  [:span.text-sm.font-semibold.text-white.leading-snug
    (or (:node field) fallback)])
 
 (defn- priority-detail-class
   [priority]
   (cond
-    (= priority 1) "text-sm text-gray-200"
-    (= priority 2) "text-sm text-gray-300"
-    (= priority 3) "text-xs text-gray-400"
+    (= priority 1) "text-xs text-gray-300"
+    (= priority 2) "text-xs text-gray-400"
+    (= priority 3) "text-xs text-gray-500"
     :else "text-xs text-gray-500"))
 
 (defn- render-priority-detail
@@ -553,84 +626,209 @@
   [:span.inline-flex.items-baseline.gap-1.min-w-0
    {:key (str field-key)
     :class (priority-detail-class priority)}
-   [:span.text-gray-500.whitespace-nowrap (str label ":")]
+   [:span.text-gray-600.whitespace-nowrap label]
    [:span.truncate node]])
 
-(defn- render-meta
-  [{:keys [etype id-short relative duration]}]
-  [:div.flex.items-center.justify-end.gap-2.text-xs.text-gray-500.uppercase.tracking-wide
-   [:span (readable-label etype)]
-   (when relative
-     [:span relative])
-   (when duration
-     [:span duration])
-   [:span.font-mono.normal-case.tracking-normal.opacity-70 (str id-short "...")]])
+(defn- entity-status
+  [ctx entity]
+  (let [etype   (some-> entity ::sm/type name)
+        start   (get-in entity [::activity-time :instant])
+        end     (get-in entity [::activity-time :end-instant])
+        future? (and start (t/> start (t/now)))
+        today   (t/date (t/in (t/now) (user-zone ctx)))]
+    (cond
+      (and start
+           (nil? end)
+           (#{"project-log" "reading-log" "meditation-log"} etype))
+      :running
+
+      future? :scheduled
+
+      (and (= etype "task")
+           (or (= :now (:task/state entity))
+               (some->> (:task/due-on entity) (t/>= today))
+               (some->> (:task/focus-date entity) (t/>= today))))
+      :actionable
+
+      :else :normal)))
+
+(defn- status-style
+  [status]
+  (get status-styles status (:normal status-styles)))
+
+(defn- timeline-node
+  [{:keys [type status]}]
+  (let [{:keys [icon-key]} (type-meta type)
+        {:keys [ring shadow], icon-color :icon} (status-style status)]
+    [:div.relative.z-10.flex.h-full.justify-center
+     [:span.relative.mt-2.flex.h-8.w-8.items-center.justify-center.rounded-full.bg-dark
+      {:style {:border     (str "1.5px solid " ring)
+               :color      icon-color
+               :box-shadow shadow}}
+      (icon-svg icon-key 15)]]))
+
+(defn- render-status-badge
+  [status]
+  (let [{:keys [badge badge-style]} (status-style status)]
+    (when badge
+      [:span.text-xs.font-semibold.uppercase.tracking-wide.rounded.px-2.py-0.5
+       {:style badge-style}
+       badge])))
+
+(defn- type-counts
+  [items]
+  (frequencies (map #(some-> % ::sm/type name) items)))
+
+(defn- render-type-filters
+  [items selected-type]
+  (let [counts (type-counts items)
+        total  (count items)
+        ordered-types (->> timeline-type-order
+                           (filter counts))
+        extra-types   (->> (keys counts)
+                           (remove (set ordered-types))
+                           sort)
+        chip-url      (fn [etype]
+                        (if etype
+                          (str "/app/overview/recent?type=" etype)
+                          "/app/overview/recent"))]
+    [:div.space-y-3
+     [:div.flex.items-baseline.justify-between.gap-4
+      [:div.flex.items-baseline.gap-3
+       [:span.text-sm.font-semibold.uppercase.tracking-wide.text-white
+        "Activity timeline"]
+       [:span.text-xs.text-gray-500
+        (if selected-type
+          (str (get counts selected-type 0) " of " total " shown")
+          (str total " shown"))]]
+      [:span.hidden.sm:inline.text-xs.text-gray-500 "filter by type"]]
+     [:div.flex.flex-wrap.gap-2
+      (for [etype (cons nil (concat ordered-types extra-types))
+            :let [active? (= selected-type etype)
+                  {:keys [code icon-key]} (if etype
+                                            (type-meta etype)
+                                            {:code "ALL" :icon-key nil})
+                  count (if etype (get counts etype 0) total)]]
+        [:a.inline-flex.items-center.gap-2.rounded-md.px-3.py-1.5.text-xs.font-semibold.uppercase.tracking-wide.no-underline.transition-colors
+         {:key       (or etype "all")
+          :href      (chip-url etype)
+          :hx-get    (chip-url etype)
+          :hx-target "#overview-recent"
+          :hx-swap   "outerHTML"
+          :class     (if active?
+                       "bg-dark-light text-white"
+                       "bg-dark-surface text-gray-500 hover:text-white hover:bg-dark-light")}
+         (when icon-key
+           [:span.text-gray-400 (icon-svg icon-key 13)])
+         [:span code]
+         [:span.text-gray-600 count]])]]))
+
+(defn- group-label
+  [ctx date]
+  (let [zone      (user-zone ctx)
+        today     (t/date (t/in (t/now) zone))
+        yesterday (t/<< today (t/new-period 1 :days))
+        tomorrow  (t/>> today (t/new-period 1 :days))]
+    (cond
+      (t/> date tomorrow) "Upcoming"
+      (= date today) "Today"
+      (= date tomorrow) "Tomorrow"
+      (= date yesterday) "Yesterday"
+      :else (t/format (t/formatter "EEEE") date))))
+
+(defn- group-date
+  [date]
+  (t/format (t/formatter "EEE MMM d") date))
+
+(defn- timeline-groups
+  [ctx items]
+  (->> items
+       (reduce
+        (fn [groups entity]
+          (let [date (timeline-date ctx (get-in entity [::activity-time :instant]))]
+            (if (= date (:date (peek groups)))
+              (conj (pop groups)
+                    (update (peek groups) :items conj entity))
+              (conj groups {:date date :items [entity]}))))
+        [])))
+
+(defn- render-group-header
+  [ctx {:keys [date items]}]
+  (let [future? (t/> date (t/date (t/in (t/now) (user-zone ctx))))]
+    [:summary.sticky.top-0.z-20.flex.cursor-pointer.select-none.items-center.gap-3.bg-dark.py-3
+     {:style {:list-style "none"}}
+     [:span.flex.h-6.w-6.items-center.justify-center.rounded.bg-dark-surface.text-gray-500.transition-colors.hover:bg-dark-light.hover:text-white
+      [:span.text-sm.transition-transform.group-open:rotate-90 "›"]]
+     [:div.text-sm.font-semibold.text-gray-200 (group-label ctx date)]
+     [:div.text-xs.text-gray-500 (group-date date)]
+     (when future?
+       [:span.rounded.px-2.py-0.5.text-xs.font-semibold.uppercase.tracking-wide
+        {:style {:color "#a78bfa" :border "1px solid rgba(139,92,246,0.4)"}}
+        "Scheduled"])
+     [:div.h-px.flex-1.bg-dark-border]
+     [:div.text-xs.text-gray-500
+      (str (count items) " " (if (= 1 (count items)) "entry" "entries"))]]))
+
+(defn- render-timeline-row
+  [ctx entity]
+  (let [etype           (name (::sm/type entity))
+        {:keys [code]} (type-meta etype)
+        href            (str "/app/crud/form/" etype "/edit/" (:xt/id entity))
+        priority-fields (priority-field-values entity ctx)
+        title-field     (first priority-fields)
+        detail-fields   (rest priority-fields)
+        time-meta       (activity-time-meta entity ctx)
+        id-short        (subs (str (:xt/id entity)) 0 8)
+        start           (get-in entity [::activity-time :instant])
+        status          (entity-status ctx entity)]
+    [:a.group.flex.items-stretch.rounded-lg.no-underline.transition-colors.hover:bg-dark-surface
+     {:href href}
+     [:div.w-20.shrink-0.py-3.pr-3.text-right
+      [:span.text-xs.text-gray-400.tabular-nums (or (timeline-time ctx start) "")]]
+     [:div.w-14.shrink-0.relative
+      [:div.absolute.top-0.bottom-0.left-0.right-0.mx-auto.w-px.bg-dark-border]
+      (timeline-node {:type etype
+                      :status status})]
+     [:div.flex-1.min-w-0.py-3.pr-4
+      [:div.flex.flex-wrap.items-center.gap-2
+       [:span.rounded.border.border-dark-border.px-2.py-0.5.text-xs.font-semibold.uppercase.tracking-wide.text-gray-500 code]
+       (render-title-field title-field (entity-title entity))
+       (render-status-badge status)]
+      (when (seq detail-fields)
+        [:div.mt-2.flex.flex-wrap.gap-x-4.gap-y-1
+         (for [field detail-fields]
+           (render-priority-detail field))])
+      (when-let [duration (:duration time-meta)]
+        [:div.mt-2.text-xs.font-semibold.text-gray-400.md:hidden duration])]
+     [:div.hidden.w-32.shrink-0.flex-col.items-end.gap-1.py-3.pr-4.text-right.md:flex
+      (when-let [duration (:duration time-meta)]
+        [:span.text-xs.font-semibold.text-gray-300 duration])
+      (when-let [relative (:relative time-meta)]
+        [:span.text-xs.text-gray-500 relative])
+      [:span.text-xs.font-mono.text-gray-700 (str id-short "...")]]]))
 
 (defn render-activity-feed
   "Render activity in a single chronological timeline across entity types."
-  [ctx recent-items]
-  (let [items recent-items]
-    (if (seq items)
-      [:div.relative
-       [:div.absolute.left-4.top-1.bottom-1.w-px.bg-dark-border.pointer-events-none]
-       [:div.space-y-2
-        (for [[idx entity] (map-indexed vector items)]
-          (let [etype           (name (::sm/type entity))
-                {:keys [accent muted]} (accent-style etype)
-                href            (str "/app/crud/form/" etype "/edit/" (:xt/id entity))
-                priority-fields (priority-field-values entity ctx)
-                title-field     (first priority-fields)
-                detail-fields   (rest priority-fields)
-                time-meta       (activity-time-meta entity ctx)
-                id-short        (subs (str (:xt/id entity)) 0 8)
-                start           (get-in entity [::activity-time :instant])
-                end             (get-in entity [::activity-time :end-instant])
-                minutes         (duration-minutes start end)
-                interval?       (boolean minutes)
-                date            (timeline-date ctx start)
-                prev-date       (when (pos? idx)
-                                  (timeline-date
-                                   ctx
-                                   (get-in (nth items (dec idx))
-                                           [::activity-time :instant])))]
-            [:div {:key (str (:xt/id entity))}
-             (when (not= date prev-date)
-               [:div.relative.flex.items-center.gap-3.pl-12.pt-6.pb-2
-                [:div.h-px.flex-1.bg-dark-border]
-                [:div.text-xs.font-semibold.uppercase.tracking-wide.text-gray-500
-                 (date-label ctx start)]
-                [:div.h-px.flex-1.bg-dark-border]])
-             [:a.group.relative.block.pl-12.pr-3.rounded-md.border.transition-colors.duration-200
-              {:class "py-3 hover:bg-dark-light"
-               :href  href
-               :style {:background   "rgba(13,17,23,0.78)"
-                       :border-color "rgba(48,54,61,0.85)"}}
-              (timeline-marker {:accent accent
-                                :muted muted
-                                :interval? interval?
-                                :minutes minutes})
-              [:div.space-y-2.min-w-0
-               [:div.flex.items-start.justify-between.gap-4
-                [:div.flex.items-baseline.gap-3.min-w-0
-                 [:div.w-16.shrink-0.text-sm.font-semibold.text-white
-                  (or (timeline-time ctx start) "")]
-                 [:div.min-w-0.flex-1
-                  (render-title-field title-field (entity-title entity))]]
-                [:div.shrink-0.hidden.sm:block
-                 (render-meta {:etype etype
-                               :id-short id-short
-                               :relative (:relative time-meta)
-                               :duration (:duration time-meta)})]]
-               (when (seq detail-fields)
-                 [:div.ml-20.flex.flex-wrap.gap-x-3.gap-y-1
-                  (for [field detail-fields]
-                    (render-priority-detail field))])
-               [:div.ml-20.sm:hidden
-                (render-meta {:etype etype
-                              :id-short id-short
-                              :relative (:relative time-meta)
-                              :duration (:duration time-meta)})]]]]))]]
-      [:p.text-sm.text-gray-400 "No recent activity yet. Keep logging!"])))
+  ([ctx recent-items]
+   (render-activity-feed ctx recent-items nil))
+  ([ctx recent-items selected-type]
+   (let [items  (cond->> recent-items
+                  selected-type (filter #(= selected-type (some-> % ::sm/type name))))
+         groups (timeline-groups ctx items)]
+     (if (seq items)
+       [:div.space-y-5
+        (render-type-filters recent-items selected-type)
+        [:div.space-y-2
+         (for [group groups]
+           [:details.group {:key (str (:date group))
+                            :open true}
+            (render-group-header ctx group)
+            [:div
+             (for [entity (:items group)]
+               (render-timeline-row ctx entity))]])]]
+       [:div.space-y-5
+        (render-type-filters recent-items selected-type)
+        [:p.text-sm.text-gray-400 "No matching activity."]]))))
 
 (defn render-recent-activity
   "Render dashboard stats, upcoming events, and recent activity feed."
@@ -674,11 +872,12 @@
   (let [limit (try
                 (some-> (:limit params) Integer/parseInt)
                 (catch Exception _ nil))
+        selected-type (some-> (:type params) not-empty)
         items (timeline-activity ctx {:limit (or limit 18)})]
     [:div#overview-recent
      [:div.space-y-5
       (render-active-timers ctx)
-      (render-activity-feed ctx items)]]))
+      (render-activity-feed ctx items selected-type)]]))
 
 (defn overview-shell
   "Top-level layout for the home overview page; sections hydrate via HTMX."
