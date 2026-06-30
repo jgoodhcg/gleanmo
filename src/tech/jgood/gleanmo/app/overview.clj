@@ -119,6 +119,15 @@
   [etype]
   (get timeline-type-meta etype (get timeline-type-meta :default)))
 
+(defn- url-encode
+  [s]
+  (java.net.URLEncoder/encode s "UTF-8"))
+
+(defn- edit-form-url
+  [etype entity-id]
+  (str "/app/crud/form/" etype "/edit/" entity-id
+       "?redirect=" (url-encode "/app")))
+
 (defn- icon-svg
   [icon-key size]
   (let [attrs {:width size
@@ -359,7 +368,7 @@
   [ctx]
   (->> timers-app/timer-entities
        (mapcat
-        (fn [{:keys [entity-key entity-str display-name route]}]
+        (fn [{:keys [entity-key entity-str display-name]}]
           (let [{:keys [relationship-key beginning-key] :as config}
                 (timer-routes/timer-config {:entity-key entity-key
                                             :entity-str entity-str})]
@@ -367,7 +376,7 @@
                   :let [start     (get timer beginning-key)
                         parent-id (get timer relationship-key)]]
               {:id        (:xt/id timer)
-               :href      route
+               :href      (edit-form-url entity-str (:xt/id timer))
                :entity-str entity-str
                :type      display-name
                :label     (or (relationship-label (:biff/db ctx) parent-id)
@@ -773,7 +782,7 @@
   [ctx entity]
   (let [etype           (name (::sm/type entity))
         {:keys [code]} (type-meta etype)
-        href            (str "/app/crud/form/" etype "/edit/" (:xt/id entity))
+        href            (edit-form-url etype (:xt/id entity))
         priority-fields (priority-field-values entity ctx)
         title-field     (first priority-fields)
         detail-fields   (rest priority-fields)

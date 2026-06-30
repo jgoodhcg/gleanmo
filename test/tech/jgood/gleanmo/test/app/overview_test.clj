@@ -50,3 +50,10 @@
                      {:sort-instant (t/>> now (t/new-duration 1 :days))}}]
       (is (neg? (compare (#'overview/timeline-item-sort-key ctx near-item)
                          (#'overview/timeline-item-sort-key ctx far-item)))))))
+
+(deftest edit-form-url-test
+  (testing "timeline edit links return to the home page after save"
+    (let [entity-id (java.util.UUID/fromString "00000000-0000-0000-0000-000000000001")]
+      (is (= (str "/app/crud/form/reading-log/edit/" entity-id
+                  "?redirect=%2Fapp")
+             (#'overview/edit-form-url "reading-log" entity-id))))))
