@@ -184,6 +184,49 @@ Git SHA: `718b8f5` | 4 snapshots collected. Cold start was slow (15s) but warmed
 
 **Conclusion:** Two-phase exclusion delivers ~20% improvement on warm queries and ~33% reduction in worst-case single call. Cold start is slower due to pulling all entities without limit, but stabilizes quickly.
 
+## Index-Only Scan Refactor (2026-07-02)
+
+`all-entities-for-user` rewritten in place (signature unchanged, callers unaware):
+
+1. **Phase 1:** index-only scan of `[?e ?sort-value]` tuples — no document pulls.
+   Key finding: XTDB 1.x `pull` fetches the *entire document* from the doc store
+   regardless of pull spec, so the only way to avoid doc materialization is plain
+   datalog variables. Sorting/pagination happens on tuples in Clojure.
+2. **Phase 2:** one batch pull (`:in [[?e ...]]`) of full docs for just the page.
+   With relationship exclusions, docs are pulled in chunks (~2x limit) and filtered
+   until the page fills. **The limit is never dropped anymore** — previously any
+   non-empty exclusion map caused a full-history pull of the type.
+
+### Pre-Deploy Prod Baseline (2026-07-02, warm, SHA d7f41a4)
+
+| Endpoint | Time | all-entities-for-user |
+|----------|------|-----------------------|
+| `get-app-overview-recent` | **5.68s** | 6 calls, mean 932ms, max 2.64s (= 5.59s of the total) |
+| `get-app-overview-stats` | **6.03s** | 9 calls, mean 667ms, max 2.70s (= 6.01s of the total) |
+| `get-app-overview-events` | 27.91ms | fast |
+| `get-app` | 4.51ms | fast |
+
+~99% of both slow endpoints is inside `all-entities-for-user` — the exact path
+this refactor changes. Compare these numbers post-deploy.
+
+### Measured (local, in-memory node, 5,000 reading-logs w/ ~600B notes, exclusions active)
+
+| Case | Old | New | Change |
+|------|-----|-----|--------|
+| limit 20 | 96ms | 66ms | -31%, identical results |
+| limit 200 (stats shape) | 91ms | 73ms | -20%, identical results |
+
+Docs pulled per call: old = all 5,000; new = ~40 (limit 20) / ~400 (limit 200).
+In-memory nodes minimize doc-fetch cost, so prod (RocksDB doc store, larger docs)
+should improve substantially more — doc materialization now scales with page size,
+not history size. Remaining floor is the per-row datalog join (~10-20µs/row/clause),
+which still scales with type history; if that becomes the bottleneck, windowing or
+a materialized activity feed is the next step.
+
+Full test suite green before and after (80 tests, 630 assertions). Verify in prod
+via `/app/monitoring/performance`: `all-entities-for-user` mean should drop from
+~600-900ms; new span `fetch-entities-by-ids` shows batch-pull cost.
+
 ## Post-Deploy Baseline (2026-03-07)
 
 _To be filled after deploying query refactoring (commits 7d3ee01, a78a8fa)._

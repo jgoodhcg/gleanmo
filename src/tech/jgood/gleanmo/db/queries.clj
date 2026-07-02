@@ -242,6 +242,48 @@
       limit     (assoc :limit limit)
       offset    (assoc :offset offset))))
 
+(defn- build-id-scan-query
+  "Build an index-only query returning [?e ?sort-value] tuples — no document
+   pulls. When order-key is given, entities lacking that attribute are excluded
+   (matching build-entity-query's join semantics). Otherwise sorts by the
+   entity's timestamp field when present, falling back to ::sm/created-at."
+  [entity-type order-key extra-where]
+  (let [ts-key       (keyword (name entity-type) "timestamp")
+        sort-clause  (cond
+                       order-key
+                       [['?e order-key '?sort]]
+
+                       (schema-has-field? entity-type "timestamp")
+                       [(list 'or-join '[?e ?sort]
+                              ['?e ts-key '?sort]
+                              (list 'and
+                                    (list 'not ['?e ts-key])
+                                    ['?e ::sm/created-at '?sort]))]
+
+                       :else
+                       [['?e ::sm/created-at '?sort]])]
+    {:find  '[?e ?sort]
+     :where (-> ['[?e :user/id user-id]
+                 ['?e ::sm/type entity-type]
+                 '(not [?e ::sm/deleted-at])]
+                (into sort-clause)
+                (into (or extra-where [])))
+     :in    ['user-id]}))
+
+(defnp fetch-entities-by-ids
+  "Batch-fetch full documents for a collection of ids, preserving order.
+   Returns a vector of entity maps; missing ids are omitted."
+  [db ids]
+  (if (seq ids)
+    (let [results (q db
+                     '{:find  [(pull ?e [*])]
+                       :where [[?e :xt/id ?e]]
+                       :in    [[?e ...]]}
+                     (vec ids))
+          by-id   (into {} (map (fn [[e]] [(:xt/id e) e])) results)]
+      (into [] (keep by-id) ids))
+    []))
+
 (defn build-count-query
   "Build a lightweight count query — returns entity IDs only, no pull [*].
    Accepts extra-where clauses for sensitivity/state filtering."
@@ -258,35 +300,46 @@
 
 (defnp all-entities-for-user
   "Get all entities of a specific type that belong to a user.
-   Uses two-phase filtering: direct clauses in XTDB, relationship exclusion
-   via post-filter with O(1) set lookups (replaces slow not-join approach)."
+   Two-phase read: (1) index-only scan of [id sort-value] tuples — no document
+   pulls — sorted and paginated in Clojure, (2) batch pull of full documents
+   for just the page, with relationship-exclusion filtering applied on chunks
+   until the page fills. Document materialization cost scales with the page
+   size instead of the user's entire history for the type."
   [db user-id entity-type &
    {:keys [filter-sensitive filter-archived filter-references
            limit offset order-key order-direction]}]
-  (let [entity-type-str (name entity-type)
-        time-stamp-key  (keyword entity-type-str "timestamp")
-        user-settings   {:show-sensitive (boolean filter-sensitive)
-                         :show-archived  (boolean filter-archived)}
+  (let [user-settings {:show-sensitive (boolean filter-sensitive)
+                       :show-archived  (boolean filter-archived)}
         ;; Always use direct-only clauses for XTDB (fast (not ...) clauses)
-        extra-where     (direct-sensitivity-clauses entity-type user-settings)
-        ;; Phase 1: build exclusion map when filter-references requested
-        exclusion-map   (when filter-references
-                          (build-exclusion-map db user-id entity-type user-settings))
-        ;; When post-filtering, don't limit in XTDB — apply after filtering
-        effective-limit  (if (and limit (seq exclusion-map)) nil limit)
-        effective-offset (if (and offset (seq exclusion-map)) nil offset)
-        query-map       (build-entity-query
-                         user-id entity-type order-key order-direction
-                         effective-limit effective-offset :extra-where extra-where)
-        raw-results     (q db query-map user-id)
-        entities        (map first raw-results)]
-    ;; Phase 2: post-filter, sort, then apply pagination in Clojure
-    (cond->> entities
-      (seq exclusion-map)  (apply-relationship-exclusions exclusion-map)
-      (nil? order-key)     (sort-by #(or (time-stamp-key %) (::sm/created-at %)))
-      (nil? order-key)     reverse
-      (and (seq exclusion-map) offset) (drop offset)
-      (and (seq exclusion-map) limit)  (take limit))))
+        extra-where   (direct-sensitivity-clauses entity-type user-settings)
+        ;; Build exclusion map when filter-references requested
+        exclusion-map (when filter-references
+                        (build-exclusion-map db user-id entity-type user-settings))
+        ;; Phase 1: index-only scan of [id sort-value] tuples
+        scan-query    (build-id-scan-query entity-type order-key extra-where)
+        direction     (or order-direction default-order-direction)
+        sorted-ids    (cond->> (sort-by second (q db scan-query user-id))
+                        (= direction :desc) reverse
+                        true                (map first))]
+    (if (seq exclusion-map)
+      ;; Phase 2a: pull docs in chunks, dropping excluded ones, until the
+      ;; page (offset + limit) is satisfied. Exclusions are typically sparse,
+      ;; so this usually pulls a single chunk of ~2x the limit.
+      (let [chunk-size (if limit (max 50 (* 2 limit)) 1000)
+            filtered   (->> (partition-all chunk-size sorted-ids)
+                            (mapcat (fn [chunk]
+                                      (apply-relationship-exclusions
+                                       exclusion-map
+                                       (fetch-entities-by-ids db chunk)))))]
+        (cond->> filtered
+          offset (drop offset)
+          limit  (take limit)
+          true   doall))
+      ;; Phase 2b: no exclusions — page the ids directly, one batch pull
+      (fetch-entities-by-ids db
+                             (cond->> sorted-ids
+                               offset (drop offset)
+                               limit  (take limit))))))
 
 (defn tasks-for-user
   "Get all tasks for a user, respecting the user's sensitive setting."
