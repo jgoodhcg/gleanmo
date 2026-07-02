@@ -1,6 +1,6 @@
 # AGENTS
 
-Follows `AGENT_BLUEPRINT.md` (version: 2026-06-17)
+Follows `AGENT_BLUEPRINT.md` (version: 2026-07-02)
 
 ## Project Overview
 
@@ -13,9 +13,16 @@ Gleanmo is a personal quantified-self web app built in Clojure 1.11.1 with Biff,
 - XTDB (RocksDB locally; PostgreSQL-backed in production)
 - Self-hosted web app
 
+## Environment
+
+- Version manager: Clojure CLI / Java
+- Version file: `deps.edn`
+- Lockfile: none; dependencies are pinned in `deps.edn`
+- Setup: `clj -P`
+
 ## Commit Trailer Template
 
-Store a template, not concrete runtime values.
+Store a template, not concrete runtime values. Fill it at commit time using `references/commit-attribution.md`.
 
 ```text
 Co-authored-by: [AI_PRODUCT_NAME] <[AI_PRODUCT_EMAIL]>
@@ -23,21 +30,6 @@ AI-Provider: [AI_PROVIDER]
 AI-Product: [AI_PRODUCT_LINE]
 AI-Model: [AI_MODEL]
 ```
-
-Template rules:
-- `AI_PRODUCT_LINE` must be one of: `codex|claude|gemini|opencode`.
-- Determine `AI_PRODUCT_LINE` from current session:
-  - Codex or ChatGPT coding agent -> `codex`
-  - Claude -> `claude`
-  - Gemini -> `gemini`
-  - OpenCode -> `opencode` (regardless underlying provider/model, including z.ai)
-- Determine `AI_PROVIDER` and `AI_MODEL` from runtime model metadata.
-- `AI_PRODUCT_NAME` and `AI_PRODUCT_EMAIL` format:
-  - `codex` -> `Codex <codex@users.noreply.github.com>`
-  - `claude` -> `Claude <claude@users.noreply.github.com>`
-  - `gemini` -> `Gemini <google-gemini@users.noreply.github.com>`
-  - `opencode` -> `GLM <zai-org@users.noreply.github.com>`
-- Fill this template at commit time; do not persist filled values in `AGENTS.md`.
 
 ## Validation Commands
 
@@ -144,10 +136,7 @@ commands for the user to run, prefer the `biff` shorthand (e.g., `biff notebook`
 
 ## Project-Specific Rules
 
-- Execute `ready` roadmap work units autonomously and self-validate before returning.
-- Never commit without explicit user approval.
 - Always include commit trailers (Co-authored-by, AI-Provider, AI-Product, AI-Model) using the template above.
-- Validation first: reflect on current state and plan before executing; run validation after changes (Clojure files only).
 - User control: never assume database state; ask the user if unsure.
 - Roadmap driven: canonical roadmap lives in `roadmap/` with `index.md` as canonical state and `README.md` as catalog.
 
@@ -242,9 +231,12 @@ See `.agent-profile.md` (git-ignored) for interaction preferences. Create on pro
 
 ## References
 
+- Blueprint policy: `AGENT_BLUEPRINT.md`
+- Commit attribution: `references/commit-attribution.md`
+- User profile guidance: `references/user-profile.md`
+- Example ready work unit: `references/work-unit-example.md`
 - For roadmap conventions and work-unit lifecycle, see `roadmap/README.md`.
 - For canonical roadmap state, see `roadmap/index.md`.
-- For decision records and optional matrix format, see `AGENT_BLUEPRINT.md` section `Decision Artifacts [BP-DECISIONS]`.
 
 ## Key Files
 
