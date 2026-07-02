@@ -343,6 +343,27 @@
                                offset (drop offset)
                                limit  (take limit))))))
 
+(defnp active-timers-for-user
+  "Fetch in-progress timer entities (beginning set, no end) for a user.
+   Pushes the active-timer predicate into XTDB so the read cost scales with
+   the number of running timers instead of the type's full history."
+  [db user-id entity-type beginning-key end-key & {:keys [user-settings]}]
+  (let [settings      (or user-settings (get-user-settings db user-id))
+        sens-clauses  (direct-sensitivity-clauses entity-type settings)
+        exclusion-map (build-exclusion-map db user-id entity-type settings)
+        where-clauses (-> ['[?e :user/id user-id]
+                           ['?e ::sm/type entity-type]
+                           '(not [?e ::sm/deleted-at])
+                           ['?e beginning-key '?b]
+                           (list 'not ['?e end-key])]
+                          (into sens-clauses))
+        results       (q db
+                         {:find  '[(pull ?e [*])]
+                          :where where-clauses
+                          :in    '[user-id]}
+                         user-id)]
+    (apply-relationship-exclusions exclusion-map (map first results))))
+
 (defn tasks-for-user
   "Get all tasks for a user, respecting the user's sensitive setting."
   [db user-id & {:keys [user-settings]}]

@@ -68,11 +68,14 @@
            rel-info)))
 
 (defn fetch-active-timers
-  [ctx {:keys [entity-query beginning-key end-key]}]
-  (->> (queries/all-for-user-query entity-query ctx)
-       (filter (fn [timer]
-                 (and (get timer beginning-key)
-                      (nil? (get timer end-key)))))))
+  [ctx {:keys [entity-key beginning-key end-key]}]
+  (queries/active-timers-for-user
+   (:biff/db ctx)
+   (-> ctx :session :uid)
+   entity-key
+   beginning-key
+   end-key
+   :user-settings (queries/resolve-user-settings ctx)))
 
 (defn fetch-completed-logs
   "Fetch recent completed logs (both beginning and end set), ordered by beginning desc."

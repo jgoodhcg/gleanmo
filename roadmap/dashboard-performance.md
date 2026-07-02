@@ -291,6 +291,40 @@ heavily. Cold start (~10s) = empty doc cache + possible Neon compute resume.
 Parallel scans share the Hikari pool for doc fetches — check
 `:biff.xtdb.jdbc-pool/maximumPoolSize` if per-type spans show serialization.
 
+## Per-Type Span Analysis (2026-07-02, SHA 8416788)
+
+4 loads, warm min 2.92s. Per-type spans (scan/exclusions shown as duplicate
+rows in the dashboard) reveal:
+
+| Type | scan mean (min) | exclusions mean |
+|------|-----------------|-----------------|
+| habit-log | **4.20s (2.21s)** | 224ms |
+| medication-log | **3.80s (2.04s)** | 826µs |
+| bm-log | **2.62s (1.23s)** | 1.5ms |
+| task | 1.24s (515ms) | 68ms |
+| reading-log / meditation-log / project-log | ~10-40ms | 0.9-1.5s |
+| exercise-*, symptom-*, calendar-event | µs-40ms | — |
+
+1. **Index scans of the big log types are now the wall** — seconds each, even
+   though e.g. bm-log is only ~1k rows. Everything is inflated by contention:
+   16 parallel scans + 3 unlimited timer fetches + ~143 get-entity-by-id per
+   load, all at once. Uncontended scan cost is unknown.
+2. **`fetch-active-timers` full-fetched all docs of 3 timer types per load**
+   (all-for-user-query, no limit → full scan + full Neon doc pull; 12 calls,
+   572ms mean per snapshot). Fixed: `active-timers-for-user` pushes the
+   "beginning set, no end" predicate into XTDB.
+3. For reading/meditation/project-log the *exclusions* subquery is the slow
+   row (~1s) while scans are ~10ms — exclusion parent scans (location/project)
+   are tiny tables, so this too smells like contention, not real work.
+4. `get-entity-by-id` 143/load (~285ms) — relationship-label lookups;
+   batchable later if it matters.
+
+**Next after timer fix deploys:** re-snapshot. If big-type scans stay
+multi-second uncontended, that's the XTDB 1.x per-row scan floor on this
+hardware → options: per-user dashboard cache (TTL ~60s), materialized
+recent-activity doc maintained on write, or accept ~1-2s. Also worth checking
+prod vCPU count and `maximumPoolSize`.
+
 ## Post-Deploy Baseline (2026-03-07)
 
 _To be filled after deploying query refactoring (commits 7d3ee01, a78a8fa)._
