@@ -282,8 +282,14 @@ load across recent+stats): **~4.5x improvement warm**.
 
 **Remaining bottleneck:** one ~2s type per cascade. Per-type tufte spans
 (`scan/<type>`, `exclusions/<type>`) added to `all-entities-for-user` so the
-next snapshot identifies the type and phase. Cold start (~10s) is a separate
-concern — likely RocksDB block-cache warmup.
+next snapshot identifies the type and phase.
+
+Note on topology: prod is XTDB `:jdbc` on Neon Postgres — the document store is
+remote, so doc pulls are network fetches (visible in `fetch-entities-by-ids`
+mean 75ms / max 686ms). This is why eliminating full-history pulls paid off so
+heavily. Cold start (~10s) = empty doc cache + possible Neon compute resume.
+Parallel scans share the Hikari pool for doc fetches — check
+`:biff.xtdb.jdbc-pool/maximumPoolSize` if per-type spans show serialization.
 
 ## Post-Deploy Baseline (2026-03-07)
 
