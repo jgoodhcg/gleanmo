@@ -8,7 +8,7 @@
             [tech.jgood.gleanmo.schema.meta :as sm]
             [tick.core :as t]))
 
-(def demo-email "blog-demo@localhost")
+(def demo-email "marketing-demo@localhost")
 
 (def demo-zone (java.time.ZoneId/of "America/Detroit"))
 
@@ -38,17 +38,19 @@
                         :user/email email
                         :user/joined-at joined
                         :user/time-zone "America/Detroit"
-                        :user/show-bm-logs true}])
+                        :user/show-sensitive false
+                        :user/show-archived false
+                        :user/show-bm-logs false}])
       user-id)))
 
 (defn- seed-ctx
   [ctx user-id]
   (assoc ctx
          :session {:uid user-id}
-         :user/settings {:email "blog-demo@localhost"
+         :user/settings {:email "marketing-demo@localhost"
                          :show-sensitive false
                          :show-archived false
-                         :show-bm-logs true}))
+                         :show-bm-logs false}))
 
 (defn- entities-for
   [ctx user-id entity-type]
@@ -60,7 +62,7 @@
 
 (defn- demo-seeded?
   [ctx user-id]
-  (some #(= "Gleanmo screenshot refresh" (:project/label %))
+  (some #(= "Product launch plan" (:project/label %))
         (entities-for ctx user-id :project)))
 
 (defn- create!
@@ -77,47 +79,46 @@
      ctx
      user-id
      {:user/time-zone "America/Detroit"
-      :user/show-bm-logs true})
+      :user/show-sensitive false
+      :user/show-archived false
+      :user/show-bm-logs false})
     (let [home-id       (create! ctx user-id :location
-                                 {:location/label "Home studio"
-                                  :location/notes "Desk, notebook, tea"})
+                                 {:location/label "Studio desk"
+                                  :location/notes "Notebook, laptop, tea"})
           couch-id      (create! ctx user-id :location
-                                 {:location/label "Reading chair"})
+                                 {:location/label "Reading nook"})
           project-id    (create! ctx user-id :project
-                                 {:project/label "Gleanmo screenshot refresh"
-                                  :project/notes "Polishing the quantified-self home timeline"})
+                                 {:project/label "Product launch plan"
+                                  :project/notes "Preparing a focused project update"})
           blog-id       (create! ctx user-id :project
-                                 {:project/label "Projects homepage"
-                                  :project/notes "Writing the current-projects section"})
+                                 {:project/label "Portfolio refresh"
+                                  :project/notes "Updating the current-projects section"})
           meditation-id (create! ctx user-id :meditation
-                                 {:meditation/label "Open monitoring"
-                                  :meditation/notes "Quiet attention practice"})
+                                 {:meditation/label "Breath focus"
+                                  :meditation/notes "Short reset between work blocks"})
           book-id       (create! ctx user-id :book
-                                 {:book/label "The Creative Act"
-                                  :book/title "The Creative Act"
-                                  :book/author "Rick Rubin"
+                                 {:book/label "Designing Calm Tools"
+                                  :book/title "Designing Calm Tools"
+                                  :book/author "Example Press"
                                   :book/formats #{:hardcover}})
           habit-a-id    (create! ctx user-id :habit
-                                 {:habit/label "Morning pages"
-                                  :habit/notes "Three pages before email"})
+                                 {:habit/label "Morning notes"
+                                  :habit/notes "Review priorities before email"})
           habit-b-id    (create! ctx user-id :habit
-                                 {:habit/label "Walk outside"})
-          med-id        (create! ctx user-id :medication
-                                 {:medication/label "Vitamin D"
-                                  :medication/notes "Morning stack"})]
+                                 {:habit/label "Daily walk"})]
       (create! ctx user-id :project-log
                {:project-log/project-id project-id
                 :project-log/beginning  (ago 84 :minutes)
                 :project-log/time-zone  "America/Detroit"
                 :project-log/location-id home-id
-                :project-log/notes      "Tuning timeline density and screenshot composition"})
+                :project-log/notes      "Refined launch checklist and next actions"})
       (create! ctx user-id :reading-log
                {:reading-log/book-id book-id
                 :reading-log/beginning (ago 31 :minutes)
                 :reading-log/time-zone "America/Detroit"
                 :reading-log/location-id couch-id
                 :reading-log/format :hardcover
-                :reading-log/notes "Active reading timer for a calmer top strip"})
+                :reading-log/notes "Active reading timer for a quiet top strip"})
       (create! ctx user-id :meditation-log
                {:meditation-log/type-id meditation-id
                 :meditation-log/location-id home-id
@@ -134,7 +135,7 @@
                 :project-log/end (ago 2 :hours)
                 :project-log/time-zone "America/Detroit"
                 :project-log/location-id home-id
-                :project-log/notes "Drafted the thumbnail copy and timeline notes"})
+                :project-log/notes "Drafted project summaries and selected visuals"})
       (create! ctx user-id :reading-log
                {:reading-log/book-id book-id
                 :reading-log/beginning (ago 26 :hours)
@@ -142,66 +143,38 @@
                 :reading-log/time-zone "America/Detroit"
                 :reading-log/location-id couch-id
                 :reading-log/format :hardcover
-                :reading-log/notes "Marked a chapter that connects projects and practice"})
+                :reading-log/notes "Marked a chapter about durable product habits"})
       (create! ctx user-id :habit-log
                {:habit-log/timestamp (ago 3 :hours)
                 :habit-log/time-zone "America/Detroit"
                 :habit-log/habit-ids #{habit-a-id habit-b-id}
-                :habit-log/notes "Wrote, walked, then came back to polish the app"})
-      (create! ctx user-id :medication-log
-               {:medication-log/timestamp (ago 5 :hours)
-                :medication-log/medication-id med-id
-                :medication-log/dosage (float 1.0)
-                :medication-log/unit :capsule})
+                :habit-log/notes "Notes, walk, then a clean planning block"})
       (create! ctx user-id :task
-               {:task/label "Choose final blog screenshot"
-                :task/notes "Use the seeded account after the running timers render"
+               {:task/label "Choose launch image"
+                :task/notes "Use the demo account after active timers render"
                 :task/state :now
                 :task/due-on (t/date (t/in (now) demo-zone))
                 :task/focus-date (t/date (t/in (now) demo-zone))
                 :task/effort :low
                 :task/mode :solo
-                :task/domain :personal
+                :task/domain :work
                 :task/project-id blog-id})
       (create! ctx user-id :calendar-event
-               {:calendar-event/label "Coffee and project notes"
+               {:calendar-event/label "Planning review"
                 :calendar-event/source :gleanmo
-                :calendar-event/summary "Talk through what belongs on the projects homepage"
+                :calendar-event/summary "Review project priorities and launch notes"
                 :calendar-event/beginning (later 2 :hours)
                 :calendar-event/end (later 3 :hours)
                 :calendar-event/time-zone "America/Detroit"
                 :calendar-event/color-neon :cyan})
       (create! ctx user-id :calendar-event
-               {:calendar-event/label "Ship screenshot update"
+               {:calendar-event/label "Publish project update"
                 :calendar-event/source :gleanmo
-                :calendar-event/summary "Export the final image for the blog"
+                :calendar-event/summary "Export the final image and publish the update"
                 :calendar-event/beginning (later 25 :hours)
                 :calendar-event/end (later 26 :hours)
                 :calendar-event/time-zone "America/Detroit"
-                :calendar-event/color-neon :green})
-      (create! ctx user-id :symptom-log
-               {:symptom-log/timestamp (ago 29 :hours)
-                :symptom-log/type :fatigue
-                :symptom-log/severity :mild
-                :symptom-log/severity-score 2
-                :symptom-log/location :generalized
-                :symptom-log/notes "Low energy after a late night"})
-      (create! ctx user-id :bm-log
-               {:bm-log/timestamp (ago 28 :hours)
-                :bm-log/bristol :b4-smooth-log
-                :bm-log/pace :typical
-                :bm-log/color :brown
-                :bm-log/blood :none
-                :bm-log/mucus false
-                :bm-log/urgency :none
-                :bm-log/incontinence false
-                :bm-log/straining false
-                :bm-log/odor :normal
-                :bm-log/size :medium
-                :bm-log/notes "Normal baseline"
-                :bm-log/anxiety :none
-                :bm-log/feeling-of-completeness :complete
-                :bm-log/ease-of-passage :easy}))))
+                :calendar-event/color-neon :green}))))
 
 (defn e2e-login-handler
   "Dev-only endpoint that bypasses email verification.
