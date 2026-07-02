@@ -366,56 +366,58 @@
 
 (defn- active-timer-summaries
   [ctx]
+  ;; Independent read-only queries per timer type — run in parallel.
   (->> timers-app/timer-entities
-       (mapcat
+       (pmap
         (fn [{:keys [entity-key entity-str display-name]}]
           (let [{:keys [relationship-key beginning-key] :as config}
                 (timer-routes/timer-config {:entity-key entity-key
                                             :entity-str entity-str})]
-            (for [timer (timer-routes/fetch-active-timers ctx config)
-                  :let [start     (get timer beginning-key)
-                        parent-id (get timer relationship-key)]]
-              {:id        (:xt/id timer)
-               :href      (edit-form-url entity-str (:xt/id timer))
-               :entity-str entity-str
-               :type      display-name
-               :label     (or (relationship-label (:biff/db ctx) parent-id)
-                              "Active timer")
-               :start     start
-               :elapsed   (elapsed-duration start)}))))))
+            (doall
+             (for [timer (timer-routes/fetch-active-timers ctx config)
+                   :let [start     (get timer beginning-key)
+                         parent-id (get timer relationship-key)]]
+               {:id        (:xt/id timer)
+                :href      (edit-form-url entity-str (:xt/id timer))
+                :entity-str entity-str
+                :type      display-name
+                :label     (or (relationship-label (:biff/db ctx) parent-id)
+                               "Active timer")
+                :start     start
+                :elapsed   (elapsed-duration start)})))))
+       (apply concat)))
 
 (defn- render-active-timers
-  [ctx]
-  (let [timers (active-timer-summaries ctx)]
-    (when (seq timers)
-      [:section.space-y-3
-       [:div.flex.items-center.gap-3
-        [:span.h-2.w-2.rounded-full.bg-neon-cyan.animate-pulse]
-        [:div.text-xs.font-semibold.uppercase.tracking-wide.text-neon-cyan
-         "Running now"]
-        [:div.h-px.flex-1.bg-dark-border]
-        [:div.text-xs.text-gray-500 (str (count timers) " active")]]
-       [:div.grid.grid-cols-1.md:grid-cols-3.gap-3
-        (for [{:keys [id href entity-str label start elapsed]} timers
-              :let [meta (type-meta entity-str)
-                    {:keys [icon-key code]} meta
-                    type-label (:label meta)]]
-          [:a.block.relative.overflow-hidden.rounded-lg.bg-dark-surface.px-4.py-3.no-underline.hover:bg-dark-light.transition-colors
-           {:key (str id)
-            :href href
-            :style {:border "1px solid #1e2430"}}
-           [:div.absolute.left-0.top-0.bottom-0.w-1.bg-neon-cyan]
-           [:div.flex.items-center.justify-between.gap-3
-            [:div.flex.items-center.gap-3.min-w-0
-             [:div.flex.h-8.w-8.shrink-0.items-center.justify-center.rounded-full.bg-dark.text-neon-cyan
-              (icon-svg icon-key 16)]
-             [:div.min-w-0
-              [:div.text-sm.font-semibold.text-white.truncate label]
-              [:div.text-xs.text-gray-500.uppercase.tracking-wide
-               (or type-label code)]]]
-            [:div.text-right.shrink-0
-             [:div.text-sm.font-semibold.text-neon-cyan elapsed]
-             [:div.text-xs.text-gray-500 (str "started " (or (timeline-time ctx start) ""))]]]])]])))
+  [ctx timers]
+  (when (seq timers)
+    [:section.space-y-3
+     [:div.flex.items-center.gap-3
+      [:span.h-2.w-2.rounded-full.bg-neon-cyan.animate-pulse]
+      [:div.text-xs.font-semibold.uppercase.tracking-wide.text-neon-cyan
+       "Running now"]
+      [:div.h-px.flex-1.bg-dark-border]
+      [:div.text-xs.text-gray-500 (str (count timers) " active")]]
+     [:div.grid.grid-cols-1.md:grid-cols-3.gap-3
+      (for [{:keys [id href entity-str label start elapsed]} timers
+            :let [meta (type-meta entity-str)
+                  {:keys [icon-key code]} meta
+                  type-label (:label meta)]]
+        [:a.block.relative.overflow-hidden.rounded-lg.bg-dark-surface.px-4.py-3.no-underline.hover:bg-dark-light.transition-colors
+         {:key (str id)
+          :href href
+          :style {:border "1px solid #1e2430"}}
+         [:div.absolute.left-0.top-0.bottom-0.w-1.bg-neon-cyan]
+         [:div.flex.items-center.justify-between.gap-3
+          [:div.flex.items-center.gap-3.min-w-0
+           [:div.flex.h-8.w-8.shrink-0.items-center.justify-center.rounded-full.bg-dark.text-neon-cyan
+            (icon-svg icon-key 16)]
+           [:div.min-w-0
+            [:div.text-sm.font-semibold.text-white.truncate label]
+            [:div.text-xs.text-gray-500.uppercase.tracking-wide
+             (or type-label code)]]]
+          [:div.text-right.shrink-0
+           [:div.text-sm.font-semibold.text-neon-cyan elapsed]
+           [:div.text-xs.text-gray-500 (str "started " (or (timeline-time ctx start) ""))]]]])]]))
 
 (defn- timeline-date
   [ctx instant]
@@ -447,57 +449,62 @@
            {}
            entities)))
 
-(defn dashboard-stats
-  "Compute lightweight dashboard stats using a bounded set of entities."
+(def ^:private overview-per-type-limit
+  "Per-type fetch bound shared by the timeline and the stats counts."
+  100)
+
+(defn- fetch-overview-items
+  "Single bounded fetch of recent entities shared by the timeline and stats."
   [ctx]
-  (let [user-id       (-> ctx :session :uid)
-        user-settings (db/resolve-user-settings ctx)
-        zone          (user-zone ctx)
-        items         (->> (db/dashboard-recent-entities
-                            (:biff/db ctx)
-                            user-id
-                            {:entity-types    (overview-activity-types ctx)
-                             :per-type-limit  200
-                             :order-keys      recent-activity-order-keys
-                             :user-settings   user-settings})
-                           (map #(assoc % ::activity-time (activity-time ctx %))))
-        now-zoned     (t/in (t/now) zone)
-        today         (t/date now-zoned)
-        week-start    (t/<< today (t/new-period 6 :days))
-        activity-date (fn [entity]
-                        (some-> entity ::activity-time :instant (t/in zone) t/date))
-        count-since   (fn [start-date]
-                        (count (filter (fn [e]
-                                         (when-let [d (activity-date e)]
-                                           (and (t/>= d start-date)
-                                                (t/<= d today))))
-                                       items)))
-        entries-today (count-since today)
-        entries-week  (count-since week-start)
-        active-timers (reduce
-                       (fn [acc {:keys [entity-key entity-str]}]
-                         (let [config (timer-routes/timer-config
-                                       {:entity-key entity-key
-                                        :entity-str entity-str})
-                               timers (timer-routes/fetch-active-timers ctx config)]
-                           (+ acc (count timers))))
-                       0
-                       timers-app/timer-entities)
-        distinct-types (count (distinct (map ::sm/type items)))
-        now-tasks (db/count-tasks-by-state (:biff/db ctx) user-id :now
-                                           :user-settings user-settings)]
-    (log/info "Dashboard stats"
-              {:entries-today entries-today
-               :entries-week  entries-week
-               :active-timers active-timers
-               :distinct-types distinct-types
-               :now-tasks now-tasks
-               :sample-count (count items)
-               :week-start week-start})
-    {"Now tasks"        now-tasks
-     "Entries today"    entries-today
-     "This week"        entries-week
-     "Active timers"    active-timers}))
+  (let [user-id (-> ctx :session :uid)]
+    (->> (db/dashboard-recent-entities
+          (:biff/db ctx)
+          user-id
+          {:entity-types   (overview-activity-types ctx)
+           :per-type-limit overview-per-type-limit
+           :order-keys     recent-activity-order-keys
+           :user-settings  (db/resolve-user-settings ctx)})
+         (map #(assoc % ::activity-time (activity-time ctx %))))))
+
+(defn dashboard-stats
+  "Compute lightweight dashboard stats from an already-fetched bounded set of
+   entities and active-timer summaries. The single-arg arity fetches its own
+   data for standalone use (e.g. the /app/overview/stats fragment)."
+  ([ctx]
+   (dashboard-stats ctx (fetch-overview-items ctx) (active-timer-summaries ctx)))
+  ([ctx items timers]
+   (let [user-id       (-> ctx :session :uid)
+         user-settings (db/resolve-user-settings ctx)
+         zone          (user-zone ctx)
+         now-zoned     (t/in (t/now) zone)
+         today         (t/date now-zoned)
+         week-start    (t/<< today (t/new-period 6 :days))
+         activity-date (fn [entity]
+                         (some-> entity ::activity-time :instant (t/in zone) t/date))
+         count-since   (fn [start-date]
+                         (count (filter (fn [e]
+                                          (when-let [d (activity-date e)]
+                                            (and (t/>= d start-date)
+                                                 (t/<= d today))))
+                                        items)))
+         entries-today (count-since today)
+         entries-week  (count-since week-start)
+         active-timers (count timers)
+         distinct-types (count (distinct (map ::sm/type items)))
+         now-tasks (db/count-tasks-by-state (:biff/db ctx) user-id :now
+                                            :user-settings user-settings)]
+     (log/info "Dashboard stats"
+               {:entries-today entries-today
+                :entries-week  entries-week
+                :active-timers active-timers
+                :distinct-types distinct-types
+                :now-tasks now-tasks
+                :sample-count (count items)
+                :week-start week-start})
+     {"Now tasks"        now-tasks
+      "Entries today"    entries-today
+      "This week"        entries-week
+      "Active timers"    active-timers})))
 
 (defn upcoming-events
   "Fetch near-future calendar events."
@@ -510,26 +517,18 @@
       :user-settings (db/resolve-user-settings ctx)})))
 
 (defn recent-activity
-  "Fetch recent entities across primary log types."
-  [ctx {:keys [limit], :or {limit 10}}]
-  (let [user-id (-> ctx :session :uid)
-        now     (t/now)]
-    (->> (db/dashboard-recent-entities
-          (:biff/db ctx)
-          user-id
-          {:entity-types   (overview-activity-types ctx)
-           :per-type-limit (* 2 limit)
-           :order-keys     recent-activity-order-keys
-           :user-settings  (db/resolve-user-settings ctx)})
-         (map #(assoc % ::activity-time (activity-time ctx %)))
+  "Select recent (non-future) entries from already-fetched overview items."
+  [ctx items {:keys [limit], :or {limit 10}}]
+  (let [now (t/now)]
+    (->> items
          (remove #(t/> (get-in % [::activity-time :sort-instant]) now))
          (sort-by (comp :sort-instant ::activity-time) #(compare %2 %1))
          (take limit))))
 
 (defn timeline-activity
-  "Fetch past and near-future timeline entries across timeline-worthy entities."
-  [ctx {:keys [limit upcoming-limit], :or {limit 18 upcoming-limit 6}}]
-  (let [recent   (recent-activity ctx {:limit (* 2 limit)})
+  "Build past and near-future timeline entries from already-fetched items."
+  [ctx items {:keys [limit upcoming-limit], :or {limit 18 upcoming-limit 6}}]
+  (let [recent   (recent-activity ctx items {:limit (* 2 limit)})
         upcoming (upcoming-events ctx {:limit upcoming-limit})]
     (->> (concat recent upcoming)
          dedupe-entities
@@ -839,16 +838,6 @@
         (render-type-filters recent-items selected-type)
         [:p.text-sm.text-gray-400 "No matching activity."]]))))
 
-(defn render-recent-activity
-  "Render dashboard stats, upcoming events, and recent activity feed."
-  [ctx recent-items]
-  (let [items recent-items
-        stats (dashboard-stats ctx)]
-    [:div.space-y-4
-     (render-activity-feed ctx items)
-     [:div.opacity-70
-      (stats-strip stats)]]))
-
 (defn- lazy-container
   "HTMX-enabled wrapper so sections can stream in after the shell renders."
   [id hx-url placeholder & [{:keys [delay-ms]}]]
@@ -877,25 +866,28 @@
    (render-upcoming-events ctx)])
 
 (defn recent-activity-section
+  "Fetch overview data once and render timers, timeline, and stats from it."
   [{:keys [params] :as ctx}]
   (let [limit (try
                 (some-> (:limit params) Integer/parseInt)
                 (catch Exception _ nil))
         selected-type (some-> (:type params) not-empty)
-        items (timeline-activity ctx {:limit (or limit 18)})]
+        items  (fetch-overview-items ctx)
+        timers (active-timer-summaries ctx)
+        timeline-items (timeline-activity ctx items {:limit (or limit 18)})
+        stats  (dashboard-stats ctx items timers)]
     [:div#overview-recent
      [:div.space-y-5
-      (render-active-timers ctx)
-      (render-activity-feed ctx items selected-type)]]))
+      (render-active-timers ctx timers)
+      (render-activity-feed ctx timeline-items selected-type)
+      [:div.opacity-70
+       (stats-strip stats)]]]))
 
 (defn overview-shell
   "Top-level layout for the home overview page; sections hydrate via HTMX."
   [_ctx]
   [:div.flex.flex-col.space-y-5
-   (lazy-container "overview-recent" "/app/overview/recent" "Loading timeline")
-   [:div.opacity-70
-    (lazy-container "overview-stats" "/app/overview/stats" "Loading stats"
-                    {:delay-ms 120})]])
+   (lazy-container "overview-recent" "/app/overview/recent" "Loading timeline")])
 
 (defn stats-fragment
   [ctx]

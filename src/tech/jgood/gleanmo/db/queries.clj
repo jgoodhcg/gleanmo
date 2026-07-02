@@ -426,26 +426,31 @@
   [db user-id {:keys [entity-types per-type-limit order-keys user-settings], :or {per-type-limit 20}}]
   (let [{:keys [show-sensitive show-archived]}
         (or user-settings (get-user-settings db user-id))]
-    (mapcat
-     (fn [entity-str]
-       (let [entity-kw    (keyword entity-str)
-             order-key    (get order-keys entity-str ::sm/created-at)
-             entity-schema (get schema-registry/schema entity-kw)
-             rel-fields    (schema-utils/extract-relationship-fields
-                            entity-schema
-                            :remove-system-fields true)]
-         (all-entities-for-user
-          db
-          user-id
-          entity-kw
-          :filter-sensitive    show-sensitive
-          :filter-archived     show-archived
-          :filter-references   true
-          :relationship-fields rel-fields
-          :limit               per-type-limit
-          :order-key           order-key
-          :order-direction     :desc)))
-     entity-types)))
+    ;; Per-type reads are independent queries against the same immutable db
+    ;; snapshot — run them in parallel so wall time is the max, not the sum.
+    (into []
+          (comp cat)
+          (pmap
+           (fn [entity-str]
+             (let [entity-kw    (keyword entity-str)
+                   order-key    (get order-keys entity-str ::sm/created-at)
+                   entity-schema (get schema-registry/schema entity-kw)
+                   rel-fields    (schema-utils/extract-relationship-fields
+                                  entity-schema
+                                  :remove-system-fields true)]
+               (doall
+                (all-entities-for-user
+                 db
+                 user-id
+                 entity-kw
+                 :filter-sensitive    show-sensitive
+                 :filter-archived     show-archived
+                 :filter-references   true
+                 :relationship-fields rel-fields
+                 :limit               per-type-limit
+                 :order-key           order-key
+                 :order-direction     :desc))))
+           entity-types))))
 
 (defnp dashboard-upcoming-events
   "Fetch upcoming calendar events with visibility filtering and a small oversample to survive filtering."

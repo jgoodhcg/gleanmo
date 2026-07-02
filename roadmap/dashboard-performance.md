@@ -227,6 +227,48 @@ Full test suite green before and after (80 tests, 630 assertions). Verify in pro
 via `/app/monitoring/performance`: `all-entities-for-user` mean should drop from
 ~600-900ms; new span `fetch-entities-by-ids` shows batch-pull cost.
 
+### Post-Deploy Prod Results (2026-07-02, SHA f0a2d59)
+
+First load (cold caches): recent 24.55s / stats 23.50s. Second load (warm):
+
+| Metric | Pre-deploy (warm) | Post-deploy (warm) | Change |
+|--------|-------------------|--------------------|--------|
+| `all-entities-for-user` mean | 932ms / 667ms | 373ms / 414ms | **-55% / -38%** |
+| Worst single call | 2.64s / 2.70s | 2.07s / 2.30s | -22% / -15% |
+| `fetch-entities-by-ids` mean | — | 22-48ms | batch pulls cheap, as predicted |
+| `get-app-overview-recent` | 5.68s | 6.93s | — (not comparable) |
+| `get-app-overview-stats` | 6.03s | 6.83s | — (not comparable) |
+
+Endpoint totals aren't comparable: the pre-deploy build made 6 `all-entities-for-user`
+calls per endpoint; this build makes 17 (13-type timeline + 3 timer queries).
+Doc materialization is no longer the bottleneck — remaining cost is the per-type
+index scan (~370ms mean, one type at ~2s despite only ~1k rows — worth
+investigating; likely bm-log doc/index bloat or exclusion-map subqueries) run
+17x sequentially, twice per page load.
+
+**Next:** (1) parallelize per-type scans, (2) merge stats into the recent
+fragment so the cascade runs once, (3) profile the ~2s type.
+
+## Parallel Scans + Endpoint Merge (2026-07-02)
+
+Implemented next steps 1 and 2:
+
+- `dashboard-recent-entities` runs per-type reads via `pmap` (independent
+  queries on one immutable db snapshot) — wall time becomes the max single
+  type instead of the sum. Verified identical results vs sequential.
+- `active-timer-summaries` also parallelized (3 timer-type queries).
+- The recent fragment now does **one** bounded fetch (`fetch-overview-items`,
+  per-type-limit 100) shared by the timeline, the stats strip, and timers;
+  the shell no longer loads `/app/overview/stats` (route kept, standalone).
+  Stats week/today counts are now sampled at 100/type instead of 200/type.
+
+Local (small dev DB): parallel cascade 31ms vs 49ms sequential; merged fragment
+58ms vs ~110ms for the two old fragments. Prod expectation: one cascade per page
+load instead of two, bounded by the worst single type scan (~2s until step 3
+addresses it), so home page ~7s → roughly 2-3s. bm-log is only ~1k rows, so the
+2s outlier is *not* row count — suspect doc/index bloat (see bm-log-bloating.md)
+or exclusion-map subqueries; profile next.
+
 ## Post-Deploy Baseline (2026-03-07)
 
 _To be filled after deploying query refactoring (commits 7d3ee01, a78a8fa)._
