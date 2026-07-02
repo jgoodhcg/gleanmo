@@ -269,6 +269,22 @@ addresses it), so home page ~7s → roughly 2-3s. bm-log is only ~1k rows, so th
 2s outlier is *not* row count — suspect doc/index bloat (see bm-log-bloating.md)
 or exclusion-map subqueries; profile next.
 
+### Post-Deploy Prod Results (2026-07-02, SHA d649c6d)
+
+4 loads of `get-app-overview-recent` (now the only home page data request):
+mean 4.75s, **min 2.59s (warm)**, max 9.73s (cold). `dashboard-recent-entities`
+min 1.87s — wall time is now bounded by the worst single type, as designed.
+Per-call `all-entities-for-user` means rose (~1s) because 16 scans now contend
+in parallel; totals exceed wall time, which is the number that matters.
+
+vs. the 2026-07-02 pre-refactor baseline (~11.7s of endpoint work per page
+load across recent+stats): **~4.5x improvement warm**.
+
+**Remaining bottleneck:** one ~2s type per cascade. Per-type tufte spans
+(`scan/<type>`, `exclusions/<type>`) added to `all-entities-for-user` so the
+next snapshot identifies the type and phase. Cold start (~10s) is a separate
+concern — likely RocksDB block-cache warmup.
+
 ## Post-Deploy Baseline (2026-03-07)
 
 _To be filled after deploying query refactoring (commits 7d3ee01, a78a8fa)._

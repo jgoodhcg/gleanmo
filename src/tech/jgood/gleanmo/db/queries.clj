@@ -7,7 +7,7 @@
    [tech.jgood.gleanmo.schema.meta :as sm]
    [tick.core :as t]
    [xtdb.api :as xt]
-   [taoensso.tufte :refer [defnp]]))
+   [taoensso.tufte :refer [defnp p]]))
 
 (defnp get-entity-by-id
   "Get a single entity by ID.
@@ -314,13 +314,15 @@
         extra-where   (direct-sensitivity-clauses entity-type user-settings)
         ;; Build exclusion map when filter-references requested
         exclusion-map (when filter-references
-                        (build-exclusion-map db user-id entity-type user-settings))
+                        (p {:id (keyword "exclusions" (name entity-type))}
+                           (build-exclusion-map db user-id entity-type user-settings)))
         ;; Phase 1: index-only scan of [id sort-value] tuples
         scan-query    (build-id-scan-query entity-type order-key extra-where)
         direction     (or order-direction default-order-direction)
-        sorted-ids    (cond->> (sort-by second (q db scan-query user-id))
-                        (= direction :desc) reverse
-                        true                (map first))]
+        sorted-ids    (p {:id (keyword "scan" (name entity-type))}
+                         (cond->> (sort-by second (q db scan-query user-id))
+                           (= direction :desc) reverse
+                           true                (mapv first)))]
     (if (seq exclusion-map)
       ;; Phase 2a: pull docs in chunks, dropping excluded ones, until the
       ;; page (offset + limit) is satisfied. Exclusions are typically sparse,
