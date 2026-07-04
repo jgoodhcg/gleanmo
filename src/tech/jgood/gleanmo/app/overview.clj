@@ -2,6 +2,7 @@
   (:require
    [clojure.string :as str]
    [clojure.tools.logging :as log]
+   [com.biffweb :as biff]
    [tech.jgood.gleanmo.app.shared :as shared]
    [tech.jgood.gleanmo.app.timers :as timers-app]
    [tech.jgood.gleanmo.crud.views :as crud-views]
@@ -329,17 +330,57 @@
     (coll? v)   (boolean (seq v))
     :else       true))
 
+(defn- entity->label
+  [entity entity-id]
+  (when entity
+    (let [etype     (some-> entity
+                            ::sm/type
+                            name)
+          label-key (when etype (keyword etype "label"))]
+      (or (when (and label-key (contains? entity label-key))
+            (get entity label-key))
+          (str (subs (str entity-id) 0 8) "...")))))
+
 (defn- relationship-label
-  [db entity-id]
+  "Label a related entity, reading from the request-scoped cache when one has
+   been prewarmed (see prewarm-relation-cache!) and falling back to a lookup."
+  [ctx entity-id]
   (when entity-id
-    (when-let [entity (db/get-entity-by-id db entity-id)]
-      (let [etype     (some-> entity
-                              ::sm/type
-                              name)
-            label-key (when etype (keyword etype "label"))]
-        (or (when (and label-key (contains? entity label-key))
-              (get entity label-key))
-            (str (subs (str entity-id) 0 8) "..."))))))
+    (let [cache (::rel-cache ctx)]
+      (if (and cache (contains? @cache entity-id))
+        (entity->label (get @cache entity-id) entity-id)
+        (let [entity (db/get-entity-by-id (:biff/db ctx) entity-id)]
+          (when cache (swap! cache assoc entity-id entity))
+          (entity->label entity entity-id))))))
+
+(defn- collect-relation-ids
+  "Collect candidate related-entity ids from entity maps: single-relationship
+   values are bare UUIDs, many-relationship values are sets of UUIDs."
+  [items]
+  (->> items
+       (mapcat (fn [entity]
+                 (mapcat (fn [[k v]]
+                           (cond
+                             (and (uuid? v)
+                                  (not= k :xt/id)
+                                  (not= k :user/id))
+                             [v]
+
+                             (and (set? v) (seq v) (every? uuid? v))
+                             (seq v)))
+                         entity)))
+       distinct))
+
+(defn- prewarm-relation-cache!
+  "Batch-fetch all related entities referenced by items into the request cache,
+   replacing per-row get-entity-by-id lookups with one query. Ids that don't
+   resolve are cached as nil so they aren't re-queried."
+  [ctx items]
+  (when-let [cache (::rel-cache ctx)]
+    (let [ids     (collect-relation-ids items)
+          fetched (db/fetch-entities-by-ids (:biff/db ctx) ids)
+          by-id   (into {} (map (juxt :xt/id identity)) fetched)]
+      (swap! cache merge (into {} (map (fn [id] [id (get by-id id)])) ids)))))
 
 (defn- activity-time-meta
   [entity ctx]
@@ -383,7 +424,7 @@
                 :href      (edit-form-url entity-str (:xt/id timer))
                 :entity-str entity-str
                 :type      display-name
-                :label     (or (relationship-label (:biff/db ctx) parent-id)
+                :label     (or (relationship-label ctx parent-id)
                                "Active timer")
                 :start     start
                 :elapsed   (elapsed-duration start)})))))
@@ -579,14 +620,14 @@
        [:span.text-white.font-semibold (or value "—")]])]])
 
 (defn- formatted-field-value
-  [entity {:keys [field-key input-type]} {:keys [biff/db], :as ctx}]
+  [entity {:keys [field-key input-type]} ctx]
   (let [value (get entity field-key)]
     (case input-type
       :single-relationship
-      (or (relationship-label db value) "")
+      (or (relationship-label ctx value) "")
 
       :many-relationship
-      (str/join ", " (keep #(relationship-label db %) value))
+      (str/join ", " (keep #(relationship-label ctx %) value))
 
       :enum
       (some-> value name)
@@ -689,49 +730,73 @@
   [items]
   (frequencies (map #(some-> % ::sm/type name) items)))
 
+(def ^:private timeline-filter-script
+  "Client-side type filter: toggles row/group visibility and chip styling
+   without re-requesting the fragment (each backend request re-runs the
+   whole dashboard cascade)."
+  "window.gleanmoFilterTimeline = function (btn) {
+     var type = btn.getAttribute('data-filter-type') || '';
+     var visible = 0;
+     document.querySelectorAll('[data-etype]').forEach(function (el) {
+       var show = !type || el.getAttribute('data-etype') === type;
+       el.style.display = show ? '' : 'none';
+       if (show) { visible++; }
+     });
+     document.querySelectorAll('[data-timeline-group]').forEach(function (g) {
+       var any = false;
+       g.querySelectorAll('[data-etype]').forEach(function (el) {
+         if (el.style.display !== 'none') { any = true; }
+       });
+       g.style.display = any ? '' : 'none';
+     });
+     document.querySelectorAll('[data-filter-type]').forEach(function (chip) {
+       var active = chip === btn;
+       chip.classList.toggle('bg-dark-light', active);
+       chip.classList.toggle('text-white', active);
+       chip.classList.toggle('bg-dark-surface', !active);
+       chip.classList.toggle('text-gray-500', !active);
+     });
+     var count = document.querySelector('[data-filter-count]');
+     if (count) { count.textContent = visible + ' shown'; }
+   };")
+
 (defn- render-type-filters
-  [items selected-type]
+  [items]
   (let [counts (type-counts items)
         total  (count items)
         ordered-types (->> timeline-type-order
                            (filter counts))
         extra-types   (->> (keys counts)
                            (remove (set ordered-types))
-                           sort)
-        chip-url      (fn [etype]
-                        (if etype
-                          (str "/app/overview/recent?type=" etype)
-                          "/app/overview/recent"))]
+                           sort)]
     [:div.space-y-3
      [:div.flex.items-baseline.justify-between.gap-4
       [:div.flex.items-baseline.gap-3
        [:span.text-sm.font-semibold.uppercase.tracking-wide.text-white
         "Activity timeline"]
-       [:span.text-xs.text-gray-500
-        (if selected-type
-          (str (get counts selected-type 0) " of " total " shown")
-          (str total " shown"))]]
+       [:span.text-xs.text-gray-500 {:data-filter-count true}
+        (str total " shown")]]
       [:span.hidden.sm:inline.text-xs.text-gray-500 "filter by type"]]
      [:div.flex.flex-wrap.gap-2
       (for [etype (cons nil (concat ordered-types extra-types))
-            :let [active? (= selected-type etype)
+            :let [active? (nil? etype)
                   {:keys [code icon-key]} (if etype
                                             (type-meta etype)
                                             {:code "ALL" :icon-key nil})
                   count (if etype (get counts etype 0) total)]]
-        [:a.inline-flex.items-center.gap-2.rounded-md.px-3.py-1.5.text-xs.font-semibold.uppercase.tracking-wide.no-underline.transition-colors
-         {:key       (or etype "all")
-          :href      (chip-url etype)
-          :hx-get    (chip-url etype)
-          :hx-target "#overview-recent"
-          :hx-swap   "outerHTML"
-          :class     (if active?
-                       "bg-dark-light text-white"
-                       "bg-dark-surface text-gray-500 hover:text-white hover:bg-dark-light")}
+        [:button.inline-flex.items-center.gap-2.rounded-md.px-3.py-1.5.text-xs.font-semibold.uppercase.tracking-wide.transition-colors
+         {:key              (or etype "all")
+          :type             "button"
+          :data-filter-type (or etype "")
+          :onclick          "gleanmoFilterTimeline(this)"
+          :class            (if active?
+                              "bg-dark-light text-white"
+                              "bg-dark-surface text-gray-500 hover:text-white hover:bg-dark-light")}
          (when icon-key
            [:span.text-gray-400 (icon-svg icon-key 13)])
          [:span code]
-         [:span.text-gray-600 count]])]]))
+         [:span.text-gray-600 count]])]
+     [:script (biff/unsafe timeline-filter-script)]]))
 
 (defn- group-label
   [ctx date]
@@ -792,7 +857,8 @@
         start           (get-in entity [::activity-time :instant])
         status          (entity-status ctx entity)]
     [:a.group.flex.items-stretch.rounded-lg.no-underline.transition-colors.hover:bg-dark-surface
-     {:href href}
+     {:href href
+      :data-etype etype}
      [:div.w-20.shrink-0.py-3.pr-3.text-right
       [:span.text-xs.text-gray-400.tabular-nums (or (timeline-time ctx start) "")]]
      [:div.w-14.shrink-0.relative
@@ -818,27 +884,25 @@
       [:span.text-xs.font-mono.text-gray-700 (str id-short "...")]]]))
 
 (defn render-activity-feed
-  "Render activity in a single chronological timeline across entity types."
-  ([ctx recent-items]
-   (render-activity-feed ctx recent-items nil))
-  ([ctx recent-items selected-type]
-   (let [items  (cond->> recent-items
-                  selected-type (filter #(= selected-type (some-> % ::sm/type name))))
-         groups (timeline-groups ctx items)]
-     (if (seq items)
-       [:div.space-y-5
-        (render-type-filters recent-items selected-type)
-        [:div.space-y-2
-         (for [group groups]
-           [:details.group {:key (str (:date group))
-                            :open true}
-            (render-group-header ctx group)
-            [:div
-             (for [entity (:items group)]
-               (render-timeline-row ctx entity))]])]]
-       [:div.space-y-5
-        (render-type-filters recent-items selected-type)
-        [:p.text-sm.text-gray-400 "No matching activity."]]))))
+  "Render activity in a single chronological timeline across entity types.
+   Type filtering happens client-side (see timeline-filter-script)."
+  [ctx items]
+  (let [groups (timeline-groups ctx items)]
+    (if (seq items)
+      [:div.space-y-5
+       (render-type-filters items)
+       [:div.space-y-2
+        (for [group groups]
+          [:details.group {:key (str (:date group))
+                           :open true
+                           :data-timeline-group true}
+           (render-group-header ctx group)
+           [:div
+            (for [entity (:items group)]
+              (render-timeline-row ctx entity))]])]]
+      [:div.space-y-5
+       (render-type-filters items)
+       [:p.text-sm.text-gray-400 "No matching activity."]])))
 
 (defn- lazy-container
   "HTMX-enabled wrapper so sections can stream in after the shell renders."
@@ -873,17 +937,18 @@
   (let [limit (try
                 (some-> (:limit params) Integer/parseInt)
                 (catch Exception _ nil))
-        selected-type (some-> (:type params) not-empty)
+        ctx    (assoc ctx ::rel-cache (atom {}))
         ;; Items and timers are independent reads — overlap them.
         items-future (future (doall (fetch-overview-items ctx)))
         timers (active-timer-summaries ctx)
         items  @items-future
         timeline-items (timeline-activity ctx items {:limit (or limit 18)})
+        _      (prewarm-relation-cache! ctx timeline-items)
         stats  (dashboard-stats ctx items timers)]
     [:div#overview-recent
      [:div.space-y-5
       (render-active-timers ctx timers)
-      (render-activity-feed ctx timeline-items selected-type)
+      (render-activity-feed ctx timeline-items)
       [:div.opacity-70
        (stats-strip stats)]]]))
 

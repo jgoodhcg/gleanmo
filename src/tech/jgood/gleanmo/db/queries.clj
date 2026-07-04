@@ -349,24 +349,36 @@
 
 (defnp active-timers-for-user
   "Fetch in-progress timer entities (beginning set, no end) for a user.
-   Pushes the active-timer predicate into XTDB so the read cost scales with
-   the number of running timers instead of the type's full history."
+   Computed as a set difference of two minimal index scans — 'has beginning'
+   minus 'has end' — because a per-row (not [?e end]) clause re-evaluates as a
+   subquery for every row of the type's history. Only the few candidates are
+   pulled, then deleted/sensitivity/exclusion filters run on those docs."
   [db user-id entity-type beginning-key end-key & {:keys [user-settings]}]
   (let [settings      (or user-settings (get-user-settings db user-id))
-        sens-clauses  (direct-sensitivity-clauses entity-type settings)
+        {:keys [show-sensitive show-archived]} settings
         exclusion-map (build-exclusion-map db user-id entity-type settings)
-        where-clauses (-> ['[?e :user/id user-id]
-                           ['?e ::sm/type entity-type]
-                           '(not [?e ::sm/deleted-at])
-                           ['?e beginning-key '?b]
-                           (list 'not ['?e end-key])]
-                          (into sens-clauses))
-        results       (q db
-                         {:find  '[(pull ?e [*])]
-                          :where where-clauses
-                          :in    '[user-id]}
-                         user-id)]
-    (apply-relationship-exclusions exclusion-map (map first results))))
+        ids-with      (fn [attr-key]
+                        (into #{}
+                              (map first)
+                              (q db
+                                 {:find  '[?e]
+                                  :where [['?e :user/id 'user-id]
+                                          ['?e ::sm/type entity-type]
+                                          ['?e attr-key]]
+                                  :in    '[user-id]}
+                                 user-id)))
+        candidates    (remove (ids-with end-key) (ids-with beginning-key))
+        sens-key      (keyword (name entity-type) "sensitive")
+        arch-key      (keyword (name entity-type) "archived")
+        keep-doc?     (fn [doc]
+                        (and (nil? (get doc ::sm/deleted-at))
+                             (or show-sensitive
+                                 (not (true? (get doc sens-key))))
+                             (or show-archived
+                                 (not (true? (get doc arch-key))))))]
+    (->> (fetch-entities-by-ids db (vec candidates))
+         (filter keep-doc?)
+         (apply-relationship-exclusions exclusion-map))))
 
 (defn scan-diagnostics
   "Time sequential, uncontended index-only scans per entity type for a user.

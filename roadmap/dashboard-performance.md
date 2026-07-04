@@ -387,6 +387,25 @@ Expected: big-type scans drop toward diagnostic levels (~100-300ms), cascade
 (~145 get-entity-by-id/load ≈ 0.2-0.9s), then cache/materialized feed if
 sub-second is desired.
 
+## Confirmed + Three More Wins (2026-07-04, SHA 8903aa6 → next)
+
+Warm handler 1.34-1.9s post not-clause fix (bm-log scan 652→284ms, reading
+159ms, meditation 60ms). Remaining consumers and fixes shipped:
+
+1. **Timer scans were the biggest single consumer** (~1.6s/load summed; last
+   queries with per-row `not` clauses). `active-timers-for-user` now computes
+   active ids as a set difference of two minimal scans (has-beginning minus
+   has-end) and pulls only the few candidates.
+2. **Relationship labels**: ~106 serial `get-entity-by-id` per load →
+   request-scoped `::rel-cache` prewarmed by one `fetch-entities-by-ids`
+   batch over the timeline items' relation ids.
+3. **Filter chips re-ran the whole cascade per click** (hx-get per chip).
+   Now pure client-side: rows carry `data-etype`, groups `data-timeline-group`,
+   ~25 lines of vanilla JS toggle visibility/chip state. Server-side ?type=
+   filtering removed from the fragment.
+
+Expected: warm handler ~0.8-1.2s; chip clicks 0ms (no request).
+
 ## Post-Deploy Baseline (2026-03-07)
 
 _To be filled after deploying query refactoring (commits 7d3ee01, a78a8fa)._
