@@ -38,4 +38,5 @@ e2e/screenshots/
 
 test-results/
 
-.clj-kondo/
+.clj-kondo/*
+!.clj-kondo/config.edn

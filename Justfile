@@ -24,7 +24,7 @@ lint-fast *files:
 
 # Run linter (via deps.edn, slower - uses JVM)
 lint:
-    clj -M:lint --lint src --lint test --lint dev
+    clj -M:lint --lint src --lint test --lint dev --fail-level error
 
 # Quick validation (format + lint) - RUN PERIODICALLY, NOT AFTER EVERY EDIT
 check: fmt-check lint
