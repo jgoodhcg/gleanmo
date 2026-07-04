@@ -1,6 +1,7 @@
 (ns tech.jgood.gleanmo.worker
   (:require [clojure.tools.logging :as log]
-            [com.biffweb :as biff :refer [q]]
+            [com.biffweb :as biff]
+            [tech.jgood.gleanmo.db.queries :as queries]
             [xtdb.api :as xt]))
 
 (defn every-n-minutes [n]
@@ -9,11 +10,7 @@
 (defn print-usage [{:keys [biff/db]}]
   ;; For a real app, you can have this run once per day and send you the output
   ;; in an email.
-  (let [n-users (nth (q db
-                        '{:find (count user)
-                          :where [[user :user/email]]})
-                     0
-                     0)]
+  (let [n-users (queries/count-users db)]
     (log/info "There are" n-users "users.")))
 
 (defn alert-new-user [{:keys [biff.xtdb/node]} tx]
@@ -23,7 +20,7 @@
           :when (= op ::xt/put)
           :let [[doc] args]
           :when (and (contains? doc :user/email)
-                     (nil? (xt/entity db-before (:xt/id doc))))]
+                     (nil? (queries/get-entity-by-id db-before (:xt/id doc))))]
     ;; You could send this as an email instead of printing.
     (log/info "WOAH there's a new user")))
 

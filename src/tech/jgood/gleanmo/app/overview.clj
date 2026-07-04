@@ -816,27 +816,55 @@
   (t/format (t/formatter "EEE MMM d") date))
 
 (defn- timeline-groups
+  "Group timeline items: all future items collapse into one leading
+   'Upcoming' group; past/today items group per day as before."
   [ctx items]
-  (->> items
-       (reduce
-        (fn [groups entity]
-          (let [date (timeline-date ctx (get-in entity [::activity-time :instant]))]
-            (if (= date (:date (peek groups)))
-              (conj (pop groups)
-                    (update (peek groups) :items conj entity))
-              (conj groups {:date date :items [entity]}))))
-        [])))
+  (let [today     (t/date (t/in (t/now) (user-zone ctx)))
+        item-date (fn [entity]
+                    (timeline-date ctx (get-in entity [::activity-time :instant])))
+        future?   (fn [entity]
+                    (some-> (item-date entity) (t/> today)))
+        upcoming  (filter future? items)
+        day-groups (->> items
+                        (remove future?)
+                        (reduce
+                         (fn [groups entity]
+                           (let [date (item-date entity)]
+                             (if (= date (:date (peek groups)))
+                               (conj (pop groups)
+                                     (update (peek groups) :items conj entity))
+                               (conj groups {:date date :items [entity]}))))
+                         []))]
+    (cond->> (seq day-groups)
+      (seq upcoming) (cons {:upcoming? true :items (vec upcoming)}))))
 
 (defn- render-group-header
-  [ctx {:keys [date items]}]
-  (let [future? (t/> date (t/date (t/in (t/now) (user-zone ctx))))]
+  [ctx {:keys [date items upcoming?]}]
+  (let [dates      (when upcoming?
+                     (->> items
+                          (keep #(timeline-date ctx (get-in % [::activity-time :instant])))
+                          sort))
+        date-text  (cond
+                     (and upcoming? (seq dates))
+                     (let [from (first dates)
+                           to   (last dates)]
+                       (if (= from to)
+                         (group-date from)
+                         (str (group-date from) " – " (group-date to))))
+
+                     upcoming? nil
+                     :else     (group-date date))
+        scheduled? (or upcoming?
+                       (t/> date (t/date (t/in (t/now) (user-zone ctx)))))]
     [:summary.sticky.top-0.z-20.flex.cursor-pointer.select-none.items-center.gap-3.bg-dark.py-3
      {:style {:list-style "none"}}
      [:span.flex.h-6.w-6.items-center.justify-center.rounded.bg-dark-surface.text-gray-500.transition-colors.hover:bg-dark-light.hover:text-white
       [:span.text-sm.transition-transform.group-open:rotate-90 "›"]]
-     [:div.text-sm.font-semibold.text-gray-200 (group-label ctx date)]
-     [:div.text-xs.text-gray-500 (group-date date)]
-     (when future?
+     [:div.text-sm.font-semibold.text-gray-200
+      (if upcoming? "Upcoming" (group-label ctx date))]
+     (when date-text
+       [:div.text-xs.text-gray-500 date-text])
+     (when scheduled?
        [:span.rounded.px-2.py-0.5.text-xs.font-semibold.uppercase.tracking-wide
         {:style {:color "#a78bfa" :border "1px solid rgba(139,92,246,0.4)"}}
         "Scheduled"])
@@ -845,7 +873,7 @@
       (str (count items) " " (if (= 1 (count items)) "entry" "entries"))]]))
 
 (defn- render-timeline-row
-  [ctx entity]
+  [ctx entity & [{:keys [show-date?]}]]
   (let [etype           (name (::sm/type entity))
         {:keys [code]} (type-meta etype)
         href            (edit-form-url etype (:xt/id entity))
@@ -860,7 +888,10 @@
      {:href href
       :data-etype etype}
      [:div.w-20.shrink-0.py-3.pr-3.text-right
-      [:span.text-xs.text-gray-400.tabular-nums (or (timeline-time ctx start) "")]]
+      (when show-date?
+        [:div.text-xs.font-semibold.text-gray-200
+         (or (some->> (timeline-date ctx start) (t/format (t/formatter "MMM d"))) "")])
+      [:div.text-xs.text-gray-400.tabular-nums (or (timeline-time ctx start) "")]]
      [:div.w-14.shrink-0.relative
       [:div.absolute.top-0.bottom-0.left-0.right-0.mx-auto.w-px.bg-dark-border]
       (timeline-node {:type etype
@@ -893,13 +924,14 @@
        (render-type-filters items)
        [:div.space-y-2
         (for [group groups]
-          [:details.group {:key (str (:date group))
+          [:details.group {:key (if (:upcoming? group) "upcoming" (str (:date group)))
                            :open true
                            :data-timeline-group true}
            (render-group-header ctx group)
            [:div
             (for [entity (:items group)]
-              (render-timeline-row ctx entity))]])]]
+              (render-timeline-row ctx entity
+                                   {:show-date? (:upcoming? group)}))]])]]
       [:div.space-y-5
        (render-type-filters items)
        [:p.text-sm.text-gray-400 "No matching activity."]])))

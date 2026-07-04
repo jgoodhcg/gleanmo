@@ -24,7 +24,7 @@
         new-state    (keyword (or (:target-state params)
                                   (:state params)))
         now          (java.time.Instant/now)
-        task         (xt/entity db task-id)
+        task         (queries/get-entity-by-id db task-id)
         state-change-count (or (:task/state-change-count task) 0)
         tx-doc       (cond-> {:db/op             :update,
                               :db/doc-type       :task,
@@ -41,7 +41,7 @@
   (let [task-id      (parse-uuid (:id path-params))
         days         (Integer/parseInt (:days params))
         snooze-until (.plusDays (shared/user-local-date ctx) days)
-        task         (xt/entity db task-id)
+        task         (queries/get-entity-by-id db task-id)
         snooze-count (or (:task/snooze-count task) 0)]
     (biff/submit-tx ctx
                     [{:db/op :update,
@@ -100,7 +100,7 @@
   [{:keys [biff/db biff.xtdb/node path-params], :as ctx}]
   (let [task-id (parse-uuid (:id path-params))
         now (java.time.Instant/now)
-        task (xt/entity db task-id)
+        task (queries/get-entity-by-id db task-id)
         state-change-count (or (:task/state-change-count task) 0)]
     (biff/submit-tx ctx
                     [{:db/op :update

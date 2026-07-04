@@ -569,6 +569,20 @@
   [db query type filter-email]
   (q db query [type filter-email]))
 
+(defn count-users
+  "Count all user documents."
+  [db]
+  (nth (q db
+          '{:find  (count user)
+            :where [[user :user/email]]})
+       0
+       0))
+
+(defn entity-history-desc
+  "Full entity history for a document, newest first, with docs."
+  [db doc-id]
+  (xt/entity-history db doc-id :desc {:with-docs? true}))
+
 (defn get-last-tx-time
   [{:keys [biff/db xt/id]}]
   (let [history (xt/entity-history db id :desc)]

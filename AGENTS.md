@@ -146,9 +146,10 @@ UI/UX patterns
 - `main.js` applies the comparison and `border-neon-cyan` class for inputs, textareas, and Choices.js widgets.
 
 Database layer
-- All database reads and writes must go through `src/tech/jgood/gleanmo/db/queries.clj` and `src/tech/jgood/gleanmo/db/mutations.clj`.
-- Use `get-user-settings` and filter out deleted entities with `(not [?e ::sm/deleted-at])`.
-- Do not query XTDB directly from route handlers or view functions.
+- When reading or writing the database, call functions in `src/tech/jgood/gleanmo/db/queries.clj` / `db/mutations.clj`; never call `xt/q`, `biff/q`, `xt/entity`, or `xt/entity-history` outside those two files. (`xt/db` for snapshot refresh and `:xt/id` keywords are fine anywhere.)
+- When a needed query doesn't exist, add it to `db/queries.clj` rather than inlining it at the call site.
+- When adding a list/feed/count query, follow the scan-then-pull pattern: minimal index-only tuple scan (user + type + sort key only), then `fetch-entities-by-ids` for the page, post-filtering sparse flags (deleted/sensitive/archived) on pulled docs. XTDB 1.x runs each `(not ...)` clause as a per-row subquery — keep them out of hot-path scans. See `roadmap/dashboard-performance.md`.
+- When reading user visibility settings, use `resolve-user-settings` (ctx-first), not `get-user-settings` directly.
 
 Code style
 - Namespaces use `tech.jgood.gleanmo.*`.

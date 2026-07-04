@@ -31,8 +31,7 @@
    [tech.jgood.gleanmo.observability :as obs]
    [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.settings :as settings]
-   [tech.jgood.gleanmo.ui :as ui]
-   [xtdb.api :as xt]))
+   [tech.jgood.gleanmo.ui :as ui]))
 
 (def about-page
   (ui/page
@@ -232,7 +231,7 @@
 (defn load-performance-history
   [db instance-id {:keys [dur]}]
   (let [doc-id  (keyword "performance-report" instance-id)
-        history (xt/entity-history db doc-id :desc {:with-docs? true})
+        history (db/entity-history-desc db doc-id)
         cutoff  (when dur (.minus (now-inst) dur))]
     (->> history
          (keep (fn [{:keys [xtdb.api/doc xtdb.api/tx-time]}]
