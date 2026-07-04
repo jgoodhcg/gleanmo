@@ -459,16 +459,33 @@
      :order-key           order-key
      :order-direction     order-direction)))
 
+(defn bounded-pmap
+  "Map f over coll with at most n tasks in flight, preserving order and
+   conveying dynamic bindings (so tufte spans record on worker threads).
+   Unlike pmap, the bound doesn't depend on the JVM's core count, which
+   containers over-report — see roadmap/dashboard-performance.md."
+  [n f coll]
+  (let [pool (java.util.concurrent.Executors/newFixedThreadPool n)]
+    (try
+      (->> (.invokeAll pool
+                       ^java.util.Collection
+                       (mapv (fn [x] (bound-fn* (fn [] (f x)))) coll))
+           (mapv (fn [^java.util.concurrent.Future fut] (.get fut))))
+      (finally (.shutdown pool)))))
+
 (defnp dashboard-recent-entities
   "Fetch a bounded set of recent entities per type for the dashboard, respecting user settings and related-entity filters."
   [db user-id {:keys [entity-types per-type-limit order-keys user-settings], :or {per-type-limit 20}}]
   (let [{:keys [show-sensitive show-archived]}
         (or user-settings (get-user-settings db user-id))]
-    ;; Per-type reads are independent queries against the same immutable db
-    ;; snapshot — run them in parallel so wall time is the max, not the sum.
+    ;; Per-type reads are independent queries on one immutable db snapshot.
+    ;; Concurrency is bounded low: the index scans are CPU-bound and wide
+    ;; parallelism on a small box just queues and inflates every span, while
+    ;; a small bound still overlaps the network-bound doc fetches.
     (into []
           (comp cat)
-          (pmap
+          (bounded-pmap
+           3
            (fn [entity-str]
              (let [entity-kw    (keyword entity-str)
                    order-key    (get order-keys entity-str ::sm/created-at)

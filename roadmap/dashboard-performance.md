@@ -344,6 +344,27 @@ Changes in this iteration:
   pathological; large row counts mean the data is just big. This decides
   between per-user caching / materialized feed / hardware-level fixes.
 
+## Verdict: Contention, Not Scan Cost (2026-07-04, SHA d0877bc)
+
+The decisive measurement: `/app/monitoring/db` ran **all 13 type scans
+sequentially in 600-870ms total** — uncontended scans are healthy. Meanwhile
+the same scans inside the page load ballooned (habit-log 3.9s, medication-log
+3.75s, `active-timers-for-user` 369ms → 2.3s) and the handler *worsened*
+(3.07s → 4.68s mean) after overlapping items+timers added more parallelism.
+
+Conclusion: the prod box cannot run ~19 concurrent scans; `pmap` sizes its
+parallelism off the JVM's core count, which containers over-report, so wide
+parallelism just queues and inflates every span.
+
+Fix: `bounded-pmap` (fixed thread pool, conveys dynamic bindings for tufte).
+Dashboard cascade bounded to 3; timer fetches made sequential (they overlap
+the cascade via a future, so total in-flight ≈ 4). Expected warm load:
+scans ~0.9s serialized + overlapped network doc fetches → **~1.5-2s**.
+
+If that lands and further improvement is wanted, remaining levers: per-user
+cache / materialized feed (sub-500ms), batching the ~145 relationship-label
+`get-entity-by-id` calls, and checking prod vCPU / Hikari pool sizing.
+
 ## Post-Deploy Baseline (2026-03-07)
 
 _To be filled after deploying query refactoring (commits 7d3ee01, a78a8fa)._

@@ -366,9 +366,11 @@
 
 (defn- active-timer-summaries
   [ctx]
-  ;; Independent read-only queries per timer type — run in parallel.
+  ;; Sequential on purpose: these overlap the dashboard cascade via a future,
+  ;; and total in-flight queries are kept low to avoid thrashing the small
+  ;; prod box (see roadmap/dashboard-performance.md).
   (->> timers-app/timer-entities
-       (pmap
+       (map
         (fn [{:keys [entity-key entity-str display-name]}]
           (let [{:keys [relationship-key beginning-key] :as config}
                 (timer-routes/timer-config {:entity-key entity-key
