@@ -247,7 +247,7 @@
    pulls. When order-key is given, entities lacking that attribute are excluded
    (matching build-entity-query's join semantics). Otherwise sorts by the
    entity's timestamp field when present, falling back to ::sm/created-at."
-  [entity-type order-key extra-where]
+  [entity-type order-key]
   (let [ts-key       (keyword (name entity-type) "timestamp")
         sort-clause  (cond
                        order-key
@@ -262,12 +262,13 @@
 
                        :else
                        [['?e ::sm/created-at '?sort]])]
+    ;; Deliberately no (not ...) clauses: in XTDB 1.x each one evaluates as a
+    ;; per-row subquery, multiplying scan cost on big types. Deleted-at and
+    ;; sensitivity flags are sparse, so they're post-filtered on pulled docs.
     {:find  '[?e ?sort]
      :where (-> ['[?e :user/id user-id]
-                 ['?e ::sm/type entity-type]
-                 '(not [?e ::sm/deleted-at])]
-                (into sort-clause)
-                (into (or extra-where [])))
+                 ['?e ::sm/type entity-type]]
+                (into sort-clause))
      :in    ['user-id]}))
 
 (defnp fetch-entities-by-ids
@@ -310,38 +311,41 @@
            limit offset order-key order-direction]}]
   (let [user-settings {:show-sensitive (boolean filter-sensitive)
                        :show-archived  (boolean filter-archived)}
-        ;; Always use direct-only clauses for XTDB (fast (not ...) clauses)
-        extra-where   (direct-sensitivity-clauses entity-type user-settings)
         ;; Build exclusion map when filter-references requested
         exclusion-map (when filter-references
                         (p {:id (keyword "exclusions" (name entity-type))}
                            (build-exclusion-map db user-id entity-type user-settings)))
-        ;; Phase 1: index-only scan of [id sort-value] tuples
-        scan-query    (build-id-scan-query entity-type order-key extra-where)
+        ;; Phase 1: minimal index-only scan of [id sort-value] tuples
+        scan-query    (build-id-scan-query entity-type order-key)
         direction     (or order-direction default-order-direction)
         sorted-ids    (p {:id (keyword "scan" (name entity-type))}
                          (cond->> (sort-by second (q db scan-query user-id))
                            (= direction :desc) reverse
-                           true                (mapv first)))]
-    (if (seq exclusion-map)
-      ;; Phase 2a: pull docs in chunks, dropping excluded ones, until the
-      ;; page (offset + limit) is satisfied. Exclusions are typically sparse,
-      ;; so this usually pulls a single chunk of ~2x the limit.
-      (let [chunk-size (if limit (max 50 (* 2 limit)) 1000)
-            filtered   (->> (partition-all chunk-size sorted-ids)
-                            (mapcat (fn [chunk]
-                                      (apply-relationship-exclusions
-                                       exclusion-map
-                                       (fetch-entities-by-ids db chunk)))))]
-        (cond->> filtered
-          offset (drop offset)
-          limit  (take limit)
-          true   doall))
-      ;; Phase 2b: no exclusions — page the ids directly, one batch pull
-      (fetch-entities-by-ids db
-                             (cond->> sorted-ids
-                               offset (drop offset)
-                               limit  (take limit))))))
+                           true                (mapv first)))
+        ;; Post-filters previously pushed into the scan as per-row (not ...)
+        ;; subqueries — all sparse, so filtering pulled docs is cheaper.
+        sens-key      (keyword (name entity-type) "sensitive")
+        arch-key      (keyword (name entity-type) "archived")
+        keep-doc?     (fn [doc]
+                        (and (nil? (get doc ::sm/deleted-at))
+                             (or filter-sensitive
+                                 (not (true? (get doc sens-key))))
+                             (or filter-archived
+                                 (not (true? (get doc arch-key))))))
+        ;; Phase 2: pull docs in chunks, dropping filtered ones, until the
+        ;; page (offset + limit) is satisfied. Filtered docs are typically
+        ;; sparse, so this usually pulls a single chunk of ~2x the limit.
+        chunk-size    (if limit (max 50 (* 2 limit)) 1000)
+        filtered      (->> (partition-all chunk-size sorted-ids)
+                           (mapcat (fn [chunk]
+                                     (->> (fetch-entities-by-ids db chunk)
+                                          (filter keep-doc?)
+                                          (apply-relationship-exclusions
+                                           exclusion-map)))))]
+    (cond->> filtered
+      offset (drop offset)
+      limit  (take limit)
+      true   doall)))
 
 (defnp active-timers-for-user
   "Fetch in-progress timer entities (beginning set, no end) for a user.
@@ -371,7 +375,7 @@
   (vec
    (for [etype entity-types]
      (let [order-key (get order-keys etype)
-           scan-q    (build-id-scan-query (keyword etype) order-key nil)
+           scan-q    (build-id-scan-query (keyword etype) order-key)
            t0        (System/nanoTime)
            rows      (count (q db scan-q user-id))
            t1        (System/nanoTime)]

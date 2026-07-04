@@ -365,6 +365,28 @@ If that lands and further improvement is wanted, remaining levers: per-user
 cache / materialized feed (sub-500ms), batching the ~145 relationship-label
 `get-entity-by-id` calls, and checking prod vCPU / Hikari pool sizing.
 
+## Warm Results + Not-Clause Discovery (2026-07-04, SHA af1c85d)
+
+Warm (4 loads after warmup): handler mean **2.34s** (1.93-2.52s), was 4.68s.
+Bounded concurrency worked. But a contradiction surfaced: `/app/monitoring/db`
+runs all 13 scans in **560ms total**, while inside the cascade habit-log alone
+takes 2.02s and medication-log 1.62s — same index, same rows.
+
+Root cause: the diagnostic scan omits the sensitivity/archived/deleted-at
+`(not ...)` clauses; the cascade scans included them, and **XTDB 1.x evaluates
+each not-clause as a per-row subquery**, multiplying scan cost on big types.
+
+Fix: `build-id-scan-query` now emits only the minimal 3-clause join
+(user-id, type, sort-key). Deleted-at, direct sensitive/archived flags, and
+relationship exclusions are all post-filtered on pulled docs in the existing
+chunked phase-2 loop — all sparse, so the page usually fills from one chunk.
+The diagnostics page now measures exactly the scan the dashboard runs.
+
+Expected: big-type scans drop toward diagnostic levels (~100-300ms), cascade
+~1s, handler ~1.2s warm. Remaining after that: relationship-label batching
+(~145 get-entity-by-id/load ≈ 0.2-0.9s), then cache/materialized feed if
+sub-second is desired.
+
 ## Post-Deploy Baseline (2026-03-07)
 
 _To be filled after deploying query refactoring (commits 7d3ee01, a78a8fa)._
