@@ -872,8 +872,10 @@
                 (some-> (:limit params) Integer/parseInt)
                 (catch Exception _ nil))
         selected-type (some-> (:type params) not-empty)
-        items  (fetch-overview-items ctx)
+        ;; Items and timers are independent reads — overlap them.
+        items-future (future (doall (fetch-overview-items ctx)))
         timers (active-timer-summaries ctx)
+        items  @items-future
         timeline-items (timeline-activity ctx items {:limit (or limit 18)})
         stats  (dashboard-stats ctx items timers)]
     [:div#overview-recent

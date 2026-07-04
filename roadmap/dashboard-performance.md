@@ -325,6 +325,25 @@ hardware → options: per-user dashboard cache (TTL ~60s), materialized
 recent-activity doc maintained on write, or accept ~1-2s. Also worth checking
 prod vCPU count and `maximumPoolSize`.
 
+## Post-Timer-Fix Results + Scan Diagnostics (2026-07-04, SHA c7f1c7f)
+
+3 warm loads: handler mean **3.07s** (was 5.84s). `dashboard-recent-entities`
+2.44s ≈ bounded by habit-log scan (2.37s). Timer fetches now 369ms each
+(`active-timers-for-user`) but ran *after* the cascade, serially.
+
+Scans remain suspiciously slow per row: bm-log ~1k rows at 1.56s ≈ 1.5ms/row —
+~60x the local reference (~24µs/row). Either prod row counts are much larger
+than assumed, or scans are pathological on that box (CPU, JVM heap, index disk).
+
+Changes in this iteration:
+- `recent-activity-section` overlaps the items fetch (future) with the timer
+  fetch instead of running them serially (~0.4-1s off wall time).
+- New super-user page `/app/monitoring/db`: sequential, uncontended per-type
+  index scan timings + row counts for the current user (`scan-diagnostics`).
+  Visit it on an idle instance — µs/row far above ~50 means the scan itself is
+  pathological; large row counts mean the data is just big. This decides
+  between per-user caching / materialized feed / hardware-level fixes.
+
 ## Post-Deploy Baseline (2026-03-07)
 
 _To be filled after deploying query refactoring (commits 7d3ee01, a78a8fa)._

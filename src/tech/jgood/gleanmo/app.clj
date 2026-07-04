@@ -343,6 +343,52 @@
          :headers {"location" (str "/app/monitoring/performance?persist="
                                    status)}}))))
 
+(defn db-scan-diagnostics
+  "Super-user page: uncontended, sequential per-type index scan timings and
+   row counts for the current user. Isolates raw scan cost from the parallel
+   contention and doc fetches seen in request profiles."
+  [{:keys [session biff/db], :as ctx}]
+  (let [user-id (:uid session)]
+    (if-not (super-user? db user-id)
+      (ui/page
+       {:status 403}
+       (side-bar
+        ctx
+        [:div.max-w-xl.mx-auto.space-y-4
+         [:h1.text-2xl.font-semibold "Access Restricted"]
+         [:p
+          "This page is limited to super users. Contact an administrator if you need access."]]))
+      (let [results (db/scan-diagnostics
+                     db
+                     user-id
+                     overview/recent-activity-types
+                     overview/recent-activity-order-keys)]
+        (ui/page
+         {}
+         (side-bar
+          ctx
+          [:div.max-w-3xl.mx-auto.space-y-6
+           [:h1.text-2xl.font-semibold "DB Scan Diagnostics"]
+           [:p.text-sm.text-gray-400
+            "Sequential index-only scans (no document pulls), scoped to your user. Run while the instance is otherwise idle to see uncontended cost."]
+           [:table.w-full.text-sm
+            [:thead
+             [:tr.text-left.text-gray-400.uppercase.text-xs
+              [:th.py-2 "Entity type"]
+              [:th.py-2.text-right "Rows"]
+              [:th.py-2.text-right "Scan ms"]
+              [:th.py-2.text-right "µs/row"]]]
+            [:tbody
+             (for [{:keys [type rows ms]} (sort-by :ms > results)]
+               [:tr.border-t.border-dark {:key type}
+                [:td.py-2.font-mono type]
+                [:td.py-2.text-right.font-mono (str rows)]
+                [:td.py-2.text-right.font-mono (format "%.1f" ms)]
+                [:td.py-2.text-right.font-mono
+                 (if (pos? rows)
+                   (format "%.1f" (/ (* 1000.0 ms) rows))
+                   "—")]])]]]))))))
+
 (defn performance-instance-dashboard
   [{:keys [session biff/db params], :as ctx}]
   (let [user-id (:uid session)]
@@ -515,6 +561,7 @@
             ["/monitoring/performance"
              {:get  performance-instance-dashboard,
               :post persist-performance-snapshot}]
+            ["/monitoring/db" {:get db-scan-diagnostics}]
 
             ;; user
             ["/my-user" {:get user/my-user}]

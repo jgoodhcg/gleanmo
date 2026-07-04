@@ -364,6 +364,21 @@
                          user-id)]
     (apply-relationship-exclusions exclusion-map (map first results))))
 
+(defn scan-diagnostics
+  "Time sequential, uncontended index-only scans per entity type for a user.
+   Returns [{:type ... :rows n :ms x}] — for the monitoring dashboard."
+  [db user-id entity-types order-keys]
+  (vec
+   (for [etype entity-types]
+     (let [order-key (get order-keys etype)
+           scan-q    (build-id-scan-query (keyword etype) order-key nil)
+           t0        (System/nanoTime)
+           rows      (count (q db scan-q user-id))
+           t1        (System/nanoTime)]
+       {:type etype
+        :rows rows
+        :ms   (/ (- t1 t0) 1e6)}))))
+
 (defn tasks-for-user
   "Get all tasks for a user, respecting the user's sensitive setting."
   [db user-id & {:keys [user-settings]}]
