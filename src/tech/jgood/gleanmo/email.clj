@@ -104,20 +104,17 @@
   (println (:text form-params))
   (println)
   (println "To send emails instead of printing them to the console, add your"
-           "API keys for MailerSend and Recaptcha to config.edn.")
+           "API keys for MailerSend and reCAPTCHA to config.env.")
   true)
 
 (defn send-email
-  [{:as ctx} opts]
+  [{:keys [biff/secret recaptcha/site-key] :as ctx} opts]
   (let [form-params (if-some [template-key (:template opts)]
                       (template template-key opts)
                       opts)]
-    ;; 2025-06-07 Justin 
-    ;; Temporarily send only console because of Mailersend trial plan changes
-    (send-console ctx form-params)
-    #_(if (every? some?
-                  [(secret :mailersend/api-key)
-                   (secret :recaptcha/secret-key)
-                   site-key])
-        (send-mailersend ctx form-params)
-        (send-console ctx form-params))))
+    (if (every? some?
+                [(secret :mailersend/api-key)
+                 (secret :recaptcha/secret-key)
+                 site-key])
+      (send-mailersend ctx form-params)
+      (send-console ctx form-params))))
