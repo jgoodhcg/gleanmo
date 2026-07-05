@@ -86,8 +86,15 @@ async function main() {
   page.on('console', msg => console.log(`  [browser:${msg.type()}] ${msg.text()}`));
   page.on('pageerror', err => console.log(`  [pageerror] ${err.message}`));
   page.on('requestfailed', req => {
-    if (req.url().includes('sortable') || req.url().includes('Sortable')) {
-      console.log(`  [reqfail] ${req.url()} - ${req.failure()?.errorText}`);
+    console.log(`  [reqfail] ${req.url()} - ${req.failure()?.errorText}`);
+  });
+  page.on('response', resp => {
+    const s = resp.status();
+    if (s >= 400) console.log(`  [resp-${s}] ${resp.url()}`);
+  });
+  page.on('request', req => {
+    if (req.url().includes('/reorder-today')) {
+      console.log(`  [req] ${req.method()} ${req.url()}`);
     }
   });
 
@@ -166,16 +173,51 @@ async function main() {
     // Get bounding boxes
     const firstBox = await firstHandle.boundingBox();
     const lastBox = await lastItem.boundingBox();
+    console.log('  [boxes]', JSON.stringify({ firstBox, lastBox }));
 
     if (firstBox && lastBox) {
-      // Drag first item below the last item
-      await page.mouse.move(firstBox.x + firstBox.width / 2, firstBox.y + firstBox.height / 2);
+      // Instrument mouse + sortable events so CI reveals whether they fire.
+      await page.evaluate(() => {
+        const log: Array<[string, number, number]> = [];
+        (window as any).__dragLog = log;
+        const rec = (type: string) => (e: MouseEvent) => {
+          log.push([type, Math.round(e.clientX), Math.round(e.clientY)]);
+        };
+        document.addEventListener('mousedown', rec('document:mousedown'), true);
+        document.addEventListener('mousemove', rec('document:mousemove'), true);
+        document.addEventListener('mouseup', rec('document:mouseup'), true);
+        const handle = document.querySelector('.drag-handle') as HTMLElement;
+        handle?.addEventListener('mousedown', rec('handle:mousedown'));
+      });
+
+      // Drag first item below the last item — use intermediate steps with small
+      // delays so SortableJS throttled move handlers keep up.
+      const startX = firstBox.x + firstBox.width / 2;
+      const startY = firstBox.y + firstBox.height / 2;
+      const endX = lastBox.x + lastBox.width / 2;
+      const endY = lastBox.y + lastBox.height + 10;
+      await page.mouse.move(startX, startY);
+      await page.waitForTimeout(50);
       await page.mouse.down();
-      await page.mouse.move(lastBox.x + lastBox.width / 2, lastBox.y + lastBox.height + 10, { steps: 10 });
+      // Move in 5 intermediate steps with brief pauses
+      for (let i = 1; i <= 5; i++) {
+        const t = i / 5;
+        await page.mouse.move(
+          startX + (endX - startX) * t,
+          startY + (endY - startY) * t,
+          { steps: 5 }
+        );
+        await page.waitForTimeout(30);
+      }
       await page.mouse.up();
 
       // Wait for HTMX update
       await page.waitForTimeout(1000);
+
+      const dragLog = await page.evaluate(() => (window as any).__dragLog);
+      console.log('  [drag-log-length]', dragLog?.length);
+      console.log('  [drag-log-sample]', JSON.stringify(dragLog?.slice(0, 5)));
+      console.log('  [drag-log-tail]', JSON.stringify(dragLog?.slice(-5)));
       console.log('  ✓ Drag-and-drop performed');
     } else {
       throw new Error('Could not get bounding boxes for drag-and-drop');
