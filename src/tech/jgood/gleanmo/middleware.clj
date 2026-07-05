@@ -17,11 +17,11 @@
 (defn wrap-signed-in
   "Require a signed-in session for the wrapped handler.
 
-   Anonymous browser navigations get a 303 redirect to the sign-in page.
+   Anonymous browser navigations get a 303 redirect to the landing page.
    Anonymous HTMX requests get an HX-Redirect header instead — a plain 303
-   would be followed transparently by the XHR and the sign-in page would be
+   would be followed transparently by the XHR and the landing page would be
    swapped into the authenticated layout (sidebar around a login form).
-   HX-Redirect makes HTMX do a full-page navigation to a clean sign-in page."
+   HX-Redirect makes HTMX do a full-page navigation to a clean landing page."
   [handler]
   (fn [{:keys [session headers] :as ctx}]
     (cond
@@ -30,11 +30,11 @@
 
       (some? (get headers "hx-request"))
       {:status 200
-       :headers {"HX-Redirect" "/signin?error=not-signed-in"}}
+       :headers {"HX-Redirect" "/?error=not-signed-in"}}
 
       :else
       {:status 303
-       :headers {"location" "/signin?error=not-signed-in"}})))
+       :headers {"location" "/?error=not-signed-in"}})))
 
 (defn wrap-user-settings
   "Load user settings once per request and attach to context as :user/settings.

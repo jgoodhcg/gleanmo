@@ -29,6 +29,15 @@ body {
   --dark-border: #30363d;
   --dark-text-primary: #c9d1d9;
   --dark-text-secondary: #8b949e;
+
+  /* Landing Page Palette */
+  --lp-bg: #0a0c10;
+  --lp-surface: #0b0e13;
+  --lp-rule: #14181f;
+  --lp-edge: #1e2430;
+  --lp-edge-2: #232a36;
+  --lp-accent: #22d3ee;
+  --lp-accent-ink: #06121a;
 }
 
 @keyframes rgb-glow {
@@ -690,8 +699,7 @@ body {
     text-decoration: underline;
     text-decoration-color: transparent;
     transition: text-decoration-color 0.2s ease-in-out, text-shadow 0.2s ease-in-out;
-  }
-  
+  }  
   .link:hover {
     text-decoration-color: var(--gold);
     text-shadow: 0 0 8px rgba(255, 212, 0, 0.6);
@@ -741,6 +749,33 @@ body {
   
   .bg-enum {
     background-color: var(--neon-violet);
+  }
+
+  /* Landing page utilities */
+  .lp-bg { background-color: var(--lp-bg); }
+  .lp-surface { background-color: var(--lp-surface); }
+  .lp-rule-bg { background-color: var(--lp-rule); }
+  .border-lp-rule { border-color: var(--lp-rule); }
+  .border-lp-edge { border-color: var(--lp-edge); }
+  .border-lp-edge-2 { border-color: var(--lp-edge-2); }
+  .text-lp-accent { color: var(--lp-accent); }
+  .bg-lp-accent { background-color: var(--lp-accent); }
+  .text-lp-accent-ink { color: var(--lp-accent-ink); }
+  .lp-hero-glow {
+    background: radial-gradient(1100px 500px at 50% -6%, rgba(34,211,238,.05), transparent 60%), var(--lp-bg);
+  }
+  .lp-mail-card {
+    background: linear-gradient(180deg, rgba(34,211,238,.03), transparent 40%);
+  }
+  .lp-header-blur {
+    background: rgba(10,12,16,.78);
+    backdrop-filter: blur(10px);
+  }
+  .lp-toast {
+    position: fixed;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
   }
 }
 
