@@ -126,6 +126,19 @@ jobs:
       - name: Install rlwrap
         run: sudo apt-get install -y rlwrap
 
+      - name: Pin Tailwind CSS to v3
+        # Biff's auto-download fetches "latest" which is now v4 and breaks our
+        # v3-style CSS (@tailwind directives, @apply outside @layer).
+        # Pre-place a v3 binary so Biff uses it instead of downloading v4.
+        env:
+          TAILWIND_VERSION: v3.4.17
+        run: |
+          mkdir -p bin
+          curl -L -o bin/tailwindcss \
+            "https://github.com/tailwindlabs/tailwindcss/releases/download/${TAILWIND_VERSION}/tailwindcss-linux-x64"
+          chmod +x bin/tailwindcss
+          bin/tailwindcss --help | head -2
+
       - name: Generate ephemeral secrets
         run: |
           echo "COOKIE_SECRET=$(openssl rand -base64 16)" >> config.env

@@ -82,6 +82,15 @@ async function main() {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 
+  // Surface browser-side diagnostics in CI logs
+  page.on('console', msg => console.log(`  [browser:${msg.type()}] ${msg.text()}`));
+  page.on('pageerror', err => console.log(`  [pageerror] ${err.message}`));
+  page.on('requestfailed', req => {
+    if (req.url().includes('sortable') || req.url().includes('Sortable')) {
+      console.log(`  [reqfail] ${req.url()} - ${req.failure()?.errorText}`);
+    }
+  });
+
   try {
     // 1. Authenticate
     console.log('1. Authenticating...');
@@ -131,6 +140,25 @@ async function main() {
 
     // 6. Perform drag-and-drop (move first item to last position)
     console.log('\n6. Performing drag-and-drop...');
+
+    // Wait for SortableJS to initialize the container before dragging.
+    // In CI the CDN script can load late and the drag would silently no-op.
+    await page.waitForFunction(() => {
+      const c = document.querySelector('.sortable-list');
+      return !!c && c.getAttribute('data-sortable-initialized') === 'true';
+    }, { timeout: 10000 }).catch(() => {
+      /* fall through; diagnostic below will report */
+    });
+    const sortState = await page.evaluate(() => ({
+      sortDefined: typeof (window as any).Sortable,
+      container: !!document.querySelector('.sortable-list'),
+      initialized: document.querySelector('.sortable-list')?.getAttribute('data-sortable-initialized'),
+    }));
+    console.log('  [sort-state]', JSON.stringify(sortState));
+    if (sortState.initialized !== 'true') {
+      throw new Error(`Sortable not initialized: ${JSON.stringify(sortState)}`);
+    }
+
     const sortableItems = page.locator('.sortable-item');
     const firstHandle = sortableItems.first().locator('.drag-handle');
     const lastItem = sortableItems.last();
