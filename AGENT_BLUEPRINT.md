@@ -1,5 +1,5 @@
 ---
-version: "2026-07-02"
+version: "2026-07-04"
 ---
 
 # Agent Blueprint
@@ -585,12 +585,13 @@ Add a `## Knowledge Base` section to `AGENTS.md` with tool-specific conventions.
 
 ### Thread Summary Format
 
-All AI-generated content must be nested under a parent attribution block:
+The `roam-thread-summary` skill (`.claude/skills/roam-thread-summary/`) is the canonical generator; it emits a paste-ready block. Its required parent attribution block is:
 
-1. **Tool** — e.g., `[[opencode]]`, `[[claude-code]]`, `[[gemini-cli]]`, `[[codex-cli]]`
-2. **Model** — the exact model that generated the content
-3. **Thread marker** — `[[ai-thread]]`
-4. **Project tag** — e.g., `[[project-name]]`
+1. **Thread marker** — `[[ai-thread]]`
+2. **Model** — `[[<model-id>]]`, the exact model of the current session
+3. **Project** — `[[<project>]]`, the project's declared Roam tag or repository name
+
+Add optional refs only when the user asks: **tool** (`[[claude-code]]`, `[[opencode]]`, `[[gemini-cli]]`, `[[codex-cli]]`) or topic pages.
 
 ### Roam Research Example
 
@@ -601,17 +602,16 @@ Store in `AGENTS.md`:
 
 Tool: Roam Research
 
-When asked to generate a Roam summary or thread:
-- Parent block: `- [[<tool>]] [[<model-id>]] [[ai-thread]] [[<project-name>]]`
-- Tool names: `opencode` | `claude-code` | `gemini-cli` | `codex-cli`
-- Page refs: only include `[[Page Name]]` if explicitly instructed
+When asked to generate a Roam summary or thread, use the `roam-thread-summary` skill:
+- Required parent block: `- [[ai-thread]] [[<model-id>]] [[<project-name>]]`
+- Optional refs (only if instructed): tool (`opencode` | `claude-code` | `gemini-cli` | `codex-cli`), topic pages
 - Sections: ask user what they want (chronological, functional, Q&A)
 ```
 
 Output structure:
 
 ```
-- [[opencode]] [[glm-5]] [[ai-thread]] [[agent-blueprint]]
+- [[ai-thread]] [[glm-5]] [[agent-blueprint]]
     - Summary
         - Investigated stale cache issue in `src/cache.ts:142`
     - Files Changed
