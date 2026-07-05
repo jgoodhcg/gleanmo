@@ -139,6 +139,19 @@ jobs:
           chmod +x bin/tailwindcss
           bin/tailwindcss --help | head -2
 
+      - name: Generate CSS before starting dev server
+        # Generate CSS synchronously so it exists when the server starts.
+        # Biff's async CSS-watcher future is silent in CI; this guarantees the
+        # file is present and surfaces any tailwind errors directly.
+        run: |
+          mkdir -p target/resources/public/css
+          bin/tailwindcss \
+            -c resources/tailwind.config.js \
+            -i resources/tailwind.css \
+            -o target/resources/public/css/main.css
+          ls -la target/resources/public/css/main.css
+          head -3 target/resources/public/css/main.css
+
       - name: Generate ephemeral secrets
         run: |
           echo "COOKIE_SECRET=$(openssl rand -base64 16)" >> config.env
