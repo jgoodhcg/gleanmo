@@ -156,11 +156,13 @@ async function main() {
     }, { timeout: 10000 }).catch(() => {
       /* fall through; diagnostic below will report */
     });
-    const sortState = await page.evaluate(() => ({
-      sortDefined: typeof (window as any).Sortable,
-      container: !!document.querySelector('.sortable-list'),
-      initialized: document.querySelector('.sortable-list')?.getAttribute('data-sortable-initialized'),
-    }));
+    const sortState = await page.evaluate(`
+      ({
+        sortDefined: typeof window.Sortable,
+        container: !!document.querySelector('.sortable-list'),
+        initialized: document.querySelector('.sortable-list') && document.querySelector('.sortable-list').getAttribute('data-sortable-initialized'),
+      })
+    `);
     console.log('  [sort-state]', JSON.stringify(sortState));
     if (sortState.initialized !== 'true') {
       throw new Error(`Sortable not initialized: ${JSON.stringify(sortState)}`);
@@ -177,18 +179,19 @@ async function main() {
 
     if (firstBox && lastBox) {
       // Instrument mouse + sortable events so CI reveals whether they fire.
-      await page.evaluate(() => {
-        const log: Array<[string, number, number]> = [];
-        (window as any).__dragLog = log;
-        const rec = (type: string) => (e: MouseEvent) => {
-          log.push([type, Math.round(e.clientX), Math.round(e.clientY)]);
-        };
+      // NB: pass a plain string, not a TS closure — tsx injects __name helpers
+      // that don't exist in the browser context.
+      await page.evaluate(`
+        window.__dragLog = [];
+        var rec = function (type) { return function (e) {
+          window.__dragLog.push([type, Math.round(e.clientX), Math.round(e.clientY)]);
+        }; };
         document.addEventListener('mousedown', rec('document:mousedown'), true);
         document.addEventListener('mousemove', rec('document:mousemove'), true);
         document.addEventListener('mouseup', rec('document:mouseup'), true);
-        const handle = document.querySelector('.drag-handle') as HTMLElement;
-        handle?.addEventListener('mousedown', rec('handle:mousedown'));
-      });
+        var h = document.querySelector('.drag-handle');
+        if (h) h.addEventListener('mousedown', rec('handle:mousedown'));
+      `);
 
       // Drag first item below the last item — use intermediate steps with small
       // delays so SortableJS throttled move handlers keep up.
@@ -214,7 +217,7 @@ async function main() {
       // Wait for HTMX update
       await page.waitForTimeout(1000);
 
-      const dragLog = await page.evaluate(() => (window as any).__dragLog);
+      const dragLog = await page.evaluate('window.__dragLog');
       console.log('  [drag-log-length]', dragLog?.length);
       console.log('  [drag-log-sample]', JSON.stringify(dragLog?.slice(0, 5)));
       console.log('  [drag-log-tail]', JSON.stringify(dragLog?.slice(-5)));
