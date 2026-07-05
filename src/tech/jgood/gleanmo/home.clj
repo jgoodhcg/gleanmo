@@ -162,10 +162,36 @@
             {:type "submit"})
      "Send another code"])))
 
+(defn about-page [ctx]
+  (ui/page
+   ctx
+   [:h2.text-2xl.font-bold (str "About " settings/app-name)]
+   [:.h-3]
+   [:p settings/app-name
+    " is a personal quantified-self web app. It helps a single user track "
+    "habits, meditation, reading, projects, health metrics, and other "
+    "self-quantification data through a private dashboard."]
+   [:.h-3]
+   [:h3.text-lg.font-semibold "Email usage"]
+   [:p "The only emails sent from this domain are transactional, "
+    "user-initiated authentication messages:"]
+   [:ul.list-disc.ml-6.mt-2.space-y-1
+    [:li "Sign-up / sign-in magic links"]
+    [:li "Sign-in verification codes"]]
+   [:.h-3]
+   [:p "No marketing, promotional, or bulk email is sent. No mailing lists "
+    "are maintained. Emails are only delivered in response to an explicit "
+    "request from the account holder."]
+   [:.h-3]
+   [:h3.text-lg.font-semibold "Contact"]
+   [:p "For questions about this service or its email practices, reply to "
+    "any message received from this domain."]))
+
 (def module
   {:routes [["" {:middleware [mid/wrap-redirect-signed-in]}
-             ["/"                  {:get home-page}]]
-            ["/link-sent"          {:get link-sent}]
-            ["/verify-link"        {:get verify-email-page}]
-            ["/signin"             {:get signin-page}]
-            ["/verify-code"        {:get enter-code-page}]]})
+             ["/"                  {:get home-page}]
+             ["/link-sent"         {:get link-sent}]
+             ["/verify-link"       {:get verify-email-page}]
+             ["/signin"            {:get signin-page}]
+             ["/verify-code"       {:get enter-code-page}]]
+            ["/about"              {:get about-page}]]})

@@ -108,13 +108,8 @@
   true)
 
 (defn send-email
-  [{:keys [biff/secret recaptcha/site-key] :as ctx} opts]
+  [ctx opts]
   (let [form-params (if-some [template-key (:template opts)]
                       (template template-key opts)
                       opts)]
-    (if (every? some?
-                [(secret :mailersend/api-key)
-                 (secret :recaptcha/secret-key)
-                 site-key])
-      (send-mailersend ctx form-params)
-      (send-console ctx form-params))))
+    (send-console ctx form-params)))
