@@ -108,8 +108,11 @@
   true)
 
 (defn send-email
-  [ctx opts]
+  [{:keys [biff/secret] :as ctx} opts]
   (let [form-params (if-some [template-key (:template opts)]
                       (template template-key opts)
-                      opts)]
-    (send-console ctx form-params)))
+                      opts)
+        send-fn     (if (some? (secret :mailersend/api-key))
+                      send-mailersend
+                      send-console)]
+    (send-fn ctx form-params)))
