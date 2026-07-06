@@ -5,11 +5,6 @@
             [tech.jgood.gleanmo.ui.icons :as icons]
             [tech.jgood.gleanmo.settings :as settings]))
 
-(def email-disabled-notice
-  [:.text-sm.mt-3.bg-blue-100.rounded.p-2
-   "Until you add API keys for MailerSend and reCAPTCHA, we'll print your sign-up "
-   "link to the console. See config.edn."])
-
 (def ^:private svg-attrs
   {:xmlns           "http://www.w3.org/2000/svg"
    :viewBox         "0 0 24 24"
@@ -226,158 +221,156 @@
          "not-signed-in" "You must be signed in to view that page."
          "There was an error.")])]))
 
-(defn link-sent [{:keys [params] :as ctx}]
+;; --- auth pages -------------------------------------------------------------
+
+(defn- lp-auth-shell
+  "Landing-styled shell for the auth pages: dark backdrop, minimal header
+  linking home, and a centered card."
+  [ctx & content]
   (ui/page
    ctx
-   [:h2.text-xl.font-bold "Check your inbox"]
-   [:p "We've sent a sign-in link to " [:span.font-bold (:email params)] "."]))
+   [:div.lp-landing.min-h-screen.font-mono.text-slate-200.lp-hero-glow
+    [:header.border-b.border-lp-rule.lp-header-blur
+     [:div.max-w-6xl.mx-auto.px-8.py-4.flex.items-center.justify-between.gap-4
+      [:a.flex.items-center.gap-2.no-underline.text-slate-200 {:href "/"}
+       [:span.block.w-4.h-4.rounded.bg-lp-accent]
+       [:span.text-sm.font-bold.tracking-widest "GLEANMO"]]
+      [:a.text-slate-400 {:href lp-github-url :aria-label "Gleanmo on GitHub"}
+       (lp-icon :gh "w-5 h-5")]]]
+    [:main.max-w-md.mx-auto.px-6.py-16
+     (into [:div.lp-surface.border.border-lp-edge.rounded-xl.p-8] content)]]))
+
+(defn- lp-email-input [attrs]
+  [:input.w-full.rounded-lg.border.border-lp-edge-2.px-4.text-sm.text-slate-200
+   (merge {:class "py-2.5 bg-transparent placeholder:text-slate-600 focus:outline-none focus:border-lp-accent"}
+          attrs)])
+
+(defn- lp-submit-btn [attrs label]
+  [:button.w-full.mt-3.rounded-lg.bg-lp-accent.px-5.text-sm.font-semibold.text-lp-accent-ink
+   (update (merge {:type "submit"} attrs) :class #(str "py-2.5 " %))
+   label])
+
+(defn- lp-auth-error
+  "Error banner for auth cards. `msgs` maps error codes to copy."
+  [error msgs]
+  (when error
+    [:p.mt-3.text-sm.leading-normal.text-rose-400
+     (get msgs error "There was an error.")]))
+
+(defn- lp-recaptcha-attrs [site-key callback]
+  (merge {:class "g-recaptcha"}
+         (when site-key
+           {:data-sitekey site-key
+            :data-callback callback})))
+
+(def ^:private lp-send-errors
+  {"recaptcha" (str "You failed the recaptcha test. Try again, "
+                    "and make sure you aren't blocking scripts from Google.")
+   "invalid-email" "Invalid email. Try again with a different address."
+   "send-failed" (str "We weren't able to send an email to that address. "
+                      "If the problem persists, try another address.")})
+
+(defn link-sent [{:keys [params] :as ctx}]
+  (lp-auth-shell
+   ctx
+   [:h2.text-xl.font-bold.text-slate-100 "Check your inbox"]
+   [:p.mt-3.text-sm.leading-relaxed.text-slate-400
+    "We've sent a sign-in link to "
+    [:span.font-semibold.text-slate-200 (:email params)] "."]))
 
 (defn verify-email-page [{:keys [params] :as ctx}]
-  (ui/page
+  (lp-auth-shell
    ctx
-   [:h2.text-2xl.font-bold (str "Sign up for " settings/app-name)]
-   [:.h-3]
-   (biff/form
-    {:action "/auth/verify-link"
-     :hidden {:token (:token params)}}
-    [:div [:label {:for "email"}
-           "It looks like you opened this link on a different device or browser than the one "
-           "you signed up on. For verification, please enter the email you signed up with:"]]
-    [:.h-3]
-    [:.flex
-     [:input#email {:name "email" :type "email"
-                    :placeholder "Enter your email address"}]
-     [:.w-3]
-     [:button.btn {:type "submit"}
-      "Sign in"]])
-   (when-some [error (:error params)]
-     #_{:clj-kondo/ignore [:unused-value]}
-     [:.h-1]
-     [:.text-sm.text-red-600
-      (case error
-        "incorrect-email" "Incorrect email address. Try again."
-        "There was an error.")])))
+   [:h2.text-xl.font-bold.text-slate-100 (str "Sign up for " settings/app-name)]
+   [:p.mt-3.text-sm.leading-relaxed.text-slate-400
+    "It looks like you opened this link on a different device or browser than the one "
+    "you signed up on. For verification, please enter the email you signed up with:"]
+   [:div.mt-5
+    (biff/form
+     {:action "/auth/verify-link"
+      :hidden {:token (:token params)}}
+     (lp-email-input {:id "email" :name "email" :type "email"
+                      :placeholder "Enter your email address"})
+     (lp-submit-btn {} "Sign in"))]
+   (lp-auth-error (:error params)
+                  {"incorrect-email" "Incorrect email address. Try again."})))
 
 (defn signin-page [{:keys [recaptcha/site-key params] :as ctx}]
-  (ui/page
+  (lp-auth-shell
    (assoc ctx ::ui/recaptcha true)
-   (biff/form
-    {:action "/auth/send-code"
-     :id "signin"
-     :hidden {:on-error "/signin"}}
-    (biff/recaptcha-callback "submitSignin" "signin")
-    [:h2.text-2xl.font-bold "Sign in to " settings/app-name]
-    [:.h-3]
-    [:.flex
-     [:input#email {:name "email"
-                    :type "email"
-                    :autocomplete "email"
-                    :placeholder "Enter your email address"}]
-     [:.w-3]
-     [:button.btn.g-recaptcha
-      (merge (when site-key
-               {:data-sitekey site-key
-                :data-callback "submitSignin"})
-             {:type "submit"})
-      "Sign in"]]
-    (when-some [error (:error params)]
-      [:<>
-       [:.h-1]
-       [:.text-sm.text-red-600
-        (case error
-          "recaptcha" (str "You failed the recaptcha test. Try again, "
-                           "and make sure you aren't blocking scripts from Google.")
-          "invalid-email" "Invalid email. Try again with a different address."
-          "send-failed" (str "We weren't able to send an email to that address. "
-                             "If the problem persists, try another address.")
-          "invalid-link" "Invalid or expired link. Sign in to get a new link."
-          "not-signed-in" "You must be signed in to view that page."
-          "There was an error.")]])
-    [:.h-1]
-    [:.text-sm "Don't have an account yet? " [:a.link {:href "/"} "Sign up"] "."]
-    [:.h-3]
-    biff/recaptcha-disclosure
-    email-disabled-notice)))
+   [:h2.text-xl.font-bold.text-slate-100 (str "Sign in to " settings/app-name)]
+   [:p.mt-3.text-sm.leading-relaxed.text-slate-400
+    "We'll email you a 6-digit code — no password needed."]
+   [:div.mt-5
+    (biff/form
+     {:action "/auth/send-code"
+      :id "signin"
+      :hidden {:on-error "/signin"}}
+     (biff/recaptcha-callback "submitSignin" "signin")
+     (lp-email-input {:id "email" :name "email" :type "email"
+                      :autocomplete "email"
+                      :placeholder "Enter your email address"})
+     (lp-submit-btn (lp-recaptcha-attrs site-key "submitSignin") "Sign in"))]
+   (lp-auth-error (:error params)
+                  (assoc lp-send-errors
+                         "invalid-link" "Invalid or expired link. Sign in to get a new link."
+                         "not-signed-in" "You must be signed in to view that page."))
+   [:p.mt-5.text-sm.text-slate-400
+    "Don't have an account yet? "
+    [:a.text-lp-accent.no-underline {:href "/signup"} "Sign up"] "."]
+   [:div.mt-4.text-xs.text-slate-600 biff/recaptcha-disclosure]))
 
 (defn enter-code-page [{:keys [recaptcha/site-key params] :as ctx}]
-  (ui/page
+  (lp-auth-shell
    (assoc ctx ::ui/recaptcha true)
-   (biff/form
-    {:action "/auth/verify-code"
-     :id "code-form"
-     :hidden {:email (:email params)}}
-    (biff/recaptcha-callback "submitCode" "code-form")
-    [:div [:label {:for "code"} "Enter the 6-digit code that we sent to "
-           [:span.font-bold (:email params)]]]
-    [:.h-1]
-    [:.flex
-     [:input#code {:name "code" :type "text"}]
-     [:.w-3]
-     [:button.btn.g-recaptcha
-      (merge (when site-key
-               {:data-sitekey site-key
-                :data-callback "submitCode"})
-             {:type "submit"})
-      "Sign in"]])
-   (when-some [error (:error params)]
-     #_{:clj-kondo/ignore [:unused-value]}
-     [:.h-1]
-     [:.text-sm.text-red-600
-      (case error
-        "invalid-code" "Invalid code."
-        "There was an error.")])
-   [:.h-3]
-   (biff/form
-    {:action "/auth/send-code"
-     :id "signin"
-     :hidden {:email (:email params)
-              :on-error "/signin"}}
-    (biff/recaptcha-callback "submitSignin" "signin")
-    [:button.link.g-recaptcha
-     (merge (when site-key
-              {:data-sitekey site-key
-               :data-callback "submitSignin"})
-            {:type "submit"})
-     "Send another code"])))
+   [:h2.text-xl.font-bold.text-slate-100 "Enter your code"]
+   [:p.mt-3.text-sm.leading-relaxed.text-slate-400
+    "Enter the 6-digit code that we sent to "
+    [:span.font-semibold.text-slate-200 (:email params)] "."]
+   [:div.mt-5
+    (biff/form
+     {:action "/auth/verify-code"
+      :id "code-form"
+      :hidden {:email (:email params)}}
+     (biff/recaptcha-callback "submitCode" "code-form")
+     (lp-email-input {:id "code" :name "code" :type "text"
+                      :inputmode "numeric"
+                      :autocomplete "one-time-code"
+                      :placeholder "6-digit code"})
+     (lp-submit-btn (lp-recaptcha-attrs site-key "submitCode") "Sign in"))]
+   (lp-auth-error (:error params) {"invalid-code" "Invalid code."})
+   [:div.mt-5
+    (biff/form
+     {:action "/auth/send-code"
+      :id "signin"
+      :hidden {:email (:email params)
+               :on-error "/signin"}}
+     (biff/recaptcha-callback "submitSignin" "signin")
+     [:button.text-sm.text-lp-accent
+      (merge (lp-recaptcha-attrs site-key "submitSignin") {:type "submit"})
+      "Send another code"])]))
 
 (defn signup-page [{:keys [recaptcha/site-key params] :as ctx}]
-  (ui/page
+  (lp-auth-shell
    (assoc ctx ::ui/recaptcha true)
-   (biff/form
-    {:action "/auth/send-link"
-     :id "signup"
-     :hidden {:on-error "/signup"}}
-    (biff/recaptcha-callback "submitSignup" "signup")
-    [:h2.text-2xl.font-bold (str "Sign up for " settings/app-name)]
-    [:.h-3]
-    [:.flex
-     [:input#email {:name "email"
-                    :type "email"
-                    :autocomplete "email"
-                    :placeholder "Enter your email address"}]
-     [:.w-3]
-     [:button.btn.g-recaptcha
-      (merge (when site-key
-               {:data-sitekey site-key
-                :data-callback "submitSignup"})
-             {:type "submit"})
-      "Sign up"]]
-    (when-some [error (:error params)]
-      [:<>
-       [:.h-1]
-       [:.text-sm.text-red-600
-        (case error
-          "recaptcha" (str "You failed the recaptcha test. Try again, "
-                           "and make sure you aren't blocking scripts from Google.")
-          "invalid-email" "Invalid email. Try again with a different address."
-          "send-failed" (str "We weren't able to send an email to that address. "
-                             "If the problem persists, try another address.")
-          "There was an error.")]])
-    [:.h-1]
-    [:.text-sm "Already have an account? " [:a.link {:href "/signin"} "Sign in"] "."]
-    [:.h-3]
-    biff/recaptcha-disclosure
-    email-disabled-notice)))
+   [:h2.text-xl.font-bold.text-slate-100 (str "Sign up for " settings/app-name)]
+   [:p.mt-3.text-sm.leading-relaxed.text-slate-400
+    "We'll email you a magic link — no password needed."]
+   [:div.mt-5
+    (biff/form
+     {:action "/auth/send-link"
+      :id "signup"
+      :hidden {:on-error "/signup"}}
+     (biff/recaptcha-callback "submitSignup" "signup")
+     (lp-email-input {:id "email" :name "email" :type "email"
+                      :autocomplete "email"
+                      :placeholder "Enter your email address"})
+     (lp-submit-btn (lp-recaptcha-attrs site-key "submitSignup") "Sign up"))]
+   (lp-auth-error (:error params) lp-send-errors)
+   [:p.mt-5.text-sm.text-slate-400
+    "Already have an account? "
+    [:a.text-lp-accent.no-underline {:href "/signin"} "Sign in"] "."]
+   [:div.mt-4.text-xs.text-slate-600 biff/recaptcha-disclosure]))
 
 (def module
   {:routes [["" {:middleware [mid/wrap-redirect-signed-in]}
