@@ -50,7 +50,7 @@ Immediate work should remove infrastructure friction or reduce dependency on Air
 
 ### Ready
 
-(No work units currently meet the Definition of Ready. Promote from Draft after adding Scope, Context, Validation, and clearing Open Questions.)
+- [heatmap-performance.md](./heatmap-performance.md) - Heatmap viz page perf via year-bounded projection scans, shared rel-cache, parallel lazy-loaded year cards
 
 ### Draft
 
