@@ -1,11 +1,11 @@
 ---
 title: "Heatmap Visualization Performance"
 status: ready
-description: "Speed up heatmap viz page via year-bounded projection scans, shared rel-cache, and parallel lazy-loaded year cards"
+description: "Speed up heatmap viz page via year-bounded index-only tuple scans, shared rel-cache, and lazy-loaded year cards"
 tags: [performance, viz, xtdb, heatmap]
 priority: high
 created: 2026-07-06
-updated: 2026-07-06
+updated: 2026-07-07
 ---
 
 # Heatmap Visualization Performance
@@ -38,9 +38,11 @@ After this work ships:
      <div class="animate-pulse h-[200px]">Loading…</div>
    </div>
    ```
-   The browser fires all N year requests **in parallel** on load.
+   The browser fires the visible year requests **in parallel** on load. Only the most recent **3 years** render eager-loading cards by default; earlier years render behind a "Show earlier years" expander (each card still lazy-loads when revealed). This caps concurrent scans per page load — contention on the prod box is the documented killer (see dashboard-performance.md "Verdict: Contention, Not Scan Cost").
 
-2. **Each year is bounded to its own range.** A new query `heatmap-data-for-user` scans only the requested year (range predicates `[(>= ?sort jan-1)] [(<= ?sort dec-31)]` pushed into the where clause) and uses a **projection pull** of minimal attributes only — no `(pull ?e [*])`. For habit-log that's `[:xt/id :habit-log/timestamp :habit-log/habit-ids ::sm/deleted-at]` (4 attrs vs all).
+   The initial scan also returns a **per-year count**, used to size each skeleton card and to label the expander (e.g. "Show 4 earlier years · 2,310 entries").
+
+2. **Each year is bounded to its own range and never touches the doc store.** A new query `heatmap-data-for-user` scans only the requested date range (range predicates `[(>= ?sort range-start)] [(<= ?sort range-end)]` pushed into the where clause) and binds the needed attributes **directly in the `:where` clauses as index tuples** — e.g. `:find [?e ?ts ?habit-id]` with `[?e :habit-log/timestamp ?ts] [?e :habit-log/habit-ids ?habit-id]` — instead of any form of `pull`. All required attributes (timestamp, relationship ids) live in XTDB's indexes, so this avoids the remote Neon doc store entirely. Handle `::sm/deleted-at` (and `sensitive`/`archived` where present in the schema) the way `active-timers-for-user` does: a set-difference against a second minimal index scan of flagged ids, not a per-row `(not ...)` clause and not a doc post-filter. The query takes a general `[range-start range-end]` (not hardcoded to calendar years) so stats pages can reuse it.
 
 3. **Relationship labels are batched.** The `::rel-cache` + `prewarm-relation-cache!` pattern from `overview.clj` is extracted to a shared ns and reused by viz. Each per-year request prewarms the cache with one `fetch-entities-by-ids` batch, then reads from the atom during grouping.
 
@@ -48,15 +50,19 @@ After this work ships:
 
 5. **JSON payload is compact.** Drop `{:pretty true}` from ECharts serialization (`viz/routes.clj:303, 312`).
 
-6. **The route shows up on the perf dashboard.** Wrap `viz-page` and the new per-year handler in `defnp`/`p` profiling spans (the file currently has none).
+6. **Completed years are cached.** Every year except the current one is effectively immutable. The per-year endpoint sets an `ETag` (or `Cache-Control: private, max-age=...`) for past years so repeat visits only pay for the current year. Current year responses stay uncached.
 
-### Minimum attributes per entity (schema-driven)
+7. **The route shows up on the perf dashboard.** Wrap `viz-page` and the new per-year handler in `defnp`/`p` profiling spans (the file currently has none).
 
-Computed dynamically from the entity's schema:
-- `:xt/id` (identity)
+### Tuple attributes per entity (schema-driven)
+
+Attributes bound in the tuple query, computed dynamically from the entity's schema:
+- `?e` / `:xt/id` (identity, for dedup of cardinality-many tuples)
 - The temporal field (`<entity>/timestamp` for `:point` or `<entity>/beginning` for `:interval`; `:end` is unused by the chart)
-- Each relationship field returned by `schema-utils/extract-relationship-fields` (e.g., `:habit-log/habit-ids`)
-- `::sm/deleted-at` (always, for post-filter)
+- Each relationship field returned by `schema-utils/extract-relationship-fields` (e.g., `:habit-log/habit-ids` — cardinality-many binds one tuple per value; group by `?e`)
+
+Excluded via set-difference against separate flagged-id scans (never bound in the main query):
+- `::sm/deleted-at` (always)
 - `<entity>/sensitive` and `<entity>/archived` **only if** present in the schema (habit-log has neither; bm-log, meditation-log etc. may)
 
 ## Validation
@@ -73,16 +79,19 @@ Computed dynamically from the entity's schema:
 ## Scope
 
 **In scope:**
-- New `heatmap-data-for-user` and `years-with-data-for-user` queries in `db/queries.clj`
+- New `heatmap-data-for-user` (index-only tuples, general date range) and `years-with-data-for-user` (with per-year counts) queries in `db/queries.clj`
 - Shared rel-cache helpers (extracted from `overview.clj`)
 - Refactored `viz-page` + new per-year handler + route
-- Skeleton-card UX with parallel lazy load
+- Skeleton-card UX with parallel lazy load, capped to last 3 years eager + "Show earlier years" expander
+- ETag/cache headers on past-year responses
 - Profiling spans
 - Compact JSON
 
-**Out of scope (deferred):**
-- User setting for default year range (e.g., "last 3 years") — current default is "all years with data"; easy follow-up
-- Collapsible/expandable year cards
+**Out of scope (deferred follow-ups — same root pattern elsewhere):**
+- **Timer feeds** (`timer/routes.clj:83,158,307,354,374`): `fetch-completed-logs` and `today-logs` pull full history unbounded then `take`/filter in Clojure — pass `:limit` (over-fetch to survive post-filters) and date-bound `today-logs`
+- **Stats pages** (`habit_log.clj:40`, `bm_log.clj:59`, `meditation_log.clj:63`, `medication_history.clj:192,207`): unbounded full-history pulls filtered by date in Clojure — migrate onto `heatmap-data-for-user` once it ships (hence the general date-range parameter)
+- **Form dropdowns** (`crud/forms/inputs.clj:234,270`): full doc pulls just for id+label — index-only `[?e ?label]` tuple query
+- User setting for default year range — current default is "last 3 years eager, rest behind expander"
 - SSE/streaming alternative to parallel HTMX requests
 - Cross-year rel-cache (current is per-request scope, matching `overview.clj`)
 - Timeline/Gantt charts (separate work unit: [generic-viz.md](./generic-viz.md) Phase 4)
@@ -110,24 +119,24 @@ Computed dynamically from the entity's schema:
 
 ### Design decisions (resolved during planning)
 
-1. **Query strategy: year-bounded projection scan.** Combines an index-only `[?e ?sort]` scan with `[(>= ?sort year-start)] [(<= ?sort year-end)]` range predicates and a projection `(pull ?e [...minimal...])`. Bounds the scan to one year and pulls only 4-6 attributes per row instead of all attributes for all time.
+1. **Query strategy: date-bounded index-only tuple scan.** Range predicates `[(>= ?sort range-start)] [(<= ?sort range-end)]` bound the scan; needed attributes are bound as tuples in `:where` (no `pull` of any kind), so the query is answered entirely from XTDB indexes and never hits the Neon doc store. Sparse flags (`deleted-at`, `sensitive`, `archived`) are excluded via set-difference against separate flagged-id scans, per the `active-timers-for-user` pattern. This supersedes an earlier "projection pull" design — XTDB 1.x `pull` may fetch the whole document regardless of pull spec (dashboard-performance.md:192-194), which would have gutted that approach; index tuples make the question moot.
 
-2. **Multi-year UX: parallel lazy load.** Initial render shows skeleton cards for all years-with-data; each fires its own HTMX request on load. Browser handles concurrency. Server endpoint renders one year per request, bounded scan + prewarmed rel-cache.
+2. **Multi-year UX: capped parallel lazy load.** Initial render shows eager-loading skeleton cards for the last 3 years; earlier years sit behind a "Show earlier years" expander whose cards lazy-load on reveal. This bounds concurrent scans per page load, since contention (not scan cost) is the known prod bottleneck. Server endpoint renders one year per request, bounded scan + prewarmed rel-cache; past-year responses carry cache headers.
 
 3. **Rel-cache placement: shared ns.** Move `entity->label`, `collect-relation-ids`, `prewarm-relation-cache!`, `relationship-label` out of `overview.clj` into a shared location (likely a new `db/relation_labels.clj` or folded into `db/queries.clj`). Both `overview.clj` and `viz/routes.clj` consume the same helpers; no behavior change to the home page.
 
 ### Risks to validate post-deploy
 
-- **N parallel requests per page load.** For users with 5+ years this is 5+ simultaneous bounded scans on the same immutable snapshot. Each scan is bounded (one year) so per-request cost is small, but contention is a known issue on the prod box (see dashboard-performance.md "Verdict: Contention, Not Scan Cost"). If this hurts, options: cap to "last N years" by default, sequence the requests via `hx-trigger="load delay:0.5s"` per card, or fall back to SSE streaming.
-- **Prod doc-store topology.** Per dashboard-performance.md, prod is XTDB `:jdbc` on Neon Postgres; doc pulls are network fetches. The projection pull still hits the network but with smaller payloads. Verify the actual win on prod via the perf dashboard, not just local.
-- **Projection pull effectiveness on XTDB 1.x.** Per a note in dashboard-performance.md (line 192-194), XTDB 1.x `pull` may fetch the entire document from the doc store regardless of pull spec — if so, the projection pull's main win is smaller payloads over the wire, not fewer doc-store reads. The year-bounding is the bigger lever. Worth confirming empirically.
+- **Parallel requests per page load.** Capped at 3 eager year cards by default, but that's still 3 simultaneous bounded scans on the same snapshot, and contention is a known issue on the prod box (see dashboard-performance.md "Verdict: Contention, Not Scan Cost"). If this still hurts, options: sequence the requests via `hx-trigger="load delay:0.5s"` per card, or fall back to SSE streaming.
+- **Cardinality-many tuple fan-out.** A log with N relationship ids yields N tuples from the index scan; grouping by `?e` reconstructs the row. Verify the fan-out doesn't outweigh the doc-fetch savings for entities with large relationship sets (habit-log habit-ids are typically 1-3, so expected fine).
+- **Verify on prod, not local.** Per dashboard-performance.md, prod is XTDB `:jdbc` on Neon Postgres where doc pulls are network fetches — local won't show the win. Confirm via the perf dashboard that `viz-year-page` spans show index-only timings (no doc-store round trips).
 
 ### Implementation steps (suggested order)
 
-1. Add `years-with-data-for-user` and `heatmap-data-for-user` to `db/queries.clj` (no caller changes yet)
+1. Add `years-with-data-for-user` (with per-year counts) and `heatmap-data-for-user` (index-only tuples, general date range) to `db/queries.clj` (no caller changes yet)
 2. Extract rel-cache helpers to shared ns; update `overview.clj` to consume from new location; verify home page unchanged
-3. Build `viz-year-page` handler + add `"/year/:year"` route in `gen-routes`
-4. Refactor `viz-page` to render skeleton cards with parallel `hx-get` loaders
+3. Build `viz-year-page` handler + add `"/year/:year"` route in `gen-routes`; cache headers on past years
+4. Refactor `viz-page` to render skeleton cards: last 3 years eager `hx-get`, older years behind "Show earlier years" expander
 5. Extract `build-grouped-chart-data` shared helper; both desktop and mobile configs derive from it
 6. Add `defnp`/`p` profiling spans
 7. Drop `{:pretty true}` from ECharts JSON
