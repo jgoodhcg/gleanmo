@@ -82,7 +82,7 @@
   "Generate ECharts calendar heatmap configuration optimized for mobile (vertical layout)."
   [year chart-data]
   (let [year-range (str year)]
-    {:backgroundColor "#0d1117"  ; Dark background
+    {:backgroundColor "transparent"
      :title {:text (str "Activity Calendar - " year-range)
              :left "center"
              :textStyle {:color "#c9d1d9"
@@ -123,7 +123,7 @@
   "Generate ECharts calendar heatmap configuration with entity details."
   [year chart-data]
   (let [year-range (str year)]
-    {:backgroundColor "#0d1117"  ; Dark background
+    {:backgroundColor "transparent"
      :title {:text (str "Activity Calendar - " year-range)
              :left "center"
              :textStyle {:color "#c9d1d9"
@@ -156,10 +156,11 @@
 (defn render-responsive-chart-section
   "Render a responsive chart section that adapts to screen size."
   [base-chart-id desktop-title mobile-title desktop-config mobile-config]
-  [:div.mb-8
+  [:div
    ;; Desktop version
    [:div.hidden.md:block
-    [:h2.text-xl.font-bold.mb-4 desktop-title]
+    (when desktop-title
+      [:h2.text-xl.font-bold.mb-4 desktop-title])
     [:div {:id (str base-chart-id "-desktop")
            :style {:height "400px" :width "100%"}
            :data-chart-data (str base-chart-id "-desktop-data")}]
@@ -168,7 +169,8 @@
 
    ;; Mobile version
    [:div.block.md:hidden
-    [:h2.text-xl.font-bold.mb-4 mobile-title]
+    (when mobile-title
+      [:h2.text-xl.font-bold.mb-4 mobile-title])
     [:div {:id (str base-chart-id "-mobile")
            :style {:height "600px" :width "100%"}  ; Taller for vertical calendar
            :data-chart-data (str base-chart-id "-mobile-data")}]
@@ -188,31 +190,36 @@
   [count]
   (str (min 340 (max 180 (+ 180 (* 4 (int (Math/sqrt (max 1 count))))))) "px"))
 
+(def heatmap-layout-version
+  "Cache-busting version for lazy-loaded heatmap year fragments."
+  "background-v1")
+
 (defn year-skeleton-card
   "Render a lazy-loaded year-card placeholder."
   [entity-str {:keys [year count]} trigger]
-  [:article.year-card.rounded.border.border-dark-border.bg-dark-surface.p-4
-   {:hx-get     (str "/app/viz/" entity-str "/year/" year)
+  [:section.year-card.space-y-3
+   {:hx-get     (str "/app/viz/" entity-str "/year/" year
+                     "?layout=" heatmap-layout-version)
     :hx-trigger trigger
     :hx-target  "this"
     :hx-swap    "outerHTML"}
-   [:div.flex.items-baseline.justify-between.gap-4.mb-4
+   [:div.flex.items-baseline.justify-between.gap-4
     [:h2.text-xl.font-bold (str year)]
     [:span.text-sm.text-gray-400 (str count " entries")]]
-   [:div.animate-pulse.rounded.bg-dark-border
+   [:div.animate-pulse.bg-dark-surface.opacity-60
     {:style {:height (year-card-height count)}}]])
 
 (defn render-year-card
   "Render a populated heatmap year card."
   [year count desktop-config mobile-config]
-  [:article.year-card.rounded.border.border-dark-border.bg-dark-surface.p-4
-   [:div.flex.items-baseline.justify-between.gap-4.mb-4
+  [:section.year-card.space-y-3
+   [:div.flex.items-baseline.justify-between.gap-4
     [:h2.text-xl.font-bold (str year)]
     [:span.text-sm.text-gray-400 (str count " entries")]]
    (render-responsive-chart-section
     (str "activity-chart-" year)
-    "Activity Calendar"
-    "Activity Calendar"
+    nil
+    nil
     desktop-config
     mobile-config)])
 
@@ -222,22 +229,22 @@
   (let [recent-years  (take 3 years)
         earlier-years (drop 3 years)
         earlier-count (reduce + (map :count earlier-years))]
-    [:div.space-y-5
+    [:div.space-y-10
      (for [year-info recent-years]
        (year-skeleton-card entity-str year-info "load"))
      (when (seq earlier-years)
-       [:details.rounded.border.border-dark-border.bg-dark-surface.p-4
+       [:details.space-y-5
         [:summary.cursor-pointer.font-semibold
          (str "Show " (count earlier-years) " earlier years - "
               earlier-count " entries")]
-        [:div.mt-4.space-y-5
+        [:div.mt-5.space-y-10
          (for [year-info earlier-years]
            (year-skeleton-card entity-str year-info "intersect once"))]])]))
 
 (defn no-data-panel
   "Render the empty state for an entity with no heatmap data."
   [entity-str]
-  [:div.rounded.border.border-dark-border.bg-dark-surface.p-6
+  [:div.py-6
    [:p.text-gray-300 (str "No " entity-str " activity found.")]])
 
 (defn viz-year-fragment
