@@ -126,7 +126,11 @@
    (when (seq block-sets)
      [:ul.mt-2.space-y-1
       (for [ex-set block-sets]
-        [:li.text-sm.text-gray-300 (set-summary ex-set exercises-by-id)])])])
+        [:li.text-sm.text-gray-300
+         [:a.hover:text-neon-cyan.no-underline
+          {:href (str "/app/crud/form/exercise-set/edit/" (:xt/id ex-set)
+                      "?redirect=" (java.net.URLEncoder/encode screen-url "UTF-8"))}
+          (set-summary ex-set exercises-by-id)]])])])
 
 (defn- active-session-view
   [ctx session params]

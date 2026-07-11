@@ -25,7 +25,6 @@
    "reading-log"
    "calendar-event"
    "exercise-session"
-   "exercise-block"
    "symptom-episode"
    "symptom-log"
    "mood-log"
@@ -40,7 +39,6 @@
    "reading-log"    :reading-log/beginning,
    "calendar-event" :calendar-event/beginning,
    "exercise-session" :exercise-session/beginning,
-   "exercise-block" :exercise-block/beginning,
    "symptom-episode" :symptom-episode/beginning,
    "symptom-log"    :symptom-log/timestamp,
    "mood-log"       :mood-log/timestamp,
@@ -76,7 +74,6 @@
    "calendar-event" {:accent "#ec4899", :muted "rgba(236,72,153,0.16)"},
    "reading-log"    {:accent "#f97316", :muted "rgba(249,115,22,0.16)"},
    "exercise-session" {:accent "#ef4444", :muted "rgba(239,68,68,0.16)"},
-   "exercise-block" {:accent "#ef4444", :muted "rgba(239,68,68,0.16)"},
    "symptom-log"    {:accent "#f43f5e", :muted "rgba(244,63,94,0.16)"},
    "mood-log"       {:accent "#06b6d4", :muted "rgba(6,182,212,0.16)"},
    "boulder-session" {:accent "#84cc16", :muted "rgba(132,204,22,0.16)"},
@@ -98,8 +95,7 @@
    "mood-log"
    "boulder-session"
    "calendar-event"
-   "exercise-session"
-   "exercise-block"])
+   "exercise-session"])
 
 (def timeline-type-meta
   {"reading-log"      {:code "READ" :label "reading log" :icon-key :book}
@@ -114,7 +110,6 @@
    "boulder-session" {:code "CLIMB" :label "boulder session" :icon-key :dumbbell}
    "calendar-event"  {:code "CAL" :label "calendar event" :icon-key :calendar}
    "exercise-session" {:code "EX" :label "exercise session" :icon-key :dumbbell}
-   "exercise-block"  {:code "BLOCK" :label "exercise block" :icon-key :dumbbell}
    :default          {:code "ITEM" :label "item" :icon-key :pin}})
 
 (def status-styles
