@@ -511,9 +511,8 @@
         [:a.flex-grow.flex.flex-col.pt-8.pb-4.px-4.relative.z-10
          {:href (str "/app/crud/form/" entity-str "/edit/" entity-id),
           :class
-          "focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-inset",
-          :aria-label (str "Edit " aria-title),
-          :role "button"}
+          "focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-inset",
+          :aria-label (str "Edit " aria-title)}
 
          [:div.flex-grow.space-y-4
           title-node
@@ -722,7 +721,7 @@
                   [:div.min-w-0 node]]))])
           [:div {:class "text-xs text-secondary font-mono opacity-70"}
            (str "ID " (subs (str entity-id) 0 8) "...")]]
-         [:div {:class "flex items-center gap-3 sm:flex-col sm:items-end sm:gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"}
+         [:div {:class "flex items-center gap-3 sm:flex-col sm:items-end sm:gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity"}
           [:a.link {:href (str "/app/crud/form/" entity-str "/edit/" entity-id)}
            "Edit"]
           (biff/form
@@ -848,25 +847,26 @@
 
               ;; Pagination controls with view type preserved
             [:div.flex.items-center.gap-4
-             [:a.text-sm.text-secondary.hover:text-primary.transition-colors
-              {:class (when (<= offset 0) "opacity-50 pointer-events-none"),
-               :href  (if (> offset 0)
-                        (str "/app/crud/" entity-str
-                             "?view="     view-type
-                             "&offset="   (max 0 (- offset limit))
-                             "&limit="    limit)
-                        "#")}
-              "← Previous"]
-             [:a.text-sm.text-secondary.hover:text-primary.transition-colors
-              {:href  (if has-more?
-                        (str "/app/crud/" entity-str
-                             "?view="     view-type
-                             "&offset="   (+ offset limit)
-                             "&limit="    limit)
-                        "#"),
-               :class (when (not has-more?)
-                        "opacity-50 pointer-events-none")}
-              "Next →"]]]
+             (if (> offset 0)
+               [:a.text-sm.text-secondary.hover:text-primary.transition-colors
+                {:href (str "/app/crud/" entity-str
+                            "?view="   view-type
+                            "&offset=" (max 0 (- offset limit))
+                            "&limit="  limit)}
+                "← Previous"]
+               [:span.text-sm.text-secondary.opacity-50
+                {:aria-disabled "true"}
+                "← Previous"])
+             (if has-more?
+               [:a.text-sm.text-secondary.hover:text-primary.transition-colors
+                {:href (str "/app/crud/" entity-str
+                            "?view="   view-type
+                            "&offset=" (+ offset limit)
+                            "&limit="  limit)}
+                "Next →"]
+               [:span.text-sm.text-secondary.opacity-50
+                {:aria-disabled "true"}
+                "Next →"])]]
 
              ;; View based on selected view-type
            [:div.mb-6

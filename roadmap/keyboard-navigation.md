@@ -3,7 +3,7 @@ title: "Keyboard Navigation & Focus Audit"
 status: draft
 description: "Audit of keyboard accessibility across CRUD forms and entity index views, with a phased remediation roadmap"
 created: 2026-07-09
-updated: 2026-07-09
+updated: 2026-07-11
 tags: [accessibility, forms, ux, keyboard]
 priority: medium
 ---
@@ -22,6 +22,8 @@ So the submit button issue is not directly fixable in code, but two mitigations 
 
 1. **Enter-to-submit must always work.** Pressing Enter in a text/number/date input submits the form via the implicit submission mechanism — this works today because the Create/Save buttons are real `type="submit"` buttons inside the form. Keep it that way (never replace submit buttons with JS click handlers).
 2. Everything else in this audit makes keyboard use better in all browsers, including Safari with the preference enabled.
+
+Update 2026-07-11: Safari *does* include elements with an explicit `tabindex="0"` in default Tab order, so Create/Save/Cancel in the CRUD forms now carry `tabindex="0"` as a targeted opt-in. We deliberately do not spray `tabindex="0"` sitewide — default behavior everywhere else.
 
 ## Audit findings (what exists today)
 
@@ -50,19 +52,19 @@ So the submit button issue is not directly fixable in code, but two mitigations 
 
 ### Phase 1 — Quick wins in forms (small diff, high value)
 
-- [ ] Add `:id input-name` to every input/select/textarea in `inputs.clj` so `label for` works (input names are unique per form).
-- [ ] Add a shared `:focus-visible` style (gold ring to match hover treatment) to `.form-button-primary`, `.form-button-secondary`, `.btn`, `.link` in `tailwind.css`; remove the bare `focus:outline-none` on the mobile menu button.
+- [x] Add `:id input-name` to every input/select/textarea in `inputs.clj` so `label for` works (input names are unique per form).
+- [x] Add a shared `:focus-visible` style (gold ring to match hover treatment) to `.form-button-primary`, `.form-button-secondary`, `.btn`, `.link` in `tailwind.css`; remove the bare `focus:outline-none` on the mobile menu button.
 
 ### Phase 2 — Index views
 
-- [ ] List view: add `sm:group-focus-within:opacity-100` alongside the group-hover rule so Edit/Delete are visible while focused.
-- [ ] Pagination: render inactive Previous/Next as `<span>` (not `<a href="#">`).
-- [ ] Card view: remove `role="button"` from the edit link.
+- [x] List view: add `sm:group-focus-within:opacity-100` alongside the group-hover rule so Edit/Delete are visible while focused.
+- [x] Pagination: render inactive Previous/Next as `<span>` (not `<a href="#">`).
+- [x] Card view: remove `role="button"` from the edit link.
 
 ### Phase 3 — Global navigation
 
-- [ ] Skip-to-content link as the first element inside `side-bar` (visually hidden until focused), targeting `#side-bar-page-content` with `tabindex="-1"` on the target.
-- [ ] `aria-expanded`/`aria-controls` on the mobile menu button; move focus into the sidebar on open.
+- [x] Skip-to-content link as the first element inside `side-bar` (visually hidden until focused), targeting `#side-bar-page-content` with `tabindex="-1"` on the target.
+- [ ] `aria-expanded` state + focus-move into the sidebar on open (partial: `aria-label`/`aria-controls` and focus-visible outline added 2026-07-11).
 
 ### Phase 4 — Enhanced selects & htmx focus
 

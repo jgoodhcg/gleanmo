@@ -159,6 +159,12 @@ body {
     border-color: var(--gold);
     box-shadow: 0 0 8px rgba(255, 212, 0, 0.3);
   }
+
+  .btn:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+    box-shadow: 0 0 8px rgba(255, 212, 0, 0.3);
+  }
   
   .btn.primary {
     background: linear-gradient(45deg, var(--gold), var(--azure));
@@ -435,6 +441,12 @@ body {
     border-color: var(--gold);
     box-shadow: 0 0 8px rgba(255, 212, 0, 0.4);
   }
+
+  .form-button-primary:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+    box-shadow: 0 0 8px rgba(255, 212, 0, 0.4);
+  }
   
   .form-button-secondary {
     background-color: var(--dark-surface);
@@ -445,6 +457,12 @@ body {
   
   .form-button-secondary:hover {
     border-color: var(--gold);
+    box-shadow: 0 0 8px rgba(255, 212, 0, 0.3);
+  }
+
+  .form-button-secondary:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
     box-shadow: 0 0 8px rgba(255, 212, 0, 0.3);
   }
   
@@ -708,6 +726,12 @@ body {
   .link:hover {
     text-decoration-color: var(--gold);
     text-shadow: 0 0 8px rgba(255, 212, 0, 0.6);
+  }
+  .link:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+    border-radius: 2px;
+    text-decoration-color: var(--gold);
   }
   
   /* Dark mode text utilities */

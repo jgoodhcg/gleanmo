@@ -34,6 +34,7 @@
        [:div.mt-2
         [:input.form-input
          (cond-> {:type                "text",
+                  :id                  input-name,
                   :name                input-name,
                   :required            input-required,
                   :autocomplete        "off",
@@ -47,7 +48,8 @@
           {:for input-name} input-label]
          [:div.mt-2
           [:select.form-select
-           {:name                input-name,
+           {:id                  input-name,
+                  :name                input-name,
             :required            input-required,
             :autocomplete        "off",
             :data-original-value (str effective-value)}
@@ -62,7 +64,8 @@
         {:for input-name} input-label]
        [:div.mt-2
         [:textarea.form-textarea
-         (cond-> {:name                input-name,
+         (cond-> {:id                  input-name,
+                  :name                input-name,
                   :rows                3,
                   :required            input-required,
                   :placeholder         "...",
@@ -81,7 +84,8 @@
     [:div.flex.items-center
      [:input.mr-2
       (cond-> {:type                "checkbox",
-               :name                input-name,
+               :id                  input-name,
+                  :name                input-name,
                :autocomplete        "off",
                :data-original-value (str default-value)}
         default-value (assoc :checked "checked"))]
@@ -102,7 +106,8 @@
       [:input.form-input
        (cond-> {:type                "number",
                 :step                "any",
-                :name                input-name,
+                :id                  input-name,
+                  :name                input-name,
                 :required            input-required,
                 :autocomplete        "off",
                 :data-original-value (str value)}
@@ -122,7 +127,8 @@
       [:input.form-input
        (cond-> {:type                "number",
                 :step                "1",
-                :name                input-name,
+                :id                  input-name,
+                  :name                input-name,
                 :required            input-required,
                 :autocomplete        "off",
                 :data-original-value (str value)}
@@ -142,7 +148,8 @@
       [:input.form-input
        (cond-> {:type                "number",
                 :step                "0.001",
-                :name                input-name,
+                :id                  input-name,
+                  :name                input-name,
                 :required            input-required,
                 :autocomplete        "off",
                 :data-original-value (str value)}
@@ -166,7 +173,8 @@
      [:div.mt-2
       [:input.form-input
        (cond-> {:type                "date",
-                :name                input-name,
+                :id                  input-name,
+                  :name                input-name,
                 :required            input-required,
                 :data-original-value (str formatted-date)}
          formatted-date (assoc :value formatted-date))]]]))
@@ -215,7 +223,8 @@
      [:div.mt-2
       [:input.form-input
        (cond-> {:type                "datetime-local",
-                :name                input-name,
+                :id                  input-name,
+                  :name                input-name,
                 :required            input-required,
                 :data-original-value (str formatted-time)}
          formatted-time (assoc :value formatted-time))]]]))
@@ -267,7 +276,8 @@
       input-label]
      (into
       [:select.form-select
-       (cond-> {:name                input-name
+       (cond-> {:id                  input-name
+        :name                input-name
                 :required            input-required
                 :data-enhance        "choices"
                 :data-placeholder    input-label
@@ -302,7 +312,8 @@
       input-label]
      (into
       [:select.form-select
-       {:name                input-name
+       {:id                  input-name
+        :name                input-name
         :multiple            true
         :required            input-required
         :data-enhance        "choices"
@@ -331,7 +342,8 @@
      [:div.mt-2
       (into
        [:select.form-select
-        {:name                input-name,
+        {:id                  input-name,
+                  :name                input-name,
          :required            input-required,
          :data-original-value default-val-str}
          ;; Add empty option for optional fields
@@ -361,7 +373,8 @@
      [:div.mt-2
       (into
        [:select.form-select
-        {:name                input-name
+        {:id                  input-name
+        :name                input-name
          :multiple            true
          :required            input-required
          :data-enhance        "choices"
@@ -393,7 +406,8 @@
      [:div.mt-2
       (into
        [:select.form-select
-        {:name                input-name,
+        {:id                  input-name,
+                  :name                input-name,
          :required            input-required,
          :data-original-value original-val-str}]
        (for [opt options]

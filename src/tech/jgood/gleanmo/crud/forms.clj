@@ -82,7 +82,8 @@
              ;; Hidden field for redirect if provided
           (when-let [redirect (:redirect params)]
             [:input {:type "hidden", :name "redirect", :value redirect}])
-          [:button.form-button-primary {:type "submit"}
+          ;; tabindex 0 opts the button into Safari's default Tab order
+          [:button.form-button-primary {:type "submit", :tabindex "0"}
            "Create"]])]
        [:div.mt-2
         [:a.link.text-sm
@@ -135,9 +136,12 @@
                [:input
                 {:type "hidden", :name "redirect", :value redirect}])
              [:div.flex.justify-between.mt-4
+              ;; tabindex 0 opts these into Safari's default Tab order
               [:a.form-button-secondary
-               {:href (or (:redirect params) (str "/app/crud/" entity-str))} "Cancel"]
-              [:button.form-button-primary {:type "submit"}
+               {:href     (or (:redirect params) (str "/app/crud/" entity-str)),
+                :tabindex "0"}
+               "Cancel"]
+              [:button.form-button-primary {:type "submit", :tabindex "0"}
                "Save Changes"]]])
            [:div.mt-4.text-right
             (biff/form

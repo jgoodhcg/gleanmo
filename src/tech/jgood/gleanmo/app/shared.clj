@@ -96,6 +96,12 @@
         {:keys [super-user]} (query/get-user-authz (:biff/db ctx) user-id)
         super-user? (true? super-user)]
     [:div.flex.min-h-screen.overflow-x-hidden
+     ;; Skip link for keyboard users (visually hidden until focused)
+     [:a.link
+      {:href "#side-bar-page-content"
+       :class
+       "sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:bg-dark-surface focus:px-4 focus:py-2 focus:rounded"}
+      "Skip to content"]
      ;; Sidebar
      [:div#sidebar.hidden.md:flex.flex-col.space-y-4.bg-dark-surface.p-4.z-50.border-r.border-dark.w-64.flex-shrink-0
       ;; Wordmark
@@ -158,7 +164,8 @@
 
      ;; Main content area
      [:div.flex-grow.bg-dark.pt-12.px-4.min-w-0
-      {:id "side-bar-page-content"}
+      {:id "side-bar-page-content"
+       :tabindex "-1"}
       content]
 
      ;; Mobile menu button
@@ -167,7 +174,10 @@
       [:div.flex.items-center.gap-3
        [:button
         {:type "button",
-         :class "text-primary focus:outline-none",
+         :class
+         "text-primary focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-yellow-400",
+         :aria-label "Toggle navigation menu",
+         :aria-controls "sidebar",
          ;; TODO move this to js?
          :onclick
          "document.getElementById('sidebar').classList.toggle('hidden');
