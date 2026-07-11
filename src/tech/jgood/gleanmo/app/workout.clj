@@ -2,7 +2,22 @@
   "Custom workout flow: one screen to run an exercise session — start/stop
    timed blocks and enter sets — instead of bouncing between generic CRUD
    forms. A block is one timed chunk of work (a superset when it holds sets
-   of different exercises)."
+   of different exercises).
+
+   Interaction design rationale: a block is an interval, and sets are logged
+   *after* the work happens, so an honest interval needs one interaction
+   before the work (Start block) and one after. We spend the trailing
+   interaction on the set log itself: the form's primary action is
+   'log set & stop block', which closes the ~80% case (one exercise per
+   block) in a single action and makes forgetting to stop impossible on that
+   path. A secondary 'log set, keep going' action covers supersets — the
+   exceptional case pays the extra decision, not the common one.
+
+   If a set is logged with no block open we still accept it rather than
+   lose data: a block is created on the spot, flagged auto-started, since
+   its beginning is fabricated (the end — the log moment — is accurate).
+   Ending a session force-closes any open block flagged auto-ended.
+   See the exercise-block schema for how analysis should treat these flags."
   (:require
    [clojure.string :as str]
    [com.biffweb :as biff]
@@ -73,8 +88,9 @@
 (defn- set-form
   "Sticky set entry form: last-entered values arrive as query params from
    add-set!'s redirect so supersets/repeat sets need minimal input. Posts to
-   the session; the set lands in the running block, starting one if needed."
-  [session-id exercises params]
+   the session; the set lands in the running block, starting one if needed.
+   Primary submit also stops the block; secondary keeps it open (supersets)."
+  [session-id exercises params running?]
   (let [p (fn [k] (let [v (get params k)] (when-not (str/blank? (str v)) (str v))))]
     (biff/form
      {:action (str "/app/exercise/session/" session-id "/set"), :method "post",
@@ -99,7 +115,13 @@
       [:select.form-select {:name "weight-unit"}
        (for [u ["lbs" "kg"]]
          [:option {:value u :selected (= u (or (p :weight-unit) "lbs"))} u])]]
-     [:button.form-button-primary {:type "submit"} "Add set"])))
+     [:div.flex.items-end.gap-2
+      [:button.form-button-primary
+       {:type "submit" :name "stop-block" :value "true"}
+       "Log set & stop"]
+      [:button.bg-dark-surface.border.border-dark.text-gray-300.px-3.py-2.rounded.text-sm
+       {:type "submit"}
+       (if running? "Log set, keep going" "Log set, start superset")]])))
 
 (defn- block-card
   [{:keys [xt/id] :as block} block-sets exercises-by-id running?]
@@ -150,12 +172,18 @@
                  [:button.bg-red-500.bg-opacity-20.text-red-400.px-3.py-2.rounded.text-sm.font-medium
                   {:type "submit"} "End session"])]
 
+     (when-not running
+       (biff/form {:action (str "/app/exercise/session/" session-id "/block/start"), :method "post"}
+                  [:button.form-button-primary.w-full.py-3.text-lg {:type "submit"}
+                   "Start block"]))
+
      [:div.bg-dark-surface.rounded-lg.p-4.border.border-dark
       [:h2.text-lg.font-semibold.text-white.mb-3 "Add set"]
       (when-not running
-        [:p.text-sm.text-gray-400.mb-3 "No block running — adding a set starts a new one."])
+        [:p.text-sm.text-gray-400.mb-3
+         "No block running — logging a set will backfill one, but its start time won't be accurate. Prefer starting the block before the work."])
       (if (seq exercises)
-        (set-form session-id exercises params)
+        (set-form session-id exercises params (some? running))
         [:p.text-sm.text-gray-400
          "No exercises yet. "
          [:a.link {:href (str "/app/crud/form/exercise/new?redirect="
@@ -235,11 +263,23 @@
             :when (nil? (:exercise-block/end block))]
       (mutations/update-entity! ctx {:entity-key :exercise-block
                                      :entity-id (:xt/id block)
-                                     :data {:exercise-block/end (t/now)}}))
+                                     :data {:exercise-block/end (t/now)
+                                            :exercise-block/auto-ended true}}))
     (when (nil? (:exercise-session/end sess))
       (mutations/update-entity! ctx {:entity-key :exercise-session
                                      :entity-id (:xt/id sess)
                                      :data {:exercise-session/end (t/now)}})))
+  (redirect-home))
+
+(defn start-block!
+  [{:keys [session] :as ctx}]
+  (when-let [sess (owned-entity ctx :exercise-session)]
+    (when (empty? (->> (session-blocks ctx (:xt/id sess))
+                       (filter #(nil? (:exercise-block/end %)))))
+      (mutations/create-entity! ctx {:entity-key :exercise-block
+                                     :data {:user/id (:uid session)
+                                            :exercise-block/session-id (:xt/id sess)
+                                            :exercise-block/beginning (t/now)}})))
   (redirect-home))
 
 (defn stop-block!
@@ -252,11 +292,14 @@
   (redirect-home))
 
 (defn add-set!
-  "Record a set against the session's running block, starting a fresh block
-   first if none is open — sets never land in a stopped block."
+  "Record a set against the session's running block. The primary submit also
+   stops the block (the common one-exercise-per-block case); the secondary
+   leaves it open for supersets. If no block is open one is backfilled and
+   flagged auto-started — its beginning is fabricated, its end is not."
   [{:keys [session params] :as ctx}]
   (if-let [sess (owned-entity ctx :exercise-session)]
-    (let [block-id    (or (some->> (session-blocks ctx (:xt/id sess))
+    (let [stop?       (= "true" (:stop-block params))
+          block-id    (or (some->> (session-blocks ctx (:xt/id sess))
                                    (filter #(nil? (:exercise-block/end %)))
                                    first
                                    :xt/id)
@@ -265,7 +308,8 @@
                            {:entity-key :exercise-block
                             :data {:user/id (:uid session)
                                    :exercise-block/session-id (:xt/id sess)
-                                   :exercise-block/beginning (t/now)}}))
+                                   :exercise-block/beginning (t/now)
+                                   :exercise-block/auto-started true}}))
           exercise-id (some-> (:exercise-id params) java.util.UUID/fromString)
           reps        (parse-int* (:reps params))
           weight      (parse-num* (:weight params))
@@ -280,6 +324,10 @@
                   reps   (assoc :exercise-set/reps reps)
                   weight (assoc :exercise-set/weight weight)
                   unit   (assoc :exercise-set/weight-unit unit))}))
+      (when stop?
+        (mutations/update-entity! ctx {:entity-key :exercise-block
+                                       :entity-id block-id
+                                       :data {:exercise-block/end (t/now)}}))
       ;; sticky form: carry the entered values back as query params
       {:status 303
        :headers {"location"
@@ -296,4 +344,5 @@
    ["/session/start" {:post start-session!}]
    ["/session/:id/end" {:post end-session!}]
    ["/session/:id/set" {:post add-set!}]
+   ["/session/:id/block/start" {:post start-block!}]
    ["/block/:id/stop" {:post stop-block!}]])

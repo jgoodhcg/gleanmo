@@ -36,7 +36,19 @@
       vec))
 
 ;; A block is one timed chunk of work within a session: one set for straight
-;; work, several back-to-back sets when supersetting. The timer lives here.
+;; work, several back-to-back sets when supersetting. The timer lives here —
+;; blocks exist so a set (or superset) has an *interval* rather than a bare
+;; timestamp, enabling time-density analysis (reps per unit time, time under
+;; tension) and making rest derivable as the gap between consecutive blocks.
+;;
+;; The auto-started/auto-ended flags mark edges the user didn't observe:
+;; auto-started means the beginning was fabricated (set logged with no open
+;; block — the end is still accurate, it's the log moment); auto-ended means
+;; the end was fabricated (block force-closed when its session ended).
+;; Analysis should exclude flagged edges from duration stats and, when an
+;; estimate is needed, impute from recent accurate blocks of the same
+;; exercise at read time — we deliberately don't snapshot an average onto
+;; the record, since the imputation heuristic can improve later.
 (def exercise-block
   (-> [:map {:closed true}
        [:xt/id :exercise-block/id]
@@ -49,6 +61,8 @@
         :exercise-session/id]
        [:exercise-block/beginning :instant]
        [:exercise-block/end {:optional true} :instant]
+       [:exercise-block/auto-started {:optional true} :boolean]
+       [:exercise-block/auto-ended {:optional true} :boolean]
        [:exercise-block/notes {:optional true} :string]
        [:airtable/id {:optional true} :string]
        [:airtable/created-time {:optional true} :instant]
