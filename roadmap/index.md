@@ -94,6 +94,7 @@ Immediate work should remove infrastructure friction or reduce dependency on Air
 - [today-ux-polish.md](./today-ux-polish.md) - Improve task completion feedback and add project selection to quick-add
 - [exercise-insights.md](./exercise-insights.md) - Visual daily exercise summary with muscle heatmap and session stats
 - [cronometer-integration.md](./cronometer-integration.md) - Pull nutrition and biometric data from Cronometer into Gleanmo for LLM context and unified health tracking
+- [ai-assistance.md](./ai-assistance.md) - Expose Gleanmo to external agentic tools (CLI/open-web-ui) via MCP/API for read/write with strict sensitivity controls
 
 ### Done
 
