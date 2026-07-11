@@ -71,13 +71,13 @@
          (when distance (str " — " distance (when d-unit (str " " d-unit)))))))
 
 (defn- set-form
-  "Sticky set entry form for a block: last-entered values arrive as query
-   params from add-set!'s redirect so supersets/repeat sets need minimal
-   input."
-  [block-id exercises params]
+  "Sticky set entry form: last-entered values arrive as query params from
+   add-set!'s redirect so supersets/repeat sets need minimal input. Posts to
+   the session; the set lands in the running block, starting one if needed."
+  [session-id exercises params]
   (let [p (fn [k] (let [v (get params k)] (when-not (str/blank? (str v)) (str v))))]
     (biff/form
-     {:action (str "/app/exercise/block/" block-id "/set"), :method "post",
+     {:action (str "/app/exercise/session/" session-id "/set"), :method "post",
       :class "flex flex-wrap items-end gap-2"}
      [:div
       [:label.form-label {:for "exercise-id"} "Exercise"]
@@ -135,9 +135,7 @@
         running    (first (filter #(nil? (:exercise-block/end %)) blocks))
         sets       (sets-by-block ctx (set (map :xt/id blocks)))
         exercises  (exercises-for-user ctx)
-        ex-by-id   (into {} (map (juxt :xt/id identity)) exercises)
-        ;; sets attach to the running block, else the most recent stopped one
-        set-target (or running (last blocks))]
+        ex-by-id   (into {} (map (juxt :xt/id identity)) exercises)]
     [:div.container.mx-auto.p-6.space-y-6
      [:div.flex.items-center.justify-between
       [:div
@@ -148,21 +146,18 @@
                  [:button.bg-red-500.bg-opacity-20.text-red-400.px-3.py-2.rounded.text-sm.font-medium
                   {:type "submit"} "End session"])]
 
-     (when-not running
-       (biff/form {:action (str "/app/exercise/session/" session-id "/block/start"), :method "post"}
-                  [:button.form-button-primary {:type "submit"} "Start block"]))
-
-     (when set-target
-       [:div.bg-dark-surface.rounded-lg.p-4.border.border-dark
-        [:h2.text-lg.font-semibold.text-white.mb-3 "Add set"]
-        (if (seq exercises)
-          (set-form (:xt/id set-target) exercises params)
-          [:p.text-sm.text-gray-400
-           "No exercises yet. "
-           [:a.link {:href (str "/app/crud/form/exercise/new?redirect="
-                                (java.net.URLEncoder/encode screen-url "UTF-8"))}
-            "Create one"]
-           " first."])])
+     [:div.bg-dark-surface.rounded-lg.p-4.border.border-dark
+      [:h2.text-lg.font-semibold.text-white.mb-3 "Add set"]
+      (when-not running
+        [:p.text-sm.text-gray-400.mb-3 "No block running — adding a set starts a new one."])
+      (if (seq exercises)
+        (set-form session-id exercises params)
+        [:p.text-sm.text-gray-400
+         "No exercises yet. "
+         [:a.link {:href (str "/app/crud/form/exercise/new?redirect="
+                              (java.net.URLEncoder/encode screen-url "UTF-8"))}
+          "Create one"]
+         " first."])]
 
      (when (seq blocks)
        [:div.space-y-3
@@ -243,15 +238,6 @@
                                      :data {:exercise-session/end (t/now)}})))
   (redirect-home))
 
-(defn start-block!
-  [{:keys [session] :as ctx}]
-  (when-let [sess (owned-entity ctx :exercise-session)]
-    (mutations/create-entity! ctx {:entity-key :exercise-block
-                                   :data {:user/id (:uid session)
-                                          :exercise-block/session-id (:xt/id sess)
-                                          :exercise-block/beginning (t/now)}}))
-  (redirect-home))
-
 (defn stop-block!
   [ctx]
   (when-let [block (owned-entity ctx :exercise-block)]
@@ -262,9 +248,21 @@
   (redirect-home))
 
 (defn add-set!
+  "Record a set against the session's running block, starting a fresh block
+   first if none is open — sets never land in a stopped block."
   [{:keys [session params] :as ctx}]
-  (if-let [block (owned-entity ctx :exercise-block)]
-    (let [exercise-id (some-> (:exercise-id params) java.util.UUID/fromString)
+  (if-let [sess (owned-entity ctx :exercise-session)]
+    (let [block-id    (or (some->> (session-blocks ctx (:xt/id sess))
+                                   (filter #(nil? (:exercise-block/end %)))
+                                   first
+                                   :xt/id)
+                          (mutations/create-entity!
+                           ctx
+                           {:entity-key :exercise-block
+                            :data {:user/id (:uid session)
+                                   :exercise-block/session-id (:xt/id sess)
+                                   :exercise-block/beginning (t/now)}}))
+          exercise-id (some-> (:exercise-id params) java.util.UUID/fromString)
           reps        (parse-int* (:reps params))
           weight      (parse-num* (:weight params))
           unit        (when weight (keyword (or (:weight-unit params) "lbs")))]
@@ -273,7 +271,7 @@
          ctx
          {:entity-key :exercise-set
           :data (cond-> {:user/id (:uid session)
-                         :exercise-set/block-id (:xt/id block)
+                         :exercise-set/block-id block-id
                          :exercise-set/exercise-id exercise-id}
                   reps   (assoc :exercise-set/reps reps)
                   weight (assoc :exercise-set/weight weight)
@@ -293,6 +291,5 @@
    ["/session" {:get workout-page}]
    ["/session/start" {:post start-session!}]
    ["/session/:id/end" {:post end-session!}]
-   ["/session/:id/block/start" {:post start-block!}]
-   ["/block/:id/stop" {:post stop-block!}]
-   ["/block/:id/set" {:post add-set!}]])
+   ["/session/:id/set" {:post add-set!}]
+   ["/block/:id/stop" {:post stop-block!}]])
