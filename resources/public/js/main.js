@@ -79,6 +79,7 @@ function renderEChart(elementId, options) {
   
   const chart = echarts.init(chartElement);
   chart.setOption(options);
+  chartElement.dataset.chartRendered = 'true';
   
   // Handle window resize
   window.addEventListener('resize', () => {
@@ -186,14 +187,23 @@ function renderEChartFromData(chartElementId, dataElementId) {
   }
 }
 
-// Auto-initialize any charts on page load
-document.addEventListener('DOMContentLoaded', function() {
-  // Check for chart elements with data-chart-data attribute
-  const chartElements = document.querySelectorAll('[data-chart-data]');
+function initializeECharts(root) {
+  const scope = root || document;
+  const chartElements = scope.querySelectorAll('[data-chart-data]');
   chartElements.forEach(element => {
+    if (element.dataset.chartRendered === 'true') return;
     const dataElementId = element.getAttribute('data-chart-data');
     renderEChartFromData(element.id, dataElementId);
   });
+}
+
+// Auto-initialize any charts on page load
+document.addEventListener('DOMContentLoaded', function() {
+  initializeECharts(document);
+});
+
+document.addEventListener('htmx:afterSwap', function(event) {
+  initializeECharts(event.detail.elt);
 });
 
 function copyToClipboard(text) {

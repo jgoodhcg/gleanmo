@@ -21,11 +21,11 @@ updated: 2026-05-16
 - BM logs: fully migrated; helper code in `dev/repl.clj` is archival/reference.
 - Medication: **COMPLETE** (2026-03-10). 23 medications, 1,305 logs. Injection site and notes included in final migration.
 - Reading: **COMPLETE** (2026-03-21). Production migration successful: 12 book-sources, 27 books, 366 reading-logs, 6 new locations created, 0 failures.
-- Symptom (unified with pain): schema defined in `symptom_schema.clj`, CRUD routes not wired, no migration code. Airtable pain data will port as symptom-log with type `:pain`.
-- Mood: separate entity per `roadmap/mood.md`, needs schema definition.
-- Exercise: schema defined in `exercise_schema.clj` (needs type fix), no routes, no migration code.
+- Symptom (unified with pain): schema + CRUD + viz wired (2026-07-10); no migration code yet. Airtable pain data will port as symptom-log with type `:pain`.
+- Mood: schema (circumplex: valence/arousal/stress) + CRUD + viz wired (2026-07-10); no ingester.
+- Exercise: schema reworked (exercise-log removed; session → exercise-block (timed, superset-capable) → exercise-set (reps × weight of one exercise)) + CRUD wired + custom workout screen at `/app/exercise/session` (2026-07-10); no ingester.
+- Bouldering: boulder-session + boulder-attempt schema + CRUD + viz wired (2026-07-10); no ingester.
 - Tasks & Projects: CRUD live in-app; historical data lives in other apps/spreadsheets, no migration code.
-- Not represented in app yet: bouldering.
 - Priority: define and implement Airtable-backed entities incrementally, then port data one by one until Airtable can be retired.
 
 ## Next Actions
@@ -33,7 +33,8 @@ updated: 2026-05-16
 - ~~Define reading schema, wire CRUD, build Airtable ingester for books + reading-logs~~ — DONE (2026-03-16).
 - ~~Download Airtable reading data, dry-run m002, validate artifacts, write to dev DB~~ — DONE (2026-03-18).
 - ~~Deploy reading schema changes to production, then run migration on prod~~ — DONE (2026-03-21).
-- **NEXT: Wire CRUD for symptom-episode and symptom-log, then build Airtable ingester (pain → :type :pain).**
+- ~~Wire CRUD/UI for symptom, mood, exercise, bouldering~~ — DONE (2026-07-10). All remaining Airtable-backed entities have schema + CRUD + viz (plus custom workout screen).
+- **NEXT: Build Airtable ingesters, one entity at a time: symptom/pain → mood → exercise → bouldering.**
 
 ## Recommended Approach: Airtable Exit First
 Define schema → wire CRUD → build/run migration for each entity sequentially. This provides:

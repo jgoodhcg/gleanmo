@@ -406,6 +406,11 @@ body {
     color: var(--dark-text-primary);
     @apply text-2xl font-bold mb-4;
   }
+
+  .form-help {
+    color: var(--dark-text-secondary);
+    @apply text-xs mt-1;
+  }
   
   .form-subheader {
     color: var(--dark-text-secondary);

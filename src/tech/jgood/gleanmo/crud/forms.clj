@@ -18,6 +18,15 @@
          ;; remove fields that aren't necessary for forms
          (remove schema-utils/should-remove-system-or-user-field?))))
 
+(defn render-field
+  "Render an input, appending :crud/description help text when present."
+  [field ctx]
+  (let [rendered    (inputs/render field ctx)
+        description (get-in field [:opts :crud/description])]
+    (if description
+      [:div rendered [:p.form-help description]]
+      rendered)))
+
 (defn schema->form
   "Convert a schema to form fields"
   [schema ctx schema-map]
@@ -30,7 +39,7 @@
                  field-with-value    (if pre-populated-value
                                        (assoc field :value pre-populated-value)
                                        field)]]
-      (inputs/render field-with-value ctx-with-schema))))
+      (render-field field-with-value ctx-with-schema))))
 
 (defn new-form
   "Render a new entity form"
@@ -88,7 +97,7 @@
     (for [field fields
           :let  [field-key (:field-key field)
                  value     (get entity field-key)]]
-      (inputs/render (assoc field :value value) ctx-with-schema))))
+      (render-field (assoc field :value value) ctx-with-schema))))
 
 (defn edit-form
   "Render an edit form for an existing entity"

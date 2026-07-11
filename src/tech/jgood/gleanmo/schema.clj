@@ -13,6 +13,8 @@
             [tech.jgood.gleanmo.schema.reading-schema :as rs]
             [tech.jgood.gleanmo.schema.cruddy :as cs]
             [tech.jgood.gleanmo.schema.symptom-schema :as ss]
+            [tech.jgood.gleanmo.schema.mood-schema :as moods]
+            [tech.jgood.gleanmo.schema.bouldering-schema :as bschema]
             [tech.jgood.gleanmo.schema.performance-schema :as perf]
             [tech.jgood.gleanmo.schema.task-schema :as ts]))
 
@@ -26,8 +28,9 @@
    :habit/id            :uuid
    :habit-log/id        :uuid
    :exercise/id         :uuid
-   :exercise-log/id     :uuid
    :exercise-session/id :uuid
+   :exercise-block/id   :uuid
+   :exercise-set/id     :uuid
    :location/id         :uuid
    :meditation/id       :uuid
    :meditation-log/id   :uuid
@@ -43,6 +46,9 @@
    :reading-log/id      :uuid
    :symptom-episode/id  :uuid
    :symptom-log/id      :uuid
+   :mood-log/id         :uuid
+   :boulder-session/id  :uuid
+   :boulder-attempt/id  :uuid
    :task/id             :uuid
    :user                us/user
    :habit               hs/habit
@@ -57,7 +63,7 @@
    :calendar-event      ces/calendar-event
    :exercise            es/exercise
    :exercise-session    es/exercise-session
-   :exercise-log        es/exercise-log
+   :exercise-block      es/exercise-block
    :exercise-set        es/exercise-set
    :project             ps/project
    :project-log         ps/project-log
@@ -66,6 +72,9 @@
    :reading-log         rs/reading-log
    :symptom-episode     ss/symptom-episode
    :symptom-log         ss/symptom-log
+   :mood-log            moods/mood-log
+   :boulder-session     bschema/boulder-session
+   :boulder-attempt     bschema/boulder-attempt
    :task                ts/task
    :cruddy              cs/cruddy
    :performance-report  perf/performance-report})

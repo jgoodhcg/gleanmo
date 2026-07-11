@@ -128,6 +128,10 @@
       [:a.link {:href "/app/crud/form/medication-log/new"} "medication log"]
       [:a.link {:href "/app/crud/form/project-log/new"} "project log"]
       [:a.link {:href "/app/crud/form/reading-log/new"} "reading log"]
+      [:a.link {:href "/app/crud/form/symptom-log/new"} "symptom log"]
+      [:a.link {:href "/app/crud/form/mood-log/new"} "mood log"]
+      [:a.link {:href "/app/exercise/session"} "workout"]
+      [:a.link {:href "/app/crud/form/boulder-attempt/new"} "boulder attempt"]
       [:hr.border-dark]
 
       ;; Calendar

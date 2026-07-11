@@ -28,6 +28,9 @@
 (def body-location-enum
   [:enum :head-face :throat-neck :chest :abdomen :pelvis :limbs :generalized :other])
 
+(def qualifier-enum
+  [:enum :constant :intermittent :worsening :improving :radiating :sharp :dull :throbbing :other])
+
 (def symptom-episode
   (-> [:map {:closed true}
        [:xt/id :symptom-episode/id]
@@ -35,6 +38,7 @@
        [::sm/deleted-at {:optional true} :instant]
        [::sm/created-at :instant]
        [:user/id :user/id]
+       [:symptom-episode/label {:optional true} :string]
        [:symptom-episode/beginning :instant]
        [:symptom-episode/end {:optional true} :instant]
        [:symptom-episode/overall-severity {:optional true} severity-enum]
@@ -51,7 +55,9 @@
        [::sm/deleted-at {:optional true} :instant]
        [::sm/created-at :instant]
        [:user/id :user/id]
-       [:symptom-log/episode-id {:optional true} :symptom-episode/id]
+       [:symptom-log/episode-id
+        {:optional true :crud/label "Episode" :crud/inline-create true}
+        :symptom-episode/id]
        [:symptom-log/timestamp :instant]
        [:symptom-log/type {:crud/priority 1} symptom-type-enum]
        [:symptom-log/severity {:crud/priority 2} severity-enum]
@@ -67,7 +73,7 @@
        [:symptom-log/bp-diastolic {:optional true} :int]
        [:symptom-log/spo2 {:optional true} :int]
        [:symptom-log/notes {:optional true} :string]
-       [:symptom-log/qualifiers {:optional true} [:set :keyword]]
+       [:symptom-log/qualifiers {:optional true} [:set qualifier-enum]]
        [:airtable/id {:optional true} :string]
        [:airtable/created-time {:optional true} :instant]
        [:airtable/ported-at {:optional true} :instant]]

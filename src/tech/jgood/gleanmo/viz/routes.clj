@@ -3,10 +3,11 @@
    [cheshire.core :as json]
    [clojure.string :as str]
    [tech.jgood.gleanmo.app.shared :refer [side-bar]]
-   [tech.jgood.gleanmo.schema.utils :as schema-utils]
    [tech.jgood.gleanmo.db.queries :as queries]
-   [tech.jgood.gleanmo.schema.meta :as sm]
-   [tech.jgood.gleanmo.ui :as ui]))
+   [tech.jgood.gleanmo.db.relation-labels :as rel]
+   [tech.jgood.gleanmo.schema.utils :as schema-utils]
+   [tech.jgood.gleanmo.ui :as ui]
+   [taoensso.tufte :refer [defnp p]]))
 
 (defn detect-temporal-pattern
   "Detect temporal patterns in a Malli schema."
@@ -38,136 +39,49 @@
       ;; No temporal pattern detected
       :else nil)))
 
-(defn resolve-entity-label
-  "Generic function to resolve an entity ID to its display label.
-   Uses the same logic as CRUD formatting."
-  [db entity-id]
-  (when entity-id
-    (let [entity (queries/get-entity-by-id db entity-id)
-          entity-type (or (some-> entity
-                                  ::sm/type
-                                  name)
-                          (some-> entity
-                                  keys
-                                  first
-                                  namespace))
-          label-key (when entity-type (keyword entity-type "label"))]
-      (if (and label-key (contains? entity label-key))
-        (get entity label-key)
-        (str (subs (str entity-id) 0 8) "...")))))
+(defn temporal-field
+  "Return the temporal field used by a detected temporal pattern."
+  [temporal-pattern]
+  (or (:timestamp-field temporal-pattern)
+      (:beginning-field temporal-pattern)))
 
-(defn resolve-relationship-labels
-  "Generic function to resolve relationship fields to display labels.
-   Returns a map grouped by relationship type for better tooltip organization."
-  [entity relationship-fields db]
-  (->> relationship-fields
-       (reduce (fn [acc {:keys [field-key input-type related-entity-str]}]
-                 (let [field-value (get entity field-key)]
-                   (if field-value
-                     (let [labels (case input-type
-                                    :single-relationship
-                                    [(resolve-entity-label db field-value)]
+(defn date-str
+  "Return the yyyy-MM-dd UTC date string for an instant-like value."
+  [instant]
+  (some-> instant str (subs 0 10)))
 
-                                    :many-relationship
-                                    (map #(resolve-entity-label db %) field-value)
-
-                                    [])
-                           ;; Just capitalize for now, we'll handle pluralization after aggregation
-                           group-name (clojure.string/capitalize related-entity-str)]
-                       (if (seq labels)
-                         (update acc group-name (fn [existing] (concat (or existing []) labels)))
-                         acc))
-                     acc)))
-               {})))
-
-(defn resolve-relationship-labels-flat
-  "Flat version for backward compatibility - returns just the labels."
-  [entity relationship-fields db]
-  (->> (resolve-relationship-labels entity relationship-fields db)
-       vals
-       (mapcat identity)
-       distinct))
-
-(defn get-relevant-year-range
-  "Determine the most relevant year based on data.
-   Returns the year with the most recent activity."
-  [data temporal-pattern]
-  (if (empty? data)
-    ;; No data - show current year
-    (str (java.time.Year/now))
-
-    (let [;; Extract years from data
-          timestamp-field (:timestamp-field temporal-pattern)
-          beginning-field (:beginning-field temporal-pattern)
-          field-to-use (if timestamp-field timestamp-field beginning-field)
-
-          data-years (->> data
-                          (map #(get % field-to-use))
-                          (map #(-> % str (.substring 0 4)))
-                          (map #(Integer/parseInt %))
-                          distinct
-                          sort)
-
-          max-data-year (last data-years)]
-
-      ;; Strategy: Show the year with the most recent data
-      ;; This gives better UX than trying to show multiple years in one chart
-      (str max-data-year))))
+(defn build-grouped-chart-data
+  "Build ECharts heatmap data from minimal heatmap rows."
+  [temporal-pattern data ctx entity-schema entity-str]
+  (let [field-to-use        (temporal-field temporal-pattern)
+        relationship-fields (schema-utils/extract-relationship-fields
+                             entity-schema
+                             :remove-system-fields true)]
+    (->> data
+         (group-by #(date-str (get % field-to-use)))
+         (map (fn [[day items]]
+                (let [grouped-labels (reduce
+                                      (fn [acc item]
+                                        (merge-with concat
+                                                    acc
+                                                    (rel/resolve-relationship-labels
+                                                     ctx
+                                                     item
+                                                     relationship-fields)))
+                                      {}
+                                      items)
+                      unique-labels  (reduce-kv (fn [acc k v]
+                                                  (assoc acc k (vec (distinct v))))
+                                                {}
+                                                grouped-labels)]
+                  [day (count items) unique-labels entity-str])))
+         (remove (comp nil? first))
+         vec)))
 
 (defn generate-mobile-calendar-config
   "Generate ECharts calendar heatmap configuration optimized for mobile (vertical layout)."
-  [temporal-pattern data ctx _entity-key entity-schema entity-str]
-  (let [year-range (get-relevant-year-range data temporal-pattern)
-        timestamp-field (:timestamp-field temporal-pattern)
-        beginning-field (:beginning-field temporal-pattern)
-
-        ;; Get relationship fields from the entity schema to resolve labels generically
-        relationship-fields (schema-utils/extract-relationship-fields
-                             entity-schema
-                             :remove-system-fields true)
-        db (:biff/db ctx)
-
-        ;; Group data by date and collect entity details generically
-        grouped-data (case (:pattern temporal-pattern)
-                       :point
-                       (->> data
-                            (group-by (fn [item]
-                                        (-> (get item timestamp-field) str (.substring 0 10))))
-                            (map (fn [[date-str items]]
-                                   (let [grouped-labels (reduce (fn [acc item]
-                                                                  (let [item-labels (resolve-relationship-labels item relationship-fields db)]
-                                                                    (merge-with concat acc item-labels)))
-                                                                {}
-                                                                items)
-                                         ;; Remove duplicates within each group  
-                                         unique-grouped-labels (reduce-kv (fn [acc k v]
-                                                                            (assoc acc k (distinct v)))
-                                                                          {}
-                                                                          grouped-labels)]
-                                     [date-str (count items) unique-grouped-labels]))))
-
-                       :interval
-                       (->> data
-                            (group-by (fn [item]
-                                        (-> (get item beginning-field) str (.substring 0 10))))
-                            (map (fn [[date-str items]]
-                                   (let [grouped-labels (reduce (fn [acc item]
-                                                                  (let [item-labels (resolve-relationship-labels item relationship-fields db)]
-                                                                    (merge-with concat acc item-labels)))
-                                                                {}
-                                                                items)
-                                         ;; Remove duplicates within each group  
-                                         unique-grouped-labels (reduce-kv (fn [acc k v]
-                                                                            (assoc acc k (distinct v)))
-                                                                          {}
-                                                                          grouped-labels)]
-                                     [date-str (count items) unique-grouped-labels])))))
-
-        ;; Create chart data with embedded details for tooltip
-        chart-data #_{:clj-kondo/ignore [:shadowed-var]}
-        (map (fn [[date-str count entity-labels]]
-               [date-str count entity-labels entity-str]) grouped-data)]
-
+  [year chart-data]
+  (let [year-range (str year)]
     {:backgroundColor "#0d1117"  ; Dark background
      :title {:text (str "Activity Calendar - " year-range)
              :left "center"
@@ -207,58 +121,8 @@
 
 (defn generate-calendar-heatmap-config
   "Generate ECharts calendar heatmap configuration with entity details."
-  [temporal-pattern data ctx _entity-key entity-schema entity-str]
-  (let [year-range (get-relevant-year-range data temporal-pattern)
-        timestamp-field (:timestamp-field temporal-pattern)
-        beginning-field (:beginning-field temporal-pattern)
-
-        ;; Get relationship fields from the entity schema to resolve labels generically
-        relationship-fields (schema-utils/extract-relationship-fields
-                             entity-schema
-                             :remove-system-fields true)
-        db (:biff/db ctx)
-
-        ;; Group data by date and collect entity details generically
-        grouped-data (case (:pattern temporal-pattern)
-                       :point
-                       (->> data
-                            (group-by (fn [item]
-                                        (-> (get item timestamp-field) str (.substring 0 10))))
-                            (map (fn [[date-str items]]
-                                   (let [grouped-labels (reduce (fn [acc item]
-                                                                  (let [item-labels (resolve-relationship-labels item relationship-fields db)]
-                                                                    (merge-with concat acc item-labels)))
-                                                                {}
-                                                                items)
-                                         ;; Remove duplicates within each group  
-                                         unique-grouped-labels (reduce-kv (fn [acc k v]
-                                                                            (assoc acc k (distinct v)))
-                                                                          {}
-                                                                          grouped-labels)]
-                                     [date-str (count items) unique-grouped-labels]))))
-
-                       :interval
-                       (->> data
-                            (group-by (fn [item]
-                                        (-> (get item beginning-field) str (.substring 0 10))))
-                            (map (fn [[date-str items]]
-                                   (let [grouped-labels (reduce (fn [acc item]
-                                                                  (let [item-labels (resolve-relationship-labels item relationship-fields db)]
-                                                                    (merge-with concat acc item-labels)))
-                                                                {}
-                                                                items)
-                                         ;; Remove duplicates within each group  
-                                         unique-grouped-labels (reduce-kv (fn [acc k v]
-                                                                            (assoc acc k (distinct v)))
-                                                                          {}
-                                                                          grouped-labels)]
-                                     [date-str (count items) unique-grouped-labels])))))
-
-        ;; Create chart data with embedded details for tooltip
-        chart-data #_{:clj-kondo/ignore [:shadowed-var]}
-        (map (fn [[date-str count entity-labels]]
-               [date-str count entity-labels entity-str]) grouped-data)]
-
+  [year chart-data]
+  (let [year-range (str year)]
     {:backgroundColor "#0d1117"  ; Dark background
      :title {:text (str "Activity Calendar - " year-range)
              :left "center"
@@ -300,7 +164,7 @@
            :style {:height "400px" :width "100%"}
            :data-chart-data (str base-chart-id "-desktop-data")}]
     [:div {:id (str base-chart-id "-desktop-data") :class "hidden"}
-     (json/generate-string desktop-config {:pretty true})]]
+     (json/generate-string desktop-config)]]
 
    ;; Mobile version
    [:div.block.md:hidden
@@ -309,21 +173,135 @@
            :style {:height "600px" :width "100%"}  ; Taller for vertical calendar
            :data-chart-data (str base-chart-id "-mobile-data")}]
     [:div {:id (str base-chart-id "-mobile-data") :class "hidden"}
-     (json/generate-string mobile-config {:pretty true})]]])
+     (json/generate-string mobile-config)]]])
 
-(defn viz-page
+(defn year-range
+  "Return inclusive UTC instants for a calendar year."
+  [year]
+  (let [start (java.time.Instant/parse (str year "-01-01T00:00:00Z"))
+        end   (-> (java.time.Instant/parse (str (inc year) "-01-01T00:00:00Z"))
+                  (.minusNanos 1))]
+    [start end]))
+
+(defn year-card-height
+  "Return an inline height for a year skeleton based on row count."
+  [count]
+  (str (min 340 (max 180 (+ 180 (* 4 (int (Math/sqrt (max 1 count))))))) "px"))
+
+(defn year-skeleton-card
+  "Render a lazy-loaded year-card placeholder."
+  [entity-str {:keys [year count]} trigger]
+  [:article.year-card.rounded.border.border-dark-border.bg-dark-surface.p-4
+   {:hx-get     (str "/app/viz/" entity-str "/year/" year)
+    :hx-trigger trigger
+    :hx-target  "this"
+    :hx-swap    "outerHTML"}
+   [:div.flex.items-baseline.justify-between.gap-4.mb-4
+    [:h2.text-xl.font-bold (str year)]
+    [:span.text-sm.text-gray-400 (str count " entries")]]
+   [:div.animate-pulse.rounded.bg-dark-border
+    {:style {:height (year-card-height count)}}]])
+
+(defn render-year-card
+  "Render a populated heatmap year card."
+  [year count desktop-config mobile-config]
+  [:article.year-card.rounded.border.border-dark-border.bg-dark-surface.p-4
+   [:div.flex.items-baseline.justify-between.gap-4.mb-4
+    [:h2.text-xl.font-bold (str year)]
+    [:span.text-sm.text-gray-400 (str count " entries")]]
+   (render-responsive-chart-section
+    (str "activity-chart-" year)
+    "Activity Calendar"
+    "Activity Calendar"
+    desktop-config
+    mobile-config)])
+
+(defn render-year-list
+  "Render eager recent year cards and hidden earlier year cards."
+  [entity-str years]
+  (let [recent-years  (take 3 years)
+        earlier-years (drop 3 years)
+        earlier-count (reduce + (map :count earlier-years))]
+    [:div.space-y-5
+     (for [year-info recent-years]
+       (year-skeleton-card entity-str year-info "load"))
+     (when (seq earlier-years)
+       [:details.rounded.border.border-dark-border.bg-dark-surface.p-4
+        [:summary.cursor-pointer.font-semibold
+         (str "Show " (count earlier-years) " earlier years - "
+              earlier-count " entries")]
+        [:div.mt-4.space-y-5
+         (for [year-info earlier-years]
+           (year-skeleton-card entity-str year-info "intersect once"))]])]))
+
+(defn no-data-panel
+  "Render the empty state for an entity with no heatmap data."
+  [entity-str]
+  [:div.rounded.border.border-dark-border.bg-dark-surface.p-6
+   [:p.text-gray-300 (str "No " entity-str " activity found.")]])
+
+(defn viz-year-fragment
+  "Build the heatmap fragment for one entity year."
+  [ctx entity-key entity-schema entity-str year]
+  (let [temporal-pattern (detect-temporal-pattern entity-schema)
+        [start end]      (year-range year)
+        ctx              (assoc ctx ::rel/rel-cache (atom {}))
+        user-id          (-> ctx :session :uid)
+        settings         (queries/resolve-user-settings ctx user-id)
+        entity-data      (p {:id (keyword "viz-year-query" entity-str)}
+                            (queries/heatmap-data-for-user
+                             (:biff/db ctx)
+                             user-id
+                             entity-key
+                             entity-schema
+                             start
+                             end
+                             :user-settings settings))
+        _                (rel/prewarm-relation-cache! ctx entity-data)
+        chart-data       (build-grouped-chart-data
+                          temporal-pattern
+                          entity-data
+                          ctx
+                          entity-schema
+                          entity-str)
+        desktop-config   (generate-calendar-heatmap-config year chart-data)
+        mobile-config    (generate-mobile-calendar-config year chart-data)]
+    (render-year-card year (count entity-data) desktop-config mobile-config)))
+
+(defnp viz-year-page
+  "Generate one lazy-loaded heatmap year fragment."
+  [ctx entity-key entity-schema entity-str]
+  (let [year          (Integer/parseInt (get-in ctx [:path-params :year]))
+        current-year  (.getValue (java.time.Year/now))
+        body          (ui/fragment
+                       ctx
+                       (viz-year-fragment ctx entity-key entity-schema entity-str year))
+        etag          (str "W/\"viz-" entity-str "-" year "-" (hash body) "\"")
+        cache-headers (if (< year current-year)
+                        {"content-type"  "text/html"
+                         "Cache-Control" "private, max-age=31536000"
+                         "ETag"          etag}
+                        {"content-type"  "text/html"
+                         "Cache-Control" "private, no-store"})]
+    (if (and (< year current-year)
+             (= etag (get-in ctx [:headers "if-none-match"])))
+      {:status 304, :headers cache-headers, :body ""}
+      {:status 200, :headers cache-headers, :body body})))
+
+(defnp viz-page
   "Generate visualization page for an entity."
   [ctx entity-key entity-schema entity-str _plural-str]
   (let [temporal-pattern (detect-temporal-pattern entity-schema)]
     (if temporal-pattern
-      (let [;; Fetch entity data respecting user settings (sensitive/archived)
-            entity-data (queries/all-for-user-query
-                         {:entity-type-str entity-str
-                          :schema entity-schema
-                          :filter-references true}
-                         ctx)
-            calendar-config (generate-calendar-heatmap-config temporal-pattern entity-data ctx entity-key entity-schema entity-str)
-            mobile-calendar-config (generate-mobile-calendar-config temporal-pattern entity-data ctx entity-key entity-schema entity-str)]
+      (let [user-id  (-> ctx :session :uid)
+            settings (queries/resolve-user-settings ctx user-id)
+            years    (p {:id (keyword "viz-years-query" entity-str)}
+                        (queries/years-with-data-for-user
+                         (:biff/db ctx)
+                         user-id
+                         entity-key
+                         entity-schema
+                         :user-settings settings))]
         (ui/page
          (assoc ctx ::ui/echarts true)
          (side-bar
@@ -334,13 +312,9 @@
            [:p.mb-6.text-gray-600
             (str "Temporal pattern: " (name (:pattern temporal-pattern)))]
 
-           ;; Responsive chart section - horizontal calendar on desktop, vertical calendar on mobile
-           (render-responsive-chart-section
-            "activity-chart"
-            "Activity Calendar"
-            "Activity Calendar"
-            calendar-config
-            mobile-calendar-config)])))
+           (if (seq years)
+             (render-year-list entity-str years)
+             (no-data-panel entity-str))])))
 
       ;; No temporal pattern detected
       (ui/page
@@ -355,4 +329,7 @@
   ["/viz" {}
    [(str "/" entity-str)
     {:get (fn [ctx]
-            (viz-page ctx entity-key entity-schema entity-str plural-str))}]])
+            (viz-page ctx entity-key entity-schema entity-str plural-str))}]
+   [(str "/" entity-str "/year/:year")
+    {:get (fn [ctx]
+            (viz-year-page ctx entity-key entity-schema entity-str))}]])

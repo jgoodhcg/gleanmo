@@ -3,12 +3,21 @@
    [clojure.string :as str]
    [com.biffweb :as biff]
    [tech.jgood.gleanmo.app.bm-log :as bm-log]
+   [tech.jgood.gleanmo.app.boulder-attempt :as boulder-attempt]
+   [tech.jgood.gleanmo.app.boulder-session :as boulder-session]
    [tech.jgood.gleanmo.app.calendar :as calendar]
    [tech.jgood.gleanmo.app.calendar-event :as calendar-event]
    [tech.jgood.gleanmo.app.cruddy :as cruddy]
    [tech.jgood.gleanmo.app.dashboards :as dashboards]
+   [tech.jgood.gleanmo.app.exercise :as exercise]
+   [tech.jgood.gleanmo.app.exercise-block :as exercise-block]
+   [tech.jgood.gleanmo.app.exercise-session :as exercise-session]
+   [tech.jgood.gleanmo.app.exercise-set :as exercise-set]
    [tech.jgood.gleanmo.app.habit :as habit]
    [tech.jgood.gleanmo.app.habit-log :as habit-log]
+   [tech.jgood.gleanmo.app.mood-log :as mood-log]
+   [tech.jgood.gleanmo.app.symptom-episode :as symptom-episode]
+   [tech.jgood.gleanmo.app.symptom-log :as symptom-log]
    [tech.jgood.gleanmo.app.location :as location]
    [tech.jgood.gleanmo.app.medication :as medication]
    [tech.jgood.gleanmo.app.medication-history :as med-history]
@@ -24,6 +33,7 @@
    [tech.jgood.gleanmo.app.shared :as    shared
     :refer [side-bar]]
    [tech.jgood.gleanmo.app.timers :as timers]
+   [tech.jgood.gleanmo.app.workout :as workout]
    [tech.jgood.gleanmo.app.overview :as overview]
    [tech.jgood.gleanmo.app.user :as user]
    [tech.jgood.gleanmo.db.queries :as db]
@@ -56,6 +66,15 @@
     :book-source
     :book
     :reading-log
+    :symptom-episode
+    :symptom-log
+    :mood-log
+    :exercise
+    :exercise-session
+    :exercise-block
+    :exercise-set
+    :boulder-session
+    :boulder-attempt
     :task
     :cruddy})
 
@@ -540,6 +559,19 @@
             project-log/viz-routes
             project-log/timer-routes
             meditation-log/timer-routes
+            symptom-episode/crud-routes
+            symptom-log/crud-routes
+            symptom-log/viz-routes
+            mood-log/crud-routes
+            mood-log/viz-routes
+            exercise/crud-routes
+            exercise-session/crud-routes
+            exercise-session/viz-routes
+            exercise-block/crud-routes
+            exercise-set/crud-routes
+            boulder-session/crud-routes
+            boulder-session/viz-routes
+            boulder-attempt/crud-routes
             task/crud-routes
             task/routes
 
@@ -548,6 +580,9 @@
 
             ;; Timers
             timers/routes
+
+            ;; Workout flow
+            workout/routes
 
             ;; Main app and DB visualization
             ["/overview/stats" {:get overview/stats-fragment}]

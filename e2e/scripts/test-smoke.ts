@@ -64,18 +64,14 @@ async function main() {
     await loadPage(page, '/app', 'home');
     await assertSidebar(page, 'home');
 
-    // Wait for HTMX lazy-loaded sections to hydrate
-    await expect(page.locator('#overview-stats')).toBeVisible({ timeout: 15000 });
+    // Wait for the HTMX lazy-loaded overview section to hydrate
     await expect(page.locator('#overview-recent')).toBeVisible({ timeout: 15000 });
-    await expect(page.locator('#overview-events')).toBeVisible({ timeout: 15000 });
-
-    // Verify stats section loaded (not still showing placeholder)
     await page.waitForFunction(
       (sel) => {
         const el = document.querySelector(sel);
-        return el && !el.textContent?.includes('Loading stats');
+        return el && !el.textContent?.includes('Loading');
       },
-      '#overview-stats',
+      '#overview-recent',
       { timeout: 15000 }
     );
     console.log('  + HTMX fragments loaded');
@@ -104,6 +100,15 @@ async function main() {
       { path: '/app/crud/meditation-log', label: 'meditation-logs' },
       { path: '/app/crud/book', label: 'books' },
       { path: '/app/crud/reading-log', label: 'reading-logs' },
+      { path: '/app/crud/symptom-episode', label: 'symptom-episodes' },
+      { path: '/app/crud/symptom-log', label: 'symptom-logs' },
+      { path: '/app/crud/mood-log', label: 'mood-logs' },
+      { path: '/app/crud/exercise', label: 'exercises' },
+      { path: '/app/crud/exercise-session', label: 'exercise-sessions' },
+      { path: '/app/crud/exercise-block', label: 'exercise-blocks' },
+      { path: '/app/crud/exercise-set', label: 'exercise-sets' },
+      { path: '/app/crud/boulder-session', label: 'boulder-sessions' },
+      { path: '/app/crud/boulder-attempt', label: 'boulder-attempts' },
     ];
 
     console.log('\n4. CRUD list pages...');
@@ -118,6 +123,10 @@ async function main() {
       { path: '/app/crud/form/habit/new', label: 'new-habit-form' },
       { path: '/app/crud/form/project/new', label: 'new-project-form' },
       { path: '/app/crud/form/book/new', label: 'new-book-form' },
+      { path: '/app/crud/form/symptom-log/new', label: 'new-symptom-log-form' },
+      { path: '/app/crud/form/mood-log/new', label: 'new-mood-log-form' },
+      { path: '/app/crud/form/exercise-set/new', label: 'new-exercise-set-form' },
+      { path: '/app/crud/form/boulder-attempt/new', label: 'new-boulder-attempt-form' },
     ];
 
     console.log('\n5. CRUD new form pages...');
@@ -139,6 +148,12 @@ async function main() {
     await loadPage(page, '/app/timer/reading-log', 'reading-log-timer');
     await assertSidebar(page, 'reading-log-timer');
     await captureScreenshot(page, '07-reading-log-timer');
+
+    // ── 8. Workout screen ──
+    console.log('\n8. Workout screen...');
+    await loadPage(page, '/app/exercise/session', 'workout-screen');
+    await assertSidebar(page, 'workout-screen');
+    await captureScreenshot(page, '08-workout');
 
     console.log('\n=== Smoke Test Passed ===\n');
   } catch (error) {

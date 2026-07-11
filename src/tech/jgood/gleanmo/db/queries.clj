@@ -285,6 +285,158 @@
       (into [] (keep by-id) ids))
     []))
 
+(defn- temporal-sort-field
+  "Return the timestamp/beginning field used by heatmap visualizations."
+  [entity-type entity-schema]
+  (or (some (fn [[field-key & _]]
+              (when (= "timestamp" (name field-key))
+                field-key))
+            (schema-utils/extract-schema-fields entity-schema))
+      (some (fn [[field-key & _]]
+              (when (= "beginning" (name field-key))
+                field-key))
+            (schema-utils/extract-schema-fields entity-schema))
+      (throw (ex-info "Entity has no heatmap temporal field"
+                      {:entity-type entity-type}))))
+
+(defn- ids-with-attr
+  "Return candidate ids that have attr-key, optionally requiring attr-value."
+  ([db ids attr-key]
+   (ids-with-attr db ids attr-key ::any-value))
+  ([db ids attr-key attr-value]
+   (if (seq ids)
+     (let [where (cond-> [['?e attr-key]]
+                   (not= attr-value ::any-value)
+                   (conj ['?e attr-key attr-value]))]
+       (->> (q db
+               {:find  '[?e]
+                :where where
+                :in    '[[?e ...]]}
+               (vec ids))
+            (map first)
+            set))
+     #{})))
+
+(defn- direct-flagged-ids
+  "Return ids excluded by sparse direct flags, using index-only scans."
+  [db ids entity-type {:keys [show-sensitive show-archived]}]
+  (let [entity-str (name entity-type)]
+    (cond-> (ids-with-attr db ids ::sm/deleted-at)
+      (and (not show-sensitive)
+           (schema-has-field? entity-type "sensitive"))
+      (into (ids-with-attr db ids (keyword entity-str "sensitive") true))
+
+      (and (not show-archived)
+           (schema-has-field? entity-type "archived"))
+      (into (ids-with-attr db ids (keyword entity-str "archived") true)))))
+
+(defn- relation-values-for-ids
+  "Return a map of entity id to minimal relationship attrs for heatmap rows."
+  [db ids relationship-fields]
+  (if (and (seq ids) (seq relationship-fields))
+    (reduce
+     (fn [acc {:keys [field-key input-type]}]
+       (let [rows (q db
+                     {:find  '[?e ?rel]
+                      :where [['?e field-key '?rel]]
+                      :in    '[[?e ...]]}
+                     (vec ids))]
+         (reduce
+          (fn [m [eid rel-id]]
+            (case input-type
+              :many-relationship
+              (update-in m [eid field-key] (fnil conj #{}) rel-id)
+
+              :single-relationship
+              (assoc-in m [eid field-key] rel-id)
+
+              m))
+          acc
+          rows)))
+     {}
+     relationship-fields)
+    {}))
+
+(defn- apply-heatmap-exclusions
+  "Drop sparse flagged rows and rows pointing at excluded related entities."
+  [db user-id entity-type user-settings relationship-fields rows]
+  (let [ids           (mapv :xt/id rows)
+        flagged       (direct-flagged-ids db ids entity-type user-settings)
+        relation-map  (relation-values-for-ids db ids relationship-fields)
+        exclusion-map (build-exclusion-map db user-id entity-type user-settings)]
+    (->> rows
+         (remove (comp flagged :xt/id))
+         (map #(merge % (get relation-map (:xt/id %) {})))
+         (apply-relationship-exclusions exclusion-map)
+         doall)))
+
+(defnp years-with-data-for-user
+  "Return visible heatmap years with distinct entity counts, newest first."
+  [db user-id entity-type entity-schema & {:keys [user-settings]}]
+  (let [settings      (or user-settings (get-user-settings db user-id))
+        temporal-key  (temporal-sort-field entity-type entity-schema)
+        rel-fields    (schema-utils/extract-relationship-fields
+                       entity-schema
+                       :remove-system-fields true)
+        rows          (q db
+                         {:find  '[?e ?sort]
+                          :where [['?e :user/id 'user-id]
+                                  ['?e ::sm/type entity-type]
+                                  ['?e temporal-key '?sort]]
+                          :in    '[user-id]}
+                         user-id)
+        visible-rows  (apply-heatmap-exclusions
+                       db
+                       user-id
+                       entity-type
+                       settings
+                       rel-fields
+                       (map (fn [[eid sort-value]]
+                              {:xt/id eid, temporal-key sort-value})
+                            rows))]
+    (->> visible-rows
+         (reduce (fn [acc row]
+                   (if-let [inst (->instant (get row temporal-key))]
+                     (update acc (.getYear (.atZone inst java.time.ZoneOffset/UTC))
+                             (fnil conj #{})
+                             (:xt/id row))
+                     acc))
+                 {})
+         (map (fn [[year ids]] {:year year, :count (count ids)}))
+         (sort-by :year >)
+         vec)))
+
+(defnp heatmap-data-for-user
+  "Return minimal visible heatmap rows for an entity within an instant range.
+   Uses index-only scans for ids, temporal values, relationship ids, and sparse
+   direct flags; it does not pull full entity documents."
+  [db user-id entity-type entity-schema range-start range-end & {:keys [user-settings]}]
+  (let [settings      (or user-settings (get-user-settings db user-id))
+        temporal-key  (temporal-sort-field entity-type entity-schema)
+        rel-fields    (schema-utils/extract-relationship-fields
+                       entity-schema
+                       :remove-system-fields true)
+        rows          (q db
+                         {:find  '[?e ?sort]
+                          :where [['?e :user/id 'user-id]
+                                  ['?e ::sm/type entity-type]
+                                  ['?e temporal-key '?sort]
+                                  '[(>= ?sort range-start)]
+                                  '[(<= ?sort range-end)]]
+                          :in    '[user-id range-start range-end]}
+                         user-id
+                         range-start
+                         range-end)]
+    (apply-heatmap-exclusions
+     db
+     user-id
+     entity-type
+     settings
+     rel-fields
+     (map (fn [[eid sort-value]]
+            {:xt/id eid, temporal-key sort-value})
+          rows))))
+
 (defn build-count-query
   "Build a lightweight count query — returns entity IDs only, no pull [*].
    Accepts extra-where clauses for sensitivity/state filtering."

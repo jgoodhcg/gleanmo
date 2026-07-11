@@ -141,6 +141,7 @@ Change `[:sm/type [:enum :habit-log]]` to `[:sm/type [:enum :exercise]]`
 - **Flexible Analysis**: Support for various workout analytics and trends
 
 ## Implementation + Migration Notes
+- **Naming update (2026-07-10, implemented):** the entities shipped as `exercise-session` → `exercise-block` (the timed chunk this doc calls "exercise-set"; superset-capable) → `exercise-set` (the per-exercise reps×weight entry this doc calls "exercise-rep"). Read the schema in `exercise_schema.clj` as authoritative; this doc's entity names predate the rename.
 - The Malli schemas in `src/tech/jgood/gleanmo/schema/exercise_schema.clj` exist but no routes, CRUD pages, or background tasks currently persist exercise data—treat the roadmap above as unimplemented work.
 - Airtable remains the system of record. We must:
   1. Export the latest exercise + log tables (sessions, sets, reps) into `airtable_data/`.

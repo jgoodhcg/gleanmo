@@ -73,7 +73,8 @@ Immediate work should remove infrastructure friction or reduce dependency on Air
 - [bm-log-bloating.md](./bm-log-bloating.md) - Add bloating tracking to bm-log schema with flexible modeling options
 - [reading-log-pages.md](./reading-log-pages.md) - Add page number tracking to reading-log schema
 - [config-cleanup.md](./config-cleanup.md) - Audit and consolidate configuration files to remove legacy artifacts
-- [form-tab-ordering.md](./form-tab-ordering.md) - Ensure logical tab order across all CRUD forms for keyboard accessibility
+- [keyboard-navigation.md](./keyboard-navigation.md) - Audit of keyboard accessibility across forms and index views, with phased remediation roadmap
+- [form-tab-ordering.md](./form-tab-ordering.md) - Ensure logical tab order across all CRUD forms for keyboard accessibility (superseded by keyboard-navigation.md)
 - [redirect-audit.md](./redirect-audit.md) - Audit all actions to implement intuitive redirects with query parameter support
 - [reading-airtable-spec.md](./reading-airtable-spec.md) - Airtable schema reference for reading migration
 - [roam-integration.md](./roam-integration.md) - Project timers shipped; Roam metrics integration pending

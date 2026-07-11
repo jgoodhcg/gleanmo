@@ -13,20 +13,21 @@
                 ["reading-log"
                  "calendar-event"
                  "exercise-session"
-                 "exercise-log"
-                 "exercise-set"
+                 "exercise-block"
                  "symptom-episode"
-                 "symptom-log"]))))
+                 "symptom-log"
+                 "mood-log"
+                 "boulder-session"]))))
 
 (deftest activity-time-test
-  (testing "interval namespaced keys are used for exercise entities"
+  (testing "flat beginning/end keys are used for exercise entities"
     (let [start  (t/instant "2026-06-26T12:00:00Z")
           end    (t/instant "2026-06-26T12:45:00Z")
           result (#'overview/activity-time
                   ctx
-                  {::sm/type :exercise-set
-                   :exercise-set.interval/beginning start
-                   :exercise-set.interval/end end})]
+                  {::sm/type :exercise-block
+                   :exercise-block/beginning start
+                   :exercise-block/end end})]
       (is (= start (:instant result)))
       (is (= end (:end-instant result)))
       (is (= :beginning (:source result)))))

@@ -5,6 +5,7 @@
     [format-date-time-local
      get-user-time-zone]]
    [tech.jgood.gleanmo.db.queries :refer [all-for-user-query]]
+   [tech.jgood.gleanmo.db.relation-labels :as rel-labels]
    [tech.jgood.gleanmo.schema :as schema-registry]
    [tech.jgood.gleanmo.schema.utils :as schema-utils]
    [tick.core :as t])
@@ -219,6 +220,33 @@
                 :data-original-value (str formatted-time)}
          formatted-time (assoc :value formatted-time))]]]))
 
+(defn- relation-options
+  "Fetch and label the user's entities of related-entity-str for a select."
+  [related-entity-str ctx]
+  (let [schema-map (or (:schema-map ctx) schema-registry/schema)
+        entity-schema (schema-utils/entity-schema schema-map (keyword related-entity-str))
+        time-zone (get-user-time-zone ctx)]
+    (->> (all-for-user-query {:entity-type-str related-entity-str
+                              :schema         entity-schema}
+                             ctx)
+         (map (fn [e]
+                {:id    (:xt/id e)
+                 :label (rel-labels/entity->label e (:xt/id e) time-zone)})))))
+
+(defn- inline-create-link
+  "\"+ New\" link to the related entity's new form, bouncing back here after
+   create via the redirect param. Form state is not preserved across the
+   bounce; the fresh record sorts to the top of the (newest-first) select."
+  [field ctx]
+  (let [{:keys [opts related-entity-str]} field
+        uri (:uri ctx)]
+    (when (and (:crud/inline-create opts) uri)
+      [:div.mt-1
+       [:a.link.text-sm
+        {:href (str "/app/crud/form/" related-entity-str "/new?redirect="
+                    (java.net.URLEncoder/encode uri "UTF-8"))}
+        (str "+ New " (str/replace related-entity-str "-" " "))]])))
+
 (defmethod render :single-relationship
   [field ctx]
   (let [{:keys [input-name
@@ -227,14 +255,7 @@
                 related-entity-str
                 value]}
         field
-        label-key (keyword related-entity-str "label")
-        id-key :xt/id
-        schema-map (or (:schema-map ctx) schema-registry/schema)
-        entity-schema (schema-utils/entity-schema schema-map (keyword related-entity-str))
-        options (->> (all-for-user-query {:entity-type-str related-entity-str
-                                          :schema         entity-schema}
-                                         ctx)
-                     (map (fn [e] {:id (id-key e), :label (label-key e)})))
+        options (relation-options related-entity-str ctx)
         option-elems (into []
                            (concat
                             (when-not input-required
@@ -253,7 +274,8 @@
                 :data-original-value (str value)}
          (not input-required)
          (assoc :data-allow-clear "true"))]
-      option-elems)]))
+      option-elems)
+     (inline-create-link field ctx)]))
 
 (defmethod render :many-relationship
   [field ctx]
@@ -263,14 +285,7 @@
                 related-entity-str
                 value]}
         field
-        label-key (keyword related-entity-str "label")
-        id-key :xt/id
-        schema-map (or (:schema-map ctx) schema-registry/schema)
-        entity-schema (schema-utils/entity-schema schema-map (keyword related-entity-str))
-        options (->> (all-for-user-query {:entity-type-str related-entity-str
-                                          :schema         entity-schema}
-                                         ctx)
-                     (map (fn [e] {:id (id-key e), :label (label-key e)})))
+        options (relation-options related-entity-str ctx)
         value-set (when value (set (map str value)))
         ;; Sort values to ensure consistent ordering for comparison
         original-val-str (if (seq value)

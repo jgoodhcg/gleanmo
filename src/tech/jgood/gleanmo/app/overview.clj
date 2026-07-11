@@ -8,6 +8,7 @@
    [tech.jgood.gleanmo.crud.views :as crud-views]
    [tech.jgood.gleanmo.crud.views.formatting :as fmt]
    [tech.jgood.gleanmo.db.queries :as db]
+   [tech.jgood.gleanmo.db.relation-labels :as rel]
    [tech.jgood.gleanmo.schema :as schema-registry]
    [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.timer.routes :as timer-routes]
@@ -24,10 +25,11 @@
    "reading-log"
    "calendar-event"
    "exercise-session"
-   "exercise-log"
-   "exercise-set"
+   "exercise-block"
    "symptom-episode"
-   "symptom-log"])
+   "symptom-log"
+   "mood-log"
+   "boulder-session"])
 
 (def recent-activity-order-keys
   {"habit-log"      :habit-log/timestamp,
@@ -38,10 +40,11 @@
    "reading-log"    :reading-log/beginning,
    "calendar-event" :calendar-event/beginning,
    "exercise-session" :exercise-session/beginning,
-   "exercise-log"   :exercise-log.interval/beginning,
-   "exercise-set"   :exercise-set.interval/beginning,
+   "exercise-block" :exercise-block/beginning,
    "symptom-episode" :symptom-episode/beginning,
-   "symptom-log"    :symptom-log/timestamp})
+   "symptom-log"    :symptom-log/timestamp,
+   "mood-log"       :mood-log/timestamp,
+   "boulder-session" :boulder-session/beginning})
 
 (defn- overview-activity-types
   [ctx]
@@ -73,9 +76,10 @@
    "calendar-event" {:accent "#ec4899", :muted "rgba(236,72,153,0.16)"},
    "reading-log"    {:accent "#f97316", :muted "rgba(249,115,22,0.16)"},
    "exercise-session" {:accent "#ef4444", :muted "rgba(239,68,68,0.16)"},
-   "exercise-log"   {:accent "#ef4444", :muted "rgba(239,68,68,0.16)"},
-   "exercise-set"   {:accent "#ef4444", :muted "rgba(239,68,68,0.16)"},
+   "exercise-block" {:accent "#ef4444", :muted "rgba(239,68,68,0.16)"},
    "symptom-log"    {:accent "#f43f5e", :muted "rgba(244,63,94,0.16)"},
+   "mood-log"       {:accent "#06b6d4", :muted "rgba(6,182,212,0.16)"},
+   "boulder-session" {:accent "#84cc16", :muted "rgba(132,204,22,0.16)"},
    :default         {:accent "#8b949e", :muted "rgba(139,148,158,0.16)"}})
 
 (defn accent-style
@@ -91,10 +95,11 @@
    "habit-log"
    "bm-log"
    "symptom-log"
+   "mood-log"
+   "boulder-session"
    "calendar-event"
    "exercise-session"
-   "exercise-log"
-   "exercise-set"])
+   "exercise-block"])
 
 (def timeline-type-meta
   {"reading-log"      {:code "READ" :label "reading log" :icon-key :book}
@@ -105,10 +110,11 @@
    "habit-log"       {:code "HABIT" :label "habit log" :icon-key :habit}
    "bm-log"          {:code "BM" :label "bm log" :icon-key :drop}
    "symptom-log"     {:code "SYMP" :label "symptom log" :icon-key :pulse}
+   "mood-log"        {:code "MOOD" :label "mood log" :icon-key :pulse}
+   "boulder-session" {:code "CLIMB" :label "boulder session" :icon-key :dumbbell}
    "calendar-event"  {:code "CAL" :label "calendar event" :icon-key :calendar}
    "exercise-session" {:code "EX" :label "exercise session" :icon-key :dumbbell}
-   "exercise-log"    {:code "EX" :label "exercise log" :icon-key :dumbbell}
-   "exercise-set"    {:code "SET" :label "exercise set" :icon-key :dumbbell}
+   "exercise-block"  {:code "BLOCK" :label "exercise block" :icon-key :dumbbell}
    :default          {:code "ITEM" :label "item" :icon-key :pin}})
 
 (def status-styles
@@ -344,58 +350,6 @@
     (coll? v)   (boolean (seq v))
     :else       true))
 
-(defn- entity->label
-  [entity entity-id]
-  (when entity
-    (let [etype     (some-> entity
-                            ::sm/type
-                            name)
-          label-key (when etype (keyword etype "label"))]
-      (or (when (and label-key (contains? entity label-key))
-            (get entity label-key))
-          (str (subs (str entity-id) 0 8) "...")))))
-
-(defn- relationship-label
-  "Label a related entity, reading from the request-scoped cache when one has
-   been prewarmed (see prewarm-relation-cache!) and falling back to a lookup."
-  [ctx entity-id]
-  (when entity-id
-    (let [cache (::rel-cache ctx)]
-      (if (and cache (contains? @cache entity-id))
-        (entity->label (get @cache entity-id) entity-id)
-        (let [entity (db/get-entity-by-id (:biff/db ctx) entity-id)]
-          (when cache (swap! cache assoc entity-id entity))
-          (entity->label entity entity-id))))))
-
-(defn- collect-relation-ids
-  "Collect candidate related-entity ids from entity maps: single-relationship
-   values are bare UUIDs, many-relationship values are sets of UUIDs."
-  [items]
-  (->> items
-       (mapcat (fn [entity]
-                 (mapcat (fn [[k v]]
-                           (cond
-                             (and (uuid? v)
-                                  (not= k :xt/id)
-                                  (not= k :user/id))
-                             [v]
-
-                             (and (set? v) (seq v) (every? uuid? v))
-                             (seq v)))
-                         entity)))
-       distinct))
-
-(defn- prewarm-relation-cache!
-  "Batch-fetch all related entities referenced by items into the request cache,
-   replacing per-row get-entity-by-id lookups with one query. Ids that don't
-   resolve are cached as nil so they aren't re-queried."
-  [ctx items]
-  (when-let [cache (::rel-cache ctx)]
-    (let [ids     (collect-relation-ids items)
-          fetched (db/fetch-entities-by-ids (:biff/db ctx) ids)
-          by-id   (into {} (map (juxt :xt/id identity)) fetched)]
-      (swap! cache merge (into {} (map (fn [id] [id (get by-id id)])) ids)))))
-
 (defn- activity-time-meta
   [entity ctx]
   (when-let [etype (some-> entity ::sm/type name)]
@@ -438,7 +392,7 @@
                 :href      (edit-form-url entity-str (:xt/id timer))
                 :entity-str entity-str
                 :type      display-name
-                :label     (or (relationship-label ctx parent-id)
+                :label     (or (rel/relationship-label ctx parent-id)
                                "Active timer")
                 :start     start
                 :elapsed   (elapsed-duration start)})))))
@@ -638,10 +592,10 @@
   (let [value (get entity field-key)]
     (case input-type
       :single-relationship
-      (or (relationship-label ctx value) "")
+      (or (rel/relationship-label ctx value) "")
 
       :many-relationship
-      (str/join ", " (keep #(relationship-label ctx %) value))
+      (str/join ", " (keep #(rel/relationship-label ctx %) value))
 
       :enum
       (some-> value name)
@@ -966,13 +920,13 @@
   (let [limit (try
                 (some-> (:limit params) Integer/parseInt)
                 (catch Exception _ nil))
-        ctx    (assoc ctx ::rel-cache (atom {}))
+        ctx    (assoc ctx ::rel/rel-cache (atom {}))
         ;; Items and timers are independent reads — overlap them.
         items-future (future (doall (fetch-overview-items ctx)))
         timers (active-timer-summaries ctx)
         items  @items-future
         timeline-items (timeline-activity ctx items {:limit (or limit 18)})
-        _      (prewarm-relation-cache! ctx timeline-items)
+        _      (rel/prewarm-relation-cache! ctx timeline-items)
         stats  (dashboard-stats ctx items timers)]
     [:div#overview-recent
      [:div.space-y-5

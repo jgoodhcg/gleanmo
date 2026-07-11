@@ -7,6 +7,7 @@
    [tech.jgood.gleanmo :as main]
    [tech.jgood.gleanmo.db.mutations :as mutations]
    [tech.jgood.gleanmo.db.queries :as queries]
+   [tech.jgood.gleanmo.schema :as schema-registry]
    [tick.core :as t]
    [xtdb.api :as xt])
   (:import
@@ -377,6 +378,115 @@
           (is (= 5 (count entities)))
           (is (not-any? :cruddy/sensitive entities))
           (is (= expected (set labels))))))))
+
+(deftest heatmap-queries-filter-and-reconstruct-rows-test
+  (testing "heatmap queries use visible year/range data without full docs"
+    (with-open [node (test-xtdb-node [])]
+      (let [ctx (get-context node)
+            user-id (UUID/randomUUID)
+            other-user-id (UUID/randomUUID)
+            normal-habit-id (mutations/create-entity!
+                             ctx
+                             {:entity-key :habit,
+                              :data {:user/id user-id,
+                                     :habit/label "Visible Habit"}})
+            normal-habit-2-id (mutations/create-entity!
+                               ctx
+                               {:entity-key :habit,
+                                :data {:user/id user-id,
+                                       :habit/label "Visible Habit 2"}})
+            sensitive-habit-id (mutations/create-entity!
+                                ctx
+                                {:entity-key :habit,
+                                 :data {:user/id user-id,
+                                        :habit/label "Sensitive Habit",
+                                        :habit/sensitive true}})
+            location-id (mutations/create-entity!
+                         ctx
+                         {:entity-key :location,
+                          :data {:user/id user-id,
+                                 :location/label "Visible Location"}})
+            mk-cruddy! (fn [label timestamp extra]
+                         (mutations/create-entity!
+                          ctx
+                          {:entity-key :cruddy,
+                           :data (merge
+                                  (create-valid-cruddy-data user-id)
+                                  {:cruddy/label label,
+                                   :cruddy/timestamp (t/instant timestamp),
+                                   :cruddy/single-relation normal-habit-id,
+                                   :cruddy/another-single-relation location-id,
+                                   :cruddy/set-relation #{normal-habit-id}}
+                                  extra)}))
+            visible-2025-id (mk-cruddy! "Visible 2025"
+                                        "2025-06-01T12:00:00Z"
+                                        {})
+            visible-2026-id (mk-cruddy! "Visible 2026"
+                                        "2026-01-02T12:00:00Z"
+                                        {:cruddy/set-relation #{normal-habit-id
+                                                                normal-habit-2-id}})
+            sensitive-id (mk-cruddy! "Sensitive row"
+                                     "2026-02-01T12:00:00Z"
+                                     {:cruddy/sensitive true})
+            archived-id (mk-cruddy! "Archived row"
+                                    "2024-02-01T12:00:00Z"
+                                    {:cruddy/archived true})
+            sensitive-relation-id (mk-cruddy! "Sensitive relation"
+                                              "2026-03-01T12:00:00Z"
+                                              {:cruddy/single-relation
+                                               sensitive-habit-id})
+            _ (mutations/create-entity!
+               ctx
+               {:entity-key :cruddy,
+                :data (merge (create-valid-cruddy-data other-user-id)
+                             {:cruddy/label "Other user",
+                              :cruddy/timestamp
+                              (t/instant "2026-04-01T12:00:00Z")})})
+            db (xt/db node)
+            cruddy-schema (:cruddy schema-registry/schema)
+            hidden-settings {:show-sensitive false, :show-archived false}
+            visible-settings {:show-sensitive true, :show-archived true}]
+        (testing "years include only visible distinct entity counts"
+          (is (= [{:year 2026, :count 1}
+                  {:year 2025, :count 1}]
+                 (queries/years-with-data-for-user
+                  db
+                  user-id
+                  :cruddy
+                  cruddy-schema
+                  :user-settings hidden-settings))))
+
+        (testing "year data is bounded and reconstructs relationship tuples"
+          (let [rows (queries/heatmap-data-for-user
+                      db
+                      user-id
+                      :cruddy
+                      cruddy-schema
+                      (t/instant "2026-01-01T00:00:00Z")
+                      (t/instant "2026-12-31T23:59:59Z")
+                      :user-settings hidden-settings)]
+            (is (= [visible-2026-id] (mapv :xt/id rows)))
+            (is (= (t/instant "2026-01-02T12:00:00Z")
+                   (:cruddy/timestamp (first rows))))
+            (is (= #{normal-habit-id normal-habit-2-id}
+                   (:cruddy/set-relation (first rows))))
+            (is (= normal-habit-id (:cruddy/single-relation (first rows))))))
+
+        (testing "settings can include direct and related flagged rows"
+          (let [rows (queries/heatmap-data-for-user
+                      db
+                      user-id
+                      :cruddy
+                      cruddy-schema
+                      (t/instant "2024-01-01T00:00:00Z")
+                      (t/instant "2026-12-31T23:59:59Z")
+                      :user-settings visible-settings)
+                ids (set (map :xt/id rows))]
+            (is (contains? ids visible-2025-id))
+            (is (contains? ids visible-2026-id))
+            (is (contains? ids sensitive-id))
+            (is (contains? ids archived-id))
+            (is (contains? ids sensitive-relation-id))))))))
 
 (deftest all-for-user-query-test
   (testing "all-for-user-query"

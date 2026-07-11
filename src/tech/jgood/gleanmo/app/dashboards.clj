@@ -48,7 +48,11 @@
       (dashboard-card "Books" "Books you're reading or have read"
                       "/app/crud/book" "📚" "neon-azure")
       (dashboard-card "Book Sources" "Where books come from"
-                      "/app/crud/book-source" "🏪" "neon-azure")]])))
+                      "/app/crud/book-source" "🏪" "neon-azure")
+      (dashboard-card "Exercises" "Exercise definitions for workouts"
+                      "/app/crud/exercise" "🏋️" "neon-pink")
+      (dashboard-card "Symptom Episodes" "Illness or injury periods"
+                      "/app/crud/symptom-episode" "🤒" "neon-pink")]])))
 
 (defn activity-logs-dashboard
   "Dashboard for viewing activity logs"
@@ -74,7 +78,21 @@
       (dashboard-card "Project Logs" "Time tracking entries"
                       "/app/crud/project-log" "⏰" "neon-yellow")
       (dashboard-card "Reading Logs" "Book reading session records"
-                      "/app/crud/reading-log" "📖" "neon-azure")]])))
+                      "/app/crud/reading-log" "📖" "neon-azure")
+      (dashboard-card "Symptom Logs" "Symptom entries and vitals"
+                      "/app/crud/symptom-log" "🤒" "neon-pink")
+      (dashboard-card "Mood Logs" "Mood, energy, and stress check-ins"
+                      "/app/crud/mood-log" "🙂" "neon-cyan")
+      (dashboard-card "Exercise Sessions" "Workout session records"
+                      "/app/crud/exercise-session" "🏋️" "neon-pink")
+      (dashboard-card "Exercise Blocks" "Timed blocks within workouts"
+                      "/app/crud/exercise-block" "⏱️" "neon-pink")
+      (dashboard-card "Exercise Sets" "Reps of an exercise within a block"
+                      "/app/crud/exercise-set" "🔁" "neon-pink")
+      (dashboard-card "Boulder Sessions" "Climbing gym sessions"
+                      "/app/crud/boulder-session" "🧗" "neon-lime")
+      (dashboard-card "Boulder Attempts" "Problem attempts and sends"
+                      "/app/crud/boulder-attempt" "🪨" "neon-lime")]])))
 
 (defn stats-dashboard
   "Dashboard for visualizations and statistics"
@@ -103,6 +121,14 @@
                       "/app/viz/medication-log" "🗓️" "neon-pink")
       (dashboard-card "Project Calendar" "Time tracking calendar"
                       "/app/viz/project-log" "🗓️" "neon-yellow")
+      (dashboard-card "Symptom Calendar" "Symptom log frequency"
+                      "/app/viz/symptom-log" "🗓️" "neon-pink")
+      (dashboard-card "Mood Calendar" "Mood check-in patterns"
+                      "/app/viz/mood-log" "🗓️" "neon-cyan")
+      (dashboard-card "Exercise Calendar" "Workout session frequency"
+                      "/app/viz/exercise-session" "🗓️" "neon-pink")
+      (dashboard-card "Bouldering Calendar" "Climbing session frequency"
+                      "/app/viz/boulder-session" "🗓️" "neon-lime")
 
       ;; Statistics
       [:div.lg:col-span-3.mt-8
