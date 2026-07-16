@@ -13,7 +13,6 @@
                 ["reading-log"
                  "calendar-event"
                  "exercise-session"
-                 "exercise-block"
                  "symptom-episode"
                  "symptom-log"
                  "mood-log"
@@ -25,9 +24,9 @@
           end    (t/instant "2026-06-26T12:45:00Z")
           result (#'overview/activity-time
                   ctx
-                  {::sm/type :exercise-block
-                   :exercise-block/beginning start
-                   :exercise-block/end end})]
+                  {::sm/type :exercise-session
+                   :exercise-session/beginning start
+                   :exercise-session/end end})]
       (is (= start (:instant result)))
       (is (= end (:end-instant result)))
       (is (= :beginning (:source result)))))

@@ -29,8 +29,8 @@
    :habit-log/id        :uuid
    :exercise/id         :uuid
    :exercise-session/id :uuid
-   :exercise-block/id   :uuid
    :exercise-set/id     :uuid
+   :exercise-line/id    :uuid
    :location/id         :uuid
    :meditation/id       :uuid
    :meditation-log/id   :uuid
@@ -63,8 +63,8 @@
    :calendar-event      ces/calendar-event
    :exercise            es/exercise
    :exercise-session    es/exercise-session
-   :exercise-block      es/exercise-block
    :exercise-set        es/exercise-set
+   :exercise-line       es/exercise-line
    :project             ps/project
    :project-log         ps/project-log
    :book-source         rs/book-source

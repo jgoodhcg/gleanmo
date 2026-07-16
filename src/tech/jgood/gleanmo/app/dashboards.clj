@@ -85,10 +85,10 @@
                       "/app/crud/mood-log" "🙂" "neon-cyan")
       (dashboard-card "Exercise Sessions" "Workout session records"
                       "/app/crud/exercise-session" "🏋️" "neon-pink")
-      (dashboard-card "Exercise Blocks" "Timed blocks within workouts"
-                      "/app/crud/exercise-block" "⏱️" "neon-pink")
-      (dashboard-card "Exercise Sets" "Reps of an exercise within a block"
-                      "/app/crud/exercise-set" "🔁" "neon-pink")
+      (dashboard-card "Exercise Sets" "Timed sets within workouts"
+                      "/app/crud/exercise-set" "⏱️" "neon-pink")
+      (dashboard-card "Exercise Lines" "Reps/weight of an exercise within a set"
+                      "/app/crud/exercise-line" "🔁" "neon-pink")
       (dashboard-card "Boulder Sessions" "Climbing gym sessions"
                       "/app/crud/boulder-session" "🧗" "neon-lime")
       (dashboard-card "Boulder Attempts" "Problem attempts and sends"

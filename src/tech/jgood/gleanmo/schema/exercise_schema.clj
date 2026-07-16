@@ -35,35 +35,40 @@
       (concat sm/legacy-meta)
       vec))
 
-;; A block is one timed chunk of work within a session: one set for straight
-;; work, several back-to-back sets when supersetting. The timer lives here —
-;; blocks exist so a set (or superset) has an *interval* rather than a bare
-;; timestamp, enabling time-density analysis (reps per unit time, time under
-;; tension) and making rest derivable as the gap between consecutive blocks.
+;; Naming follows gym vocabulary: a session contains *sets* (timed intervals
+;; of work — one exercise for straight work, several for a superset), and
+;; each set contains one *line* per exercise performed (the reps/weight/
+;; distance record). "Set" here is what an earlier iteration called a
+;; "block"; it was renamed because to a lifter a superset is one set spanning
+;; multiple exercises, not multiple sets inside a block.
+;;
+;; A set is an *interval* rather than a bare timestamp so time-density
+;; analysis works (reps per unit time, time under tension) and rest is
+;; derivable as the gap between consecutive sets.
 ;;
 ;; The auto-started/auto-ended flags mark edges the user didn't observe:
-;; auto-started means the beginning was fabricated (set logged with no open
-;; block — the end is still accurate, it's the log moment); auto-ended means
-;; the end was fabricated (block force-closed when its session ended).
+;; auto-started means the beginning was fabricated (line logged with no open
+;; set — the end is still accurate, it's the log moment); auto-ended means
+;; the end was fabricated (set force-closed when its session ended).
 ;; Analysis should exclude flagged edges from duration stats and, when an
-;; estimate is needed, impute from recent accurate blocks of the same
+;; estimate is needed, impute from recent accurate sets of the same
 ;; exercise at read time — we deliberately don't snapshot an average onto
 ;; the record, since the imputation heuristic can improve later.
-(def exercise-block
+(def exercise-set
   (-> [:map {:closed true}
-       [:xt/id :exercise-block/id]
-       [::sm/type [:enum :exercise-block]]
+       [:xt/id :exercise-set/id]
+       [::sm/type [:enum :exercise-set]]
        [::sm/deleted-at {:optional true} :instant]
        [::sm/created-at :instant]
        [:user/id :user/id]
-       [:exercise-block/session-id
+       [:exercise-set/session-id
         {:crud/priority 1 :crud/label "Session" :crud/inline-create true}
         :exercise-session/id]
-       [:exercise-block/beginning :instant]
-       [:exercise-block/end {:optional true} :instant]
-       [:exercise-block/auto-started {:optional true} :boolean]
-       [:exercise-block/auto-ended {:optional true} :boolean]
-       [:exercise-block/notes {:optional true} :string]
+       [:exercise-set/beginning :instant]
+       [:exercise-set/end {:optional true} :instant]
+       [:exercise-set/auto-started {:optional true} :boolean]
+       [:exercise-set/auto-ended {:optional true} :boolean]
+       [:exercise-set/notes {:optional true} :string]
        [:airtable/id {:optional true} :string]
        [:airtable/created-time {:optional true} :instant]
        [:airtable/ported-at {:optional true} :instant]
@@ -73,27 +78,27 @@
       (concat sm/legacy-meta)
       vec))
 
-;; The classic "3 sets of 10" unit: reps of one exercise at a weight/distance.
-(def exercise-set
+;; One exercise's performance within a set: reps at a weight, or a distance.
+;; A straight set has one line; a superset has one line per exercise.
+(def exercise-line
   (-> [:map {:closed true}
-       [:xt/id :exercise-set/id]
-       [::sm/type [:enum :exercise-set]]
+       [:xt/id :exercise-line/id]
+       [::sm/type [:enum :exercise-line]]
        [::sm/deleted-at {:optional true} :instant]
        [::sm/created-at :instant]
        [:user/id :user/id]
-       [:exercise-set/block-id
-        {:crud/priority 1 :crud/label "Block" :crud/inline-create true}
-        :exercise-block/id]
-       [:exercise-set/exercise-id
+       [:exercise-line/set-id
+        {:crud/priority 1 :crud/label "Set" :crud/inline-create true}
+        :exercise-set/id]
+       [:exercise-line/exercise-id
         {:crud/priority 2 :crud/label "Exercise"}
         :exercise/id]
-       [:exercise-set/set-number {:optional true} :int]
-       [:exercise-set/reps {:optional true :crud/priority 3} :int]
-       [:exercise-set/weight {:optional true :crud/priority 4} :number]
-       [:exercise-set/weight-unit {:optional true :crud/priority 5} [:enum :lbs :kg]]
-       [:exercise-set/distance {:optional true} :number]
-       [:exercise-set/distance-unit {:optional true} [:enum :miles :km :meters]]
-       [:exercise-set/notes {:optional true} :string]
+       [:exercise-line/reps {:optional true :crud/priority 3} :int]
+       [:exercise-line/weight {:optional true :crud/priority 4} :number]
+       [:exercise-line/weight-unit {:optional true :crud/priority 5} [:enum :lbs :kg]]
+       [:exercise-line/distance {:optional true} :number]
+       [:exercise-line/distance-unit {:optional true} [:enum :miles :km :meters]]
+       [:exercise-line/notes {:optional true} :string]
        [:airtable/id {:optional true} :string]
        [:airtable/created-time {:optional true} :instant]
        [:airtable/ported-at {:optional true} :instant]]

@@ -10,7 +10,7 @@
    [tech.jgood.gleanmo.app.cruddy :as cruddy]
    [tech.jgood.gleanmo.app.dashboards :as dashboards]
    [tech.jgood.gleanmo.app.exercise :as exercise]
-   [tech.jgood.gleanmo.app.exercise-block :as exercise-block]
+   [tech.jgood.gleanmo.app.exercise-line :as exercise-line]
    [tech.jgood.gleanmo.app.exercise-session :as exercise-session]
    [tech.jgood.gleanmo.app.exercise-set :as exercise-set]
    [tech.jgood.gleanmo.app.habit :as habit]
@@ -71,8 +71,8 @@
     :mood-log
     :exercise
     :exercise-session
-    :exercise-block
     :exercise-set
+    :exercise-line
     :boulder-session
     :boulder-attempt
     :task
@@ -567,8 +567,8 @@
             exercise/crud-routes
             exercise-session/crud-routes
             exercise-session/viz-routes
-            exercise-block/crud-routes
             exercise-set/crud-routes
+            exercise-line/crud-routes
             boulder-session/crud-routes
             boulder-session/viz-routes
             boulder-attempt/crud-routes
