@@ -65,6 +65,31 @@
                                    ctx)
        (sort-by #(some-> (:exercise/label %) str/lower-case))))
 
+(defn- exercise-memory
+  "The user's most recently logged reps/weight/unit per exercise, so the entry
+   form can prefill what they did last time instead of a fixed default. Returns
+   {:by-exercise {exercise-id {:reps _ :weight _ :unit _}} :last exercise-id},
+   where :last is the exercise from the single most recent line overall."
+  [ctx]
+  (let [lines (->> (queries/all-for-user-query
+                    {:entity-type-str "exercise-line"
+                     :schema exercise-schema/exercise-line}
+                    ctx)
+                   (sort-by :tech.jgood.gleanmo.schema.meta/created-at)
+                   reverse) ; most-recent first
+        by-ex (reduce (fn [acc line]
+                        (let [ex-id (:exercise-line/exercise-id line)]
+                          (if (contains? acc ex-id)
+                            acc
+                            (assoc acc ex-id
+                                   {:reps   (:exercise-line/reps line)
+                                    :weight (:exercise-line/weight line)
+                                    :unit   (some-> (:exercise-line/weight-unit line) name)}))))
+                      {}
+                      lines)]
+    {:by-exercise by-ex
+     :last (:exercise-line/exercise-id (first lines))}))
+
 (defn- parse-int* [s] (when-not (str/blank? s) (parse-long s)))
 (defn- parse-num* [s] (when-not (str/blank? s) (parse-double s)))
 
@@ -122,27 +147,84 @@
                :onclick (adjust step)
                :class "w-8 h-8 flex items-center justify-center rounded-lg border border-dark bg-dark-surface text-gray-300"} "+"]]))
 
+;; Defaults used only for an exercise the user has never logged; once logged,
+;; exercise-memory prefills what they did last time.
+(def ^:private default-reps 12)
+(def ^:private default-weight 0)
+
+(defn- js-obj
+  "Render a flat clj map of {string -> {clj map of scalars}} as a JS object
+   literal for embedding in a script. Keys are exercise UUIDs (safe), values
+   are numbers or short enum strings — no user free-text, so no escaping."
+  [m]
+  (str "{"
+       (str/join ","
+                 (for [[k v] m]
+                   (str "\"" k "\":{"
+                        (str/join ","
+                                  (for [[vk vv] v]
+                                    (str "\"" (name vk) "\":"
+                                         (cond (nil? vv) "null"
+                                               (string? vv) (str "\"" vv "\"")
+                                               :else vv))))
+                        "}")))
+       "}"))
+
+;; Swapping the exercise recalls what was logged for it last time (reps, weight,
+;; unit) and animates the fields so the change is legible; an unlogged exercise
+;; falls back to defaults. Choices.js fires 'change' on the underlying select.
+(def ^:private form-script
+  "(function(){
+     var form=document.getElementById('wk-line-form'); if(!form) return;
+     var mem=JSON.parse(form.dataset.memory||'{}');
+     var dReps=Number(form.dataset.defaultReps), dWeight=Number(form.dataset.defaultWeight);
+     var sel=form.querySelector('[name=exercise-id]');
+     var reps=form.querySelector('[name=reps]'), weight=form.querySelector('[name=weight]');
+     var unitInput=form.querySelector('[name=weight-unit]');
+     function setUnit(u){ unitInput.value=u;
+       form.querySelectorAll('[data-unit-btn]').forEach(function(b){
+         var on=b.dataset.unitBtn===u;
+         b.classList.toggle('bg-neon-cyan',on); b.classList.toggle('text-black',on); }); }
+     function flash(el){ el.animate([{background:'rgba(34,211,238,.25)'},{background:'transparent'}],{duration:500,easing:'ease-out'}); }
+     sel.addEventListener('change',function(){
+       var m=mem[sel.value]||{};
+       reps.value=(m.reps!=null?m.reps:dReps);
+       weight.value=(m.weight!=null?m.weight:dWeight);
+       setUnit(m.unit||'lbs');
+       flash(reps.parentElement); flash(weight.parentElement); });
+   })();")
+
 (defn- line-form
-  "Sticky line entry form: last-entered values arrive as query params from
-   add-line!'s redirect so supersets/repeat lines need minimal input. Posts
-   to the session; the line lands in the running set (closing it on the
-   primary action) or backfills an auto-started set when none is running."
-  [session-id exercises params running?]
-  (let [p (fn [k] (let [v (get params k)] (when-not (str/blank? (str v)) (str v))))
-        unit (or (p :weight-unit) "lbs")]
+  "Line entry form. The exercise select is a searchable Choices dropdown that
+   preselects the most recently logged exercise; reps/weight/unit prefill from
+   what was logged for that exercise last time (exercise-memory), and switching
+   the exercise recalls its own last values client-side. Posts to the session;
+   the line lands in the running set (closing it on the primary action) or
+   backfills an auto-started set when none is running."
+  [session-id exercises memory running?]
+  (let [{:keys [by-exercise last]} memory
+        sel-id (or last (some-> exercises first :xt/id))
+        m      (get by-exercise sel-id)
+        unit   (or (:unit m) "lbs")]
     (biff/form
-     {:action (str "/app/exercise/session/" session-id "/line"), :method "post"}
+     {:id "wk-line-form"
+      :action (str "/app/exercise/session/" session-id "/line"), :method "post"
+      :data-memory (js-obj by-exercise)
+      :data-default-reps default-reps
+      :data-default-weight default-weight}
      [:div {:class "grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5"}
       [:div
        [:div.text-xs.tracking-widest.text-gray-500.mb-2 "EXERCISE"]
-       [:select.form-select.w-full {:name "exercise-id" :required true}
+       [:select.form-select.w-full {:name "exercise-id" :required true
+                                    :data-enhance "choices"
+                                    :data-placeholder "Exercise"}
         (for [ex exercises]
           [:option {:value (:xt/id ex)
-                    :selected (= (str (:xt/id ex)) (p :exercise-id))}
+                    :selected (= (:xt/id ex) sel-id)}
            (:exercise/label ex)])]]
       [:div
        [:div.text-xs.tracking-widest.text-gray-500.mb-2.text-center "REPS"]
-       (stepper {:input-name "reps" :value (or (p :reps) "12")
+       (stepper {:input-name "reps" :value (str (or (:reps m) default-reps))
                  :step 1 :min-val 1 :width "w-14"})]
       [:div
        [:div.flex.items-center.justify-center.gap-2.mb-2
@@ -150,6 +232,7 @@
         [:div.inline-flex.rounded.border.border-dark.p-px
          (for [u ["lbs" "kg"]]
            [:button {:type "button"
+                     :data-unit-btn u
                      :onclick (str "this.closest('form').querySelector('[name=weight-unit]').value='" u "';"
                                    "this.closest('div').querySelectorAll('button').forEach(function(b){"
                                    "b.classList.remove('bg-neon-cyan','text-black');});"
@@ -158,7 +241,7 @@
                                  (when (= u unit) "bg-neon-cyan text-black"))}
             u])]
         [:input {:type "hidden" :name "weight-unit" :value unit}]]
-       (stepper {:input-name "weight" :value (or (p :weight) "45")
+       (stepper {:input-name "weight" :value (str (or (:weight m) default-weight))
                  :step 5 :min-val 0 :width "w-20"})]]
      [:div.flex.flex-col.gap-2
       (if running?
@@ -226,7 +309,7 @@
         (line-summary line ex-by-id)]])]])
 
 (defn- active-session-view
-  [ctx session params]
+  [ctx session]
   (let [session-id (:xt/id session)
         sets       (session-sets ctx session-id)
         running    (first (filter #(nil? (:exercise-set/end %)) sets))
@@ -234,6 +317,7 @@
         lines      (lines-by-set ctx (set (map :xt/id sets)))
         exercises  (exercises-for-user ctx)
         ex-by-id   (into {} (map (juxt :xt/id identity)) exercises)
+        memory     (exercise-memory ctx)
         n-lines    (reduce + (map count (vals lines)))]
     [:div {:class "max-w-2xl mx-auto p-6 pb-24 space-y-4"}
      [:div.flex.items-start.justify-between.gap-4.mb-6
@@ -266,7 +350,7 @@
          "Logging ends this set by default — use \"continue set\" below to build a superset instead."
          "Forgot to start a set? Logging a line here backfills one and closes it immediately.")]
       (if (seq exercises)
-        (line-form session-id exercises params (some? running))
+        (line-form session-id exercises memory (some? running))
         [:p.text-sm.text-gray-400
          "No exercises yet. "
          [:a.link {:href (str "/app/crud/form/exercise/new?redirect=" (redirect-param))}
@@ -292,7 +376,7 @@
       [:a.link.text-xs {:href (str "/app/crud/form/exercise-session/edit/" session-id
                                    "?redirect=" (redirect-param))}
        "edit session"]]
-     [:script (biff/unsafe tick-script)]]))
+     [:script (biff/unsafe (str tick-script "\n" form-script))]]))
 
 (defn- idle-view
   [ctx]
@@ -316,21 +400,97 @@
         (for [s recent]
           ^{:key (:xt/id s)}
           [:a.block.no-underline
-           {:href (str "/app/crud/form/exercise-session/edit/" (:xt/id s)
-                       "?redirect=" (redirect-param))}
+           {:href (str screen-url "/" (:xt/id s) "/summary")}
            [:div {:class "rounded-lg border border-dark bg-dark-surface hover:border-neon-cyan p-3 text-sm text-gray-300"}
             (or (:exercise-session/label s)
                 (str (:exercise-session/beginning s)))]])])]))
 
+(defn- stat-tile
+  [label value]
+  [:div {:class "rounded-lg border border-dark bg-dark-surface px-4 py-3"}
+   [:div {:class "text-[10px] tracking-widest text-gray-500"} label]
+   [:div.text-xl.font-bold.text-white.tabular-nums.mt-0.5 value]])
+
+(defn- fmt-thousands [n] (format "%,d" (long n)))
+
+(defn- session-summary-view
+  "Read-only recap of one session: headline stats plus every set with its
+   lines, so a finished workout is legible at a glance without paging through
+   generic CRUD records."
+  [ctx session]
+  (let [session-id (:xt/id session)
+        sets       (session-sets ctx session-id)
+        lines-map  (lines-by-set ctx (set (map :xt/id sets)))
+        exercises  (exercises-for-user ctx)
+        ex-by-id   (into {} (map (juxt :xt/id identity)) exercises)
+        all-lines  (mapcat val lines-map)
+        total-reps (reduce + 0 (keep :exercise-line/reps all-lines))
+        volume     (->> all-lines
+                        (filter #(and (:exercise-line/reps %) (:exercise-line/weight %)))
+                        (group-by #(some-> (:exercise-line/weight-unit %) name))
+                        (map (fn [[unit ls]]
+                               (str (fmt-thousands
+                                     (reduce + 0 (map #(* (:exercise-line/reps %)
+                                                          (:exercise-line/weight %)) ls)))
+                                    " " (or unit "lbs"))))
+                        (str/join " · "))
+        ended      (:exercise-session/end session)
+        duration   (when ended (fmt-duration (:exercise-session/beginning session) ended))]
+    [:div {:class "max-w-2xl mx-auto p-6 pb-24 space-y-6"}
+     [:div
+      [:a.link.text-xs {:href screen-url} "← workout"]
+      [:h1.text-2xl.font-bold.text-white.mt-2
+       (or (:exercise-session/label session) "Workout session")]
+      [:p.text-sm.text-gray-400.mt-1
+       (str (:exercise-session/beginning session)
+            (if ended (str " · " duration) " · in progress"))]]
+
+     [:div {:class "grid grid-cols-2 sm:grid-cols-4 gap-3"}
+      (stat-tile "SETS" (str (count sets)))
+      (stat-tile "LINES" (str (count all-lines)))
+      (stat-tile "TOTAL REPS" (str total-reps))
+      (stat-tile "VOLUME" (if (str/blank? volume) "—" volume))]
+
+     [:div
+      [:div.flex.items-baseline.gap-3.mb-4
+       [:h2 {:class "text-sm font-bold tracking-widest text-gray-300"} "SETS"]
+       [:span {:class "flex-1 h-px bg-dark-border"}]]
+      (if (seq sets)
+        [:div.flex.flex-col.gap-3
+         (for [ex-set sets]
+           ^{:key (:xt/id ex-set)}
+           (set-card ex-set (get lines-map (:xt/id ex-set)) ex-by-id))]
+        [:div {:class "rounded-xl border border-dashed border-dark p-7 text-center text-sm text-gray-500"}
+         "No sets in this session."])]
+
+     [:div.pt-2
+      [:a.link.text-xs {:href (str "/app/crud/form/exercise-session/edit/" session-id
+                                   "?redirect=" (redirect-param))}
+       "edit session"]]]))
+
+(defn session-summary-page
+  [{:keys [session] :as ctx}]
+  (let [entity-id (java.util.UUID/fromString (:id (:path-params ctx)))
+        sess      (queries/get-entity-for-user (:biff/db ctx) entity-id
+                                               (:uid session) :exercise-session)]
+    (ui/page
+     ctx
+     (side-bar
+      ctx
+      (if sess
+        (session-summary-view ctx sess)
+        [:div {:class "max-w-2xl mx-auto p-6"}
+         [:p.text-gray-400 "Session not found."]])))))
+
 (defn workout-page
-  [{:keys [params] :as ctx}]
+  [ctx]
   (let [session (open-session ctx)]
     (ui/page
      ctx
      (side-bar
       ctx
       (if session
-        (active-session-view ctx session params)
+        (active-session-view ctx session)
         (idle-view ctx))))))
 
 (defn- redirect-home
@@ -425,19 +585,15 @@
         (mutations/update-entity! ctx {:entity-key :exercise-set
                                        :entity-id set-id
                                        :data {:exercise-set/end (t/now)}}))
-      ;; sticky form: carry the entered values back as query params
-      {:status 303
-       :headers {"location"
-                 (str screen-url
-                      "?exercise-id=" exercise-id
-                      (when reps (str "&reps=" reps))
-                      (when weight (str "&weight=" weight))
-                      (when unit (str "&weight-unit=" (name unit))))}})
+      ;; the reloaded form prefills from exercise-memory (DB-derived), so no
+      ;; need to round-trip the entered values through the query string
+      (redirect-home))
     (redirect-home)))
 
 (def routes
   ["/exercise" {}
    ["/session" {:get workout-page}]
+   ["/session/:id/summary" {:get session-summary-page}]
    ["/session/start" {:post start-session!}]
    ["/session/:id/end" {:post end-session!}]
    ["/session/:id/line" {:post add-line!}]
