@@ -408,7 +408,8 @@
                                    :exercise-set/auto-started true}}))
           exercise-id (some-> (:exercise-id params) java.util.UUID/fromString)
           reps        (parse-int* (:reps params))
-          weight      (parse-num* (:weight params))
+          ;; zero weight means bodyweight — store no weight at all
+          weight      (let [w (parse-num* (:weight params))] (when (and w (pos? w)) w))
           unit        (when weight (keyword (or (:weight-unit params) "lbs")))]
       (when exercise-id
         (mutations/create-entity!
