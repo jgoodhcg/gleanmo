@@ -144,12 +144,15 @@ UI/UX patterns
 - CRUD inputs must include `data-original-value` for changed-field highlighting.
 - Standard inputs are handled by `src/tech/jgood/gleanmo/crud/forms/inputs.clj`; custom inputs must add the attribute.
 - `main.js` applies the comparison and `border-neon-cyan` class for inputs, textareas, and Choices.js widgets.
+- Prefer existing enhanced components over bespoke ones: searchable selects use Choices.js (`data-enhance "choices"`) everywhere, including custom (non-CRUD) screens. Do not hand-roll a select/autocomplete/dropdown widget — even when a design mockup shows one — without a compelling functional reason Choices.js cannot meet AND explicit user sign-off. Consistency across the app beats per-screen polish; restyle the shared component instead of replacing it.
+- When implementing from a design mockup, treat the mockup as layout/copy/visual intent, not as a mandate to rebuild interaction primitives the app already has.
 
 Database layer
 - When reading or writing the database, call functions in `src/tech/jgood/gleanmo/db/queries.clj` / `db/mutations.clj`; never call `xt/q`, `biff/q`, `xt/entity`, or `xt/entity-history` outside those two files. (`xt/db` for snapshot refresh and `:xt/id` keywords are fine anywhere.)
 - When a needed query doesn't exist, add it to `db/queries.clj` rather than inlining it at the call site.
 - When adding a list/feed/count query, follow the scan-then-pull pattern: minimal index-only tuple scan (user + type + sort key only), then `fetch-entities-by-ids` for the page, post-filtering sparse flags (deleted/sensitive/archived) on pulled docs. XTDB 1.x runs each `(not ...)` clause as a per-row subquery — keep them out of hot-path scans. See `roadmap/dashboard-performance.md`.
 - When reading user visibility settings, use `resolve-user-settings` (ctx-first), not `get-user-settings` directly.
+- Fetch-all-then-filter is a rule violation even when it goes through `db/queries.clj`: calling `all-for-user-query` (or similar) and filtering in the app namespace for a parent-scoped subset (e.g. one session's sets) or a recent-N slice counts as "a needed query doesn't exist" — add a targeted query instead. Parent-scoped reads get equality-bound where clauses (cost tracks the parent, not user history); recent-N reads get scan-then-pull with a limit. Examples: `sets-for-session`, `lines-for-sets`, `recent-lines-for-user`.
 
 Code style
 - Namespaces use `tech.jgood.gleanmo.*`.

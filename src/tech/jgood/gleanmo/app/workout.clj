@@ -45,22 +45,13 @@
           :user-settings (queries/resolve-user-settings ctx))))
 
 (defn- session-sets
-  [ctx session-id]
-  (->> (queries/all-for-user-query {:entity-type-str "exercise-set"
-                                    :schema exercise-schema/exercise-set}
-                                   ctx)
-       (filter #(= session-id (:exercise-set/session-id %)))
-       (sort-by :exercise-set/beginning)
-       vec))
+  [{:keys [biff/db session]} session-id]
+  (queries/sets-for-session db (:uid session) session-id))
 
 (defn- lines-by-set
-  [ctx set-ids]
-  (->> (queries/all-for-user-query {:entity-type-str "exercise-line"
-                                    :schema exercise-schema/exercise-line}
-                                   ctx)
-       (filter #(contains? set-ids (:exercise-line/set-id %)))
-       (sort-by :tech.jgood.gleanmo.schema.meta/created-at)
-       (group-by :exercise-line/set-id)))
+  [{:keys [biff/db session]} set-ids]
+  (group-by :exercise-line/set-id
+            (queries/lines-for-sets db (:uid session) set-ids)))
 
 (defn- exercises-for-user
   [ctx]
@@ -73,15 +64,11 @@
   "The user's most recently logged reps/weight/unit per exercise, so the entry
    form can prefill what they did last time instead of a fixed default. Returns
    {:by-exercise {exercise-id {:reps _ :weight _ :unit _}}
-    :last exercise-id            ; from the single most recent line overall
-    :recent [exercise-id …]}     ; up to 4 distinct, most-recent first"
-  [ctx]
-  (let [lines (->> (queries/all-for-user-query
-                    {:entity-type-str "exercise-line"
-                     :schema exercise-schema/exercise-line}
-                    ctx)
-                   (sort-by :tech.jgood.gleanmo.schema.meta/created-at)
-                   reverse) ; most-recent first
+    :last exercise-id}           ; from the single most recent line overall
+   Reads only the newest 200 lines (bounded scan-then-pull) — memory for an
+   exercise not logged in that window just falls back to defaults."
+  [{:keys [biff/db session]}]
+  (let [lines (queries/recent-lines-for-user db (:uid session) 200) ; newest first
         by-ex (reduce (fn [acc line]
                         (let [ex-id (:exercise-line/exercise-id line)]
                           (if (contains? acc ex-id)
@@ -93,8 +80,7 @@
                       {}
                       lines)]
     {:by-exercise by-ex
-     :last (:exercise-line/exercise-id (first lines))
-     :recent (->> lines (map :exercise-line/exercise-id) distinct (take 4) vec)}))
+     :last (:exercise-line/exercise-id (first lines))}))
 
 (defn- parse-int* [s] (when-not (str/blank? s) (parse-long s)))
 (defn- parse-num* [s] (when-not (str/blank? s) (parse-double s)))
@@ -164,75 +150,37 @@
 (def ^:private default-reps 12)
 (def ^:private default-weight 0)
 
-;; All form behavior wires up here off data attributes: the searchable
-;; exercise picker (dropdown rows are built client-side from the JSON in
-;; data-picker; selection fires on mousedown so it beats the input's blur),
-;; RECENT chips, −/+ steppers (weight steps 5 lbs / 2.5 kg by unit), the
-;; lbs/kg toggle, the primary button label ('Log pullup × 12'), and the
-;; backfill show/hide toggle. Picking an exercise recalls its last-logged
+;; All form behavior wires up here off data attributes: exercise memory
+;; recall on select change (Choices.js fires 'change' on the underlying
+;; select), −/+ steppers (weight steps 5 lbs / 2.5 kg by unit), the lbs/kg
+;; toggle, the primary button label ('Log pullup × 12'), and the backfill
+;; show/hide toggle. Picking an exercise recalls its last-logged
 ;; reps/weight/unit so repeat sets need zero re-entry.
 (def ^:private form-script
   "(function(){
      var form=document.getElementById('wk-line-form'); if(!form) return;
-     var data=JSON.parse(form.dataset.picker);
-     var byId={}; data.exercises.forEach(function(e){ byId[e.id]=e; });
-     var exInput=form.querySelector('[name=exercise-id]');
-     var search=document.getElementById('wk-ex-search');
-     var dd=document.getElementById('wk-ex-dd');
+     var mem=JSON.parse(form.dataset.memory||'{}');
+     var dReps=Number(form.dataset.defaultReps), dWeight=Number(form.dataset.defaultWeight);
+     var sel=form.querySelector('[name=exercise-id]');
      var reps=form.querySelector('[name=reps]');
      var weight=form.querySelector('[name=weight]');
      var unitInput=form.querySelector('[name=weight-unit]');
      var primary=document.getElementById('wk-log-primary');
-     var open=false, query='';
-     function selected(){ return byId[exInput.value]; }
      function setUnit(u){ unitInput.value=u;
        form.querySelectorAll('[data-unit-btn]').forEach(function(b){
          var on=b.dataset.unitBtn===u;
          b.classList.toggle('bg-neon-cyan',on); b.classList.toggle('text-black',on);
          b.classList.toggle('text-gray-500',!on); }); }
-     function syncPrimary(){ var e=selected();
-       primary.textContent='Log '+(e?e.label:'exercise')+' \\u00d7 '+(parseInt(reps.value,10)||0); }
-     function syncChips(){ form.querySelectorAll('[data-chip-id]').forEach(function(c){
-       var on=c.dataset.chipId===exInput.value;
-       c.classList.toggle('border-neon-cyan',on); c.classList.toggle('text-neon-cyan',on);
-       c.classList.toggle('font-bold',on); c.classList.toggle('text-gray-400',!on); }); }
-     function select(id){ var e=byId[id]; if(!e) return;
-       exInput.value=id;
-       if(e.reps!=null) reps.value=e.reps;
-       weight.value=(e.weight!=null?e.weight:data.defaultWeight);
-       setUnit(e.unit||'lbs');
-       search.value=e.label;
-       syncPrimary(); syncChips(); }
-     function hint(e){ if(e.reps==null) return '';
-       return e.reps+' \\u00d7 '+(e.weight?e.weight+' '+(e.unit||'lbs'):'bw')+' last'; }
-     function rows(){ var q=query.trim().toLowerCase();
-       if(q) return data.exercises.filter(function(e){ return e.label.toLowerCase().indexOf(q)>=0; }).slice(0,8);
-       var rec=data.recent.map(function(id){ return byId[id]; }).filter(Boolean);
-       return rec.concat(data.exercises.filter(function(e){ return data.recent.indexOf(e.id)<0; })).slice(0,8); }
-     function render(){ if(!open){ dd.classList.add('hidden'); return; }
-       dd.classList.remove('hidden'); dd.innerHTML='';
-       var rs=rows();
-       if(!rs.length){ var d=document.createElement('div');
-         d.className='px-3.5 py-3 text-xs text-gray-500';
-         d.textContent='No match for \\u201c'+query+'\\u201d'; dd.appendChild(d); return; }
-       rs.forEach(function(e){
-         var b=document.createElement('button'); b.type='button';
-         b.className='w-full flex items-baseline justify-between gap-3 text-left px-3.5 py-3 text-sm border-b border-dark bg-transparent '+(e.id===exInput.value?'text-neon-cyan':'text-gray-200');
-         var n=document.createElement('span'); n.textContent=e.label;
-         var h=document.createElement('span');
-         h.className='text-[11px] text-gray-500 tabular-nums whitespace-nowrap';
-         h.textContent=hint(e);
-         b.appendChild(n); b.appendChild(h);
-         b.addEventListener('mousedown',function(ev){ ev.preventDefault(); select(e.id); search.blur(); });
-         dd.appendChild(b); }); }
-     search.addEventListener('focus',function(){ open=true; query=''; search.value='';
-       search.classList.add('border-neon-cyan'); render(); });
-     search.addEventListener('blur',function(){ open=false; query='';
-       var e=selected(); search.value=e?e.label:'';
-       search.classList.remove('border-neon-cyan'); render(); });
-     search.addEventListener('input',function(){ query=search.value; render(); });
-     form.querySelectorAll('[data-chip-id]').forEach(function(c){
-       c.addEventListener('click',function(){ select(c.dataset.chipId); }); });
+     function exLabel(){ var o=sel.options[sel.selectedIndex];
+       return o?o.text:'exercise'; }
+     function syncPrimary(){
+       primary.textContent='Log '+exLabel()+' \\u00d7 '+(parseInt(reps.value,10)||0); }
+     sel.addEventListener('change',function(){
+       var m=mem[sel.value]||{};
+       reps.value=(m.reps!=null?m.reps:dReps);
+       weight.value=(m.weight!=null?m.weight:dWeight);
+       setUnit(m.unit||'lbs');
+       syncPrimary(); });
      form.querySelectorAll('[data-unit-btn]').forEach(function(b){
        b.addEventListener('click',function(){ setUnit(b.dataset.unitBtn); }); });
      form.querySelectorAll('[data-adjust]').forEach(function(b){
@@ -251,24 +199,16 @@
        card.classList.remove('hidden'); toggle.classList.add('hidden'); }); }
      if(cancel&&card&&toggle){ cancel.addEventListener('click',function(){
        card.classList.add('hidden'); toggle.classList.remove('hidden'); }); }
-     syncPrimary(); syncChips();
+     syncPrimary();
    })();")
 
-(defn- picker-json
-  "Exercise catalog + per-exercise last-logged values + recent ids, embedded
-   as JSON for the client-side picker. Labels are user free-text, hence
-   cheshire rather than hand-rolled string building."
-  [exercises by-exercise chip-ids]
+(defn- memory-json
+  "Per-exercise last-logged values keyed by exercise id, embedded as JSON for
+   the recall-on-select script. Values are numbers/short enums, but cheshire
+   handles any shape safely."
+  [by-exercise]
   (cheshire/generate-string
-   {:exercises (for [ex exercises]
-                 (let [m (get by-exercise (:xt/id ex))]
-                   {:id     (str (:xt/id ex))
-                    :label  (:exercise/label ex)
-                    :reps   (:reps m)
-                    :weight (:weight m)
-                    :unit   (:unit m)}))
-    :recent (map str chip-ids)
-    :defaultWeight default-weight}))
+   (into {} (map (fn [[k v]] [(str k) v])) by-exercise)))
 
 (defn- stepper-ctrl
   "−/+ flanking a borderless numeric input. Buttons are 44px squares (touch
@@ -284,41 +224,35 @@
              :class "w-11 h-11 shrink-0 flex items-center justify-center rounded-lg border border-dark bg-dark-surface text-gray-300 text-lg"} "+"]])
 
 (defn- log-form
-  "The log form: searchable exercise picker with RECENT chips, stacked
-   label-left/control-right rows for reps and weight, and a primary button
-   that names its payload ('Log pullup × 12'). Posts to the session; the
-   line lands in the running set (closing it on the primary action) or
+  "The log form: searchable exercise select (Choices.js, same as CRUD forms),
+   stacked label-left/control-right rows for reps and weight, and a primary
+   button that names its payload ('Log pullup × 12'). Posts to the session;
+   the line lands in the running set (closing it on the primary action) or
    backfills an auto-started set when none is running."
   [session-id exercises memory running?]
-  (let [{:keys [by-exercise last recent]} memory
+  (let [{:keys [by-exercise last]} memory
         ex-by-id (into {} (map (juxt :xt/id identity)) exercises)
         sel-id   (or last (some-> exercises first :xt/id))
         sel-ex   (get ex-by-id sel-id)
         m        (get by-exercise sel-id)
         unit     (or (:unit m) "lbs")
         reps     (or (:reps m) default-reps)
-        weight   (or (:weight m) default-weight)
-        chip-ids (if (seq recent) recent (map :xt/id (take 4 exercises)))]
+        weight   (or (:weight m) default-weight)]
     (biff/form
      {:id "wk-line-form"
       :action (str "/app/exercise/session/" session-id "/line"), :method "post"
-      :data-picker (picker-json exercises by-exercise chip-ids)}
-     [:input {:type "hidden" :name "exercise-id" :value (str sel-id)}]
+      :data-memory (memory-json by-exercise)
+      :data-default-reps default-reps
+      :data-default-weight default-weight}
      [:div {:class "text-[10px] font-semibold tracking-widest text-gray-500 mb-2"} "EXERCISE"]
-     [:div.relative.mb-2
-      [:input {:id "wk-ex-search" :type "text" :autocomplete "off"
-               :placeholder "Search exercises…"
-               :value (:exercise/label sel-ex)
-               :class "w-full h-12 px-3.5 text-sm rounded-lg border border-dark bg-black/30 text-white"}]
-      [:div {:id "wk-ex-dd"
-             :class "hidden absolute left-0 right-0 top-[52px] z-20 rounded-lg border border-dark bg-dark-surface shadow-xl overflow-y-auto"
-             :style {:max-height "268px"}}]]
-     [:div {:class "flex flex-wrap items-center gap-2 mb-5"}
-      [:span {:class "text-[9px] font-semibold tracking-widest text-gray-600"} "RECENT"]
-      (for [id chip-ids]
-        [:button {:type "button" :data-chip-id (str id)
-                  :class "px-3 py-2 text-xs rounded-lg border border-dark bg-dark-surface text-gray-400"}
-         (get-in ex-by-id [id :exercise/label])])]
+     [:div.mb-5
+      [:select.form-select.w-full {:name "exercise-id" :required true
+                                   :data-enhance "choices"
+                                   :data-placeholder "Exercise"}
+       (for [ex exercises]
+         [:option {:value (:xt/id ex)
+                   :selected (= (:xt/id ex) sel-id)}
+          (:exercise/label ex)])]]
      [:div.flex.items-center.justify-between.gap-3.py-2
       [:span {:class "text-[10px] font-semibold tracking-widest text-gray-500"} "REPS"]
       (stepper-ctrl "reps" (str reps))]

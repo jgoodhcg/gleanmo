@@ -832,6 +832,59 @@
                       :in    '[user-id start-inst end-inst]}]
     (count (q db query user-id start-instant end-instant))))
 
+(defnp sets-for-session
+  "Exercise sets belonging to one session, oldest first. Equality-bound on
+   session-id so cost tracks the session's size, not the user's history.
+   Deleted-at is sparse, so it's post-filtered rather than scanned."
+  [db user-id session-id]
+  (->> (q db
+          '{:find  [(pull ?e [*])]
+            :where [[?e :user/id user-id]
+                    [?e ::sm/type :exercise-set]
+                    [?e :exercise-set/session-id session-id]]
+            :in    [user-id session-id]}
+          user-id session-id)
+       (map first)
+       (remove ::sm/deleted-at)
+       (sort-by :exercise-set/beginning)
+       vec))
+
+(defnp lines-for-sets
+  "Exercise lines belonging to the given sets, in creation order."
+  [db user-id set-ids]
+  (if (seq set-ids)
+    (->> (q db
+            '{:find  [(pull ?e [*])]
+              :where [[?e :user/id user-id]
+                      [?e ::sm/type :exercise-line]
+                      [?e :exercise-line/set-id ?sid]]
+              :in    [user-id [?sid ...]]}
+            user-id (vec set-ids))
+         (map first)
+         (remove ::sm/deleted-at)
+         (sort-by ::sm/created-at)
+         vec)
+    []))
+
+(defnp recent-lines-for-user
+  "The user's most recent exercise lines, newest first, bounded by limit.
+   Scan-then-pull: an index-only [id created-at] scan is sorted and truncated
+   before any documents are pulled, so cost stays flat as history grows."
+  [db user-id limit]
+  (let [ids (->> (q db
+                    '{:find  [?e ?t]
+                      :where [[?e :user/id user-id]
+                              [?e ::sm/type :exercise-line]
+                              [?e ::sm/created-at ?t]]
+                      :in    [user-id]}
+                    user-id)
+                 (sort-by second #(compare %2 %1))
+                 (map first)
+                 (take limit))]
+    (->> (fetch-entities-by-ids db ids)
+         (remove ::sm/deleted-at)
+         vec)))
+
 (defnp get-events-for-user-year
   "Get all events for a user within a specific year, using user's timezone.
    Note: Performs date-range filtering in application code to avoid complex
