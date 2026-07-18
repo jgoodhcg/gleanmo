@@ -275,11 +275,11 @@
    minimum); their behavior (step size, clamping) wires up in form-script via
    data-adjust."
   [input-name value]
-  [:div.flex.items-center.gap-2
+  [:div.flex.items-center.gap-1.5.shrink-0
    [:button {:type "button" :data-adjust (str input-name ":-1")
              :class "w-11 h-11 shrink-0 flex items-center justify-center rounded-lg border border-dark bg-dark-surface text-gray-300 text-lg"} "−"]
    [:input {:type "number" :step "any" :name input-name :value value
-            :class "w-14 text-center text-xl font-bold text-white bg-transparent border-none p-0 tabular-nums"}]
+            :class "w-12 text-center text-xl font-bold text-white bg-transparent border-none p-0 tabular-nums"}]
    [:button {:type "button" :data-adjust (str input-name ":1")
              :class "w-11 h-11 shrink-0 flex items-center justify-center rounded-lg border border-dark bg-dark-surface text-gray-300 text-lg"} "+"]])
 
@@ -322,8 +322,8 @@
      [:div.flex.items-center.justify-between.gap-3.py-2
       [:span {:class "text-[10px] font-semibold tracking-widest text-gray-500"} "REPS"]
       (stepper-ctrl "reps" (str reps))]
-     [:div.flex.items-center.justify-between.gap-3.py-2
-      [:div.flex.items-center.gap-2
+     [:div.flex.items-center.justify-between.gap-2.py-2
+      [:div.flex.flex-wrap.items-center.gap-1.5.min-w-0
        [:span {:class "text-[10px] font-semibold tracking-widest text-gray-500"} "WEIGHT"]
        [:div {:class "inline-flex rounded-lg border border-dark p-0.5"}
         (for [u ["lbs" "kg"]]
