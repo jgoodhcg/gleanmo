@@ -137,15 +137,15 @@
                  (str "var i=this.parentElement.querySelector('input');"
                       "i.value=Math.max(" min-val
                       ",(parseFloat(i.value)||0)+(" delta "));"))]
-    [:div.flex.items-center.justify-center.gap-2
+    [:div.flex.items-center.justify-center.gap-1
      [:button {:type "button"
                :onclick (adjust (- step))
-               :class "w-8 h-8 flex items-center justify-center rounded-lg border border-dark bg-dark-surface text-gray-300"} "−"]
+               :class "w-11 h-11 shrink-0 flex items-center justify-center rounded-lg border border-dark bg-dark-surface text-gray-300 text-lg"} "−"]
      [:input {:type "number" :step "any" :name input-name :value value
-              :class (str width " text-center text-lg font-bold text-white bg-transparent border-none p-0")}]
+              :class (str width " text-center text-xl font-bold text-white bg-transparent border-none p-0")}]
      [:button {:type "button"
                :onclick (adjust step)
-               :class "w-8 h-8 flex items-center justify-center rounded-lg border border-dark bg-dark-surface text-gray-300"} "+"]]))
+               :class "w-11 h-11 shrink-0 flex items-center justify-center rounded-lg border border-dark bg-dark-surface text-gray-300 text-lg"} "+"]]))
 
 ;; Defaults used only for an exercise the user has never logged; once logged,
 ;; exercise-memory prefills what they did last time.
@@ -212,8 +212,8 @@
       :data-memory (js-obj by-exercise)
       :data-default-reps default-reps
       :data-default-weight default-weight}
-     [:div {:class "grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5"}
-      [:div
+     [:div {:class "grid grid-cols-2 sm:grid-cols-3 gap-x-3 gap-y-4 mb-4"}
+      [:div {:class "col-span-2 sm:col-span-1"}
        [:div.text-xs.tracking-widest.text-gray-500.mb-2 "EXERCISE"]
        [:select.form-select.w-full {:name "exercise-id" :required true
                                     :data-enhance "choices"
@@ -225,9 +225,9 @@
       [:div
        [:div.text-xs.tracking-widest.text-gray-500.mb-2.text-center "REPS"]
        (stepper {:input-name "reps" :value (str (or (:reps m) default-reps))
-                 :step 1 :min-val 1 :width "w-14"})]
+                 :step 1 :min-val 1 :width "min-w-0 flex-1"})]
       [:div
-       [:div.flex.items-center.justify-center.gap-2.mb-2
+       [:div.flex.items-center.justify-center.gap-2.flex-wrap.mb-2
         [:span.text-xs.tracking-widest.text-gray-500 "WEIGHT"]
         [:div.inline-flex.rounded.border.border-dark.p-px
          (for [u ["lbs" "kg"]]
@@ -237,12 +237,12 @@
                                    "this.closest('div').querySelectorAll('button').forEach(function(b){"
                                    "b.classList.remove('bg-neon-cyan','text-black');});"
                                    "this.classList.add('bg-neon-cyan','text-black');")
-                     :class (str "px-2 py-px text-[10px] font-bold rounded "
+                     :class (str "px-3 py-1 text-[11px] font-bold rounded "
                                  (when (= u unit) "bg-neon-cyan text-black"))}
             u])]
         [:input {:type "hidden" :name "weight-unit" :value unit}]]
        (stepper {:input-name "weight" :value (str (or (:weight m) default-weight))
-                 :step 5 :min-val 0 :width "w-20"})]]
+                 :step 5 :min-val 0 :width "min-w-0 flex-1"})]]
      [:div.flex.flex-col.gap-2
       (if running?
         [:button {:type "submit" :name "stop-set" :value "true"
@@ -253,12 +253,12 @@
          "Log line anyway"])
       (when running?
         [:button {:type "submit"
-                  :class "w-full py-2 rounded-lg text-xs font-semibold border border-dark text-gray-400 bg-transparent"}
+                  :class "w-full py-3 rounded-lg text-xs font-semibold border border-dark text-gray-400 bg-transparent"}
          "Log & continue set (superset)"])])))
 
 (defn- running-set-panel
   [running running-lines ex-by-id]
-  [:div {:class "rounded-xl border p-5 mb-4"
+  [:div {:class "rounded-xl border p-4 mb-4"
          :style {:border-color "rgba(34,211,238,.4)"
                  :background "rgba(34,211,238,.05)"}}
    [:div.flex.items-center.justify-between.gap-4
@@ -319,21 +319,20 @@
         ex-by-id   (into {} (map (juxt :xt/id identity)) exercises)
         memory     (exercise-memory ctx)
         n-lines    (reduce + (map count (vals lines)))]
-    [:div {:class "max-w-2xl mx-auto p-6 pb-24 space-y-4"}
-     [:div.flex.items-start.justify-between.gap-4.mb-6
-      [:div.flex.items-center.gap-3
-       [:span {:class "w-11 h-11 rounded-xl border flex items-center justify-center text-xl"
+    [:div {:class "max-w-2xl mx-auto p-4 sm:p-6 pb-24 space-y-4"}
+     [:div.flex.items-center.justify-between.gap-3.mb-4
+      [:div.flex.items-center.gap-3.min-w-0
+       [:span {:class "w-10 h-10 shrink-0 rounded-xl border flex items-center justify-center text-lg"
                :style {:border-color "rgba(34,211,238,.3)" :background "rgba(34,211,238,.08)"}} "🏋️"]
-       [:div
-        [:h1.text-2xl.font-bold.text-white "Workout"]
-        [:p.text-sm.text-neon-cyan.mt-0.5
-         "Session running "
+       [:div.min-w-0
+        [:h1.text-xl.font-bold.text-white.leading-tight "Workout"]
+        [:p.text-xs.text-neon-cyan.whitespace-nowrap
          [:span {:data-epoch-ms (epoch-ms (:exercise-session/beginning session))
                  :data-fmt "short"} "…"]
-         (str " · " n-lines (if (= 1 n-lines) " line logged" " lines logged"))]]]
+         (str " · " n-lines (if (= 1 n-lines) " line" " lines"))]]]
       (biff/form {:action (str "/app/exercise/session/" session-id "/end"), :method "post"}
                  [:button {:type "submit"
-                           :class "px-4 py-2 rounded-lg text-sm font-semibold text-red-400 bg-red-500/10 border border-red-400/30 whitespace-nowrap"}
+                           :class "px-3 py-2 rounded-lg text-xs font-semibold text-red-400 bg-red-500/10 border border-red-400/30 whitespace-nowrap"}
                   "End session"])]
 
      (if running
@@ -343,12 +342,13 @@
                             :class "w-full py-4 mb-4 rounded-xl text-base font-bold bg-neon-cyan text-black"}
                    "Start set"]))
 
-     [:div {:class "rounded-xl border border-dark bg-dark-surface p-6 mb-8"}
-      [:h2.text-base.font-bold.text-white.mb-2 "Add line"]
-      [:p {:class (str "text-xs mb-5 " (if running "text-neon-cyan" "text-gray-500"))}
-       (if running
-         "Logging ends this set by default — use \"continue set\" below to build a superset instead."
-         "Forgot to start a set? Logging a line here backfills one and closes it immediately.")]
+     [:div {:class "rounded-xl border border-dark bg-dark-surface p-4 sm:p-6 mb-8"}
+      [:div.flex.items-baseline.justify-between.gap-3.mb-4
+       [:h2.text-base.font-bold.text-white "Add line"]
+       [:p {:class (str "text-[11px] text-right " (if running "text-neon-cyan" "text-gray-500"))}
+        (if running
+          "logging ends the set"
+          "backfills a closed set")]]
       (if (seq exercises)
         (line-form session-id exercises memory (some? running))
         [:p.text-sm.text-gray-400
@@ -385,7 +385,7 @@
                       :schema exercise-schema/exercise-session}
                      ctx)
                     (take 5))]
-    [:div {:class "max-w-2xl mx-auto p-6 space-y-6"}
+    [:div {:class "max-w-2xl mx-auto p-4 sm:p-6 space-y-6"}
      [:div.flex.items-center.gap-3
       [:span {:class "w-11 h-11 rounded-xl border flex items-center justify-center text-xl"
               :style {:border-color "rgba(34,211,238,.3)" :background "rgba(34,211,238,.08)"}} "🏋️"]
@@ -436,7 +436,7 @@
                         (str/join " · "))
         ended      (:exercise-session/end session)
         duration   (when ended (fmt-duration (:exercise-session/beginning session) ended))]
-    [:div {:class "max-w-2xl mx-auto p-6 pb-24 space-y-6"}
+    [:div {:class "max-w-2xl mx-auto p-4 sm:p-6 pb-24 space-y-6"}
      [:div
       [:a.link.text-xs {:href screen-url} "← workout"]
       [:h1.text-2xl.font-bold.text-white.mt-2
