@@ -416,12 +416,8 @@
      [:script (biff/unsafe (str tick-script "\n" form-script))]]))
 
 (defn- idle-view
-  [ctx]
-  (let [recent (->> (queries/all-for-user-query
-                     {:entity-type-str "exercise-session"
-                      :schema exercise-schema/exercise-session}
-                     ctx)
-                    (take 5))]
+  [{:keys [biff/db session]}]
+  (let [recent (queries/recent-sessions-for-user db (:uid session) 5)]
     [:div {:class "max-w-2xl mx-auto p-4 sm:p-6 space-y-6"}
      [:h1.text-2xl.font-bold.text-white "Workout"]
      (biff/form {:action "/app/exercise/session/start", :method "post"}

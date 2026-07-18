@@ -885,6 +885,25 @@
          (remove ::sm/deleted-at)
          vec)))
 
+(defnp recent-sessions-for-user
+  "The user's most recent exercise sessions, newest first, bounded by limit.
+   Scan-then-pull on the beginning timestamp, same shape as
+   recent-lines-for-user."
+  [db user-id limit]
+  (let [ids (->> (q db
+                    '{:find  [?e ?t]
+                      :where [[?e :user/id user-id]
+                              [?e ::sm/type :exercise-session]
+                              [?e :exercise-session/beginning ?t]]
+                      :in    [user-id]}
+                    user-id)
+                 (sort-by second #(compare %2 %1))
+                 (map first)
+                 (take limit))]
+    (->> (fetch-entities-by-ids db ids)
+         (remove ::sm/deleted-at)
+         vec)))
+
 (defnp get-events-for-user-year
   "Get all events for a user within a specific year, using user's timezone.
    Note: Performs date-range filtering in application code to avoid complex
