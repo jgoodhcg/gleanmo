@@ -1,0 +1,72 @@
+{
+  "id": "timer-dashboard-inline-create-scope",
+  "title": "Scope decision: timer dashboard empty state in inline-entity-creation work unit",
+  "created": "2026-07-18",
+  "status": "decided",
+  "decision": "Option C — tactical bounce-link fix in scope; true inline-create on the dashboard deferred to follow-up work unit.",
+  "context": {
+    "problem": "src/tech/jgood/gleanmo/timer/routes.clj:343-344 renders bare text ('No <parent>s found. Create some first!') with no button, link, or escape hatch when a user has zero parent entities (projects/books/meditations). Users landing on a timer dashboard with no parents are stuck. The inline-entity-creation work unit could address this, but it raises a scope question: the work unit's stated boundary is 'form-only', and the dashboard is a list-view surface.",
+    "constraints": [
+      "Work unit should stay bounded to land in reasonable time.",
+      "The dashboard dead-end is a real UX bug that should not wait indefinitely.",
+      "True inline-create on a list-view surface is a different shape from form-level inline-create (no parent <select> to swap back into)."
+    ]
+  },
+  "options": [
+    {
+      "id": "A",
+      "label": "Defer entirely",
+      "description": "Leave the dead-end as-is in this work unit. Track as a follow-up work unit only. Don't touch timer/routes.clj."
+    },
+    {
+      "id": "B",
+      "label": "Scope-creep: real inline-create on dashboard",
+      "description": "Implement true inline-create on the timer dashboard parent-picker: render a select + mini-form inline on the dashboard itself. Requires infrastructure for the list-view surface (no parent <form> to ride on)."
+    },
+    {
+      "id": "C",
+      "label": "Tactical bounce-link now, real inline later",
+      "description": "Two-line tactical fix: replace the bare text with a bounce-link to the parent new-form with redirect back (mirrors workout.clj:355-357). True inline-create on the dashboard tracked as follow-up work unit timer-dashboard-inline-create.md."
+    }
+  ],
+  "criteria": [
+    { "id": "unblocks-dead-end", "label": "Removes the dead-end today", "weight": "high" },
+    { "id": "scope-discipline", "label": "Keeps work unit bounded", "weight": "high" },
+    { "id": "pattern-consistency", "label": "Matches existing patterns", "weight": "medium" },
+    { "id": "deferred-work-cost", "label": "Minimizes rework when real inline lands", "weight": "medium" },
+    { "id": "implementation-cost", "label": "Low implementation cost now", "weight": "medium" }
+  ],
+  "matrix": [
+    { "option": "A", "criteria_scores": {
+      "unblocks-dead-end": 0,
+      "scope-discipline": 5,
+      "pattern-consistency": 0,
+      "deferred-work-cost": 5,
+      "implementation-cost": 5
+    }, "notes": "Dead-end stays; bug ships to prod indefinitely." },
+    { "option": "B", "criteria_scores": {
+      "unblocks-dead-end": 5,
+      "scope-discipline": 1,
+      "pattern-consistency": 3,
+      "deferred-work-cost": 5,
+      "implementation-cost": 1
+    }, "notes": "Real solution but blows scope; list-view infrastructure is a different shape." },
+    { "option": "C", "criteria_scores": {
+      "unblocks-dead-end": 4,
+      "scope-discipline": 4,
+      "pattern-consistency": 5,
+      "deferred-work-cost": 3,
+      "implementation-cost": 5
+    }, "notes": "Mirrors workout.clj:355-357 already shipped; tactical link is removed when real inline lands." }
+  ],
+  "rationale": "Option C removes the dead-end immediately at trivial cost, mirrors an existing pattern (workout picker), and keeps the work unit bounded. The bounce-link will be removed when the follow-up work unit ships real inline-create on the dashboard surface. Option A leaves a known UX bug in production indefinitely. Option B is the right long-term answer but requires infrastructure (list-view inline-create) that does not exist yet and would unbalance this work unit.",
+  "follow_ups": [
+    "roadmap/timer-dashboard-inline-create.md (to be created when prioritized)",
+    "Workout picker at app/workout.clj:352-358 will also be replaced by Phase 2 of inline-entity-creation.md; same shape of tactical-vs-real trade-off resolved the same way."
+  ],
+  "references": [
+    "roadmap/inline-entity-creation.md",
+    "src/tech/jgood/gleanmo/timer/routes.clj:336-344",
+    "src/tech/jgood/gleanmo/app/workout.clj:352-358"
+  ]
+}
