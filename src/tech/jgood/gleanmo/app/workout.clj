@@ -323,7 +323,7 @@
      [:div.flex.items-start.justify-between.gap-4.mb-6
       [:div.flex.items-center.gap-3
        [:span {:class "w-11 h-11 rounded-xl border flex items-center justify-center text-xl"
-             :style {:border-color "rgba(34,211,238,.3)" :background "rgba(34,211,238,.08)"}} "🏋️"]
+               :style {:border-color "rgba(34,211,238,.3)" :background "rgba(34,211,238,.08)"}} "🏋️"]
        [:div
         [:h1.text-2xl.font-bold.text-white "Workout"]
         [:p.text-sm.text-neon-cyan.mt-0.5
@@ -388,7 +388,7 @@
     [:div {:class "max-w-2xl mx-auto p-6 space-y-6"}
      [:div.flex.items-center.gap-3
       [:span {:class "w-11 h-11 rounded-xl border flex items-center justify-center text-xl"
-             :style {:border-color "rgba(34,211,238,.3)" :background "rgba(34,211,238,.08)"}} "🏋️"]
+              :style {:border-color "rgba(34,211,238,.3)" :background "rgba(34,211,238,.08)"}} "🏋️"]
       [:h1.text-2xl.font-bold.text-white "Workout"]]
      (biff/form {:action "/app/exercise/session/start", :method "post"}
                 [:button {:type "submit"

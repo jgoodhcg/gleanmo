@@ -49,7 +49,7 @@
          [:div.mt-2
           [:select.form-select
            {:id                  input-name,
-                  :name                input-name,
+            :name                input-name,
             :required            input-required,
             :autocomplete        "off",
             :data-original-value (str effective-value)}
@@ -85,7 +85,7 @@
      [:input.mr-2
       (cond-> {:type                "checkbox",
                :id                  input-name,
-                  :name                input-name,
+               :name                input-name,
                :autocomplete        "off",
                :data-original-value (str default-value)}
         default-value (assoc :checked "checked"))]
@@ -107,7 +107,7 @@
        (cond-> {:type                "number",
                 :step                "any",
                 :id                  input-name,
-                  :name                input-name,
+                :name                input-name,
                 :required            input-required,
                 :autocomplete        "off",
                 :data-original-value (str value)}
@@ -128,7 +128,7 @@
        (cond-> {:type                "number",
                 :step                "1",
                 :id                  input-name,
-                  :name                input-name,
+                :name                input-name,
                 :required            input-required,
                 :autocomplete        "off",
                 :data-original-value (str value)}
@@ -149,7 +149,7 @@
        (cond-> {:type                "number",
                 :step                "0.001",
                 :id                  input-name,
-                  :name                input-name,
+                :name                input-name,
                 :required            input-required,
                 :autocomplete        "off",
                 :data-original-value (str value)}
@@ -174,7 +174,7 @@
       [:input.form-input
        (cond-> {:type                "date",
                 :id                  input-name,
-                  :name                input-name,
+                :name                input-name,
                 :required            input-required,
                 :data-original-value (str formatted-date)}
          formatted-date (assoc :value formatted-date))]]]))
@@ -224,7 +224,7 @@
       [:input.form-input
        (cond-> {:type                "datetime-local",
                 :id                  input-name,
-                  :name                input-name,
+                :name                input-name,
                 :required            input-required,
                 :data-original-value (str formatted-time)}
          formatted-time (assoc :value formatted-time))]]]))
@@ -277,7 +277,7 @@
      (into
       [:select.form-select
        (cond-> {:id                  input-name
-        :name                input-name
+                :name                input-name
                 :required            input-required
                 :data-enhance        "choices"
                 :data-placeholder    input-label
@@ -343,7 +343,7 @@
       (into
        [:select.form-select
         {:id                  input-name,
-                  :name                input-name,
+         :name                input-name,
          :required            input-required,
          :data-original-value default-val-str}
          ;; Add empty option for optional fields
@@ -374,7 +374,7 @@
       (into
        [:select.form-select
         {:id                  input-name
-        :name                input-name
+         :name                input-name
          :multiple            true
          :required            input-required
          :data-enhance        "choices"
@@ -407,7 +407,7 @@
       (into
        [:select.form-select
         {:id                  input-name,
-                  :name                input-name,
+         :name                input-name,
          :required            input-required,
          :data-original-value original-val-str}]
        (for [opt options]
