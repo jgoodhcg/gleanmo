@@ -35,7 +35,8 @@ updated: 2026-05-16
 - ~~Deploy reading schema changes to production, then run migration on prod~~ — DONE (2026-03-21).
 - ~~Wire CRUD/UI for symptom, mood, exercise, bouldering~~ — DONE (2026-07-10). All remaining Airtable-backed entities have schema + CRUD + viz (plus custom workout screen).
 - ~~Build symptom/pain + bouldering ingesters~~ — DONE (2026-07-19): `m003-airtable-import-pain` and `m004-airtable-import-bouldering`, both dry-run validated against fresh exports.
-- **NEXT: Run m003/m004 against dev, spot-check in UI, then run against prod. Then: mood + exercise ingesters.**
+- ~~Run m003/m004 against dev and spot-check in UI~~ — DONE (2026-07-19): imported under justin@jgood.online on dev. m003: 1,130 symptom-logs. m004: 277 problems, 84 sessions, 676 attempts. Verified in UI: gym screen recent sessions, session summary (durations/laps/flags/problem identities), symptom-log list (severity/areas/side). Imports are idempotent (deterministic UUIDs) — safe to re-run on refreshed exports.
+- **NEXT: Run m003/m004 against prod (fresh Airtable exports first, `--target prod`, real email). Then: mood + exercise ingesters.**
 
 ## Recommended Approach: Airtable Exit First
 Define schema → wire CRUD → build/run migration for each entity sequentially. This provides:
