@@ -124,26 +124,34 @@
 
 (defn- epoch-ms [instant] (str (t/millis (t/between (t/epoch) instant))))
 
-;; Wires the attempt form: wall chips filter the problem cards, tapping a
-;; card selects it (the __new__ card reveals the inline-create fields),
-;; sent/flash/top toggle chips flip hidden inputs (flash implies sent), and
-;; −/+ steppers adjust laps/tries.
+;; Wires the attempt form. The problem picker is a collapsed row showing the
+;; current selection; tapping it expands the card list (wall chips filter
+;; the cards). Picking a card copies its content into the collapsed row and
+;; closes the panel, so repeat attempts never see the list. The __new__ card
+;; reveals the inline-create fields. sent/flash/top toggle chips flip hidden
+;; inputs (flash implies sent) and −/+ steppers adjust laps/tries.
 (def ^:private form-script
   "(function(){
      var form=document.getElementById('bd-attempt-form'); if(!form) return;
      var sel=form.querySelector('[name=problem-id]');
      var np=document.getElementById('bd-new-problem');
+     var toggle=document.getElementById('bd-picker-toggle');
+     var current=document.getElementById('bd-picker-current');
+     var panel=document.getElementById('bd-picker-panel');
      var cards=form.querySelectorAll('[data-problem-card]');
      var wallChips=form.querySelectorAll('[data-wall-chip]');
-     function syncCards(){
-       cards.forEach(function(c){
-         var on=c.dataset.problemCard===sel.value;
-         c.classList.toggle('border-neon-cyan',on);
-         c.classList.toggle('border-dark',!on); });
-       if(np) np.classList.toggle('hidden', sel.value!=='__new__'); }
+     function syncNew(){ if(np) np.classList.toggle('hidden', sel.value!=='__new__'); }
+     toggle.addEventListener('click',function(){ panel.classList.toggle('hidden'); });
      cards.forEach(function(c){
        c.addEventListener('click',function(){
-         sel.value=c.dataset.problemCard; syncCards(); }); });
+         sel.value=c.dataset.problemCard;
+         current.innerHTML=c.querySelector('[data-card-body]').innerHTML;
+         cards.forEach(function(o){
+           var on=o===c;
+           o.classList.toggle('border-neon-cyan',on);
+           o.classList.toggle('border-dark',!on); });
+         panel.classList.add('hidden');
+         syncNew(); }); });
      wallChips.forEach(function(w){
        w.addEventListener('click',function(){
          wallChips.forEach(function(o){
@@ -154,7 +162,7 @@
            if(c.dataset.problemCard==='__new__') return;
            c.classList.toggle('hidden',
              w.dataset.wallChip!=='__all__' && c.dataset.wall!==w.dataset.wallChip); }); }); });
-     syncCards();
+     syncNew();
      form.querySelectorAll('[data-toggle-chip]').forEach(function(b){
        b.addEventListener('click',function(){
          var name=b.dataset.toggleChip;
@@ -237,33 +245,47 @@
                        (remove str/blank?)
                        distinct
                        sort)
-        selected  (or selected-problem-id "__new__")]
+        selected  (or selected-problem-id "__new__")
+        sel-prob  (some #(when (= (:xt/id %) selected-problem-id) %) problems)]
     (biff/form
      {:id "bd-attempt-form"
       :action (str screen-url "/" (:xt/id session) "/attempt") :method "post"}
      [:input {:type "hidden" :name "problem-id" :value (str selected)}]
      [:div {:class "text-[10px] font-semibold tracking-widest text-gray-500 mb-2"} "PROBLEM"]
-     (when (seq walls)
-       [:div {:class "flex flex-wrap gap-1.5 mb-3"}
-        (for [[value label] (cons ["__all__" "all walls"] (map (juxt identity identity) walls))]
-          [:button {:type "button" :data-wall-chip value
-                    :class (str "px-3 py-1.5 rounded-full text-[11px] font-bold border border-dark "
-                                (if (= value "__all__")
-                                  "bg-neon-cyan text-black"
-                                  "text-gray-500 bg-dark-surface"))}
-           label])])
-     [:div {:class "flex flex-col gap-1.5 max-h-64 overflow-y-auto mb-2"}
-      (for [p available]
-        [:button {:type "button" :data-problem-card (str (:xt/id p))
-                  :data-wall (or (:boulder-problem/wall p) "")
-                  :class (str "flex items-center gap-2 text-left rounded-lg border bg-dark-surface px-3 py-2.5 "
-                              (if (= (:xt/id p) selected-problem-id)
-                                "border-neon-cyan" "border-dark"))}
-         (problem-badge p)])
-      [:button {:type "button" :data-problem-card "__new__"
-                :class (str "flex items-center gap-2 text-left rounded-lg border border-dashed bg-transparent px-3 py-2.5 text-sm text-gray-400 "
-                            (if (= selected "__new__") "border-neon-cyan" "border-dark"))}
-       "＋ New problem"]]
+     ;; collapsed row: the current selection; tap to expand the list
+     [:button {:id "bd-picker-toggle" :type "button"
+               :class "w-full flex items-center justify-between gap-2 text-left rounded-lg border border-dark bg-dark-surface px-3 py-2.5"}
+      [:span {:id "bd-picker-current" :class "min-w-0"}
+       (if sel-prob
+         (problem-badge sel-prob)
+         [:span.text-sm.text-gray-400 "＋ New problem"])]
+      [:span.text-gray-500.shrink-0 "▾"]]
+     [:div {:id "bd-picker-panel" :class "hidden mt-2"}
+      (when (seq walls)
+        [:div {:class "flex flex-wrap gap-1.5 mb-2"}
+         (for [[value label] (cons ["__all__" "all"] (map (juxt identity identity) walls))]
+           [:button {:type "button" :data-wall-chip value
+                     :class (str "px-3 py-1.5 rounded-full text-[11px] font-bold border border-dark "
+                                 (if (= value "__all__")
+                                   "bg-neon-cyan text-black"
+                                   "text-gray-500 bg-dark-surface"))}
+            label])])
+      [:div {:class "flex flex-col gap-1.5 max-h-64 overflow-y-auto"}
+       (for [p available]
+         [:button {:type "button" :data-problem-card (str (:xt/id p))
+                   :data-wall (or (:boulder-problem/wall p) "")
+                   :class (str "flex items-center gap-2 text-left rounded-lg border bg-dark-surface px-3 py-2.5 "
+                               (if (= (:xt/id p) selected-problem-id)
+                                 "border-neon-cyan" "border-dark"))}
+          [:span {:data-card-body true :class "min-w-0"} (problem-badge p)]])
+       [:button {:type "button" :data-problem-card "__new__"
+                 :class (str "flex items-center gap-2 text-left rounded-lg border border-dashed bg-transparent px-3 py-2.5 "
+                             (if (= selected "__new__") "border-neon-cyan" "border-dark"))}
+        [:span {:data-card-body true :class "text-sm text-gray-400"} "＋ New problem"]]]
+      [:div.mt-2
+       [:a.link {:class "text-[11px]"
+                 :href (str "/app/crud/boulder-problem?redirect=" (redirect-param))}
+        "manage problems"]]]
      (new-problem-fields problems)
      [:div {:class "text-[10px] font-semibold tracking-widest text-gray-500 mt-5 mb-2"} "RESULT"]
      [:div.flex.gap-2
