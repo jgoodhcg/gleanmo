@@ -48,7 +48,9 @@
    ;; Known/estimated V-grade (Airtable guessed-grade)
    [:boulder-problem/grade {:optional true} grade-enum]
    [:boulder-problem/label {:optional true} :string]
-   [:boulder-problem/archived {:optional true} :boolean]
+   ;; No longer on the wall at the gym (Airtable called this Archived).
+   ;; Deliberately not named archived — that has app-wide hide semantics.
+   [:boulder-problem/inactive {:optional true} :boolean]
    [:boulder-problem/notes {:optional true} :string]
    [:airtable/id {:optional true} :string]
    [:airtable/created-time {:optional true} :instant]

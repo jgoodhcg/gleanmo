@@ -36,15 +36,51 @@
 
 (defn- parse-int* [s] (when-not (str/blank? s) (parse-long s)))
 
-(defn- problem-label
-  "Compact one-line identity for a problem: 'pink v0-v2 · green · comp'."
+(def ^:private color-hex
+  "Gym color vocabulary -> swatch color. Rainbow gets a gradient elsewhere."
+  {"pink"   "#ec4899" "blue"  "#3b82f6" "green"  "#22c55e"
+   "yellow" "#eab308" "black" "#52525b" "orange" "#f97316"
+   "purple" "#a855f7" "red"   "#ef4444" "white"  "#e5e7eb"
+   "tan"    "#d2b48c" "grey"  "#9ca3af" "gray"   "#9ca3af"})
+
+(defn- swatch-style
+  "Inline style for a color word; rainbow renders as a gradient."
+  [color-word]
+  (let [w (some-> color-word str/trim str/lower-case)]
+    (cond
+      (= w "rainbow")
+      {:background "linear-gradient(90deg,#ef4444,#eab308,#22c55e,#3b82f6,#a855f7)"}
+      (color-hex w) {:background (color-hex w)}
+      :else {:background "#6b7280"})))
+
+(defn- difficulty-color-word
+  "'pink v0-v2' -> 'pink'; nil when the label doesn't start with a color."
+  [difficulty]
+  (let [w (some-> difficulty str/trim (str/split #"\s+") first str/lower-case)]
+    (when (or (= w "rainbow") (color-hex w)) w)))
+
+(defn- color-dot
+  [color-word title]
+  [:span {:class "inline-block w-3 h-3 rounded-full shrink-0 border border-black/30"
+          :style (swatch-style color-word)
+          :title title}])
+
+(defn- problem-badge
+  "Visual identity for a problem: difficulty chip tinted with the circuit
+   color, a hold-color dot, and the wall name."
   [p]
-  (->> [(:boulder-problem/difficulty p)
-        (:boulder-problem/hold-color p)
-        (:boulder-problem/wall p)
-        (:boulder-problem/label p)]
-       (remove str/blank?)
-       (str/join " · ")))
+  (let [difficulty (:boulder-problem/difficulty p)
+        diff-color (difficulty-color-word difficulty)
+        hold       (:boulder-problem/hold-color p)]
+    [:span.inline-flex.items-center.gap-2.min-w-0
+     [:span {:class "px-2 py-0.5 rounded-md text-[11px] font-bold text-black whitespace-nowrap"
+             :style (swatch-style (or diff-color "gray"))}
+      (or difficulty "?")]
+     (when hold (color-dot hold (str "hold: " hold)))
+     (when-let [wall (:boulder-problem/wall p)]
+       [:span.text-xs.text-gray-400.truncate wall])
+     (when-let [label (:boulder-problem/label p)]
+       [:span.text-xs.text-gray-500.truncate label])]))
 
 (defn- fmt-clock
   "m:ss, like a stopwatch — used for attempt durations."
@@ -88,16 +124,37 @@
 
 (defn- epoch-ms [instant] (str (t/millis (t/between (t/epoch) instant))))
 
-;; Wires the attempt form: 'new problem' fields reveal when the picker is on
-;; __new__, sent/flash/top toggle chips flip hidden inputs (flash implies
-;; sent), and −/+ steppers adjust laps/retries.
+;; Wires the attempt form: wall chips filter the problem cards, tapping a
+;; card selects it (the __new__ card reveals the inline-create fields),
+;; sent/flash/top toggle chips flip hidden inputs (flash implies sent), and
+;; −/+ steppers adjust laps/tries.
 (def ^:private form-script
   "(function(){
      var form=document.getElementById('bd-attempt-form'); if(!form) return;
      var sel=form.querySelector('[name=problem-id]');
      var np=document.getElementById('bd-new-problem');
-     function syncNew(){ if(np) np.classList.toggle('hidden', sel.value!=='__new__'); }
-     sel.addEventListener('change',syncNew);
+     var cards=form.querySelectorAll('[data-problem-card]');
+     var wallChips=form.querySelectorAll('[data-wall-chip]');
+     function syncCards(){
+       cards.forEach(function(c){
+         var on=c.dataset.problemCard===sel.value;
+         c.classList.toggle('border-neon-cyan',on);
+         c.classList.toggle('border-dark',!on); });
+       if(np) np.classList.toggle('hidden', sel.value!=='__new__'); }
+     cards.forEach(function(c){
+       c.addEventListener('click',function(){
+         sel.value=c.dataset.problemCard; syncCards(); }); });
+     wallChips.forEach(function(w){
+       w.addEventListener('click',function(){
+         wallChips.forEach(function(o){
+           var on=o===w;
+           o.classList.toggle('bg-neon-cyan',on); o.classList.toggle('text-black',on);
+           o.classList.toggle('text-gray-500',!on); });
+         cards.forEach(function(c){
+           if(c.dataset.problemCard==='__new__') return;
+           c.classList.toggle('hidden',
+             w.dataset.wallChip!=='__all__' && c.dataset.wall!==w.dataset.wallChip); }); }); });
+     syncCards();
      form.querySelectorAll('[data-toggle-chip]').forEach(function(b){
        b.addEventListener('click',function(){
          var name=b.dataset.toggleChip;
@@ -165,31 +222,48 @@
    (datalist "bd-walls" (map :boulder-problem/wall problems))])
 
 (defn- attempt-form
-  "The attempt log form: searchable problem select (Choices.js, same as CRUD
-   forms) with an inline new-problem branch, sent/flash/top toggle chips,
-   laps/retries steppers, optional duration, and a Log attempt primary."
+  "The attempt log form. Problems are picked from tappable cards showing the
+   circuit-color difficulty chip, hold-color dot, and wall — the attributes
+   the user identifies problems by at the gym — with wall chips filtering
+   the list. The ＋ New card reveals inline-create fields. Below: sent/
+   flash/top toggle chips, laps/tries steppers, and a Log attempt primary."
   [session problems selected-problem-id]
   (let [gym       (:boulder-session/gym session)
-        ;; problems at this gym first, everything else after
-        ordered   (concat (filter #(= gym (:boulder-problem/gym %)) problems)
-                          (remove #(= gym (:boulder-problem/gym %)) problems))
-        available (remove :boulder-problem/archived ordered)]
+        available (->> problems
+                       (remove :boulder-problem/inactive)
+                       (filter #(= gym (:boulder-problem/gym %))))
+        walls     (->> available
+                       (keep :boulder-problem/wall)
+                       (remove str/blank?)
+                       distinct
+                       sort)
+        selected  (or selected-problem-id "__new__")]
     (biff/form
      {:id "bd-attempt-form"
       :action (str screen-url "/" (:xt/id session) "/attempt") :method "post"}
+     [:input {:type "hidden" :name "problem-id" :value (str selected)}]
      [:div {:class "text-[10px] font-semibold tracking-widest text-gray-500 mb-2"} "PROBLEM"]
-     [:div.mb-2
-      [:select.form-select.w-full {:name "problem-id" :required true
-                                   :data-enhance "choices"
-                                   :data-placeholder "Problem"}
-       [:option {:value "__new__"
-                 :selected (nil? selected-problem-id)} "＋ New problem"]
-       (for [p available]
-         [:option {:value (:xt/id p)
-                   :selected (= (:xt/id p) selected-problem-id)}
-          (str (problem-label p)
-               (when-not (= gym (:boulder-problem/gym p))
-                 (str " (" (:boulder-problem/gym p) ")")))])]]
+     (when (seq walls)
+       [:div {:class "flex flex-wrap gap-1.5 mb-3"}
+        (for [[value label] (cons ["__all__" "all walls"] (map (juxt identity identity) walls))]
+          [:button {:type "button" :data-wall-chip value
+                    :class (str "px-3 py-1.5 rounded-full text-[11px] font-bold border border-dark "
+                                (if (= value "__all__")
+                                  "bg-neon-cyan text-black"
+                                  "text-gray-500 bg-dark-surface"))}
+           label])])
+     [:div {:class "flex flex-col gap-1.5 max-h-64 overflow-y-auto mb-2"}
+      (for [p available]
+        [:button {:type "button" :data-problem-card (str (:xt/id p))
+                  :data-wall (or (:boulder-problem/wall p) "")
+                  :class (str "flex items-center gap-2 text-left rounded-lg border bg-dark-surface px-3 py-2.5 "
+                              (if (= (:xt/id p) selected-problem-id)
+                                "border-neon-cyan" "border-dark"))}
+         (problem-badge p)])
+      [:button {:type "button" :data-problem-card "__new__"
+                :class (str "flex items-center gap-2 text-left rounded-lg border border-dashed bg-transparent px-3 py-2.5 text-sm text-gray-400 "
+                            (if (= selected "__new__") "border-neon-cyan" "border-dark"))}
+       "＋ New problem"]]
      (new-problem-fields problems)
      [:div {:class "text-[10px] font-semibold tracking-widest text-gray-500 mt-5 mb-2"} "RESULT"]
      [:div.flex.gap-2
@@ -229,10 +303,12 @@
    detail right, both linking to the attempt's edit form."
   [a problems-by-id]
   (let [p (get problems-by-id (:boulder-attempt/problem-id a))]
-    [:a {:class "flex items-baseline justify-between gap-3 no-underline hover:text-neon-cyan rounded-xl border border-dark bg-dark-surface px-4 py-3"
+    [:a {:class "flex items-center justify-between gap-3 no-underline hover:text-neon-cyan rounded-xl border border-dark bg-dark-surface px-4 py-3"
          :href (str "/app/crud/form/boulder-attempt/edit/" (:xt/id a)
                     "?redirect=" (redirect-param))}
-     [:span.text-sm.text-gray-200 (if p (problem-label p) "Unknown problem")]
+     (if p
+       (problem-badge p)
+       [:span.text-sm.text-gray-200 "Unknown problem"])
      [:span {:class "text-xs text-gray-400 tabular-nums whitespace-nowrap"}
       (attempt-detail a)]]))
 

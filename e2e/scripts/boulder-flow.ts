@@ -30,6 +30,7 @@ async function main() {
   await page.click('button:has-text("Start attempt")');
   await page.waitForLoadState('networkidle');
   await capture(page, '02b-attempt-recording');
+  await page.click('[data-problem-card="__new__"]');
   await page.fill('input[name=new-difficulty]', 'pink v0-v2');
   await page.fill('input[name=new-hold-color]', 'pink');
   await page.fill('input[name=new-wall]', 'comp');

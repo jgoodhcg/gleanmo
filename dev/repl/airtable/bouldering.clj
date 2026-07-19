@@ -69,7 +69,7 @@
       hold-color (assoc :boulder-problem/hold-color hold-color)
       wall (assoc :boulder-problem/wall wall)
       notes (assoc :boulder-problem/notes notes)
-      (some? Archived) (assoc :boulder-problem/archived (boolean Archived))
+      (some? Archived) (assoc :boulder-problem/inactive (boolean Archived))
       (int? (get fields "id"))
       (assoc :airtable/original-problem-number (get fields "id")))))
 

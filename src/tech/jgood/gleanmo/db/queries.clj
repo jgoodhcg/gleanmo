@@ -937,8 +937,9 @@
 
 (defnp recent-boulder-sessions-for-user
   "The user's most recent boulder sessions, newest first, bounded by limit.
-   Scan-then-pull on the beginning timestamp, same shape as
-   recent-sessions-for-user."
+   Scan-then-pull on the beginning timestamp. Over-fetches ids because
+   deleted-at is only visible after the pull — taking exactly limit ids
+   would silently shrink the result when recent rows are soft-deleted."
   [db user-id limit]
   (let [ids (->> (q db
                     '{:find  [?e ?t]
@@ -949,9 +950,10 @@
                     user-id)
                  (sort-by second #(compare %2 %1))
                  (map first)
-                 (take limit))]
+                 (take (+ limit 10)))]
     (->> (fetch-entities-by-ids db ids)
          (remove ::sm/deleted-at)
+         (take limit)
          vec)))
 
 (defnp recent-boulder-attempts-for-user
@@ -967,9 +969,10 @@
                     user-id)
                  (sort-by second #(compare %2 %1))
                  (map first)
-                 (take limit))]
+                 (take (+ limit 10)))]
     (->> (fetch-entities-by-ids db ids)
          (remove ::sm/deleted-at)
+         (take limit)
          vec)))
 
 (defnp get-events-for-user-year
