@@ -917,7 +917,7 @@
           user-id session-id)
        (map first)
        (remove ::sm/deleted-at)
-       (sort-by :boulder-attempt/timestamp)
+       (sort-by :boulder-attempt/beginning)
        vec))
 
 (defnp boulder-problems-for-user
@@ -962,7 +962,7 @@
                     '{:find  [?e ?t]
                       :where [[?e :user/id user-id]
                               [?e ::sm/type :boulder-attempt]
-                              [?e :boulder-attempt/timestamp ?t]]
+                              [?e :boulder-attempt/beginning ?t]]
                       :in    [user-id]}
                     user-id)
                  (sort-by second #(compare %2 %1))

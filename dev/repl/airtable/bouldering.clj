@@ -9,8 +9,11 @@
    to last try.
 
    Field notes from the 2026-07-19 export:
-   - duration is the watch stopwatch in centiseconds (avg ~4900 ≈ 49s);
-     converted to seconds here.
+   - duration is the watch stopwatch in centiseconds (avg ~4900 ≈ 49s).
+     Attempts are intervals in the app schema, so end = the Airtable
+     timestamp (the log moment) and beginning = end - duration; rows
+     without a duration get beginning = end (zero-length, duration
+     unknown).
    - one-off booleans (dabs, peel, Bailed, Off start, Reversed, Foot slip,
      intentional-practice-dabs) map to :boulder-attempt/tags.
    - relativity free text ('better', 'Warmup', 'Gassed') maps to
@@ -21,7 +24,8 @@
    [repl.airtable.core :as core]
    [tech.jgood.gleanmo :as main]
    [tech.jgood.gleanmo.schema.bouldering-schema :as bs]
-   [tech.jgood.gleanmo.schema.meta :as sm]))
+   [tech.jgood.gleanmo.schema.meta :as sm]
+   [tick.core :as t]))
 
 (def problem-namespace-uuid
   "Namespace UUID for boulder-problem entities, derived from Airtable ids."
@@ -77,8 +81,18 @@
     (when (and (string? d) (not (str/blank? d))) d)))
 
 (defn- try-instant
+  "The Airtable timestamp — the moment the try was logged, i.e. its end."
   [{:strs [createdTime fields]}]
   (core/parse-timestamp (or (get fields "timestamp") createdTime)))
+
+(defn- try-beginning
+  "End minus the stopwatch duration (centiseconds); end itself when absent."
+  [{:strs [fields] :as rec}]
+  (let [end      (try-instant rec)
+        duration (get fields "duration")]
+    (if (int? duration)
+      (t/<< end (t/new-duration (int (/ duration 100)) :seconds))
+      end)))
 
 (defn tries->sessions
   "Synthesize one boulder-session per Airtable 'day', spanning that day's
@@ -90,7 +104,8 @@
        (keep
         (fn [[day recs]]
           (when day
-            (let [instants (sort (keep try-instant recs))
+            (let [beginnings (sort (keep try-beginning recs))
+                  ends     (sort (keep try-instant recs))
                   gym      (or (->> recs
                                     (keep #(-> % (get-in ["fields" "problem"]) first problem-gym-by-rec))
                                     frequencies
@@ -100,30 +115,34 @@
               {:db/doc-type :boulder-session
                :xt/id (core/deterministic-uuid session-namespace-uuid day)
                ::sm/type :boulder-session
-               ::sm/created-at (first instants)
+               ::sm/created-at (first beginnings)
                :user/id user-id
                :boulder-session/gym gym
-               :boulder-session/beginning (first instants)
-               :boulder-session/end (last instants)
+               :boulder-session/beginning (first beginnings)
+               :boulder-session/end (last ends)
                :airtable/ported-at now}))))
        vec))
 
 (defn airtable->attempt
   [{:strs [id createdTime fields] :as rec} user-id now]
   (let [{:strs [duration sent flash Top Laps notes relativity problem]} fields
-        day      (day-str rec)
-        created  (core/parse-timestamp createdTime)
-        ts       (try-instant rec)
-        tags     (set (keep (fn [[field tag]] (when (get fields field) tag))
-                            tag-field->tag))
-        prob-rec (first problem)]
+        day       (day-str rec)
+        created   (core/parse-timestamp createdTime)
+        end       (try-instant rec)
+        beginning (if (int? duration)
+                    (t/<< end (t/new-duration (int (/ duration 100)) :seconds))
+                    end)
+        tags      (set (keep (fn [[field tag]] (when (get fields field) tag))
+                             tag-field->tag))
+        prob-rec  (first problem)]
     (cond->
      {:db/doc-type :boulder-attempt
       :xt/id (core/deterministic-uuid attempt-namespace-uuid id)
       ::sm/type :boulder-attempt
       ::sm/created-at created
       :user/id user-id
-      :boulder-attempt/timestamp ts
+      :boulder-attempt/beginning beginning
+      :boulder-attempt/end end
       :boulder-attempt/sent (boolean sent)
       :airtable/id id
       :airtable/created-time created
@@ -134,9 +153,6 @@
                       (core/deterministic-uuid problem-namespace-uuid prob-rec))
       flash (assoc :boulder-attempt/flash true)
       Top (assoc :boulder-attempt/top true)
-      ;; centiseconds -> seconds
-      (int? duration) (assoc :boulder-attempt/duration-seconds
-                             (int (/ duration 100)))
       (int? Laps) (assoc :boulder-attempt/laps Laps)
       (seq tags) (assoc :boulder-attempt/tags tags)
       (not (str/blank? relativity)) (assoc :boulder-attempt/feel (str/trim relativity))

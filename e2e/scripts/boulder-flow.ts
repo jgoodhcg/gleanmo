@@ -26,7 +26,10 @@ async function main() {
   await page.waitForLoadState('networkidle');
   await capture(page, '02-active-empty');
 
-  // log an attempt with a new inline problem
+  // start the attempt timer, then log with a new inline problem
+  await page.click('button:has-text("Start attempt")');
+  await page.waitForLoadState('networkidle');
+  await capture(page, '02b-attempt-recording');
   await page.fill('input[name=new-difficulty]', 'pink v0-v2');
   await page.fill('input[name=new-hold-color]', 'pink');
   await page.fill('input[name=new-wall]', 'comp');
@@ -35,9 +38,10 @@ async function main() {
   await page.waitForLoadState('networkidle');
   await capture(page, '03-after-first-attempt');
 
-  // second attempt on the same (now preselected) problem, with retries
-  await page.click('[data-adjust="retries:1"]');
-  await page.click('[data-adjust="retries:1"]');
+  // second attempt logged without starting the timer (backfill path),
+  // on the same (now preselected) problem, with extra tries
+  await page.click('[data-adjust="attempts:1"]');
+  await page.click('[data-adjust="attempts:1"]');
   await page.click('button:has-text("Log attempt")');
   await page.waitForLoadState('networkidle');
   await capture(page, '04-after-second-attempt');

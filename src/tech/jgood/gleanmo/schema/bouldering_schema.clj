@@ -2,7 +2,7 @@
   (:require
    [tech.jgood.gleanmo.schema.meta :as sm]))
 
-(def rpe-enum
+(def perceived-exertion-enum
   [:enum :easy :moderate :hard :limit])
 
 (def grade-enum
@@ -12,80 +12,79 @@
   [:enum :dab :intentional-practice-dab :peel :bail :off-start :reversed
    :foot-slip])
 
+;; Sessions are synthesized during Airtable migration (one per day of tries),
+;; so they carry only airtable/ported-at — no source record backs them.
 (def boulder-session
-  (-> [:map {:closed true}
-       [:xt/id :boulder-session/id]
-       [::sm/type [:enum :boulder-session]]
-       [::sm/deleted-at {:optional true} :instant]
-       [::sm/created-at :instant]
-       [:user/id :user/id]
-       [:boulder-session/label {:optional true} :string]
-       [:boulder-session/beginning :instant]
-       [:boulder-session/end {:optional true} :instant]
-       [:boulder-session/gym {:crud/priority 1} :string]
-       [:boulder-session/rpe {:optional true :crud/priority 2} rpe-enum]
-       [:boulder-session/notes {:optional true :crud/priority 3} :string]
-       [:airtable/id {:optional true} :string]
-       [:airtable/created-time {:optional true} :instant]
-       [:airtable/ported-at {:optional true} :instant]]
-      (concat sm/legacy-meta)
-      vec))
+  [:map {:closed true}
+   [:xt/id :boulder-session/id]
+   [::sm/type [:enum :boulder-session]]
+   [::sm/deleted-at {:optional true} :instant]
+   [::sm/created-at :instant]
+   [:user/id :user/id]
+   [:boulder-session/label {:optional true} :string]
+   [:boulder-session/beginning :instant]
+   [:boulder-session/end {:optional true} :instant]
+   [:boulder-session/gym {:crud/priority 1} :string]
+   [:boulder-session/perceived-exertion {:optional true :crud/priority 2}
+    perceived-exertion-enum]
+   [:boulder-session/notes {:optional true :crud/priority 3} :string]
+   [:airtable/ported-at {:optional true} :instant]])
 
 ;; A specific problem at a gym (route/boulder). Mirrors the Airtable
 ;; "bouldering problems" table: circuit difficulty label, hold color, wall.
+;; Pictures are not ported — Airtable attachment URLs expire.
 (def boulder-problem
-  (-> [:map {:closed true}
-       [:xt/id :boulder-problem/id]
-       [::sm/type [:enum :boulder-problem]]
-       [::sm/deleted-at {:optional true} :instant]
-       [::sm/created-at :instant]
-       [:user/id :user/id]
-       [:boulder-problem/gym {:crud/priority 1} :string]
-       ;; Circuit label as the gym presents it, e.g. "pink v0-v2"
-       [:boulder-problem/difficulty {:crud/priority 2} :string]
-       [:boulder-problem/hold-color {:optional true :crud/priority 3} :string]
-       [:boulder-problem/wall {:optional true :crud/priority 4} :string]
-       ;; Known/estimated V-grade when the circuit label isn't specific
-       [:boulder-problem/grade {:optional true} grade-enum]
-       [:boulder-problem/label {:optional true} :string]
-       [:boulder-problem/archived {:optional true} :boolean]
-       [:boulder-problem/notes {:optional true} :string]
-       [:airtable/id {:optional true} :string]
-       [:airtable/created-time {:optional true} :instant]
-       [:airtable/ported-at {:optional true} :instant]
-       [:airtable/original-problem-number {:optional true} :int]]
-      (concat sm/legacy-meta)
-      vec))
+  [:map {:closed true}
+   [:xt/id :boulder-problem/id]
+   [::sm/type [:enum :boulder-problem]]
+   [::sm/deleted-at {:optional true} :instant]
+   [::sm/created-at :instant]
+   [:user/id :user/id]
+   [:boulder-problem/gym {:crud/priority 1} :string]
+   ;; Circuit label as the gym presents it, e.g. "pink v0-v2"
+   [:boulder-problem/difficulty {:crud/priority 2} :string]
+   [:boulder-problem/hold-color {:optional true :crud/priority 3} :string]
+   [:boulder-problem/wall {:optional true :crud/priority 4} :string]
+   ;; Known/estimated V-grade (Airtable guessed-grade)
+   [:boulder-problem/grade {:optional true} grade-enum]
+   [:boulder-problem/label {:optional true} :string]
+   [:boulder-problem/archived {:optional true} :boolean]
+   [:boulder-problem/notes {:optional true} :string]
+   [:airtable/id {:optional true} :string]
+   [:airtable/created-time {:optional true} :instant]
+   [:airtable/ported-at {:optional true} :instant]
+   [:airtable/original-problem-number {:optional true} :int]])
 
+;; An attempt is an interval: the gym flow starts a timer when climbing
+;; begins and closes it when the result is logged. Migration derives
+;; beginning as Airtable timestamp minus stopwatch duration, end as the
+;; timestamp itself.
 (def boulder-attempt
-  (-> [:map {:closed true}
-       [:xt/id :boulder-attempt/id]
-       [::sm/type [:enum :boulder-attempt]]
-       [::sm/deleted-at {:optional true} :instant]
-       [::sm/created-at :instant]
-       [:user/id :user/id]
-       [:boulder-attempt/timestamp :instant]
-       [:boulder-attempt/session-id
-        {:optional true :crud/label "Session" :crud/inline-create true}
-        :boulder-session/id]
-       [:boulder-attempt/problem-id
-        {:optional true :crud/priority 1 :crud/label "Problem"
-         :crud/inline-create true}
-        :boulder-problem/id]
-       [:boulder-attempt/sent {:crud/priority 2} :boolean]
-       [:boulder-attempt/flash {:optional true :crud/priority 3} :boolean]
-       [:boulder-attempt/top {:optional true :crud/priority 4} :boolean]
-       ;; Watch-stopwatch time for the attempt
-       [:boulder-attempt/duration-seconds {:optional true} :int]
-       [:boulder-attempt/laps {:optional true} :int]
-       ;; Retry count when a single log covers multiple quick tries
-       [:boulder-attempt/retries {:optional true} :int]
-       [:boulder-attempt/tags {:optional true} [:set attempt-tag-enum]]
-       ;; Subjective read on the attempt, e.g. "better", "warmup", "gassed"
-       [:boulder-attempt/feel {:optional true} :string]
-       [:boulder-attempt/notes {:optional true} :string]
-       [:airtable/id {:optional true} :string]
-       [:airtable/created-time {:optional true} :instant]
-       [:airtable/ported-at {:optional true} :instant]]
-      (concat sm/legacy-meta)
-      vec))
+  [:map {:closed true}
+   [:xt/id :boulder-attempt/id]
+   [::sm/type [:enum :boulder-attempt]]
+   [::sm/deleted-at {:optional true} :instant]
+   [::sm/created-at :instant]
+   [:user/id :user/id]
+   [:boulder-attempt/beginning :instant]
+   [:boulder-attempt/end {:optional true} :instant]
+   [:boulder-attempt/session-id
+    {:optional true :crud/label "Session" :crud/inline-create true}
+    :boulder-session/id]
+   [:boulder-attempt/problem-id
+    {:optional true :crud/priority 1 :crud/label "Problem"
+     :crud/inline-create true}
+    :boulder-problem/id]
+   [:boulder-attempt/sent {:crud/priority 2} :boolean]
+   [:boulder-attempt/flash {:optional true :crud/priority 3} :boolean]
+   [:boulder-attempt/top {:optional true :crud/priority 4} :boolean]
+   [:boulder-attempt/laps {:optional true} :int]
+   ;; Retry count when a single log covers multiple quick tries
+   [:boulder-attempt/attempts {:optional true} :int]
+   [:boulder-attempt/tags {:optional true} [:set attempt-tag-enum]]
+   ;; Subjective read on the attempt, e.g. "better", "warmup", "gassed"
+   [:boulder-attempt/feel {:optional true} :string]
+   [:boulder-attempt/notes {:optional true} :string]
+   [:airtable/id {:optional true} :string]
+   [:airtable/created-time {:optional true} :instant]
+   [:airtable/ported-at {:optional true} :instant]])

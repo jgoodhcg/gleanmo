@@ -187,6 +187,11 @@ Schema conventions
 - Schemas live in `src/tech/jgood/gleanmo/schema/` and follow the standard field ordering with `:closed true`.
 - Register new schemas in `src/tech/jgood/gleanmo/schema.clj`.
 - Add new field types by updating schema registry, input renderer, form converter, and list formatter in that order.
+- Boolean attributes are past-tense state words with no `?` suffix (`sent`, `archived`, `interrupted`). `reading-log/finished?` predates this rule; don't copy it.
+
+### Legacy meta fields — never on new schemas
+
+`sm/legacy-meta` (`tech.jgood.gleanmo.schema/created-at|deleted-at|type`) exists only for entities that already had documents written under those old attribute names before the `tech.jgood.gleanmo.schema.meta` namespace was adopted. Every schema that should ever carry it already does. **Do not append `(concat sm/legacy-meta)` to any new schema** — new entities use only the `::sm/*` meta fields.
 
 ### Airtable lineage fields
 

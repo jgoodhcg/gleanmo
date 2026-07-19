@@ -4,15 +4,16 @@
    forms. Mirrors the workout screen's state machine and visual language
    (see tech.jgood.gleanmo.app.workout).
 
-   Interaction design rationale: at the gym the user climbs, then walks back
-   to their phone and logs what just happened, so unlike a workout set there
-   is no interval to time — the whole flow is a single post-hoc log. The
-   screen is therefore two states: idle shows Start session (gym prefilled
-   from last time); active shows the attempt form permanently — pick a
-   problem (or create one inline: circuit difficulty, hold color, wall),
-   toggle sent/flash/top, optionally bump laps/retries, log. The problem
-   picker defaults to the last problem attempted this session since repeats
-   on the same problem are the common case."
+   Interaction design rationale: an attempt is an interval, same as an
+   exercise set — Start attempt when climbing begins, and the trailing
+   interaction is the log itself: while an attempt runs the form's primary
+   action 'Log attempt' records the result and closes the interval, so
+   forgetting to stop is impossible on the normal path. Logging with no
+   attempt running is still accepted rather than lost: the attempt is
+   created closed with beginning = end = the log moment (duration unknown).
+   The problem picker defaults to the last problem attempted this session
+   since repeats on the same problem are the common case; new problems are
+   created inline (circuit difficulty, hold color, wall)."
   (:require
    [clojure.string :as str]
    [com.biffweb :as biff]
@@ -35,14 +36,6 @@
 
 (defn- parse-int* [s] (when-not (str/blank? s) (parse-long s)))
 
-(defn- parse-duration-secs
-  "Accepts '90' (seconds) or '1:30' (m:ss); returns seconds or nil."
-  [s]
-  (when-not (str/blank? s)
-    (if-let [[_ m sec] (re-matches #"(\d+):(\d{1,2})" (str/trim s))]
-      (+ (* 60 (parse-long m)) (parse-long sec))
-      (parse-int* (str/trim s)))))
-
 (defn- problem-label
   "Compact one-line identity for a problem: 'pink v0-v2 · green · comp'."
   [p]
@@ -53,18 +46,29 @@
        (remove str/blank?)
        (str/join " · ")))
 
+(defn- fmt-clock
+  "m:ss, like a stopwatch — used for attempt durations."
+  [beginning end]
+  (let [secs (t/seconds (t/between beginning end))]
+    (format "%d:%02d" (quot secs 60) (mod secs 60))))
+
 (defn- attempt-detail
-  "Right-aligned detail for history rows: 'sent · flash', 'top', '3 retries'."
+  "Right-aligned detail for history rows: '1:32 · sent · flash', 'top',
+   '3 attempts'. Zero-length intervals (backfilled logs) show no clock."
   [a]
-  (let [parts (cond-> []
+  (let [{:boulder-attempt/keys [beginning end]} a
+        clock (when (and beginning end (t/< beginning end))
+                (fmt-clock beginning end))
+        parts (cond-> []
+                clock (conj clock)
                 (:boulder-attempt/sent a)  (conj "sent")
                 (:boulder-attempt/flash a) (conj "flash")
                 (and (:boulder-attempt/top a)
                      (not (:boulder-attempt/sent a))) (conj "top")
                 (some-> (:boulder-attempt/laps a) (> 1))
                 (conj (str (:boulder-attempt/laps a) " laps"))
-                (some-> (:boulder-attempt/retries a) pos?)
-                (conj (str (:boulder-attempt/retries a) " retries")))]
+                (some-> (:boulder-attempt/attempts a) (> 1))
+                (conj (str (:boulder-attempt/attempts a) " tries")))]
     (if (seq parts) (str/join " · " parts) "attempt")))
 
 ;; Same client-side ticking as the workout screen: session duration renders
@@ -199,16 +203,26 @@
       [:span {:class "text-[10px] font-semibold tracking-widest text-gray-500"} "LAPS"]
       (stepper-ctrl "laps" "1")]
      [:div.flex.items-center.justify-between.gap-3.py-2
-      [:span {:class "text-[10px] font-semibold tracking-widest text-gray-500"} "RETRIES"]
-      (stepper-ctrl "retries" "0")]
-     [:div.flex.items-center.justify-between.gap-3.py-2
-      [:span {:class "text-[10px] font-semibold tracking-widest text-gray-500"} "DURATION"]
-      [:input {:type "text" :name "duration" :placeholder "m:ss or sec"
-               :inputmode "numeric" :autocomplete "off"
-               :class "form-input w-28 text-right tabular-nums"}]]
+      [:span {:class "text-[10px] font-semibold tracking-widest text-gray-500"} "TRIES"]
+      (stepper-ctrl "attempts" "1")]
      [:button {:type "submit"
                :class "w-full py-4 rounded-xl text-sm font-bold bg-neon-cyan text-black mt-3"}
       "Log attempt"])))
+
+(defn- running-attempt-panel
+  "The recording hero card while an attempt's timer runs: pulsing dot,
+   ATTEMPT · RECORDING, big live m:ss clock. The log form below is what
+   closes it."
+  [running]
+  [:div {:class "rounded-xl border p-5"
+         :style {:border-color "rgba(34,211,238,.3)"
+                 :background "rgba(34,211,238,.05)"}}
+   [:div.flex.items-center.gap-2
+    [:span {:class "w-2 h-2 rounded-full bg-neon-cyan animate-pulse"}]
+    [:span {:class "text-[11px] font-semibold tracking-widest text-gray-400"}
+     "ATTEMPT · RECORDING"]]
+   [:div {:class "text-[46px] font-bold text-neon-cyan tabular-nums leading-tight mt-2"
+          :data-epoch-ms (epoch-ms (:boulder-attempt/beginning running))} "…"]])
 
 (defn- attempt-card
   "One logged attempt in the session history: problem identity left, result
@@ -227,11 +241,14 @@
   (let [session-id  (:xt/id boulder-session)
         user-id     (:uid session)
         attempts    (queries/attempts-for-boulder-session db user-id session-id)
+        running     (first (filter #(nil? (:boulder-attempt/end %)) attempts))
+        done        (filter :boulder-attempt/end attempts)
         problems    (queries/boulder-problems-for-user db user-id)
         probs-by-id (into {} (map (juxt :xt/id identity)) problems)
-        last-prob   (:boulder-attempt/problem-id (last attempts))
-        n           (count attempts)
-        sends       (count (filter :boulder-attempt/sent attempts))]
+        last-prob   (or (:boulder-attempt/problem-id (last done))
+                        (:boulder-attempt/problem-id running))
+        n           (count done)
+        sends       (count (filter :boulder-attempt/sent done))]
     [:div {:class "max-w-2xl mx-auto p-4 sm:p-6 pb-24 space-y-5"}
      [:div.flex.items-start.justify-between.gap-3
       [:div
@@ -247,8 +264,17 @@
                            :class "px-3.5 py-2 rounded-lg text-xs font-semibold text-red-400 bg-transparent border border-red-400/30 whitespace-nowrap"}
                   "End session"])]
 
+     (if running
+       (running-attempt-panel running)
+       (biff/form {:action (str screen-url "/" session-id "/attempt/start")
+                   :method "post"}
+                  [:button {:type "submit"
+                            :class "w-full py-4 rounded-xl text-base font-bold bg-neon-cyan text-black"}
+                   "Start attempt"]))
+
      [:div {:class "rounded-xl border border-dark bg-dark-surface p-4 sm:p-6"}
-      [:h2.text-sm.font-bold.text-white.mb-4 "Log attempt"]
+      [:h2.text-sm.font-bold.text-white.mb-4
+       (if running "Log attempt" "Log a finished attempt")]
       (attempt-form boulder-session problems last-prob)]
 
      [:div
@@ -257,9 +283,9 @@
        [:span {:class "flex-1 h-px bg-dark-border"}]
        [:span.text-xs.text-gray-500.tabular-nums
         (str n (if (= 1 n) " attempt" " attempts"))]]
-      (if (seq attempts)
+      (if (seq done)
         [:div {:class "flex flex-col gap-2.5"}
-         (for [a (reverse attempts)]
+         (for [a (reverse done)]
            ^{:key (:xt/id a)}
            (attempt-card a probs-by-id))]
         [:div {:class "rounded-xl border border-dashed border-dark p-7 text-center text-xs text-gray-500"}
@@ -394,20 +420,46 @@
                                           :boulder-session/beginning (t/now)}}))
   (redirect-home))
 
+(defn- running-attempt
+  [{:keys [biff/db session]} session-id]
+  (->> (queries/attempts-for-boulder-session db (:uid session) session-id)
+       (filter #(nil? (:boulder-attempt/end %)))
+       first))
+
 (defn end-session!
   [ctx]
   (when-let [sess (owned-entity ctx :boulder-session)]
+    ;; close any running attempt along with the session
+    (when-let [running (running-attempt ctx (:xt/id sess))]
+      (mutations/update-entity! ctx {:entity-key :boulder-attempt
+                                     :entity-id (:xt/id running)
+                                     :data {:boulder-attempt/end (t/now)}}))
     (when (nil? (:boulder-session/end sess))
       (mutations/update-entity! ctx {:entity-key :boulder-session
                                      :entity-id (:xt/id sess)
                                      :data {:boulder-session/end (t/now)}})))
   (redirect-home))
 
+(defn start-attempt!
+  "Open the attempt interval when climbing begins. Result fields land later
+   via add-attempt!; sent starts false because the schema requires it."
+  [{:keys [session] :as ctx}]
+  (when-let [sess (owned-entity ctx :boulder-session)]
+    (when-not (running-attempt ctx (:xt/id sess))
+      (mutations/create-entity! ctx {:entity-key :boulder-attempt
+                                     :data {:user/id (:uid session)
+                                            :boulder-attempt/session-id (:xt/id sess)
+                                            :boulder-attempt/beginning (t/now)
+                                            :boulder-attempt/sent false}})))
+  (redirect-home))
+
 (defn add-attempt!
-  "Record one attempt against the session. problem-id __new__ creates the
-   problem inline from the difficulty/color/wall fields (gym comes from the
-   session). Laps only persists past the default 1, retries past 0 — absent
-   means the unremarkable case, same as Airtable left them blank."
+  "Record the result of an attempt. Closes the running attempt interval if
+   one exists; otherwise the attempt is created already closed with
+   beginning = end = now (logged after the fact, duration unknown).
+   problem-id __new__ creates the problem inline from the difficulty/color/
+   wall fields (gym comes from the session). Laps/tries only persist past
+   their defaults — absent means the unremarkable case."
   [{:keys [session params] :as ctx}]
   (if-let [sess (owned-entity ctx :boulder-session)]
     (let [user-id    (:uid session)
@@ -427,22 +479,28 @@
                                    (assoc :boulder-problem/wall (str/trim (:new-wall params))))}))
                        (some-> (:problem-id params) java.util.UUID/fromString))
           laps       (parse-int* (:laps params))
-          retries    (parse-int* (:retries params))
-          duration   (parse-duration-secs (:duration params))]
+          tries      (parse-int* (:attempts params))
+          now        (t/now)
+          running    (running-attempt ctx (:xt/id sess))
+          result     (cond-> {:boulder-attempt/sent (= "true" (:sent params))
+                              :boulder-attempt/end now}
+                       problem-id (assoc :boulder-attempt/problem-id problem-id)
+                       (= "true" (:flash params)) (assoc :boulder-attempt/flash true)
+                       (= "true" (:top params))   (assoc :boulder-attempt/top true)
+                       (some-> laps (> 1))  (assoc :boulder-attempt/laps laps)
+                       (some-> tries (> 1)) (assoc :boulder-attempt/attempts tries))]
       (when problem-id
-        (mutations/create-entity!
-         ctx
-         {:entity-key :boulder-attempt
-          :data (cond-> {:user/id user-id
-                         :boulder-attempt/session-id (:xt/id sess)
-                         :boulder-attempt/problem-id problem-id
-                         :boulder-attempt/timestamp (t/now)
-                         :boulder-attempt/sent (= "true" (:sent params))}
-                  (= "true" (:flash params)) (assoc :boulder-attempt/flash true)
-                  (= "true" (:top params))   (assoc :boulder-attempt/top true)
-                  (some-> laps (> 1))        (assoc :boulder-attempt/laps laps)
-                  (some-> retries pos?)      (assoc :boulder-attempt/retries retries)
-                  duration                   (assoc :boulder-attempt/duration-seconds duration))}))
+        (if running
+          (mutations/update-entity! ctx {:entity-key :boulder-attempt
+                                         :entity-id (:xt/id running)
+                                         :data result})
+          (mutations/create-entity!
+           ctx
+           {:entity-key :boulder-attempt
+            :data (merge {:user/id user-id
+                          :boulder-attempt/session-id (:xt/id sess)
+                          :boulder-attempt/beginning now}
+                         result)})))
       (redirect-home))
     (redirect-home)))
 
@@ -452,4 +510,5 @@
    ["/session/:id/summary" {:get session-summary-page}]
    ["/session/start" {:post start-session!}]
    ["/session/:id/end" {:post end-session!}]
-   ["/session/:id/attempt" {:post add-attempt!}]])
+   ["/session/:id/attempt" {:post add-attempt!}]
+   ["/session/:id/attempt/start" {:post start-attempt!}]])
