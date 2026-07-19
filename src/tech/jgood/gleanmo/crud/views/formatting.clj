@@ -45,6 +45,12 @@
     [:span.text-secondary "—"]
     [:span (format "%.2f" value)]))
 
+(defmethod format-cell-value :double
+  [_ value _]
+  (if (nil? value)
+    [:span.text-secondary "—"]
+    [:span (format "%.2f" value)]))
+
 (defmethod format-cell-value :int
   [_ value _]
   (if (nil? value)

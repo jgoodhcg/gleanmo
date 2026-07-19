@@ -11,6 +11,8 @@
    [com.biffweb :as biff]
    [tasks.migrations.m001-airtable-import-medications :as m001]
    [tasks.migrations.m002-airtable-import-reading :as m002]
+   [tasks.migrations.m003-airtable-import-pain :as m003]
+   [tasks.migrations.m004-airtable-import-bouldering :as m004]
    [tasks.util :as u]
    [tech.jgood.gleanmo :as main]))
 
@@ -23,6 +25,8 @@
    ["-p" "--mapping-file FILE" "Path to EDN overrides map for label reconciliation"]
    ["-b" "--books-file FILE" "Path to books EDN file (m002)"]
    ["-l" "--logs-file FILE" "Path to reading-log EDN file (m002)"]
+   [nil "--problems-file FILE" "Path to bouldering problems EDN file (m004)"]
+   [nil "--tries-file FILE" "Path to bouldering tries EDN file (m004)"]
    ["-t" "--target TARGET" "Target database: dev or prod"
     :default "dev"]
    ["-e" "--email EMAIL" "Email of the user to associate records with"]
@@ -58,7 +62,9 @@
 (def registry
   "Map of migration name to run fn. Populated as migrations are added."
   {"m001-airtable-import-medications" m001/run
-   "m002-airtable-import-reading"     m002/run})
+   "m002-airtable-import-reading"     m002/run
+   "m003-airtable-import-pain"        m003/run
+   "m004-airtable-import-bouldering"  m004/run})
 
 ;; =============================================================================
 ;; Entry Point

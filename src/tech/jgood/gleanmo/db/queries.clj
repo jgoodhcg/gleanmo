@@ -904,6 +904,74 @@
          (remove ::sm/deleted-at)
          vec)))
 
+(defnp attempts-for-boulder-session
+  "Boulder attempts belonging to one session, oldest first. Equality-bound on
+   session-id so cost tracks the session's size, not the user's history."
+  [db user-id session-id]
+  (->> (q db
+          '{:find  [(pull ?e [*])]
+            :where [[?e :user/id user-id]
+                    [?e ::sm/type :boulder-attempt]
+                    [?e :boulder-attempt/session-id session-id]]
+            :in    [user-id session-id]}
+          user-id session-id)
+       (map first)
+       (remove ::sm/deleted-at)
+       (sort-by :boulder-attempt/timestamp)
+       vec))
+
+(defnp boulder-problems-for-user
+  "All of the user's boulder problems, newest first. Problem count stays small
+   (a few hundred), so a full pull is fine; callers filter archived."
+  [db user-id]
+  (->> (q db
+          '{:find  [(pull ?e [*])]
+            :where [[?e :user/id user-id]
+                    [?e ::sm/type :boulder-problem]]
+            :in    [user-id]}
+          user-id)
+       (map first)
+       (remove ::sm/deleted-at)
+       (sort-by ::sm/created-at #(compare %2 %1))
+       vec))
+
+(defnp recent-boulder-sessions-for-user
+  "The user's most recent boulder sessions, newest first, bounded by limit.
+   Scan-then-pull on the beginning timestamp, same shape as
+   recent-sessions-for-user."
+  [db user-id limit]
+  (let [ids (->> (q db
+                    '{:find  [?e ?t]
+                      :where [[?e :user/id user-id]
+                              [?e ::sm/type :boulder-session]
+                              [?e :boulder-session/beginning ?t]]
+                      :in    [user-id]}
+                    user-id)
+                 (sort-by second #(compare %2 %1))
+                 (map first)
+                 (take limit))]
+    (->> (fetch-entities-by-ids db ids)
+         (remove ::sm/deleted-at)
+         vec)))
+
+(defnp recent-boulder-attempts-for-user
+  "The user's most recent boulder attempts, newest first, bounded by limit.
+   Scan-then-pull, used to prefill the gym screen with what was climbed last."
+  [db user-id limit]
+  (let [ids (->> (q db
+                    '{:find  [?e ?t]
+                      :where [[?e :user/id user-id]
+                              [?e ::sm/type :boulder-attempt]
+                              [?e :boulder-attempt/timestamp ?t]]
+                      :in    [user-id]}
+                    user-id)
+                 (sort-by second #(compare %2 %1))
+                 (map first)
+                 (take limit))]
+    (->> (fetch-entities-by-ids db ids)
+         (remove ::sm/deleted-at)
+         vec)))
+
 (defnp get-events-for-user-year
   "Get all events for a user within a specific year, using user's timezone.
    Note: Performs date-range filtering in application code to avoid complex

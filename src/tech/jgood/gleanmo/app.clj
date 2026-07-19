@@ -3,7 +3,9 @@
    [clojure.string :as str]
    [com.biffweb :as biff]
    [tech.jgood.gleanmo.app.bm-log :as bm-log]
+   [tech.jgood.gleanmo.app.boulder :as boulder]
    [tech.jgood.gleanmo.app.boulder-attempt :as boulder-attempt]
+   [tech.jgood.gleanmo.app.boulder-problem :as boulder-problem]
    [tech.jgood.gleanmo.app.boulder-session :as boulder-session]
    [tech.jgood.gleanmo.app.calendar :as calendar]
    [tech.jgood.gleanmo.app.calendar-event :as calendar-event]
@@ -74,6 +76,7 @@
     :exercise-set
     :exercise-line
     :boulder-session
+    :boulder-problem
     :boulder-attempt
     :task
     :cruddy})
@@ -571,6 +574,7 @@
             exercise-line/crud-routes
             boulder-session/crud-routes
             boulder-session/viz-routes
+            boulder-problem/crud-routes
             boulder-attempt/crud-routes
             task/crud-routes
             task/routes
@@ -583,6 +587,9 @@
 
             ;; Workout flow
             workout/routes
+
+            ;; Bouldering flow
+            boulder/routes
 
             ;; Main app and DB visualization
             ["/overview/stats" {:get overview/stats-fragment}]

@@ -21,10 +21,10 @@ updated: 2026-05-16
 - BM logs: fully migrated; helper code in `dev/repl.clj` is archival/reference.
 - Medication: **COMPLETE** (2026-03-10). 23 medications, 1,305 logs. Injection site and notes included in final migration.
 - Reading: **COMPLETE** (2026-03-21). Production migration successful: 12 book-sources, 27 books, 366 reading-logs, 6 new locations created, 0 failures.
-- Symptom (unified with pain): schema + CRUD + viz wired (2026-07-10); no migration code yet. Airtable pain data will port as symptom-log with type `:pain`.
+- Symptom (unified with pain): schema + CRUD + viz wired (2026-07-10). Schema enriched against real Airtable pain export (2026-07-19): `areas` set-enum (39 body areas), `side` enum, expanded `qualifiers` (~30 pain descriptors), `severity-score` now `:number` (ratings include 0.5). Ingester `m003-airtable-import-pain` built and dry-run validated: 1,130/1,130 records pass. Prod run pending.
 - Mood: schema (circumplex: valence/arousal/stress) + CRUD + viz wired (2026-07-10); no ingester.
 - Exercise: schema reworked (exercise-log removed; session → exercise-block (timed, superset-capable) → exercise-set (reps × weight of one exercise)) + CRUD wired + custom workout screen at `/app/exercise/session` (2026-07-10); no ingester.
-- Bouldering: boulder-session + boulder-attempt schema + CRUD + viz wired (2026-07-10); no ingester.
+- Bouldering: schema reworked against real Airtable export (2026-07-19): added `boulder-problem` entity (mirrors Airtable problems table: circuit difficulty string like "pink v0-v2", hold color, wall, gym); attempt gains timestamp, flash/top, duration-seconds (Airtable duration is centiseconds), laps, retries, tags set-enum (dab/peel/bail/off-start/reversed/foot-slip), feel. Custom gym screen at `/app/boulder/session` (mirrors workout screen; inline problem creation). Ingester `m004-airtable-import-bouldering` built and dry-run validated: 277 problems, 84 synthesized sessions (one per Airtable day), 676 attempts, 0 failures. Prod run pending. Note: 21 Airtable try rows have a formula-error `day` and import without a session link.
 - Tasks & Projects: CRUD live in-app; historical data lives in other apps/spreadsheets, no migration code.
 - Priority: define and implement Airtable-backed entities incrementally, then port data one by one until Airtable can be retired.
 
@@ -34,7 +34,8 @@ updated: 2026-05-16
 - ~~Download Airtable reading data, dry-run m002, validate artifacts, write to dev DB~~ — DONE (2026-03-18).
 - ~~Deploy reading schema changes to production, then run migration on prod~~ — DONE (2026-03-21).
 - ~~Wire CRUD/UI for symptom, mood, exercise, bouldering~~ — DONE (2026-07-10). All remaining Airtable-backed entities have schema + CRUD + viz (plus custom workout screen).
-- **NEXT: Build Airtable ingesters, one entity at a time: symptom/pain → mood → exercise → bouldering.**
+- ~~Build symptom/pain + bouldering ingesters~~ — DONE (2026-07-19): `m003-airtable-import-pain` and `m004-airtable-import-bouldering`, both dry-run validated against fresh exports.
+- **NEXT: Run m003/m004 against dev, spot-check in UI, then run against prod. Then: mood + exercise ingesters.**
 
 ## Recommended Approach: Airtable Exit First
 Define schema → wire CRUD → build/run migration for each entity sequentially. This provides:

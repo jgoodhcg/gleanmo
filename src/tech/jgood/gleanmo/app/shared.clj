@@ -137,7 +137,7 @@
       [:a.link {:href "/app/crud/form/symptom-log/new"} "symptom log"]
       [:a.link {:href "/app/crud/form/mood-log/new"} "mood log"]
       [:a.link {:href "/app/exercise/session"} "workout"]
-      [:a.link {:href "/app/crud/form/boulder-attempt/new"} "boulder attempt"]
+      [:a.link {:href "/app/boulder/session"} "bouldering"]
       [:hr.border-dark]
 
       ;; Calendar

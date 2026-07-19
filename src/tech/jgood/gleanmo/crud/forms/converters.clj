@@ -28,6 +28,14 @@
                               "' to float: "        (.getMessage e))
                          {:value value, :type :float})))))
 
+(defmethod convert-field-value :double
+  [_ value _]
+  (try (Double/parseDouble value)
+       (catch Exception e
+         (throw (ex-info (str "Could not convert '" value
+                              "' to double: "       (.getMessage e))
+                         {:value value, :type :double})))))
+
 (defmethod convert-field-value :number
   [_ value _]
   (try (Double/parseDouble value)

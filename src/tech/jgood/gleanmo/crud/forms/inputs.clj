@@ -155,6 +155,10 @@
                 :data-original-value (str value)}
          value (assoc :value value))]]]))
 
+(defmethod render :double
+  [field ctx]
+  ((get-method render :float) field ctx))
+
 (defmethod render :local-date
   [field _]
   (let [{:keys [input-name

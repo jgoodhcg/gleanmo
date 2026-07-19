@@ -48,6 +48,7 @@
    :symptom-log/id      :uuid
    :mood-log/id         :uuid
    :boulder-session/id  :uuid
+   :boulder-problem/id  :uuid
    :boulder-attempt/id  :uuid
    :task/id             :uuid
    :user                us/user
@@ -74,6 +75,7 @@
    :symptom-log         ss/symptom-log
    :mood-log            moods/mood-log
    :boulder-session     bschema/boulder-session
+   :boulder-problem     bschema/boulder-problem
    :boulder-attempt     bschema/boulder-attempt
    :task                ts/task
    :cruddy              cs/cruddy
