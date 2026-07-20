@@ -42,6 +42,7 @@ async function main() {
 
   // second attempt logged without starting the timer (backfill path),
   // on the same (now preselected) problem, with extra tries
+  await page.click('#bd-backfill-toggle');
   await page.click('[data-adjust="attempts:1"]');
   await page.click('[data-adjust="attempts:1"]');
   await page.click('button:has-text("Log attempt")');

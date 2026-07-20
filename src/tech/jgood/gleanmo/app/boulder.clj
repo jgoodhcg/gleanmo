@@ -181,6 +181,13 @@
          var i=form.querySelector('[name='+name+']');
          var min=(name==='laps')?1:0;
          i.value=Math.max(min,(parseInt(i.value,10)||0)+dir); }); });
+     var bft=document.getElementById('bd-backfill-toggle');
+     var card=document.getElementById('bd-form-card');
+     var bfc=document.getElementById('bd-backfill-cancel');
+     if(bft&&card){ bft.addEventListener('click',function(){
+       card.classList.remove('hidden'); bft.classList.add('hidden'); }); }
+     if(bfc&&card&&bft){ bfc.addEventListener('click',function(){
+       card.classList.add('hidden'); bft.classList.remove('hidden'); }); }
      syncNew();
    })();")
 
@@ -283,8 +290,7 @@
                              (if (= selected "__new__") "border-neon-cyan" "border-dark"))}
         [:span {:data-card-body true :class "text-sm text-gray-400"} "＋ New problem"]]]
       [:div.mt-2
-       [:a.link {:class "text-[11px]"
-                 :href (str "/app/crud/boulder-problem?redirect=" (redirect-param))}
+       [:a.link {:class "text-[11px]" :href (str screen-url "/problems")}
         "manage problems"]]]
      (new-problem-fields problems)
      [:div {:class "text-[10px] font-semibold tracking-widest text-gray-500 mt-5 mb-2"} "RESULT"]
@@ -364,15 +370,28 @@
 
      (if running
        (running-attempt-panel running)
-       (biff/form {:action (str screen-url "/" session-id "/attempt/start")
-                   :method "post"}
-                  [:button {:type "submit"
-                            :class "w-full py-4 rounded-xl text-base font-bold bg-neon-cyan text-black"}
-                   "Start attempt"]))
+       [:div {:class "flex flex-col gap-2.5"}
+        (biff/form {:action (str screen-url "/" session-id "/attempt/start")
+                    :method "post"}
+                   [:button {:type "submit"
+                             :class "w-full py-4 rounded-xl text-base font-bold bg-neon-cyan text-black"}
+                    "Start attempt"])
+        [:button {:id "bd-backfill-toggle" :type "button"
+                  :class "w-full py-3 rounded-lg text-xs text-gray-500 border border-dashed border-dark bg-transparent"}
+         "Forgot to start? Log without a start time"]])
 
-     [:div {:class "rounded-xl border border-dark bg-dark-surface p-4 sm:p-6"}
-      [:h2.text-sm.font-bold.text-white.mb-4
-       (if running "Log attempt" "Log a finished attempt")]
+     ;; the log form: the trailing interaction while an attempt records;
+     ;; hidden behind the backfill toggle otherwise
+     [:div {:id "bd-form-card"
+            :class (str "rounded-xl border border-dark bg-dark-surface p-4 sm:p-6 "
+                        (when-not running "hidden"))}
+      [:div.flex.items-center.justify-between.gap-3.mb-4
+       [:h2.text-sm.font-bold.text-white
+        (if running "Log attempt" "Log without a start time")]
+       (when-not running
+         [:button {:id "bd-backfill-cancel" :type "button"
+                   :class "text-xs text-gray-500 bg-transparent border-none"}
+          "Cancel"])]
       (attempt-form boulder-session problems last-prob)]
 
      [:div
@@ -489,6 +508,93 @@
         [:div {:class "max-w-2xl mx-auto p-6"}
          [:p.text-gray-400 "Session not found."]])))))
 
+;; Wall chips on the problems screen filter both sections client-side.
+(def ^:private problems-script
+  "(function(){
+     var chips=document.querySelectorAll('[data-wall-chip]');
+     var rows=document.querySelectorAll('[data-problem-row]');
+     chips.forEach(function(w){
+       w.addEventListener('click',function(){
+         chips.forEach(function(o){
+           var on=o===w;
+           o.classList.toggle('bg-neon-cyan',on); o.classList.toggle('text-black',on);
+           o.classList.toggle('text-gray-500',!on); });
+         rows.forEach(function(r){
+           r.classList.toggle('hidden',
+             w.dataset.wallChip!=='__all__' && r.dataset.wall!==w.dataset.wallChip); }); }); });
+   })();")
+
+(defn- problem-row
+  "One problem on the management screen: badge + one-tap retire/restore."
+  [p]
+  (let [inactive? (:boulder-problem/inactive p)]
+    [:div {:data-problem-row true
+           :data-wall (or (:boulder-problem/wall p) "")
+           :class "flex items-center justify-between gap-3 rounded-xl border border-dark bg-dark-surface px-4 py-3"}
+     [:a {:class "no-underline min-w-0"
+          :href (str "/app/crud/form/boulder-problem/edit/" (:xt/id p)
+                     "?redirect=" (java.net.URLEncoder/encode (str screen-url "/problems") "UTF-8"))}
+      (problem-badge p)]
+     (biff/form {:action (str screen-url "/problem/" (:xt/id p) "/toggle-inactive")
+                 :method "post"}
+                [:button {:type "submit"
+                          :class (if inactive?
+                                   "px-3 py-2 rounded-lg text-xs font-semibold border border-dark text-gray-400 bg-transparent whitespace-nowrap"
+                                   "px-3 py-2 rounded-lg text-xs font-semibold border border-red-400/30 text-red-400 bg-transparent whitespace-nowrap")}
+                 (if inactive? "restore" "retire")])]))
+
+(defn- problems-view
+  "Bulk problem management: active problems up top with one-tap retire —
+   set changes take out ~10 at once, so no per-problem form dives — and
+   retired ones below with restore. Wall chips filter both sections; the
+   badge links to the full CRUD edit form."
+  [{:keys [biff/db session]}]
+  (let [problems (queries/boulder-problems-for-user db (:uid session))
+        active   (remove :boulder-problem/inactive problems)
+        retired  (filter :boulder-problem/inactive problems)
+        walls    (->> problems
+                      (keep :boulder-problem/wall)
+                      (remove str/blank?)
+                      distinct
+                      sort)]
+    [:div {:class "max-w-2xl mx-auto p-4 sm:p-6 pb-24 space-y-5"}
+     [:div
+      [:a.link.text-xs {:href screen-url} "← bouldering"]
+      [:h1.text-2xl.font-bold.text-white.mt-2 "Problems"]]
+     (when (seq walls)
+       [:div {:class "flex flex-wrap gap-1.5"}
+        (for [[value label] (cons ["__all__" "all walls"]
+                                  (map (juxt identity identity) walls))]
+          [:button {:type "button" :data-wall-chip value
+                    :class (str "px-3 py-1.5 rounded-full text-[11px] font-bold border border-dark "
+                                (if (= value "__all__")
+                                  "bg-neon-cyan text-black"
+                                  "text-gray-500 bg-dark-surface"))}
+           label])])
+     [:div
+      [:div.flex.items-baseline.gap-3.mb-3
+       [:h2 {:class "text-[11px] font-bold tracking-widest text-gray-400"} "ON THE WALL"]
+       [:span {:class "flex-1 h-px bg-dark-border"}]
+       [:span.text-xs.text-gray-500.tabular-nums (str (count active))]]
+      (if (seq active)
+        [:div {:class "flex flex-col gap-2"}
+         (for [p active] ^{:key (:xt/id p)} (problem-row p))]
+        [:div {:class "rounded-xl border border-dashed border-dark p-7 text-center text-xs text-gray-500"}
+         "No active problems."])]
+     (when (seq retired)
+       [:div
+        [:div.flex.items-baseline.gap-3.mb-3
+         [:h2 {:class "text-[11px] font-bold tracking-widest text-gray-400"} "RETIRED"]
+         [:span {:class "flex-1 h-px bg-dark-border"}]
+         [:span.text-xs.text-gray-500.tabular-nums (str (count retired))]]
+        [:div {:class "flex flex-col gap-2"}
+         (for [p retired] ^{:key (:xt/id p)} (problem-row p))]])
+     [:script (biff/unsafe problems-script)]]))
+
+(defn problems-page
+  [ctx]
+  (ui/page ctx (side-bar ctx (problems-view ctx))))
+
 (defn boulder-page
   [ctx]
   (let [sess (open-session ctx)]
@@ -508,6 +614,15 @@
   [{:keys [biff/db session path-params]} entity-key]
   (let [entity-id (java.util.UUID/fromString (:id path-params))]
     (queries/get-entity-for-user db entity-id (:uid session) entity-key)))
+
+(defn toggle-problem-inactive!
+  [ctx]
+  (when-let [p (owned-entity ctx :boulder-problem)]
+    (mutations/update-entity! ctx {:entity-key :boulder-problem
+                                   :entity-id (:xt/id p)
+                                   :data {:boulder-problem/inactive
+                                          (not (:boulder-problem/inactive p))}}))
+  {:status 303 :headers {"location" (str screen-url "/problems")}})
 
 (defn start-session!
   [{:keys [session params] :as ctx}]
@@ -609,4 +724,6 @@
    ["/session/start" {:post start-session!}]
    ["/session/:id/end" {:post end-session!}]
    ["/session/:id/attempt" {:post add-attempt!}]
-   ["/session/:id/attempt/start" {:post start-attempt!}]])
+   ["/session/:id/attempt/start" {:post start-attempt!}]
+   ["/session/problems" {:get problems-page}]
+   ["/session/problem/:id/toggle-inactive" {:post toggle-problem-inactive!}]])
