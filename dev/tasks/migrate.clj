@@ -13,6 +13,8 @@
    [tasks.migrations.m002-airtable-import-reading :as m002]
    [tasks.migrations.m003-airtable-import-pain :as m003]
    [tasks.migrations.m004-airtable-import-bouldering :as m004]
+   [tasks.migrations.m005-airtable-import-exercise :as m005]
+   [tasks.migrations.m006-airtable-import-mood :as m006]
    [tasks.util :as u]
    [tech.jgood.gleanmo :as main]))
 
@@ -27,6 +29,8 @@
    ["-l" "--logs-file FILE" "Path to reading-log EDN file (m002)"]
    [nil "--problems-file FILE" "Path to bouldering problems EDN file (m004)"]
    [nil "--tries-file FILE" "Path to bouldering tries EDN file (m004)"]
+   [nil "--exercises-file FILE" "Path to exercises EDN file (m005)"]
+   [nil "--moods-file FILE" "Path to moods EDN file (m006)"]
    ["-t" "--target TARGET" "Target database: dev or prod"
     :default "dev"]
    ["-e" "--email EMAIL" "Email of the user to associate records with"]
@@ -64,7 +68,9 @@
   {"m001-airtable-import-medications" m001/run
    "m002-airtable-import-reading"     m002/run
    "m003-airtable-import-pain"        m003/run
-   "m004-airtable-import-bouldering"  m004/run})
+   "m004-airtable-import-bouldering"  m004/run
+   "m005-airtable-import-exercise"    m005/run
+   "m006-airtable-import-mood"        m006/run})
 
 ;; =============================================================================
 ;; Entry Point

@@ -5,7 +5,7 @@ description: "Tracker for Airtable backfills and remaining imports"
 tags: []
 priority: high
 created: 2026-02-02
-updated: 2026-05-16
+updated: 2026-07-26
 ---
 
 # Data Migration Status (Airtable + Other Sources)
@@ -21,9 +21,9 @@ updated: 2026-05-16
 - BM logs: fully migrated; helper code in `dev/repl.clj` is archival/reference.
 - Medication: **COMPLETE** (2026-03-10). 23 medications, 1,305 logs. Injection site and notes included in final migration.
 - Reading: **COMPLETE** (2026-03-21). Production migration successful: 12 book-sources, 27 books, 366 reading-logs, 6 new locations created, 0 failures.
-- Symptom (unified with pain): schema + CRUD + viz wired (2026-07-10). Schema enriched against real Airtable pain export (2026-07-19): `areas` set-enum (39 body areas), `side` enum, expanded `qualifiers` (~30 pain descriptors), `severity-score` now `:number` (ratings include 0.5). Ingester `m003-airtable-import-pain` built and dry-run validated: 1,130/1,130 records pass. Prod run pending.
-- Mood: schema (circumplex: valence/arousal/stress) + CRUD + viz wired (2026-07-10); no ingester.
-- Exercise: schema reworked (exercise-log removed; session → exercise-block (timed, superset-capable) → exercise-set (reps × weight of one exercise)) + CRUD wired + custom workout screen at `/app/exercise/session` (2026-07-10); no ingester.
+- Symptom (unified with pain): schema + CRUD + viz wired (2026-07-10). Schema enriched against real Airtable pain export (2026-07-19): `areas` set-enum (39 body areas), `side` enum, expanded `qualifiers` (~30 pain descriptors), `severity-score` now `:number` (ratings include 0.5). Ingester `m003-airtable-import-pain` built; dev re-run 2026-07-26 on fresh export: 1,131/1,131 records pass (one new record since 7/19). Prod run pending.
+- Mood: schema (circumplex: valence/arousal/stress) + CRUD + viz wired (2026-07-10). Ingester `m006-airtable-import-mood` built and **run against dev** (2026-07-26): 24 mood-logs imported, 1 row skipped (timestamp only, no mood link, no notes). Each Plutchik label from the Airtable moods table maps to a fixed valence/arousal pair (`dev/repl/airtable/mood.clj`); raw label kept on `airtable/original-mood`. Schema: dropped legacy-meta (new entity), added `airtable/original-mood`. Prod run pending.
+- Exercise: schema reworked (exercise-log removed; session → exercise-set (timed, superset-capable) → exercise-line (reps × weight of one exercise)) + CRUD wired + custom workout screen at `/app/exercise/session` (2026-07-10). Ingester `m005-airtable-import-exercise` built and **run against dev** (2026-07-26): 471 exercises (8 nameless never-logged rows skipped), 2,559 synthesized sessions (time-sorted logs split at ≥60 min gaps — Airtable days often hold several workout/PT blocks), 10,182 sets + 10,182 lines (each Airtable log row = one set holding one line), 210 rows skipped (145 empty junk, 65 timestamp-only with no exercise link). Airtable duration is stopwatch **seconds** (unlike bouldering's centiseconds); rows with absent/zero/implausible (>2h) durations import as auto-started zero-length sets, implausible originals kept on `airtable/original-duration`. Sparse columns (breaths/steps/Angle/better-worse-than-normal/aliases/pt-recommended) kept as `airtable/*` lineage fields; breaths fill reps when reps absent. Schema: dropped legacy-meta, swapped speculative airtable fields for ones matching the real export. Prod run pending.
 - Bouldering: schema reworked against real Airtable export (2026-07-19): added `boulder-problem` entity (mirrors Airtable problems table: circuit difficulty string like "pink v0-v2", hold color, wall, gym); attempt gains timestamp, flash/top, duration-seconds (Airtable duration is centiseconds), laps, retries, tags set-enum (dab/peel/bail/off-start/reversed/foot-slip), feel. Custom gym screen at `/app/boulder/session` (mirrors workout screen; inline problem creation). Ingester `m004-airtable-import-bouldering` built and dry-run validated: 277 problems, 84 synthesized sessions (one per Airtable day), 676 attempts, 0 failures. Prod run pending. Note: 21 Airtable try rows have a formula-error `day` and import without a session link.
 - Tasks & Projects: CRUD live in-app; historical data lives in other apps/spreadsheets, no migration code.
 - Priority: define and implement Airtable-backed entities incrementally, then port data one by one until Airtable can be retired.
@@ -36,7 +36,8 @@ updated: 2026-05-16
 - ~~Wire CRUD/UI for symptom, mood, exercise, bouldering~~ — DONE (2026-07-10). All remaining Airtable-backed entities have schema + CRUD + viz (plus custom workout screen).
 - ~~Build symptom/pain + bouldering ingesters~~ — DONE (2026-07-19): `m003-airtable-import-pain` and `m004-airtable-import-bouldering`, both dry-run validated against fresh exports.
 - ~~Run m003/m004 against dev and spot-check in UI~~ — DONE (2026-07-19): imported under justin@jgood.online on dev. m003: 1,130 symptom-logs. m004: 277 problems, 84 sessions, 676 attempts. Verified in UI: gym screen recent sessions, session summary (durations/laps/flags/problem identities), symptom-log list (severity/areas/side). Imports are idempotent (deterministic UUIDs) — safe to re-run on refreshed exports.
-- **NEXT: Run m003/m004 against prod (fresh Airtable exports first, `--target prod`, real email). Then: mood + exercise ingesters.**
+- ~~Build mood + exercise ingesters and run all four against dev~~ — DONE (2026-07-26): fresh exports (2026-07-26) for all four datasets; m003 re-run (1,131), m004 re-run (idempotent, only attachment URLs changed in export), m005 (471 exercises / 2,559 sessions / 10,182 sets / 10,182 lines), m006 (24 mood-logs). All validated 0 failures; artifacts in `tmp/migrations/*`. DB counts verified under justin@jgood.online.
+- **NEXT: Spot-check exercise + mood in dev UI, then run m003–m006 against prod (fresh Airtable exports first, `--target prod`, real email — user must initiate).**
 
 ## Recommended Approach: Airtable Exit First
 Define schema → wire CRUD → build/run migration for each entity sequentially. This provides:
