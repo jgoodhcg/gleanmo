@@ -7,6 +7,7 @@ goal: "Get off Neon/Hikari pain and Airtable dependency while keeping Gleanmo fa
 
 ## Current Focus
 
+- [qol-quick-actions.md](./qol-quick-actions.md) - Navigation & logging QOL (analytics-backed; deliberate detour before prod migration runs — see note below)
 - [infrastructure.md](./infrastructure.md) - Database migration from Neon to DigitalOcean
 - [data-migration-status.md](./data-migration-status.md) - Tracker for Airtable backfills and remaining imports
 - [exercise.md](./exercise.md) - Exercise tracking with superset support and Airtable backfill
@@ -24,6 +25,12 @@ Immediate work should remove infrastructure friction or reduce dependency on Air
 3. Fix local migration workflow friction that slows data-porting work.
 4. Preserve lineage and cleanup metadata only where it helps migration confidence.
 5. Resume product polish after the database and Airtable exit paths are complete.
+
+**Detour note (2026-07-26):** all four remaining Airtable ingesters are built
+and verified on dev; prod runs are gated on user-initiated fresh exports. One
+QOL batch ([qol-quick-actions.md](./qol-quick-actions.md)) executes in that
+gap because daily-use friction compounds. Sequence: QOL → user testing →
+prod runs of m003–m006 → Airtable retirement.
 
 ## Secondary Focus
 
@@ -50,6 +57,8 @@ Immediate work should remove infrastructure friction or reduce dependency on Air
 
 ### Ready
 
+- [qol-quick-actions.md](./qol-quick-actions.md) - Navigation & logging QOL: sidebar reorder, timer deep links, stop-in-place timers, boulder problem discoverability, home quick actions
+- [inline-entity-creation.md](./inline-entity-creation.md) - Create related entities mid-form without losing context (executed as item 3 of qol-quick-actions.md)
 - [heatmap-performance.md](./heatmap-performance.md) - Heatmap viz page perf via year-bounded projection scans, shared rel-cache, parallel lazy-loaded year cards
 
 ### Draft
@@ -69,7 +78,6 @@ Immediate work should remove infrastructure friction or reduce dependency on Air
 - [task-activity-logs.md](./task-activity-logs.md) - Spawn time logs from tasks and link habits/calendar events to tasks
 - [workflow-optimization.md](./workflow-optimization.md) - Dashboard quick reference, minimize clicks for logging, and motivating stats
 - [email-auth.md](./email-auth.md) - Restore email-based magic link authentication for user sign-in
-- [inline-entity-creation.md](./inline-entity-creation.md) - Create related entities mid-form without losing context
 - [bm-log-bloating.md](./bm-log-bloating.md) - Add bloating tracking to bm-log schema with flexible modeling options
 - [reading-log-pages.md](./reading-log-pages.md) - Add page number tracking to reading-log schema
 - [config-cleanup.md](./config-cleanup.md) - Audit and consolidate configuration files to remove legacy artifacts
@@ -81,6 +89,8 @@ Immediate work should remove infrastructure friction or reduce dependency on Air
 - [screenshot-runner.md](./screenshot-runner.md) - Authenticated screenshot capture for docs and CI
 - [today-reorder-performance.md](./today-reorder-performance.md) - Fix slow response when reordering items on the today page
 - [pwa-experience.md](./pwa-experience.md) - Improve progressive web app experience for native-like feel on iOS and Android
+- [mobile-tab-bar.md](./mobile-tab-bar.md) - Fixed bottom navigation for the mobile PWA
+- [timer-dashboard-inline-create.md](./timer-dashboard-inline-create.md) - True inline parent creation on timer dashboards (follow-up to inline-entity-creation.md)
 - [ui-juice.md](./ui-juice.md) - Micro-interactions, animations, and haptic feedback for delight
 - [plausible-user-identification.md](./plausible-user-identification.md) - Add user identifiers to Plausible analytics to distinguish individuals
 - [life-chart.md](./life-chart.md) - Lifetime view with years as rows and weeks as cells

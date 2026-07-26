@@ -5,7 +5,7 @@ description: "Minor improvements without full work-unit docs"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-04-19
+updated: 2026-07-26
 ---
 
 # Backlog
@@ -54,6 +54,16 @@ Reusable search component with fuzzy matching for entity selection across forms 
 - Keyboard navigation and mobile-friendly interface
 - Configurable search fields and display formatting
 - Recent/frequent item prioritization
+
+### Command Palette (desktop)
+Keyboard-first cmd/ctrl+K palette to jump to any log form, timer, entity list,
+or dashboard without touching the sidebar
+- Desktop QOL counterpart to the mobile quick actions in `qol-quick-actions.md`
+- Static route registry first; fuzzy entity search (books, projects, problems)
+  only if the Fuzzy Search Component above lands
+- Respects sensitivity gates (no sensitive routes/entities in results while
+  sensitive mode is off)
+- Pairs with `keyboard-navigation.md`
 
 ## Dashboard UI
 
