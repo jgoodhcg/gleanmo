@@ -26,11 +26,13 @@ Immediate work should remove infrastructure friction or reduce dependency on Air
 4. Preserve lineage and cleanup metadata only where it helps migration confidence.
 5. Resume product polish after the database and Airtable exit paths are complete.
 
-**Detour note (2026-07-26):** all four remaining Airtable ingesters are built
-and verified on dev; prod runs are gated on user-initiated fresh exports. One
-QOL batch ([qol-quick-actions.md](./qol-quick-actions.md)) executes in that
-gap because daily-use friction compounds. Sequence: QOL → user testing →
-prod runs of m003–m006 → Airtable retirement.
+**Detour note (2026-07-26, amended 07-27):** all four remaining Airtable
+ingesters are built and verified on dev; prod runs are gated on
+user-initiated fresh exports. One QOL batch
+([qol-quick-actions.md](./qol-quick-actions.md) +
+[unified-timer-page.md](./unified-timer-page.md)) executes in that gap
+because daily-use friction compounds. Sequence: QOL → user testing → prod
+runs of m003–m006 → Airtable retirement.
 
 ## Secondary Focus
 
@@ -57,7 +59,8 @@ prod runs of m003–m006 → Airtable retirement.
 
 ### Ready
 
-- [qol-quick-actions.md](./qol-quick-actions.md) - Navigation & logging QOL: sidebar reorder, timer deep links, stop-in-place timers, boulder problem discoverability, home quick actions
+- [qol-quick-actions.md](./qol-quick-actions.md) - Navigation & logging QOL: sidebar reorder, stop-in-place timers, boulder problem discoverability, home quick actions
+- [unified-timer-page.md](./unified-timer-page.md) - One timer workspace: all running timers, search-to-start, one-tap start/stop without form bounces
 - [inline-entity-creation.md](./inline-entity-creation.md) - Create related entities mid-form without losing context (executed as item 3 of qol-quick-actions.md)
 - [heatmap-performance.md](./heatmap-performance.md) - Heatmap viz page perf via year-bounded projection scans, shared rel-cache, parallel lazy-loaded year cards
 

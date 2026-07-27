@@ -5,7 +5,7 @@ description: "Text search tool for CRUD and timer view pages"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-07
+updated: 2026-07-27
 ---
 
 # Search Tool for CRUD and Timer Views
@@ -51,3 +51,9 @@ Timer pages have a different structure than CRUD views:
 - Display active/inactive timers
 - May need separate search implementation
 - Consider unified approach for consistency
+
+**Update 2026-07-27:** the timer case ships with `unified-timer-page.md` —
+a client-side substring filter over the combined parent list, implemented as
+a generic `data-filter-list` behavior in `main.js`. CRUD list views should
+reuse that primitive when this work unit executes; what remains here is the
+CRUD-view rollout (placement, scope-beyond-labels, large-list handling).

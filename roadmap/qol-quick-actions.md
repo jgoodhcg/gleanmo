@@ -1,9 +1,9 @@
 ---
 title: "Navigation & Logging QOL"
 status: ready
-description: "Analytics-backed sidebar reorder, timer deep links, stop-in-place timers, boulder problem discoverability, and home quick actions"
+description: "Analytics-backed sidebar reorder, unified timer workspace, stop-in-place timers, boulder problem discoverability, and home quick actions"
 created: 2026-07-26
-updated: 2026-07-26
+updated: 2026-07-27
 tags: [ux, navigation, sidebar, timers, analytics]
 priority: high
 ---
@@ -30,28 +30,36 @@ effort-to-payoff.
 
 ## Specification
 
-### 1. Sidebar reorder + timer deep links (`app/shared.clj:90-199`)
+### 1. Sidebar reorder + unified timer link (`app/shared.clj:90-199`)
+
+> Amended 2026-07-27: the original spec here put three per-type timer deep
+> links in the sidebar. User feedback: don't bypass the hub — **make the hub
+> the workspace** (`unified-timer-page.md`). The sidebar gets one timers
+> link instead.
 
 Restructure `side-bar` nav (after home/account, before Calendar/Dashboards):
 
-- **Timers** section header (new, first): three direct links, no hub hop —
-  `⏱ projects → /app/timer/project-log`, `⏱ reading → /app/timer/reading-log`,
-  `⏱ meditation → /app/timer/meditation-log`.
+- **`⏱ timers → /app/timers`** first — the unified timer workspace
+  (`unified-timer-page.md`): all running timers across types,
+  search-to-start.
 - **Quick Add** section second, reordered by measured frequency:
   habit log, project log, medication log, bm log (keep the `show-bm-logs` gate),
   workout, bouldering, symptom log, mood log, meditation log, reading log,
   calendar event, task (full form).
 - **Tasks** section (Today, Task Focus) moves below Quick Add.
-- Dashboards section unchanged; the `⏱ timers` hub link may stay there for
-  completeness — nothing else should route through the hub.
+- Dashboards section: drop its now-redundant `⏱ timers` row.
 
 ### 2. Timer stop stays on the timer page (`timer/routes.clj:380-388`)
 
 The stop handler currently 303s to `/app/crud/form/<entity>/edit/<id>?redirect=<timer page>`
-"so the user can review notes/details". Change the redirect target to the timer
-dashboard itself (`return-target`, already computed). Annotation stays one tap
-away: the just-stopped log is the top row of the recent-logs list
-(`timer/routes.clj:224-243`), and every row is already an edit link.
+"so the user can review notes/details". Change it to return to the page that
+issued the stop: honor a `redirect` query param on the stop link
+(whitelisted to `/app/timer`-prefixed paths), defaulting to the per-entity
+timer page. The unified workspace passes `redirect=/app/timers`. Annotation
+stays one tap away: the just-stopped log is the top row of the recent-logs
+list (`timer/routes.clj:224-243`), and every row is already an edit link.
+`unified-timer-page.md` extends the same principle to **start** (direct POST,
+no CRUD new-form bounce).
 
 User-approved behavior change (2026-07-26): review-after-stop becomes opt-in
 instead of forced. Check e2e timer flows for assertions on the old
@@ -84,9 +92,9 @@ is only reachable via the gym-screen picker link.
 Extract the frequency-ordered links from item 1 into a shared component in
 `app/shared.clj` (e.g. `quick-action-links`) consumed by both the sidebar and
 a compact chip/button strip at the top of the overview shell. Home strip shows
-only the top actions: ⏱ project timer, habit log, project log, medication log,
-workout, bouldering (bm log behind its flag). Pure links — no new queries, no
-dashboard-performance regression.
+only the top actions: ⏱ timers (`/app/timers`), habit log, project log,
+medication log, workout, bouldering (bm log behind its flag). Pure links — no
+new queries, no dashboard-performance regression.
 
 ## Validation
 
@@ -113,8 +121,10 @@ dashboard-performance regression.
 - Command palette — `backlog.md` (Generic Components).
 - True inline-create on the timer dashboard picker —
   `timer-dashboard-inline-create.md`.
-- Redesigning the `/app/timers` hub page itself (it just stops being the
-  routing chokepoint).
+
+**Companion work unit (in the batch):** the `/app/timers` rebuild itself is
+specced separately in `unified-timer-page.md` — same batch, own validation
+checklist.
 
 ## Context
 
@@ -144,4 +154,5 @@ user-initiated fresh exports. After this ships and is user-tested: prod runs
 of m003–m006, then Airtable retirement (see `data-migration-status.md`).
 
 Suggested execution order: 1 → 4 → 5 (one commit each or one combined), then
-2 (touches e2e), then 3 (largest, has its own spec).
+2 (touches e2e), then `unified-timer-page.md` (builds on 2's redirect param),
+then 3 (largest, has its own spec).
