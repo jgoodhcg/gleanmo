@@ -10,6 +10,7 @@
        [:user/joined-at :instant]
        [:user/email :string]
        [:user/time-zone {:optional true} :string]
+       [:user/current-location-id {:optional true} :location/id]
        [:user/show-sensitive {:optional true} :boolean]
        [:user/show-archived {:optional true} :boolean]
        [:user/show-bm-logs {:optional true} :boolean]

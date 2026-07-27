@@ -1,13 +1,14 @@
 // E2E test for stop timer (End Session) functionality
 // Usage: npm run test:timer-stop
 //
-// This test verifies the full timer lifecycle:
+// This test verifies the full timer lifecycle with stop-in-place behavior:
 // 1. Creates a book
-// 2. Starts a timer via the timer page
+// 2. Starts a timer via the one-tap Start Timer button (no form)
 // 3. Clicks "End Session" on the active timer
-// 4. Verifies redirect to edit form with end time populated
-// 5. Submits the edit form (redirects back to timer page)
-// 6. Verifies the timer is no longer active and appears in recent logs
+// 4. Verifies we stay on the timer page (no forced edit-form round trip)
+// 5. Verifies the timer is no longer active and appears in recent logs
+// 6. Opens the recent-log edit link (the opt-in annotation path) and checks
+//    the end time was set
 
 import { chromium, Page, Locator, expect } from '@playwright/test';
 import { authenticateForDev } from './auth.js';
@@ -29,15 +30,6 @@ async function submitHtmxForm(form: Locator, fallbackAction: string) {
     formEl.setAttribute('method', 'POST');
   }, fallbackAction);
   await form.evaluate((node: HTMLElement) => (node as HTMLFormElement).submit());
-}
-
-async function setHiddenOrVisibleSelectValue(select: Locator, value: string) {
-  await select.evaluate((node: HTMLElement, nextValue: string) => {
-    const selectEl = node as HTMLSelectElement;
-    selectEl.value = nextValue;
-    selectEl.dispatchEvent(new Event('input', { bubbles: true }));
-    selectEl.dispatchEvent(new Event('change', { bubbles: true }));
-  }, value);
 }
 
 async function createBook(page: Page, title: string) {
@@ -69,28 +61,17 @@ async function main() {
     await authenticateForDev(page, email);
     await createBook(page, bookTitle);
 
-    // 2. Navigate to timer page, click Start Timer
+    // 2. Navigate to timer page, start via one-tap POST
     console.log('\n2. Starting timer...');
     await page.goto(`${BASE_URL}/app/timer/reading-log`);
     await page.waitForLoadState('networkidle');
 
-    const startLink = page.locator('a:has-text("Start Timer")').first();
-    await expect(startLink).toBeVisible({ timeout: 10000 });
-    await startLink.click();
+    const startButton = page.locator('button:has-text("Start Timer")').first();
+    await expect(startButton).toBeVisible({ timeout: 10000 });
+    await startButton.click();
     await page.waitForLoadState('networkidle');
-
-    // Submit the new reading-log form (open timer — no end time)
-    const newForm = page.locator('#reading-log-new-form');
-    await expect(newForm).toBeVisible({ timeout: 10000 });
-    await setHiddenOrVisibleSelectValue(newForm.locator('select[name="reading-log/time-zone"]'), 'UTC');
-    await submitHtmxForm(newForm, '/app/crud/reading-log');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(300);
-
-    // Should be redirected back to timer page
-    if (!page.url().includes('/app/timer/reading-log')) {
-      await page.goto(`${BASE_URL}/app/timer/reading-log`);
-      await page.waitForLoadState('networkidle');
+    if (page.url().includes('/app/crud/form/')) {
+      throw new Error(`Start bounced to a CRUD form: ${page.url()}`);
     }
     await captureScreenshot(page, '01-active-timer');
 
@@ -100,7 +81,7 @@ async function main() {
     await expect(page.locator(`text=${bookTitle}`).first()).toBeVisible({ timeout: 10000 });
     console.log(`  [+] Active timer visible for "${bookTitle}"`);
 
-    // 4. Click "End Session"
+    // 4. Click "End Session" — must return to the timer page, not an edit form
     console.log('\n4. Clicking End Session...');
     const endSessionLink = page.locator('a:has-text("End Session")').first();
     await expect(endSessionLink).toBeVisible({ timeout: 10000 });
@@ -108,18 +89,41 @@ async function main() {
     console.log(`  [i] End Session href: ${stopHref}`);
     await endSessionLink.click();
     await page.waitForLoadState('networkidle');
-    await captureScreenshot(page, '02-edit-form-after-stop');
+    await captureScreenshot(page, '02-after-stop');
 
-    // 5. Verify we landed on the edit form
-    console.log('\n5. Verifying edit form...');
+    // 5. Verify stop-in-place: back on the timer page, no edit form
+    console.log('\n5. Verifying stop stayed on the timer page...');
     const currentUrl = page.url();
-    console.log(`  [i] Redirected to: ${currentUrl}`);
-    if (!currentUrl.includes('/app/crud/form/reading-log/edit/')) {
-      throw new Error(`Expected redirect to reading-log edit form, got: ${currentUrl}`);
+    console.log(`  [i] URL after stop: ${currentUrl}`);
+    if (currentUrl.includes('/app/crud/form/')) {
+      throw new Error(`Stop bounced to an edit form: ${currentUrl}`);
     }
-    console.log('  [+] Redirected to edit form');
+    if (!currentUrl.includes('/app/timer/reading-log')) {
+      throw new Error(`Expected to stay on /app/timer/reading-log, got: ${currentUrl}`);
+    }
+    console.log('  [+] Stayed on the timer page');
 
-    // 6. Verify the end time field is now populated
+    // 6. Verify no active timers remain
+    const activeTimerCards = page.locator('a:has-text("End Session")');
+    const activeCount = await activeTimerCards.count();
+    if (activeCount > 0) {
+      throw new Error(`Expected 0 active timers after stop, found ${activeCount}`);
+    }
+    console.log('  [+] No active timers (timer was stopped successfully)');
+
+    // 7. Verify the completed session appears in recent logs
+    console.log('\n6. Verifying completed session in recent logs...');
+    await expect(page.locator(`text=${bookTitle}`).first()).toBeVisible({ timeout: 10000 });
+    console.log(`  [+] Completed session for "${bookTitle}" visible in recent logs`);
+
+    // 8. Opt-in annotation path: open the recent-log edit link, check end time
+    console.log('\n7. Opening recent-log edit link...');
+    const editLink = page.locator('a[href*="/app/crud/form/reading-log/edit/"]').first();
+    await expect(editLink).toBeVisible({ timeout: 10000 });
+    await editLink.click();
+    await page.waitForLoadState('networkidle');
+    await captureScreenshot(page, '03-edit-form-from-recent');
+
     const endInput = page.locator('input[name="reading-log/end"]');
     await expect(endInput).toBeVisible({ timeout: 10000 });
     const endValue = await endInput.inputValue();
@@ -129,43 +133,12 @@ async function main() {
     }
     console.log('  [+] End time is populated');
 
-    // Verify beginning is also populated
     const beginningInput = page.locator('input[name="reading-log/beginning"]');
     const beginningValue = await beginningInput.inputValue();
-    console.log(`  [i] Beginning field value: ${beginningValue}`);
     if (!beginningValue) {
       throw new Error('Beginning field is empty on edit form');
     }
     console.log('  [+] Beginning time is populated');
-
-    // 7. Submit the edit form (should redirect back to timer page via ?redirect param)
-    console.log('\n6. Submitting edit form...');
-    const editForm = page.locator('#reading-log-edit-form');
-    await expect(editForm).toBeVisible({ timeout: 10000 });
-    await submitHtmxForm(editForm, '/app/crud/reading-log');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(300);
-    await captureScreenshot(page, '03-after-edit-submit');
-
-    // 8. Navigate to timer page and verify no active timers
-    console.log('\n7. Verifying timer is stopped...');
-    await authenticateForDev(page, email);
-    await page.goto(`${BASE_URL}/app/timer/reading-log`);
-    await page.waitForLoadState('networkidle');
-    await captureScreenshot(page, '04-timer-page-after-stop');
-
-    // The active timers section should be empty (no active timer cards)
-    const activeTimerCards = page.locator('a:has-text("End Session")');
-    const activeCount = await activeTimerCards.count();
-    if (activeCount > 0) {
-      throw new Error(`Expected 0 active timers after stop, found ${activeCount}`);
-    }
-    console.log('  [+] No active timers (timer was stopped successfully)');
-
-    // 9. Verify the completed session appears in recent logs
-    console.log('\n8. Verifying completed session in recent logs...');
-    await expect(page.locator(`text=${bookTitle}`).first()).toBeVisible({ timeout: 10000 });
-    console.log(`  [+] Completed session for "${bookTitle}" visible in recent logs`);
 
     console.log('\n=== Test Passed ===\n');
   } catch (error) {

@@ -1,6 +1,6 @@
 ---
 title: "Unified Timer Workspace"
-status: ready
+status: active
 description: "One timer page: all running timers across types, search-to-start any parent, one-tap start/stop without CRUD form bounces"
 created: 2026-07-27
 updated: 2026-07-27
@@ -101,17 +101,24 @@ the new combined page, and consider migrating it while there.
 
 ## Validation
 
-- [ ] `just lint-fast` per edit; `just check` before commit.
-- [ ] E2E: from `/app/timers` — type to filter, start a project timer
+- [x] `just lint-fast` per edit; `just check` before commit.
+- [x] E2E: from `/app/timers` — type to filter, start a project timer
       (verify no form page), see it under Active with elapsed time, stop it
       (verify return to `/app/timers`), open its edit link from recent logs.
-- [ ] E2E: repeat start/stop for reading + meditation types.
-- [ ] E2E: smoke test passes with the new sidebar link target.
-- [ ] Tap count: home → running project timer ≤ 3 taps, zero form loads.
+      *(passed 2026-07-27: `e2e/scripts/test-timers-workspace.ts`, also in CI)*
+- [x] E2E: repeat start/stop for reading + meditation types. *(same script;
+      meditation covers the form-fallback-then-one-tap path — passed)*
+- [x] E2E: smoke test passes with the new sidebar link target. *(passed after
+      fixing a stale `/app/crud/exercise-block` entry that predated this work
+      — smoke had been failing since the session>set>line rename)*
+- [x] Tap count: home → running project timer ≤ 3 taps, zero form loads
+      (sidebar `⏱ timers` → Start = 2 taps).
 - [ ] Screenshots before/after (`SCREENSHOT_PHASE`): `/app/timers` mobile +
       desktop; a per-entity page (unchanged except start POST + stop
-      redirect).
-- [ ] 30s HTMX poll still refreshes elapsed times on the combined page.
+      redirect). *(after-state captured via e2e runs; "before" needs a
+      checkout of the prior commit)*
+- [x] 30s HTMX poll still refreshes elapsed times on the combined page
+      (`GET /app/timers/active` returns the self-refreshing fragment).
 
 ## Scope
 
@@ -148,3 +155,49 @@ pages survive for stats; direct-start POSTs share CRUD mutation logic;
 Sequencing: part of the QOL batch — see execution order in
 `qol-quick-actions.md` Notes. Supersedes that doc's original three-deep-link
 sidebar treatment (amended 2026-07-27).
+
+Implementation (2026-07-27): shipped in one pass together with
+`qol-quick-actions.md` item 2 (stop redirect) and the item-1 sidebar timers
+link (full sidebar reorder still pending in that doc). Deviation from spec:
+`{<rel-key>, <beginning>}` alone doesn't satisfy every timer schema —
+meditation-log also requires location-id/position/guided/interrupted — so
+`POST /app/timers/start/<entity>` fills remaining required fields from the
+most recent completed log of the type (booleans default false, time-zone
+from the user), and 303s to the CRUD new-form with the parent preselected
+only when that fails (first-ever log of a type). `fetch-completed-logs` and
+the stop handler's timer lookup were migrated off fetch-all-then-filter
+(`recent-completed-timer-logs` in `db/queries.clj`, `get-entity-for-user`).
+
+Post-ship additions (2026-07-27, user-requested): the workspace's empty
+state links to creating parents (was a dead end on a fresh DB), and
+**location pickers** — the user sets a location on every timer log. Two
+surfaces, both Choices.js selects (chips were built first with user
+sign-off, then replaced the same day: the user has tens of locations with
+varying label lengths, so a chip row didn't scale — searchable selects are
+also the AGENTS.md house component): (1) a `📍` select inside a single start
+form (rows submit via per-button `formaction` + `parent-id` button values),
+options recency-ordered via `location-usage` with last-used preselected —
+zero interaction in the common case — stamping `<entity>/location-id` on
+every start and riding along to the fallback new-form; (2) a compact select
+on `active-timer-card` that `hx-post`s on change to
+`POST /app/timers/location/<entity-str>` (clear via `:db/dissoc`; the empty
+"no location" option only renders for optional location fields —
+meditation-log's is required), answering 204 + `HX-Trigger:
+refresh-active-timers`, which both active-timer fragments listen for
+alongside the 30s poll. The timer filter input deliberately sits outside the
+start form to avoid implicit submission starting a timer on Enter.
+
+Second iteration (2026-07-27, user-requested): the workspace picker became a
+**persisted global current-location setting** (`:user/current-location-id`,
+optional, on the user schema). The select sits above the filter, associated
+with the start form via the HTML `form` attribute, and `hx-post`s changes to
+`POST /app/timers/current-location`. Starts prefer the submitted picker
+value (even blank) over the setting — the persistence post is async and
+could lose a race with an immediate Start — while per-entity-page starts
+(no picker) read the setting. Switching to a real location **while timers
+run** returns a confirm prompt: `POST /app/timers/relocate` ends every
+active timer now and starts continuation logs at the new location
+(`relocate-timer!` copies all schema fields except beginning/end/notes —
+notes belong to the finished segment); Dismiss just keeps the setting.
+Cold start: the setting is authoritative, so a user who has never set it
+sees "no location" regardless of log history.

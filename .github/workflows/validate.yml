@@ -180,6 +180,8 @@ jobs:
           npm run test:today-canceled
           npm run test:today-mobile
           npm run test:timer-overlap
+          npm run test:timers-workspace
+          npm run test:timer-stop
 
       - name: Upload screenshots
         if: failure()

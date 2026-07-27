@@ -118,26 +118,30 @@
       [:a.link {:href account-url} "account"]
       [:hr.border-dark]
 
-      ;; Tasks
-      [:a.link.font-semibold {:href "/app/task/today"} "Today"]
-      [:a.link {:href "/app/task/focus"} "Task Focus"]
-      [:hr.border-dark]
-
-      ;; Quick Add
+      ;; Timers / Quick Add — ordered by measured use (28-day Plausible
+      ;; sample, see roadmap/qol-quick-actions.md item 1): the timer
+      ;; workspace and top log forms are the app's real daily workload.
+      [:a.link.font-semibold {:href "/app/timers"} "⏱️ timers"]
       [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Quick Add"]
-      [:a.link {:href "/app/crud/form/task/new"} "task (full form)"]
-      [:a.link {:href "/app/crud/form/calendar-event/new"} "calendar event"]
       [:a.link {:href "/app/crud/form/habit-log/new"} "habit log"]
-      [:a.link {:href "/app/crud/form/meditation-log/new"} "meditation log"]
+      [:a.link {:href "/app/crud/form/project-log/new"} "project log"]
+      [:a.link {:href "/app/crud/form/medication-log/new"} "medication log"]
       (when show-bm-logs
         [:a.link {:href "/app/crud/form/bm-log/new"} "bm log"])
-      [:a.link {:href "/app/crud/form/medication-log/new"} "medication log"]
-      [:a.link {:href "/app/crud/form/project-log/new"} "project log"]
-      [:a.link {:href "/app/crud/form/reading-log/new"} "reading log"]
-      [:a.link {:href "/app/crud/form/symptom-log/new"} "symptom log"]
-      [:a.link {:href "/app/crud/form/mood-log/new"} "mood log"]
       [:a.link {:href "/app/exercise/session"} "workout"]
       [:a.link {:href "/app/boulder/session"} "bouldering"]
+      [:a.link {:href "/app/crud/form/symptom-log/new"} "symptom log"]
+      [:a.link {:href "/app/crud/form/mood-log/new"} "mood log"]
+      [:a.link {:href "/app/crud/form/meditation-log/new"} "meditation log"]
+      [:a.link {:href "/app/crud/form/reading-log/new"} "reading log"]
+      [:a.link {:href "/app/crud/form/calendar-event/new"} "calendar event"]
+      [:a.link {:href "/app/crud/form/task/new"} "task (full form)"]
+      [:hr.border-dark]
+
+      ;; Tasks
+      [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Tasks"]
+      [:a.link.font-semibold {:href "/app/task/today"} "Today"]
+      [:a.link {:href "/app/task/focus"} "Task Focus"]
       [:hr.border-dark]
 
       ;; Calendar
@@ -151,7 +155,6 @@
       [:a.link {:href "/app/dashboards/activity-logs"} "📋 activity logs"]
       [:a.link {:href "/app/dashboards/stats"} "📊 stats & charts"]
       [:a.link {:href "/app/stats/medication-history"} "💊 medication history"]
-      [:a.link {:href "/app/timers"} "⏱️ timers"]
       (when super-user?
         [:a.link {:href "/app/monitoring/performance"} "🛡️ monitoring"])
 

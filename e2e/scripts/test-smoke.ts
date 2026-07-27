@@ -105,7 +105,7 @@ async function main() {
       { path: '/app/crud/mood-log', label: 'mood-logs' },
       { path: '/app/crud/exercise', label: 'exercises' },
       { path: '/app/crud/exercise-session', label: 'exercise-sessions' },
-      { path: '/app/crud/exercise-block', label: 'exercise-blocks' },
+      { path: '/app/crud/exercise-line', label: 'exercise-lines' },
       { path: '/app/crud/exercise-set', label: 'exercise-sets' },
       { path: '/app/crud/boulder-session', label: 'boulder-sessions' },
       { path: '/app/crud/boulder-attempt', label: 'boulder-attempts' },

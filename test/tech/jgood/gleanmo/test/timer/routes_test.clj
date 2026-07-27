@@ -39,6 +39,52 @@
                                                         :entity-str "test"
                                                         :schema-map fake-schema-map}))))))
 
+(deftest sanitize-redirect-test
+  (let [sanitize #'timer-routes/sanitize-redirect]
+    (testing "timer-prefixed paths pass through"
+      (is (= "/app/timers" (sanitize "/app/timers" "/fallback")))
+      (is (= "/app/timer/project-log"
+             (sanitize "/app/timer/project-log" "/fallback"))))
+    (testing "anything else falls back"
+      (is (= "/fallback" (sanitize "/app/crud/project" "/fallback")))
+      (is (= "/fallback" (sanitize "https://example.com/app/timers" "/fallback")))
+      (is (= "/fallback" (sanitize nil "/fallback"))))))
+
+(deftest fill-required-fields-test
+  (let [fill #'timer-routes/fill-required-fields
+        now  (java.time.Instant/now)]
+    (testing "no missing required fields — data returned, template not fetched"
+      (let [config (timer-routes/timer-config {:entity-key :project-log
+                                               :entity-str "project-log"})
+            calls  (atom 0)
+            data   {:project-log/project-id (random-uuid)
+                    :project-log/beginning  now
+                    :project-log/time-zone  "UTC"}]
+        (is (= data (fill {} config data (fn [_] (swap! calls inc) nil))))
+        (is (zero? @calls))))
+    (testing "missing fields copied from template, booleans defaulted"
+      (let [config      (timer-routes/timer-config {:entity-key :meditation-log
+                                                    :entity-str "meditation-log"})
+            location-id (random-uuid)
+            template    {:meditation-log/location-id location-id
+                         :meditation-log/position    :sitting
+                         :meditation-log/guided      true}
+            data        {:meditation-log/type-id   (random-uuid)
+                         :meditation-log/beginning now
+                         :meditation-log/time-zone "UTC"}
+            filled      (fill {} config data (fn [_] template))]
+        (is (= location-id (:meditation-log/location-id filled)))
+        (is (= :sitting (:meditation-log/position filled)))
+        (is (true? (:meditation-log/guided filled)))
+        (is (false? (:meditation-log/interrupted filled)))))
+    (testing "unfillable required field returns nil"
+      (let [config (timer-routes/timer-config {:entity-key :meditation-log
+                                               :entity-str "meditation-log"})
+            data   {:meditation-log/type-id   (random-uuid)
+                    :meditation-log/beginning now
+                    :meditation-log/time-zone "UTC"}]
+        (is (nil? (fill {} config data (fn [_] nil))))))))
+
 (deftest overlap-metrics-helpers-test
   (let [i #(java.time.Instant/parse %)
         clamp-interval #'timer-routes/clamp-interval-to-window

@@ -532,6 +532,51 @@
          (filter keep-doc?)
          (apply-relationship-exclusions exclusion-map))))
 
+(defnp recent-completed-timer-logs
+  "The user's most recent completed timer logs (beginning and end both set),
+   newest first by beginning, bounded by limit. Scan-then-pull: intersects two
+   index-only scans ('has beginning' with sort values, 'has end') because a
+   per-row (not ...) or existence subquery re-evaluates for every row of the
+   type's history. Over-fetches ids because deleted/sensitive flags are only
+   visible after the pull."
+  [db user-id entity-type beginning-key end-key limit & {:keys [user-settings]}]
+  (let [settings      (or user-settings (get-user-settings db user-id))
+        {:keys [show-sensitive show-archived]} settings
+        exclusion-map (build-exclusion-map db user-id entity-type settings)
+        end-ids       (into #{}
+                            (map first)
+                            (q db
+                               {:find  '[?e]
+                                :where [['?e :user/id 'user-id]
+                                        ['?e ::sm/type entity-type]
+                                        ['?e end-key]]
+                                :in    '[user-id]}
+                               user-id))
+        ids           (->> (q db
+                              {:find  '[?e ?t]
+                               :where [['?e :user/id 'user-id]
+                                       ['?e ::sm/type entity-type]
+                                       ['?e beginning-key '?t]]
+                               :in    '[user-id]}
+                              user-id)
+                           (filter (comp end-ids first))
+                           (sort-by second #(compare %2 %1))
+                           (map first)
+                           (take (+ limit 10)))
+        sens-key      (keyword (name entity-type) "sensitive")
+        arch-key      (keyword (name entity-type) "archived")
+        keep-doc?     (fn [doc]
+                        (and (nil? (get doc ::sm/deleted-at))
+                             (or show-sensitive
+                                 (not (true? (get doc sens-key))))
+                             (or show-archived
+                                 (not (true? (get doc arch-key))))))]
+    (->> (fetch-entities-by-ids db ids)
+         (filter keep-doc?)
+         (apply-relationship-exclusions exclusion-map)
+         (take limit)
+         vec)))
+
 (defn scan-diagnostics
   "Time sequential, uncontended index-only scans per entity type for a user.
    Returns [{:type ... :rows n :ms x}] — for the monitoring dashboard."

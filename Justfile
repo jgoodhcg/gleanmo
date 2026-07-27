@@ -83,9 +83,13 @@ e2e-test-today-mobile:
 e2e-test-timer-overlap:
     cd e2e && npm run test:timer-overlap
 
-# Run timer start timestamp freshness test
+# Run one-tap timer start test
 e2e-test-timer-start:
     cd e2e && npm run test:timer-start
+
+# Run unified timer workspace test
+e2e-test-timers-workspace:
+    cd e2e && npm run test:timers-workspace
 
 # Run reading CRUD test
 e2e-test-reading-crud:

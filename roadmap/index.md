@@ -56,11 +56,11 @@ runs of m003–m006 → Airtable retirement.
 - [backlog.md](./backlog.md) - Minor improvements without full work-unit docs
 - [reading-tracker.md](./reading-tracker.md) - Lightweight Goodreads replacement with timer-backed sessions
 - [reading-schema-proposal.md](./reading-schema-proposal.md) - Draft Malli schemas for reading entities
+- [unified-timer-page.md](./unified-timer-page.md) - One timer workspace: all running timers, search-to-start, one-tap start/stop without form bounces (implemented 2026-07-27; e2e/screenshot validation pending)
 
 ### Ready
 
 - [qol-quick-actions.md](./qol-quick-actions.md) - Navigation & logging QOL: sidebar reorder, stop-in-place timers, boulder problem discoverability, home quick actions
-- [unified-timer-page.md](./unified-timer-page.md) - One timer workspace: all running timers, search-to-start, one-tap start/stop without form bounces
 - [inline-entity-creation.md](./inline-entity-creation.md) - Create related entities mid-form without losing context (executed as item 3 of qol-quick-actions.md)
 - [heatmap-performance.md](./heatmap-performance.md) - Heatmap viz page perf via year-bounded projection scans, shared rel-cache, parallel lazy-loaded year cards
 

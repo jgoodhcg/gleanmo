@@ -373,12 +373,10 @@
   ;; Sequential on purpose: these overlap the dashboard cascade via a future,
   ;; and total in-flight queries are kept low to avoid thrashing the small
   ;; prod box (see roadmap/dashboard-performance.md).
-  (->> timers-app/timer-entities
+  (->> @timers-app/timer-entity-configs
        (map
-        (fn [{:keys [entity-key entity-str display-name]}]
-          (let [{:keys [relationship-key beginning-key] :as config}
-                (timer-routes/timer-config {:entity-key entity-key
-                                            :entity-str entity-str})]
+        (fn [{:keys [entity-str display-name config]}]
+          (let [{:keys [relationship-key beginning-key]} config]
             (doall
              (for [timer (timer-routes/fetch-active-timers ctx config)
                    :let [start     (get timer beginning-key)

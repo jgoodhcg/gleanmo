@@ -450,6 +450,43 @@ document.addEventListener('htmx:afterSettle', function(event) {
   });
 })();
 
+// Generic List Filtering
+//
+// An input with data-filter-list="<selector>" filters the descendants of the
+// target container that carry data-filter-text: rows whose text does not
+// contain the input value (case-insensitive substring) get the 'hidden' class.
+// Used by the timer workspace's search-to-start list; CRUD lists can reuse it.
+(function() {
+  function applyFilter(input) {
+    var container = document.querySelector(input.getAttribute('data-filter-list'));
+    if (!container) return;
+    var query = input.value.trim().toLowerCase();
+    container.querySelectorAll('[data-filter-text]').forEach(function(item) {
+      var text = (item.getAttribute('data-filter-text') || '').toLowerCase();
+      item.classList.toggle('hidden', query !== '' && text.indexOf(query) === -1);
+    });
+  }
+
+  function initFilterInputs(root) {
+    var scope = root || document;
+    var inputs = scope.querySelectorAll('input[data-filter-list]');
+    inputs.forEach(function(input) {
+      if (input.dataset.filterInitialized === 'true') return;
+      input.addEventListener('input', function() { applyFilter(input); });
+      input.dataset.filterInitialized = 'true';
+      applyFilter(input);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    initFilterInputs(document);
+  });
+
+  document.addEventListener('htmx:afterSettle', function(event) {
+    initFilterInputs(event.target);
+  });
+})();
+
 // Task Today — expand/collapse task row details
 function toggleTaskRow(rowId) {
   var details = document.querySelector('#' + rowId + ' .task-row-details');

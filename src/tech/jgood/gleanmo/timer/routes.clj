@@ -1,6 +1,8 @@
 (ns tech.jgood.gleanmo.timer.routes
   (:require
+   [cheshire.core :as cheshire]
    [clojure.string :as str]
+   [com.biffweb :as biff]
    [tech.jgood.gleanmo.app.shared :refer [side-bar get-user-time-zone]]
    [tech.jgood.gleanmo.db.queries :as queries]
    [tech.jgood.gleanmo.db.mutations :as mutations]
@@ -79,16 +81,17 @@
 
 (defn fetch-completed-logs
   "Fetch recent completed logs (both beginning and end set), ordered by beginning desc."
-  [ctx {:keys [entity-query beginning-key end-key]} limit]
-  (->> (queries/all-for-user-query
-        (assoc entity-query :order-key beginning-key :order-direction :desc)
-        ctx)
-       (filter (fn [log]
-                 (and (get log beginning-key)
-                      (get log end-key))))
-       (take limit)))
+  [ctx {:keys [entity-key beginning-key end-key]} limit]
+  (queries/recent-completed-timer-logs
+   (:biff/db ctx)
+   (-> ctx :session :uid)
+   entity-key
+   beginning-key
+   end-key
+   limit
+   :user-settings (queries/resolve-user-settings ctx)))
 
-(defn- log-duration-seconds
+(defn log-duration-seconds
   "Calculate duration in seconds for a completed log entry."
   [log beginning-key end-key]
   (let [start (get log beginning-key)
@@ -101,7 +104,7 @@
   [[start end]]
   (t/seconds (t/between start end)))
 
-(defn- format-duration
+(defn format-duration
   "Format a duration in seconds as Xh Ym."
   [total-seconds]
   (let [hours   (quot total-seconds 3600)
@@ -247,14 +250,25 @@
                (str (t/format formatter start-local))]]
              [:span.text-sm.text-neon-cyan (when duration (format-duration duration))]]]))])))
 
+(defn start-timer-form
+  "Render a one-tap start button posting to the direct-start endpoint."
+  [parent {:keys [entity-str]} & {:keys [redirect-target label]}]
+  (biff/form
+   {:action (str "/app/timers/start/" entity-str)
+    :class  "shrink-0"}
+   [:input {:type "hidden" :name "parent-id" :value (str (:xt/id parent))}]
+   [:input {:type  "hidden"
+            :name  "redirect"
+            :value (or redirect-target (str "/app/timer/" entity-str))}]
+   [:button.bg-neon-yellow.bg-opacity-20.text-neon-yellow.px-3.py-2.rounded.text-sm.font-medium.hover:bg-opacity-30.transition-all
+    {:type "submit"}
+    (or label "Start Timer")]))
+
 (defn start-timer-card
   "Render a start button for a parent entity."
-  [parent {:keys [entity-str parent-entity-key relationship-key]}]
-  (let [label-key          (schema-utils/entity-attr-key parent-entity-key "label")
-        notes-key          (schema-utils/entity-attr-key parent-entity-key "notes")
-        rel-param-name     (schema-utils/ns-keyword->input-name relationship-key)
-        encoded-redirect   (java.net.URLEncoder/encode (str "/app/timer/" entity-str)
-                                                       "UTF-8")]
+  [parent {:keys [parent-entity-key] :as config}]
+  (let [label-key (schema-utils/entity-attr-key parent-entity-key "label")
+        notes-key (schema-utils/entity-attr-key parent-entity-key "notes")]
     [:div.bg-dark-surface.rounded-lg.p-4.border.border-dark.transition-all.duration-300.hover:shadow-lg.hover:border-neon-yellow
      [:div.flex.items-center.justify-between
       [:div.flex-1.min-w-0
@@ -262,16 +276,60 @@
         [:h3.text-lg.font-semibold.text-white (or (get parent label-key) "Unnamed")]
         (when-let [notes (get parent notes-key)]
           [:p.text-sm.text-gray-400.truncate notes])]]
-      [:a.bg-neon-yellow.bg-opacity-20.text-neon-yellow.px-3.py-2.rounded.text-sm.font-medium.hover:bg-opacity-30.transition-all.no-underline
-       {:href (str "/app/crud/form/" entity-str
-                   "/new?"
-                   rel-param-name "=" (:xt/id parent)
-                   "&redirect=" encoded-redirect)}
-       "Start Timer"]]]))
+      (start-timer-form parent config)]]))
+
+(defn fetch-locations
+  "The user's locations for timer location selects, alphabetical by label."
+  [ctx]
+  (->> (queries/all-for-user-query
+        {:entity-type-str "location"
+         :schema          (schema-utils/entity-schema schema :location)}
+        ctx)
+       (sort-by #(some-> (:location/label %) str/lower-case))
+       vec))
+
+(defn location-options
+  "Options for a location select: an optional \"no location\" empty entry
+   followed by the given locations, current one selected."
+  [locations current & {:keys [include-empty]}]
+  (concat
+   (when include-empty
+     [[:option {:value "" :selected (nil? current)} "no location"]])
+   (for [{id :xt/id, label :location/label} locations]
+     ^{:key id}
+     [:option {:value (str id) :selected (= id current)}
+      (or label "Unnamed")])))
+
+(defn- card-location-select
+  "Compact location select on an active card: posts on change, and the
+   refresh event re-renders the section. Skipped when the entity has no
+   location field or the user has no locations. The empty option only
+   renders for optional location fields (meditation-log's is required)."
+  [timer locations {:keys [entity-str entity-schema]}]
+  (let [loc-key    (schema-utils/entity-field-key entity-str "location-id")
+        field-info (schema-utils/get-field-info entity-schema loc-key)
+        current    (get timer loc-key)]
+    (when (and field-info (seq locations))
+      [:div.flex.items-center.gap-2.mt-3
+       [:span.text-sm {:aria-hidden "true"} "📍"]
+       [:div.flex-1.min-w-0
+        [:select.form-select.w-full
+         {:name "location-id"
+          :aria-label "Timer location"
+          :data-enhance "choices"
+          :hx-post (str "/app/timers/location/" entity-str)
+          :hx-trigger "change"
+          :hx-swap "none"
+          :hx-vals (cheshire/generate-string {:timer-id (str (:xt/id timer))})}
+         (location-options locations current
+                           :include-empty (get-in field-info [:opts :optional]))]]])))
 
 (defn active-timer-card
   "Create a card for an active timer with stop functionality"
-  [timer parent-entities _ctx {:keys [entity-str parent-entity-key relationship-key beginning-key notes-key]}]
+  [timer parent-entities _ctx
+   {:keys [entity-str parent-entity-key relationship-key beginning-key notes-key]
+    :as config}
+   & {:keys [redirect-target locations]}]
   (let [timer-parent-id (get timer relationship-key)
         parent          (first (filter #(= (:xt/id %) timer-parent-id) parent-entities))
         label-key       (schema-utils/entity-attr-key parent-entity-key "label")
@@ -283,22 +341,24 @@
         elapsed-minutes (quot (mod elapsed-seconds 3600) 60)
         elapsed-str     (str elapsed-hours "h " elapsed-minutes "m")
         timer-notes     (get timer notes-key)
-        redirect-target (str "/app/timer/" entity-str)
+        redirect-target (or redirect-target (str "/app/timer/" entity-str))
+        encoded         (java.net.URLEncoder/encode redirect-target "UTF-8")
         edit-url        (str "/app/crud/form/" entity-str "/edit/" (:xt/id timer)
-                             "?redirect="
-                             (java.net.URLEncoder/encode redirect-target "UTF-8"))]
+                             "?redirect=" encoded)]
     [:div.bg-dark-surface.rounded-lg.p-4.border.border-neon-cyan.transition-all.duration-300.hover:shadow-lg
      [:div.flex.items-center.justify-between.mb-4
       [:span.text-sm.text-gray-400.uppercase.tracking-wide "Active Timer"]
       [:a.bg-red-500.bg-opacity-20.text-red-400.px-3.py-2.rounded.text-sm.font-medium.hover:bg-opacity-30.transition-all.no-underline
-       {:href (str "/app/timer/" entity-str "/" (:xt/id timer) "/stop")}
+       {:href (str "/app/timer/" entity-str "/" (:xt/id timer) "/stop"
+                   "?redirect=" encoded)}
        "End Session"]]
      [:a.block.no-underline {:href edit-url}
       [:div.flex.flex-col.space-y-1.text-white.transition-all.duration-300.hover:text-neon-cyan
        [:h3.text-lg.font-semibold parent-name]
        [:p.text-sm.text-neon-cyan (str "Running for " elapsed-str)]
        (when timer-notes
-         [:p.text-sm.text-gray-400.truncate timer-notes])]]]))
+         [:p.text-sm.text-gray-400.truncate timer-notes])]]
+     (card-location-select timer locations config)]))
 
 (defn timer-page
   "Timer page showing parent entities and active timers"
@@ -307,7 +367,8 @@
         parent-entities      (->> (queries/all-for-user-query parent-query ctx)
                                   (sort-by #(some-> (get % label-key) str/lower-case)))
         ;; Find active timers (entries with beginning but no end)
-        active-timers (fetch-active-timers ctx config)]
+        active-timers (fetch-active-timers ctx config)
+        locations     (when (seq active-timers) (fetch-locations ctx))]
     (ui/page
      ctx
      (side-bar
@@ -321,13 +382,14 @@
         [:div
          {:id "active-timers-section"
           :hx-get (str "/app/timer/" entity-str "/active")
-          :hx-trigger "every 30s"
+          :hx-trigger "every 30s, refresh-active-timers from:body"
           :hx-swap "outerHTML"}
          (when (seq active-timers)
            [:div.space-y-4
             (for [timer active-timers]
               ^{:key (:xt/id timer)}
-              (active-timer-card timer parent-entities ctx config))])]]
+              (active-timer-card timer parent-entities ctx config
+                                 :locations locations))])]]
 
        [:div.mb-8
         [:h2.text-xl.font-semibold.mb-4.text-white "Stats"]
@@ -351,44 +413,208 @@
 (defn active-timers-section
   "Return HTML for the active timers section"
   [ctx {:keys [entity-str parent-query] :as config}]
-  (let [parent-entities (queries/all-for-user-query parent-query ctx)
-        active-timers (fetch-active-timers ctx config)]
+  (let [active-timers   (fetch-active-timers ctx config)
+        parent-entities (when (seq active-timers)
+                          (queries/all-for-user-query parent-query ctx))
+        locations       (when (seq active-timers) (fetch-locations ctx))]
     {:status 200
      :headers {"Content-Type" "text/html"}
      :body (ui/fragment
             [:div
              {:id "active-timers-section"
               :hx-get (str "/app/timer/" entity-str "/active")
-              :hx-trigger "every 30s"
+              :hx-trigger "every 30s, refresh-active-timers from:body"
               :hx-swap "outerHTML"}
              (when (seq active-timers)
                [:div.space-y-4
                 (for [timer active-timers]
                   ^{:key (:xt/id timer)}
-                  (active-timer-card timer parent-entities ctx config))])])}))
+                  (active-timer-card timer parent-entities ctx config
+                                     :locations locations))])])}))
+
+(defn- sanitize-redirect
+  "Allow only /app/timer-prefixed redirect targets (covers /app/timers too)."
+  [target fallback]
+  (if (and (string? target) (str/starts-with? target "/app/timer"))
+    target
+    fallback))
+
+(defn request-param
+  "Read a request param by name, tolerating keyword or string keys."
+  [ctx k]
+  (let [params (:params ctx)]
+    (or (get params (keyword k)) (get params k))))
+
+(defn uuid-param
+  "Read a request param as a UUID; nil when absent, blank, or invalid."
+  [ctx k]
+  (let [raw (request-param ctx k)]
+    (when (and (string? raw) (not (str/blank? raw)))
+      (parse-uuid raw))))
+
+(defn current-location-id
+  "The user's persisted current location setting, if any."
+  [ctx]
+  (:user/current-location-id
+   (queries/get-entity-by-id (:biff/db ctx) (-> ctx :session :uid))))
 
 (defn stop-timer
-  "Stop an active timer by setting the end time"
-  [timer-id ctx {:keys [entity-str end-key entity-query]}]
-  (let [timer   (first (filter #(= (:xt/id %) timer-id)
-                               (queries/all-for-user-query entity-query ctx)))]
-    (if (and timer (nil? (get timer end-key)))
-      (do
-        ;; Update the timer with end time
-        (tech.jgood.gleanmo.db.mutations/update-entity!
-         ctx
-         {:entity-key (keyword entity-str),
-          :entity-id  timer-id,
-          :data       {end-key (t/now)}})
-        ;; Redirect to edit form so the user can review notes/details
-        (let [edit-path        (str "/app/crud/form/" entity-str "/edit/" timer-id)
-              return-target    (str "/app/timer/" entity-str)
-              encoded-redirect (java.net.URLEncoder/encode return-target "UTF-8")]
-          {:status  303
-           :headers {"location" (str edit-path "?redirect=" encoded-redirect)}}))
-      ;; Timer not found or already stopped
+  "Stop an active timer by setting the end time, returning to the issuing page.
+   Honors a whitelisted redirect query param; annotation stays one tap away via
+   the recent-logs edit links."
+  [timer-id ctx {:keys [entity-key entity-str end-key]}]
+  (let [redirect (sanitize-redirect (request-param ctx "redirect")
+                                    (str "/app/timer/" entity-str))
+        timer    (queries/get-entity-for-user (:biff/db ctx)
+                                              timer-id
+                                              (-> ctx :session :uid)
+                                              entity-key)]
+    (when (and timer (nil? (get timer end-key)))
+      (mutations/update-entity!
+       ctx
+       {:entity-key entity-key,
+        :entity-id  timer-id,
+        :data       {end-key (t/now)}}))
+    {:status  303
+     :headers {"location" redirect}}))
+
+(defn- fill-required-fields
+  "Fill required schema fields absent from data: non-optional booleans default
+   to false (mirroring the CRUD form path), anything else is copied from the
+   most recent completed log. Returns nil when a required field remains
+   unfilled — the caller falls back to the CRUD new-form."
+  [ctx {:keys [entity-schema]} data fetch-template]
+  (let [missing  (->> (schema-utils/extract-schema-fields entity-schema)
+                      (map schema-utils/prepare-field)
+                      (remove schema-utils/should-remove-system-or-user-field?)
+                      (filter :input-required)
+                      (remove (comp (partial contains? data) :field-key)))
+        template (when (seq missing) (fetch-template ctx))]
+    (reduce (fn [acc {:keys [field-key input-type]}]
+              (cond
+                (some? (get template field-key))
+                (assoc acc field-key (get template field-key))
+
+                (= input-type :boolean)
+                (assoc acc field-key false)
+
+                :else (reduced nil)))
+            data
+            missing)))
+
+(defn start-timer
+  "Create a running log for a parent entity without a form round trip: the
+   primary relationship and beginning are set directly, time-zone comes from
+   the user, and any other required fields are defaulted or copied from the
+   most recent log. Falls back to the CRUD new-form when that isn't possible
+   (e.g. first-ever log of a type with required fields)."
+  [ctx {:keys [entity-key entity-str relationship-key beginning-key] :as config}]
+  (let [parent-id (uuid-param ctx "parent-id")
+        redirect  (sanitize-redirect (request-param ctx "redirect")
+                                     (str "/app/timer/" entity-str))]
+    (if-not parent-id
+      {:status 303, :headers {"location" redirect}}
+      (let [tz-key      (schema-utils/entity-field-key entity-str "time-zone")
+            loc-key     (schema-utils/entity-field-key entity-str "location-id")
+            ;; The workspace picker submits location-id with the form — trust
+            ;; it (even blank) over the persisted setting, which may still be
+            ;; catching up from the picker's async persistence post. Starts
+            ;; without a picker (per-entity pages) read the setting.
+            raw-loc     (request-param ctx "location-id")
+            location-id (when (schema-utils/schema-field (:entity-schema config) loc-key)
+                          (if (string? raw-loc)
+                            (when-not (str/blank? raw-loc) (parse-uuid raw-loc))
+                            (current-location-id ctx)))
+            base        (cond-> {relationship-key parent-id
+                                 beginning-key    (t/now)}
+                          (schema-utils/schema-field (:entity-schema config) tz-key)
+                          (assoc tz-key (get-user-time-zone ctx))
+
+                          location-id
+                          (assoc loc-key location-id))
+            data        (fill-required-fields ctx
+                                              config
+                                              base
+                                              #(first (fetch-completed-logs % config 1)))]
+        (if data
+          (do
+            (mutations/create-entity!
+             ctx
+             {:entity-key entity-key,
+              :data       (assoc data :user/id (-> ctx :session :uid))})
+            {:status 303, :headers {"location" redirect}})
+          ;; Not enough information for a one-tap start — bounce to the form
+          ;; with the parent (and chosen location) preselected, preserving the
+          ;; return target.
+          (let [rel-param (schema-utils/ns-keyword->input-name relationship-key)]
+            {:status  303
+             :headers {"location"
+                       (str "/app/crud/form/" entity-str "/new?"
+                            rel-param "=" parent-id
+                            (when location-id
+                              (str "&" (schema-utils/ns-keyword->input-name loc-key)
+                                   "=" location-id))
+                            "&redirect=" (java.net.URLEncoder/encode redirect "UTF-8"))}}))))))
+
+(defn set-timer-location
+  "Set or clear the location on one of the user's running or completed logs.
+   Clearing is only allowed when the location field is optional
+   (meditation-log's is required). Responds 204 with an HX-Trigger event the
+   active-timers sections listen for, so the issuing card re-renders in place."
+  [ctx {:keys [entity-key entity-str entity-schema]}]
+  (let [timer-id    (uuid-param ctx "timer-id")
+        location-id (uuid-param ctx "location-id")
+        loc-key     (schema-utils/entity-field-key entity-str "location-id")
+        field-info  (schema-utils/get-field-info entity-schema loc-key)
+        timer       (when timer-id
+                      (queries/get-entity-for-user (:biff/db ctx)
+                                                   timer-id
+                                                   (-> ctx :session :uid)
+                                                   entity-key))]
+    (when (and timer
+               field-info
+               (or location-id (get-in field-info [:opts :optional])))
+      (mutations/update-entity!
+       ctx
+       {:entity-key entity-key,
+        :entity-id  timer-id,
+        :data       {loc-key (or location-id :db/dissoc)}}))
+    (if (get-in ctx [:headers "hx-request"])
+      {:status 204, :headers {"HX-Trigger" "refresh-active-timers"}}
       {:status  303
-       :headers {"location" (str "/app/timer/" entity-str)}})))
+       :headers {"location" (sanitize-redirect (request-param ctx "redirect")
+                                               (str "/app/timer/" entity-str))}})))
+
+(defn- relocate-log-data
+  "Build the continuation log for a relocated timer: every schema field of
+   the old log except the interval and notes (they belong to the finished
+   segment), beginning now at the new location."
+  [old-log
+   {:keys [entity-str entity-schema beginning-key end-key notes-key]}
+   location-id]
+  (let [loc-key   (schema-utils/entity-field-key entity-str "location-id")
+        copy-keys (->> (schema-utils/extract-schema-fields entity-schema)
+                       (map schema-utils/prepare-field)
+                       (remove schema-utils/should-remove-system-or-user-field?)
+                       (map :field-key)
+                       (remove #{beginning-key end-key notes-key}))]
+    (-> (select-keys old-log copy-keys)
+        (assoc beginning-key (t/now)
+               loc-key location-id))))
+
+(defn relocate-timer!
+  "End a running timer now and start a continuation log at location-id."
+  [ctx {:keys [entity-key end-key] :as config} timer location-id]
+  (mutations/update-entity!
+   ctx
+   {:entity-key entity-key,
+    :entity-id  (:xt/id timer),
+    :data       {end-key (t/now)}})
+  (mutations/create-entity!
+   ctx
+   {:entity-key entity-key,
+    :data       (assoc (relocate-log-data timer config location-id)
+                       :user/id (-> ctx :session :uid))}))
 
 (defn gen-routes
   "Generate timer routes for an interval entity"

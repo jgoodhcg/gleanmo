@@ -18,7 +18,8 @@
     "test:settings-filter": "tsx scripts/test-settings-filter.ts",
     "test:reading-crud": "tsx scripts/test-reading-crud.ts",
     "test:reading-timer": "tsx scripts/test-reading-timer.ts",
-    "test:timer-stop": "tsx scripts/test-timer-stop.ts"
+    "test:timer-stop": "tsx scripts/test-timer-stop.ts",
+    "test:timers-workspace": "tsx scripts/test-timers-workspace.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.40.0",

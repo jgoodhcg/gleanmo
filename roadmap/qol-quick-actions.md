@@ -156,3 +156,13 @@ of m003–m006, then Airtable retirement (see `data-migration-status.md`).
 Suggested execution order: 1 → 4 → 5 (one commit each or one combined), then
 2 (touches e2e), then `unified-timer-page.md` (builds on 2's redirect param),
 then 3 (largest, has its own spec).
+
+Progress (2026-07-27): item 2 and the item-1 unified timers link (sidebar
+`⏱ timers` moved above Quick Add, dropped from Dashboards) shipped with the
+`unified-timer-page.md` implementation; e2e timer-stop flow updated there.
+Later the same day, **item 1 shipped in full**: Quick Add reordered by
+measured frequency (habit, project, medication, bm-gated, workout,
+bouldering, symptom, mood, meditation, reading, calendar event, task),
+Tasks section moved below Quick Add, everything else retained — validated
+by the smoke e2e. Remaining here: items 3–5 (screenshots for item 1 can
+ride along with item 5's home strip work).
