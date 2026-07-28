@@ -2,7 +2,8 @@
   (:require
    [clojure.string :as str]
    [ring.middleware.anti-forgery :as csrf]
-   [tech.jgood.gleanmo.app.shared :refer [side-bar user-local-date]]
+   [tech.jgood.gleanmo.app.layout :as layout]
+   [tech.jgood.gleanmo.app.shared :refer [user-local-date]]
    [tech.jgood.gleanmo.db.queries :as queries]
    [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.ui :as ui]))
@@ -588,26 +589,24 @@
 
     (ui/page
      ctx
-     (side-bar
-      ctx
-      [:div.max-w-5xl.mx-auto.p-4
-       [:div.mb-6
-        [:h1.text-2xl.font-bold "Task Focus"]]
+     (layout/page-shell
+      ctx {:width :wide}
+      (layout/page-header {:title "Task Focus"})
 
-       (task-filter-form
-        {:projects            projects,
-         :search              search,
-         :project-selected    project-selected,
-         :state-selected      state-selected,
-         :domain-selected     domain-selected,
-         :due-selected        due-selected,
-         :due-status-selected due-status-selected,
-         :today-filter        today-filter,
-         :snoozed-filter      snoozed-filter,
-         :sort-selected       sort-selected})
+      (task-filter-form
+       {:projects            projects,
+        :search              search,
+        :project-selected    project-selected,
+        :state-selected      state-selected,
+        :domain-selected     domain-selected,
+        :due-selected        due-selected,
+        :due-status-selected due-status-selected,
+        :today-filter        today-filter,
+        :snoozed-filter      snoozed-filter,
+        :sort-selected       sort-selected})
 
-       (task-list tasks project-by-id task-count today now)
+      (task-list tasks project-by-id task-count today now)
 
-       [:div.mt-8.pt-4.border-t.border-dark
-        [:a.text-sm.text-gray-400.hover:text-white {:href "/app/crud/task"}
-         "View all tasks →"]]]))))
+      [:div.mt-8.pt-4.border-t.border-dark
+       [:a.text-sm.text-gray-400.hover:text-white {:href "/app/crud/task"}
+        "View all tasks →"]]))))

@@ -2,7 +2,8 @@
   "Daily focus page for task execution."
   (:require
    [ring.middleware.anti-forgery :as csrf]
-   [tech.jgood.gleanmo.app.shared :refer [side-bar user-local-date]]
+   [tech.jgood.gleanmo.app.layout :as layout]
+   [tech.jgood.gleanmo.app.shared :refer [user-local-date]]
    [tech.jgood.gleanmo.db.queries :as queries]
    [tech.jgood.gleanmo.ui :as ui]
    [tech.jgood.gleanmo.ui.icons :as icons]
@@ -242,7 +243,6 @@
   [ctx]
   (ui/page
    ctx
-   (side-bar
-    ctx
-    [:div.max-w-2xl.mx-auto.p-4
-     (today-content ctx)])))
+   (layout/page-shell
+    ctx {:width :narrow}
+    (today-content ctx))))
