@@ -10,7 +10,7 @@
    [::sm/created-at :instant]
    [:user/id :user/id]
    [:exercise/label :string]
-   [:exercise/source {:optional true} :string]
+   [:exercise/source {:optional true :crud/suggest-existing true} :string]
    [:exercise/notes {:optional true} :string]
    [:airtable/id {:optional true} :string]
    [:airtable/created-time {:optional true} :instant]

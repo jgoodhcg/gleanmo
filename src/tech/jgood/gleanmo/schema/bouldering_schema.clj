@@ -99,7 +99,7 @@
    [:boulder-attempt/attempts {:optional true} :int]
    [:boulder-attempt/tags {:optional true} [:set attempt-tag-enum]]
    ;; Subjective read on the attempt, e.g. "better", "warmup", "gassed"
-   [:boulder-attempt/feel {:optional true} :string]
+   [:boulder-attempt/feel {:optional true :crud/suggest-existing true} :string]
    [:boulder-attempt/notes {:optional true} :string]
    [:airtable/id {:optional true} :string]
    [:airtable/created-time {:optional true} :instant]

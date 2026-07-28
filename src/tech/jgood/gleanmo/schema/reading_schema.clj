@@ -23,7 +23,7 @@
        [:user/id :user/id]
        [:book/label {:optional true, :crud/priority 1} :string]
        [:book/title {:crud/priority 2} :string]
-       [:book/author {:optional true, :crud/priority 3} :string]
+       [:book/author {:optional true :crud/suggest-existing true, :crud/priority 3} :string]
        [:book/formats {:optional true, :crud/priority 4}
         [:set [:enum :audiobook :paperback :hardcover]]]
        [:book/published {:optional true, :crud/priority 5} :local-date]
