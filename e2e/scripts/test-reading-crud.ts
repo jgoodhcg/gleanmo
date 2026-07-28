@@ -46,9 +46,9 @@ async function createBook(page: Page, email: string, title: string, author?: str
 
   const form = page.locator('#book-new-form');
   await expect(form).toBeVisible({ timeout: 10000 });
-  await form.locator('textarea[name="book/title"]').fill(title);
+  await form.locator('[name="book/title"]').fill(title);
   if (author) {
-    await form.locator('textarea[name="book/author"]').fill(author);
+    await form.locator('[name="book/author"]').fill(author);
   }
   await submitHtmxForm(form, '/app/crud/book');
   await page.waitForLoadState('networkidle');
@@ -185,7 +185,7 @@ async function main() {
 
     const editForm = page.locator('#book-edit-form');
     await expect(editForm).toBeVisible({ timeout: 10000 });
-    const authorInput = editForm.locator('textarea[name="book/author"]');
+    const authorInput = editForm.locator('[name="book/author"]');
     await authorInput.clear();
     await authorInput.fill(updatedAuthor);
     await submitHtmxForm(editForm, '/app/crud/book');

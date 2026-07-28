@@ -4,10 +4,10 @@
    [clojure.tools.logging :as log]
    [com.biffweb :as biff]
    [potpuri.core :as pot]
+   [tech.jgood.gleanmo.app.layout :as layout]
    [tech.jgood.gleanmo.app.shared :refer
     [format-date-time-local
-     get-user-time-zone
-     side-bar]]
+     get-user-time-zone]]
    [tech.jgood.gleanmo.schema.utils :as schema-utils]
    [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.crud.views.formatting :refer [format-cell-value]]
@@ -810,11 +810,10 @@
     (ui/page
      {}
      [:div
-      (side-bar
-       ctx
-       [:div.p-4
-        [:h1.form-header
-         (str/capitalize plural-str)]
+      (layout/page-shell
+       ctx {:width :normal}
+       (layout/page-header {:title (str/capitalize plural-str)})
+       [:div
 
           ;; New entity button
         [:div.mb-4

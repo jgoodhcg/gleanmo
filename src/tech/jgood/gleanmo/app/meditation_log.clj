@@ -1,7 +1,8 @@
 (ns tech.jgood.gleanmo.app.meditation-log
   (:require
    [com.biffweb :as biff]
-   [tech.jgood.gleanmo.app.shared :refer [get-user-time-zone side-bar]]
+   [tech.jgood.gleanmo.app.layout :as layout]
+   [tech.jgood.gleanmo.app.shared :refer [get-user-time-zone]]
    [tech.jgood.gleanmo.crud.routes :as crud]
    [tech.jgood.gleanmo.db.queries :as db]
    [tech.jgood.gleanmo.schema :refer [schema]]
@@ -126,10 +127,10 @@
 
     (ui/page
      {}
-     (side-bar
-      context
+     (layout/page-shell
+      context {:width :normal}
+      (layout/page-header {:title "Meditation Statistics"})
       [:div.flex.flex-col
-       [:h1.text-2xl.font-bold.mb-4 "Meditation Statistics"]
 
          ;; Date Range Filter Form
        (biff/form

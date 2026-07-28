@@ -26,7 +26,7 @@
    [cheshire.core :as cheshire]
    [clojure.string :as str]
    [com.biffweb :as biff]
-   [tech.jgood.gleanmo.app.shared :refer [side-bar]]
+   [tech.jgood.gleanmo.app.layout :as layout]
    [tech.jgood.gleanmo.crud.forms.inputs :as inputs]
    [tech.jgood.gleanmo.db.mutations :as mutations]
    [tech.jgood.gleanmo.db.queries :as queries]
@@ -368,7 +368,7 @@
         ex-by-id   (into {} (map (juxt :xt/id identity)) exercises)
         memory     (exercise-memory ctx)
         n-sets     (count sets)]
-    [:div {:class "max-w-2xl mx-auto p-4 sm:p-6 space-y-5"}
+    [:div.space-y-5
      [:div.flex.items-start.justify-between.gap-3
       [:div
        [:h1.text-2xl.font-bold.text-white "Workout"]
@@ -421,7 +421,7 @@
 (defn- idle-view
   [{:keys [biff/db session]}]
   (let [recent (queries/recent-sessions-for-user db (:uid session) 5)]
-    [:div {:class "max-w-2xl mx-auto p-4 sm:p-6 space-y-6"}
+    [:div.space-y-6
      [:h1.text-2xl.font-bold.text-white "Workout"]
      (biff/form {:action "/app/exercise/session/start", :method "post"}
                 [:button {:type "submit"
@@ -469,7 +469,7 @@
                         (str/join " · "))
         ended      (:exercise-session/end session)
         duration   (when ended (fmt-session-len (:exercise-session/beginning session) ended))]
-    [:div {:class "max-w-2xl mx-auto p-4 sm:p-6 space-y-6"}
+    [:div.space-y-6
      [:div
       [:a.link.text-xs {:href screen-url} "← workout"]
       [:h1.text-2xl.font-bold.text-white.mt-2
@@ -508,11 +508,11 @@
                                                (:uid session) :exercise-session)]
     (ui/page
      ctx
-     (side-bar
-      ctx
+     (layout/page-shell
+      ctx {:width :narrow}
       (if sess
         (session-summary-view ctx sess)
-        [:div {:class "max-w-2xl mx-auto p-6"}
+        [:div
          [:p.text-gray-400 "Session not found."]])))))
 
 (defn workout-page
@@ -520,8 +520,8 @@
   (let [session (open-session ctx)]
     (ui/page
      ctx
-     (side-bar
-      ctx
+     (layout/page-shell
+      ctx {:width :narrow}
       (if session
         (active-session-view ctx session)
         (idle-view ctx))))))

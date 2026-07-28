@@ -17,7 +17,7 @@
   (:require
    [clojure.string :as str]
    [com.biffweb :as biff]
-   [tech.jgood.gleanmo.app.shared :refer [side-bar]]
+   [tech.jgood.gleanmo.app.layout :as layout]
    [tech.jgood.gleanmo.db.mutations :as mutations]
    [tech.jgood.gleanmo.db.queries :as queries]
    [tech.jgood.gleanmo.ui :as ui]
@@ -359,7 +359,7 @@
                         (:boulder-attempt/problem-id running))
         n           (count done)
         sends       (count (filter :boulder-attempt/sent done))]
-    [:div {:class "max-w-2xl mx-auto p-4 sm:p-6 space-y-5"}
+    [:div.space-y-5
      [:div.flex.items-start.justify-between.gap-3
       [:div
        [:h1.text-2xl.font-bold.text-white "Bouldering"]
@@ -428,7 +428,7 @@
   (let [user-id (:uid session)
         recent  (queries/recent-boulder-sessions-for-user db user-id 5)
         gyms    (->> recent (map :boulder-session/gym) (remove str/blank?) distinct)]
-    [:div {:class "max-w-2xl mx-auto p-4 sm:p-6 space-y-6"}
+    [:div.space-y-6
      [:div.flex.items-center.justify-between.gap-3
       [:h1.text-2xl.font-bold.text-white "Bouldering"]
       [:a.link.text-xs.text-gray-400.whitespace-nowrap
@@ -474,7 +474,7 @@
         flashes     (count (filter :boulder-attempt/flash attempts))
         n-problems  (count (distinct (keep :boulder-attempt/problem-id attempts)))
         ended       (:boulder-session/end boulder-session)]
-    [:div {:class "max-w-2xl mx-auto p-4 sm:p-6 space-y-6"}
+    [:div.space-y-6
      [:div
       [:a.link.text-xs {:href screen-url} "← bouldering"]
       [:h1.text-2xl.font-bold.text-white.mt-2
@@ -513,11 +513,11 @@
                                                (:uid session) :boulder-session)]
     (ui/page
      ctx
-     (side-bar
-      ctx
+     (layout/page-shell
+      ctx {:width :narrow}
       (if sess
         (session-summary-view ctx sess)
-        [:div {:class "max-w-2xl mx-auto p-6"}
+        [:div
          [:p.text-gray-400 "Session not found."]])))))
 
 ;; Wall chips on the problems screen filter both sections client-side.
@@ -580,7 +580,7 @@
                       (remove str/blank?)
                       distinct
                       sort)]
-    [:div {:class "max-w-2xl mx-auto p-4 sm:p-6 space-y-5"}
+    [:div.space-y-5
      [:div
       [:a.link.text-xs {:href screen-url} "← bouldering"]
       [:div.flex.items-center.justify-between.gap-3.mt-2
@@ -629,15 +629,15 @@
 
 (defn problems-page
   [ctx]
-  (ui/page ctx (side-bar ctx (problems-view ctx))))
+  (ui/page ctx (layout/page-shell ctx {:width :narrow} (problems-view ctx))))
 
 (defn boulder-page
   [ctx]
   (let [sess (open-session ctx)]
     (ui/page
      ctx
-     (side-bar
-      ctx
+     (layout/page-shell
+      ctx {:width :narrow}
       (if sess
         (active-session-view ctx sess)
         (idle-view ctx))))))

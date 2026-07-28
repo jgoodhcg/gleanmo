@@ -975,6 +975,10 @@
   "Top-level layout for the home overview page; sections hydrate via HTMX."
   [_ctx]
   [:div.flex.flex-col.space-y-5
+   ;; Visually hidden: home leads with Running Now and the timeline, and a
+   ;; visible title would spend vertical space on the most-used page to say
+   ;; nothing. Screen readers and the page-heading invariant still need one.
+   [:h1.sr-only "Home"]
    [:div {:id "overview-recent"
           :hx-get "/app/overview/recent"
           :hx-trigger "load"

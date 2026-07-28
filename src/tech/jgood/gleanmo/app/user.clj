@@ -1,7 +1,8 @@
 (ns tech.jgood.gleanmo.app.user
   (:require
    [com.biffweb :as    biff]
-   [tech.jgood.gleanmo.app.shared :refer [param-true? side-bar
+   [tech.jgood.gleanmo.app.layout :as layout]
+   [tech.jgood.gleanmo.app.shared :refer [param-true?
                                           time-zone-select zoned-date-time-fmt]]
    [tech.jgood.gleanmo.db.mutations :as mutations]
    [tech.jgood.gleanmo.db.queries :as queries]
@@ -35,11 +36,12 @@
     (ui/page
      {}
      [:div
-      (side-bar ctx
-                [:h2.form-header "User Details"]
-                [:p.text-secondary (str "Email: " email)]
-                [:p.text-secondary (str "Time Zone: " time-zone)]
-                [:a.link {:href (str "/app/users/" id "/edit")} "edit"])])))
+      (layout/page-shell
+       ctx {:width :narrow}
+       (layout/page-header {:title "Account"})
+       [:p.text-secondary (str "Email: " email)]
+       [:p.text-secondary (str "Time Zone: " time-zone)]
+       [:a.link {:href (str "/app/users/" id "/edit")} "edit"])])))
 
 (defn create!
   [_]
@@ -87,8 +89,9 @@
      (ui/page
       {}
       [:div
-       (side-bar
-        ctx
+       (layout/page-shell
+        ctx {:width :narrow}
+        (layout/page-header {:title "Edit Account"})
         (biff/form
          {:hx-post   (str "/app/users/" id),
           :hx-swap   "outerHTML",

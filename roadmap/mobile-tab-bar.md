@@ -1,12 +1,16 @@
 ---
 title: "Mobile Bottom Tab Bar"
-status: draft
+status: done
 description: "Fixed bottom navigation for the mobile PWA — logging and timers reachable without the hamburger sidebar"
 created: 2026-07-26
 updated: 2026-07-26
 tags: [ux, mobile, pwa, navigation]
 priority: medium
 ---
+
+
+> **ABSORBED into `navigation-redesign.md` (2026-07-28).** The tab bar
+> shipped there as the mobile primary layer. Kept for its original notes.
 
 # Mobile Bottom Tab Bar
 

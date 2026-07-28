@@ -16,8 +16,11 @@
 (def content-widths
   "Content column widths, chosen by what the page *is* rather than by taste.
 
-   :narrow — focused single-column flows: forms, the workout and boulder
-             screens, anything you operate one-handed on a phone.
+   :narrow — single-column flows: CRUD forms, the workout and boulder
+             screens, anything you operate one-handed on a phone. Forms use
+             this rather than a narrower tier of their own — a 24rem column
+             centered in a ~64rem content area reads as adrift, and forms are
+             the same shape as the custom screens already sitting here.
    :normal — standard reading/content pages.
    :wide   — dashboards and card grids that earn the horizontal room.
    :full   — pages doing their own layout (calendar year grid)."

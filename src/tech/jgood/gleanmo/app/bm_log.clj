@@ -1,6 +1,6 @@
 (ns tech.jgood.gleanmo.app.bm-log
   (:require
-   [tech.jgood.gleanmo.app.shared :refer [side-bar]]
+   [tech.jgood.gleanmo.app.layout :as layout]
    [tech.jgood.gleanmo.crud.routes :as crud]
    [tech.jgood.gleanmo.db.queries :as queries]
    [tech.jgood.gleanmo.schema :refer [schema]]
@@ -137,10 +137,10 @@
 
     (ui/page
      {}
-     (side-bar
-      context
+     (layout/page-shell
+      context {:width :normal}
+      (layout/page-header {:title "BM Log Statistics"})
       [:div.flex.flex-col
-       [:h1.text-2xl.font-bold.mb-6 "BM Log Statistics"]
 
          ;; Simple Frequency Statistics
        [:div.mb-8

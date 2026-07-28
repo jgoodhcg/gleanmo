@@ -4,7 +4,8 @@
   (:require
    [cheshire.core :as json]
    [clojure.string :as str]
-   [tech.jgood.gleanmo.app.shared :refer [get-user-time-zone side-bar]]
+   [tech.jgood.gleanmo.app.layout :as layout]
+   [tech.jgood.gleanmo.app.shared :refer [get-user-time-zone]]
    [tech.jgood.gleanmo.db.queries :as db]
    [tech.jgood.gleanmo.schema.medication-schema :as med-schema]
    [tech.jgood.gleanmo.ui :as ui]
@@ -252,10 +253,10 @@
 
     (ui/page
      (assoc ctx ::ui/echarts (boolean selected-med))
-     (side-bar
-      ctx
-      [:div.flex.flex-col.max-w-4xl.mx-auto
-       [:h1.text-2xl.font-bold.mb-6 "Medication History"]
+     (layout/page-shell
+      ctx {:width :normal}
+      (layout/page-header {:title "Medication History"})
+      [:div.flex.flex-col
 
        ;; ── Filter form ──────────────────────────────────────────────
        [:div.bg-dark-surface.p-6.rounded-lg.border.border-dark.mb-6

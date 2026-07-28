@@ -38,7 +38,7 @@ async function createBook(page: Page, title: string) {
 
   const form = page.locator('#book-new-form');
   await expect(form).toBeVisible({ timeout: 10000 });
-  await form.locator('textarea[name="book/title"]').fill(title);
+  await form.locator('[name="book/title"]').fill(title);
 
   await submitHtmxForm(form, '/app/crud/book');
   await page.waitForLoadState('networkidle');

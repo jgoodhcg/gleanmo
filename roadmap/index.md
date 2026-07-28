@@ -14,7 +14,6 @@ goal: "Get off Neon/Hikari pain and Airtable dependency while keeping Gleanmo fa
 - [mood.md](./mood.md) - Structured mood logging with Airtable backfill
 - [bouldering.md](./bouldering.md) - Climbing sessions and problem attempts with Airtable backfill
 - [local-dev-db-locking.md](./local-dev-db-locking.md) - RocksDB file lock prevents running REPL and CLI migrations concurrently
-- [airtable-metadata-consistency.md](./airtable-metadata-consistency.md) - Retroactively align airtable lineage fields across all migrated entity schemas
 
 ## Prioritization Lens
 
@@ -60,7 +59,6 @@ runs of m003–m006 → Airtable retirement.
 
 ### Ready
 
-- [navigation-redesign.md](./navigation-redesign.md) - Layered navigation, page hierarchy, consistent styling, and the mobile tab bar (scope resolved 2026-07-28; absorbs mobile-tab-bar.md)
 - [qol-quick-actions.md](./qol-quick-actions.md) - Navigation & logging QOL: sidebar reorder, stop-in-place timers, boulder problem discoverability, home quick actions
 - [inline-entity-creation.md](./inline-entity-creation.md) - Create related entities mid-form without losing context (executed as item 3 of qol-quick-actions.md)
 - [heatmap-performance.md](./heatmap-performance.md) - Heatmap viz page perf via year-bounded projection scans, shared rel-cache, parallel lazy-loaded year cards
@@ -70,7 +68,6 @@ runs of m003–m006 → Airtable retirement.
 - [mood.md](./mood.md) - Structured mood logging with Airtable backfill
 - [bouldering.md](./bouldering.md) - Climbing sessions and problem attempts with Airtable backfill
 - [local-dev-db-locking.md](./local-dev-db-locking.md) - RocksDB file lock prevents running REPL and CLI migrations concurrently
-- [airtable-metadata-consistency.md](./airtable-metadata-consistency.md) - Retroactively align airtable lineage fields across all migrated entity schemas
 - [schema-consistency.md](./schema-consistency.md) - Audit and standardize all Malli schemas for naming, field ordering, and conventions
 - [entity-merge.md](./entity-merge.md) - Combine logs from duplicate entities into one target entity
 - [biff-upgrade-v1-9.md](./biff-upgrade-v1-9.md) - Upgrade Biff and task libs to at least v1.9.0, then validate XTDB/Agrona changes and Java 25 compatibility
@@ -93,7 +90,6 @@ runs of m003–m006 → Airtable retirement.
 - [screenshot-runner.md](./screenshot-runner.md) - Authenticated screenshot capture for docs and CI
 - [today-reorder-performance.md](./today-reorder-performance.md) - Fix slow response when reordering items on the today page
 - [pwa-experience.md](./pwa-experience.md) - Improve progressive web app experience for native-like feel on iOS and Android
-- [mobile-tab-bar.md](./mobile-tab-bar.md) - Fixed bottom navigation for the mobile PWA
 - [timer-dashboard-inline-create.md](./timer-dashboard-inline-create.md) - True inline parent creation on timer dashboards (follow-up to inline-entity-creation.md)
 - [ui-juice.md](./ui-juice.md) - Micro-interactions, animations, and haptic feedback for delight
 - [plausible-user-identification.md](./plausible-user-identification.md) - Add user identifiers to Plausible analytics to distinguish individuals
@@ -112,6 +108,9 @@ runs of m003–m006 → Airtable retirement.
 
 ### Done
 
+- [navigation-redesign.md](./navigation-redesign.md) - Layered navigation, shared page shell across every page, and the mobile tab bar (absorbed mobile-tab-bar.md)
+- [mobile-tab-bar.md](./mobile-tab-bar.md) - Absorbed into navigation-redesign.md
+- [airtable-metadata-consistency.md](./airtable-metadata-consistency.md) - Settled: the four deployed entities need no action
 - [auth-expired-home-layout.md](./auth-expired-home-layout.md) - Fix home page showing login form inside authenticated layout when session expires
 - [timer-stale-start-time.md](./timer-stale-start-time.md) - Fix timer starting with old timestamp when PWA has been idle on timers page
 

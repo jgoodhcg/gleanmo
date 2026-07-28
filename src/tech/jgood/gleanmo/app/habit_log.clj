@@ -2,7 +2,8 @@
   (:require
    [clojure.string :as str]
    [potpuri.core :as pot]
-   [tech.jgood.gleanmo.app.shared :refer [param-true? side-bar]]
+   [tech.jgood.gleanmo.app.layout :as layout]
+   [tech.jgood.gleanmo.app.shared :refer [param-true?]]
    [tech.jgood.gleanmo.crud.routes :as crud]
    [tech.jgood.gleanmo.db.queries :as queries]
    [tech.jgood.gleanmo.prediction.heuristics :as pred]
@@ -85,10 +86,10 @@
     ;; Render the page with list of dates when habit was logged
     (ui/page
      {}
-     (side-bar
-      context
+     (layout/page-shell
+      context {:width :normal}
+      (layout/page-header {:title "Habit Log Dates"})
       [:div.flex.flex-col
-       [:h1.text-2xl.font-bold.mb-4 "Habit Log Dates"]
 
          ;; Habit selection dropdown
        [:div.mb-6

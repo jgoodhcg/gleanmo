@@ -2,7 +2,7 @@
   (:require
    [clojure.string :as str]
    [com.biffweb :as biff]
-   [tech.jgood.gleanmo.app.shared :refer [side-bar]]
+   [tech.jgood.gleanmo.app.layout :as layout]
    [tech.jgood.gleanmo.crud.forms.inputs :as inputs]
    [tech.jgood.gleanmo.db.queries :as db]
    [tech.jgood.gleanmo.schema.utils :as schema-utils]
@@ -61,19 +61,17 @@
     (ui/page
      {}
      [:div
-      (side-bar
-       ctx
-       [:div.w-full.md:w-96.space-y-8
+      (layout/page-shell
+       ctx {:width :narrow}
+       (layout/page-header
+        {:title    (str "New " (str/capitalize entity-str))
+         :subtitle (str "Create a new " entity-str)})
+       [:div.space-y-8
         (biff/form
          {:hx-post   (str "/app/crud/" entity-str),
           :hx-swap   "outerHTML",
           :hx-select (str "#" form-id),
           :id        form-id}
-         [:div
-          [:h2.form-header
-           (str "New " (str/capitalize entity-str))]
-          [:p.form-subheader
-           (str "Create a new " entity-str)]]
          [:div.grid.grid-cols-1.gap-y-6
           (doall (schema->form schema
                                (assoc ctx
@@ -114,21 +112,16 @@
       (let
        [content
         (if (nil? entity)
-          [:div.form-section.w-full.md:w-96
-           [:h2.form-header (str (str/capitalize entity-str) " Not Found")]
-           [:p.form-subheader
-            "We couldn't find this item, or you don't have access to it."]
-           [:a.form-button-secondary {:href (str "/app/crud/" entity-str)}
-            "Back to list"]]
-          [:div.w-full.md:w-96.space-y-8
+          (layout/empty-state
+           {:message "We couldn't find this item, or you don't have access to it."
+            :action  [:a.form-button-secondary {:href (str "/app/crud/" entity-str)}
+                      "Back to list"]})
+          [:div.space-y-8
            (biff/form
             {:hx-post   (str "/app/crud/" entity-str "/" entity-id),
              :hx-swap   "outerHTML",
              :hx-select (str "#" form-id),
              :id        form-id}
-            [:div
-             [:h1.form-header (str "Edit " (str/capitalize entity-str))]
-             [:p.form-subheader (str "Edit this " entity-str)]]
             [:div.grid.grid-cols-1.gap-y-6
              (doall
               (schema->form-with-values schema entity ctx schema-map))
@@ -154,6 +147,11 @@
               {:type "submit", :aria-label "Delete this item"}
               "Delete"])]])]
 
-        (side-bar
-         ctx
+        (layout/page-shell
+         ctx {:width :narrow}
+         (layout/page-header
+          {:title    (if entity
+                       (str "Edit " (str/capitalize entity-str))
+                       (str (str/capitalize entity-str) " Not Found"))
+           :subtitle (when entity (str "Edit this " entity-str))})
          content))])))

@@ -1,6 +1,6 @@
 ---
 title: "Navigation & Page Architecture Redesign"
-status: ready
+status: done
 description: "Layered navigation (primary surfaces vs. drill-down pages), consistent styling across all pages, and an intentional information architecture"
 created: 2026-07-27
 updated: 2026-07-28
@@ -77,51 +77,48 @@ calendar year, timers workspace) and CRUD-generated pages.
 
 ## Progress (2026-07-28)
 
-**Shipped:**
-- `app/layout.clj` — the shared vocabulary: `page-shell` (with `content-widths`
-  :narrow/:normal/:wide/:full), `page-header`, `section-header`, `card`,
-  `empty-state`. `page-shell` owns the bottom clearance the tab bar needs.
-- `shared/primary-surfaces` — layer 1 (home, timers, log, today), shared by
-  the sidebar and the tab bar so they cannot disagree.
-- `shared/mobile-tab-bar` — fixed bottom nav, five slots, prefix-matched
-  active state, "more" toggles the sidebar. This absorbs `mobile-tab-bar.md`.
-- Sidebar restructured into Log Something / Review / Manage.
-- `/app/log` hub — the tab bar's logging destination, built from the shared
-  `quick-action-items`.
-- **Converted to the shell:** entities / activity-logs / stats dashboards,
-  timers workspace, Today, Task Focus.
+**Complete.** Every authenticated page is on the shared shell.
 
-**Not yet converted** (still on their own shells):
-- CRUD list pages (`crud/views.clj`) and **CRUD new/edit forms**
-  (`crud/forms.clj`). The forms are a deliberate hold: they sit at
-  `w-full md:w-96`, and moving them to `:narrow` (`max-w-2xl`) changes the
-  look of *every* form in the app. That deserves its own before/after
-  screenshot pass rather than riding along here.
-- Custom screens `boulder.clj` and `workout.clj`. Their containers already
-  match `:narrow` (`max-w-2xl … pb-24`), so they are visually consistent
-  already; the conversion is mechanical but their shells live inside view
-  functions rather than at the `side-bar` call site, so it is a real
-  refactor rather than a substitution.
-- `user.clj`, `medication_history.clj`, `habit_log.clj`, `bm_log.clj`,
-  `meditation_log.clj`, `calendar.clj`.
+- `app/layout.clj` — `page-shell` (widths :narrow/:normal/:wide/:full),
+  `page-header`, `section-header`, `card`, `empty-state`.
+- `shared/primary-surfaces` — layer 1 (home, timers, log, today), shared by the
+  sidebar and tab bar so they cannot disagree.
+- `shared/mobile-tab-bar` — this absorbs `mobile-tab-bar.md`. The old mobile
+  top bar is gone; the sidebar carries its own close.
+- Sidebar grouped Log Something / Review / Manage; `/app/log` hub added.
+- **Converted:** all three dashboards, timers workspace, Today, Task Focus,
+  every CRUD list and new/edit form, boulder (session, summary, problems),
+  workout, user detail/edit, medication history, and the habit/bm/meditation
+  stats pages.
 
-**Still open:** the command-palette question (default: no palette this pass),
-and whether the sidebar should become a "more" sheet on mobile now that the
-tab bar carries the primary layer.
+Two things settled during the conversion:
 
-**Note:** the sticky-heading bug in `backlog.md` ("Timeline Day Headings Never
-Stick") is still unfixed — `page-shell` does not yet own the overflow
-strategy, so the shell's `overflow-x-hidden` still breaks every
-`position: sticky` in the app.
+- **Forms use `:narrow`, not a tier of their own.** A 24rem column centered in
+  a ~64rem content area reads as adrift — the before/after screenshots made
+  that obvious — and forms are the same shape as the custom screens already
+  sitting at `:narrow`.
+- **Home carries an `sr-only` h1.** It leads with Running Now and the timeline,
+  where a visible title would spend space on the most-used page to say nothing,
+  but every page needs exactly one heading. The `test:navigation` suite asserts
+  that invariant across every kind of page.
 
-## Context
+## Coverage
 
-- Current sidebar: `src/tech/jgood/gleanmo/app/shared.clj` `side-bar`
-  (frequency-ordered 2026-07-27; analytics numbers in
-  `qol-quick-actions.md`).
-- Layering precedent: `unified-timer-page.md` made `/app/timers` the primary
-  timer surface with per-entity pages demoted to drill-down stats.
-- Known layering bug to fold in: home timeline z-index over the mobile top
-  bar (`backlog.md` → Dashboard UI).
-- Related: `mobile-tab-bar.md`, `workflow-optimization.md`,
-  `keyboard-navigation.md`, `ui-juice.md`, backlog Command Palette.
+`e2e/scripts/test-navigation.ts` guards the chrome: tab bar surfaces and active
+state, the sidebar open/close cycle, the `/app/log` hub, and two invariants
+checked on eleven routes covering every shell kind — exactly one `h1`, and no
+focusable control hidden under the fixed tab bar (the regression that shipped
+once already).
+
+Written against roles, aria labels and hrefs rather than classes or pixels, so
+restyling a page does not break it.
+
+## Still open
+
+- Command palette: no palette in this pass; the sidebar plus tab bar carry it.
+- Whether the sidebar should become a "more" sheet on mobile now that the tab
+  bar is the primary layer.
+- **Timeline day headings still never stick** (`backlog.md`). `page-shell` now
+  exists to own the overflow strategy, but the shell's `overflow-x-hidden`
+  still makes that div the scrolling ancestor, so every `position: sticky` in
+  the app is inert. This is now a one-place fix rather than a per-page one.
