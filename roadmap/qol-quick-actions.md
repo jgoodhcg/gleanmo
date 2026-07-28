@@ -77,12 +77,13 @@ of truth; do not restate its spec here.
 
 ### 4. Boulder problem management discoverability
 
-The screen exists (`/app/boulder/session/problems`, `app/boulder.clj:728`) but
-is only reachable via the gym-screen picker link.
+The screen exists (now `/app/boulder/problems` — renamed 2026-07-28, since
+problems are a library reused across sessions rather than a sub-resource of
+one) but was only reachable via the gym-screen picker link.
 
 - Add a **Boulder Problems** card to the entities dashboard
   (`app/dashboards.clj:92-95`, next to Boulder Sessions/Attempts, neon-lime)
-  pointing at `/app/boulder/session/problems` (the purpose-built
+  pointing at `/app/boulder/problems` (the purpose-built
   retire/restore screen; full CRUD stays reachable from its badges).
 - Add a small "problems" link in the boulder session screen header so it's
   reachable without opening the picker.

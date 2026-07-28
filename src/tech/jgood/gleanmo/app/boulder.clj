@@ -23,7 +23,13 @@
    [tech.jgood.gleanmo.ui :as ui]
    [tick.core :as t]))
 
-(def ^:private screen-url "/app/boulder/session")
+(def ^:private boulder-url "/app/boulder")
+
+;; The gym session screen. Problems are NOT nested under it: they are a
+;; library reused across sessions, so they get their own path rather than
+;; reading as a sub-resource of a session they have nothing to do with.
+(def ^:private screen-url (str boulder-url "/session"))
+(def ^:private problems-url (str boulder-url "/problems"))
 
 (defn- redirect-param [] (java.net.URLEncoder/encode screen-url "UTF-8"))
 
@@ -290,7 +296,7 @@
                              (if (= selected "__new__") "border-neon-cyan" "border-dark"))}
         [:span {:data-card-body true :class "text-sm text-gray-400"} "＋ New problem"]]]
       [:div.mt-2
-       [:a.link {:class "text-[11px]" :href (str screen-url "/problems")}
+       [:a.link {:class "text-[11px]" :href problems-url}
         "manage problems"]]]
      (new-problem-fields problems)
      [:div {:class "text-[10px] font-semibold tracking-widest text-gray-500 mt-5 mb-2"} "RESULT"]
@@ -365,7 +371,7 @@
              (when (pos? sends) (str " · " sends (if (= 1 sends) " send" " sends"))))]]
       [:div.flex.items-center.gap-3
        [:a.link.text-xs.text-gray-400.whitespace-nowrap
-        {:href (str screen-url "/problems")} "problems"]
+        {:href problems-url} "problems"]
        (biff/form {:action (str screen-url "/" session-id "/end"), :method "post"}
                   [:button {:type "submit"
                             :class "px-3.5 py-2 rounded-lg text-xs font-semibold text-red-400 bg-transparent border border-red-400/30 whitespace-nowrap"}
@@ -426,7 +432,7 @@
      [:div.flex.items-center.justify-between.gap-3
       [:h1.text-2xl.font-bold.text-white "Bouldering"]
       [:a.link.text-xs.text-gray-400.whitespace-nowrap
-       {:href (str screen-url "/problems")} "problems"]]
+       {:href problems-url} "problems"]]
      (biff/form {:action (str screen-url "/start"), :method "post"}
                 [:div {:class "text-[10px] font-semibold tracking-widest text-gray-500 mb-2"} "GYM"]
                 [:input {:type "text" :name "gym" :required true :list "bd-gyms"
@@ -539,9 +545,9 @@
            :class "flex items-center justify-between gap-3 rounded-xl border border-dark bg-dark-surface px-4 py-3"}
      [:a {:class "no-underline min-w-0"
           :href (str "/app/crud/form/boulder-problem/edit/" (:xt/id p)
-                     "?redirect=" (java.net.URLEncoder/encode (str screen-url "/problems") "UTF-8"))}
+                     "?redirect=" (java.net.URLEncoder/encode problems-url "UTF-8"))}
       (problem-badge p)]
-     (biff/form {:action (str screen-url "/problem/" (:xt/id p) "/toggle-inactive")
+     (biff/form {:action (str boulder-url "/problem/" (:xt/id p) "/toggle-inactive")
                  :method "post"}
                 [:button {:type "submit"
                           :class (if inactive?
@@ -583,7 +589,7 @@
        ;; made the Manage Entities card pointing here a dead end for creation.
        [:a.link.text-sm.whitespace-nowrap
         {:href (str "/app/crud/form/boulder-problem/new?redirect="
-                    (java.net.URLEncoder/encode (str screen-url "/problems")
+                    (java.net.URLEncoder/encode problems-url
                                                 "UTF-8"))}
         "+ New problem"]]]
      (when (seq walls)
@@ -608,7 +614,7 @@
          [:p.text-xs.text-gray-500 "No active problems."]
          [:a.link.text-sm
           {:href (str "/app/crud/form/boulder-problem/new?redirect="
-                      (java.net.URLEncoder/encode (str screen-url "/problems")
+                      (java.net.URLEncoder/encode problems-url
                                                   "UTF-8"))}
           "+ New problem"]])]
      (when (seq retired)
@@ -658,7 +664,7 @@
                          :boulder-problem/inactive-at (if retiring?
                                                         (t/now)
                                                         :db/dissoc)}})))
-  {:status 303 :headers {"location" (str screen-url "/problems")}})
+  {:status 303 :headers {"location" problems-url}})
 
 (defn start-session!
   [{:keys [session params] :as ctx}]
@@ -761,5 +767,5 @@
    ["/session/:id/end" {:post end-session!}]
    ["/session/:id/attempt" {:post add-attempt!}]
    ["/session/:id/attempt/start" {:post start-attempt!}]
-   ["/session/problems" {:get problems-page}]
-   ["/session/problem/:id/toggle-inactive" {:post toggle-problem-inactive!}]])
+   ["/problems" {:get problems-page}]
+   ["/problem/:id/toggle-inactive" {:post toggle-problem-inactive!}]])

@@ -50,12 +50,21 @@
                      "/app/crud/book-source" "🏪" "neon-azure")
      (dashboard-card "Exercises" "Exercise definitions for workouts"
                      "/app/crud/exercise" "🏋️" "neon-pink")
-      ;; Points at the purpose-built retire/restore screen rather than the
-      ;; generic CRUD list; full CRUD stays reachable from its badges.
      (dashboard-card "Boulder Problems" "Gym problems, walls, and holds"
-                     "/app/boulder/session/problems" "🧱" "neon-lime")
+                     "/app/crud/boulder-problem" "🧱" "neon-lime")
      (dashboard-card "Symptom Episodes" "Illness or injury periods"
-                     "/app/crud/symptom-episode" "🤒" "neon-pink")])))
+                     "/app/crud/symptom-episode" "🤒" "neon-pink")]
+
+    ;; Kept in its own section because every card above lands on a generated
+    ;; CRUD list and this one does not. Mixed in, the custom screen read as
+    ;; though it were just another CRUD entity.
+    (layout/section-header "PURPOSE-BUILT SCREENS")
+    [:p.text-sm.text-gray-400
+     "Hand-built for jobs the generic CRUD forms handle awkwardly."]
+    [:div.grid.grid-cols-1.md:grid-cols-2.gap-6
+     (dashboard-card "Retire / Restore Problems"
+                     "Bulk-manage which problems are on the wall"
+                     "/app/boulder/problems" "🧗" "neon-lime")])))
 
 (defn activity-logs-dashboard
   "Dashboard for viewing activity logs"
