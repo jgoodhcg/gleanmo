@@ -3,7 +3,8 @@
    [cheshire.core :as cheshire]
    [clojure.string :as str]
    [com.biffweb :as biff]
-   [tech.jgood.gleanmo.app.shared :refer [side-bar get-user-time-zone]]
+   [tech.jgood.gleanmo.app.layout :as layout]
+   [tech.jgood.gleanmo.app.shared :refer [get-user-time-zone]]
    [tech.jgood.gleanmo.db.mutations :as mutations]
    [tech.jgood.gleanmo.db.queries :as queries]
    [tech.jgood.gleanmo.schema.utils :as schema-utils]
@@ -322,24 +323,23 @@
         current-location (timer-routes/current-location-id ctx)]
     (ui/page
      ctx
-     (side-bar
-      ctx
-      [:div.container.mx-auto.p-6.space-y-8
-       [:h1.text-3xl.font-bold.text-white "⏱️ Timers"]
+     (layout/page-shell
+      ctx {:width :normal}
+      (layout/page-header {:title "⏱️ Timers"})
 
-       [:div
-        [:h2.text-xl.font-semibold.mb-4.text-neon-cyan "Active Timers"]
-        (combined-active-section ctx sections locations)]
+      [:div.space-y-3
+       (layout/section-header "ACTIVE TIMERS")
+       (combined-active-section ctx sections locations)]
 
-       [:div
-        [:h2.text-xl.font-semibold.mb-4.text-neon-yellow "Start Timer"]
-        (search-to-start-section sections locations current-location)]
+      [:div.space-y-3
+       (layout/section-header "START TIMER")
+       (search-to-start-section sections locations current-location)]
 
-       [:div
-        [:h2.text-xl.font-semibold.mb-4.text-white "Recent Logs"]
-        (combined-recent-logs ctx sections)]
+      [:div.space-y-3
+       (layout/section-header "RECENT LOGS")
+       (combined-recent-logs ctx sections)]
 
-       (per-type-links sections)]))))
+      (per-type-links sections)))))
 
 (defn active-timers-fragment
   "HTMX fragment refreshing all running timers across types."

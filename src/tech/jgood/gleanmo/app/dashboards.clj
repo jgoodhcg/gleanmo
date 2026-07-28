@@ -1,6 +1,6 @@
 (ns tech.jgood.gleanmo.app.dashboards
   (:require
-   [tech.jgood.gleanmo.app.shared :refer [side-bar]]
+   [tech.jgood.gleanmo.app.layout :as layout]
    [tech.jgood.gleanmo.db.queries :as queries]
    [tech.jgood.gleanmo.ui :as ui]))
 
@@ -26,127 +26,122 @@
   [ctx]
   (ui/page
    ctx
-   (side-bar
-    ctx
-    [:div.container.mx-auto.p-6
-     [:h1.text-3xl.font-bold.mb-8.text-white "Manage Entities"]
-     [:p.mb-8.text-gray-400 "Create and manage your core data entities"]
-
-     [:div.grid.grid-cols-1.md:grid-cols-2.gap-6
-      (dashboard-card "Tasks" "Things to do, with behavioral signals"
-                      "/app/crud/task" "✅" "neon-lime")
-      (dashboard-card "Habits" "Daily routines you want to track"
-                      "/app/crud/habit" "🎯" "neon-cyan")
-      (dashboard-card "Meditations" "Types of meditation practices"
-                      "/app/crud/meditation" "🧘" "neon-cyan")
-      (dashboard-card "Medications" "Medications and dosages"
-                      "/app/crud/medication" "💊" "neon-pink")
-      (dashboard-card "Locations" "Places where activities happen"
-                      "/app/crud/location" "📍" "neon-azure")
-      (dashboard-card "Projects" "Time tracking projects"
-                      "/app/crud/project" "🚀" "neon-yellow")
-      (dashboard-card "Books" "Books you're reading or have read"
-                      "/app/crud/book" "📚" "neon-azure")
-      (dashboard-card "Book Sources" "Where books come from"
-                      "/app/crud/book-source" "🏪" "neon-azure")
-      (dashboard-card "Exercises" "Exercise definitions for workouts"
-                      "/app/crud/exercise" "🏋️" "neon-pink")
+   (layout/page-shell
+    ctx {:width :wide}
+    (layout/page-header
+     {:title "Manage Entities"
+      :subtitle "Create and manage your core data entities"})
+    [:div.grid.grid-cols-1.md:grid-cols-2.gap-6
+     (dashboard-card "Tasks" "Things to do, with behavioral signals"
+                     "/app/crud/task" "✅" "neon-lime")
+     (dashboard-card "Habits" "Daily routines you want to track"
+                     "/app/crud/habit" "🎯" "neon-cyan")
+     (dashboard-card "Meditations" "Types of meditation practices"
+                     "/app/crud/meditation" "🧘" "neon-cyan")
+     (dashboard-card "Medications" "Medications and dosages"
+                     "/app/crud/medication" "💊" "neon-pink")
+     (dashboard-card "Locations" "Places where activities happen"
+                     "/app/crud/location" "📍" "neon-azure")
+     (dashboard-card "Projects" "Time tracking projects"
+                     "/app/crud/project" "🚀" "neon-yellow")
+     (dashboard-card "Books" "Books you're reading or have read"
+                     "/app/crud/book" "📚" "neon-azure")
+     (dashboard-card "Book Sources" "Where books come from"
+                     "/app/crud/book-source" "🏪" "neon-azure")
+     (dashboard-card "Exercises" "Exercise definitions for workouts"
+                     "/app/crud/exercise" "🏋️" "neon-pink")
       ;; Points at the purpose-built retire/restore screen rather than the
       ;; generic CRUD list; full CRUD stays reachable from its badges.
-      (dashboard-card "Boulder Problems" "Gym problems, walls, and holds"
-                      "/app/boulder/session/problems" "🧱" "neon-lime")
-      (dashboard-card "Symptom Episodes" "Illness or injury periods"
-                      "/app/crud/symptom-episode" "🤒" "neon-pink")]])))
+     (dashboard-card "Boulder Problems" "Gym problems, walls, and holds"
+                     "/app/boulder/session/problems" "🧱" "neon-lime")
+     (dashboard-card "Symptom Episodes" "Illness or injury periods"
+                     "/app/crud/symptom-episode" "🤒" "neon-pink")])))
 
 (defn activity-logs-dashboard
   "Dashboard for viewing activity logs"
   [ctx]
   (ui/page
    ctx
-   (side-bar
-    ctx
-    [:div.container.mx-auto.p-6
-     [:h1.text-3xl.font-bold.mb-8.text-white "Activity Logs"]
-     [:p.mb-8.text-gray-400 "View and manage your logged activities"]
-
-     [:div.grid.grid-cols-1.md:grid-cols-2.gap-6
-      (dashboard-card "Habit Logs" "Habit completion records"
-                      "/app/crud/habit-log" "📋" "neon-lime")
-      (dashboard-card "Meditation Logs" "Meditation session records"
-                      "/app/crud/meditation-log" "📜" "neon-cyan")
-      (when (show-bm-logs? ctx)
-        (dashboard-card "BM Logs" "BM tracking entries"
-                        "/app/crud/bm-log" "🧻" "neon-azure"))
-      (dashboard-card "Medication Logs" "Medication intake records"
-                      "/app/crud/medication-log" "📊" "neon-pink")
-      (dashboard-card "Project Logs" "Time tracking entries"
-                      "/app/crud/project-log" "⏰" "neon-yellow")
-      (dashboard-card "Reading Logs" "Book reading session records"
-                      "/app/crud/reading-log" "📖" "neon-azure")
-      (dashboard-card "Symptom Logs" "Symptom entries and vitals"
-                      "/app/crud/symptom-log" "🤒" "neon-pink")
-      (dashboard-card "Mood Logs" "Mood, energy, and stress check-ins"
-                      "/app/crud/mood-log" "🙂" "neon-cyan")
-      (dashboard-card "Exercise Sessions" "Workout session records"
-                      "/app/crud/exercise-session" "🏋️" "neon-pink")
-      (dashboard-card "Exercise Sets" "Timed sets within workouts"
-                      "/app/crud/exercise-set" "⏱️" "neon-pink")
-      (dashboard-card "Exercise Lines" "Reps/weight of an exercise within a set"
-                      "/app/crud/exercise-line" "🔁" "neon-pink")
-      (dashboard-card "Boulder Sessions" "Climbing gym sessions"
-                      "/app/crud/boulder-session" "🧗" "neon-lime")
-      (dashboard-card "Boulder Attempts" "Problem attempts and sends"
-                      "/app/crud/boulder-attempt" "🪨" "neon-lime")]])))
+   (layout/page-shell
+    ctx {:width :wide}
+    (layout/page-header
+     {:title "Activity Logs"
+      :subtitle "View and manage your logged activities"})
+    [:div.grid.grid-cols-1.md:grid-cols-2.gap-6
+     (dashboard-card "Habit Logs" "Habit completion records"
+                     "/app/crud/habit-log" "📋" "neon-lime")
+     (dashboard-card "Meditation Logs" "Meditation session records"
+                     "/app/crud/meditation-log" "📜" "neon-cyan")
+     (when (show-bm-logs? ctx)
+       (dashboard-card "BM Logs" "BM tracking entries"
+                       "/app/crud/bm-log" "🧻" "neon-azure"))
+     (dashboard-card "Medication Logs" "Medication intake records"
+                     "/app/crud/medication-log" "📊" "neon-pink")
+     (dashboard-card "Project Logs" "Time tracking entries"
+                     "/app/crud/project-log" "⏰" "neon-yellow")
+     (dashboard-card "Reading Logs" "Book reading session records"
+                     "/app/crud/reading-log" "📖" "neon-azure")
+     (dashboard-card "Symptom Logs" "Symptom entries and vitals"
+                     "/app/crud/symptom-log" "🤒" "neon-pink")
+     (dashboard-card "Mood Logs" "Mood, energy, and stress check-ins"
+                     "/app/crud/mood-log" "🙂" "neon-cyan")
+     (dashboard-card "Exercise Sessions" "Workout session records"
+                     "/app/crud/exercise-session" "🏋️" "neon-pink")
+     (dashboard-card "Exercise Sets" "Timed sets within workouts"
+                     "/app/crud/exercise-set" "⏱️" "neon-pink")
+     (dashboard-card "Exercise Lines" "Reps/weight of an exercise within a set"
+                     "/app/crud/exercise-line" "🔁" "neon-pink")
+     (dashboard-card "Boulder Sessions" "Climbing gym sessions"
+                     "/app/crud/boulder-session" "🧗" "neon-lime")
+     (dashboard-card "Boulder Attempts" "Problem attempts and sends"
+                     "/app/crud/boulder-attempt" "🪨" "neon-lime")])))
 
 (defn stats-dashboard
   "Dashboard for visualizations and statistics"
   [ctx]
   (ui/page
    ctx
-   (side-bar
-    ctx
-    [:div.container.mx-auto.p-6
-     [:h1.text-3xl.font-bold.mb-8.text-white "Stats & Charts"]
-     [:p.mb-8.text-gray-400 "Visualize patterns and explore your data"]
-
-     [:div.grid.grid-cols-1.md:grid-cols-2.lg:grid-cols-3.gap-6
+   (layout/page-shell
+    ctx {:width :wide}
+    (layout/page-header
+     {:title "Stats & Charts"
+      :subtitle "Visualize patterns and explore your data"})
+    [:div.grid.grid-cols-1.md:grid-cols-2.lg:grid-cols-3.gap-6
       ;; Visualizations
-      [:div.lg:col-span-3
-       [:h2.text-xl.font-semibold.mb-4.text-neon-lime "📅 Activity Calendars"]]
+     [:div.lg:col-span-3 (layout/section-header "📅 ACTIVITY CALENDARS")]
 
-      (dashboard-card "Habit Calendar" "Daily habit completion patterns"
-                      "/app/viz/habit-log" "🗓️" "neon-lime")
-      (dashboard-card "Meditation Calendar" "Meditation session frequency"
-                      "/app/viz/meditation-log" "🗓️" "neon-cyan")
-      (when (show-bm-logs? ctx)
-        (dashboard-card "BM Calendar" "BM tracking calendar"
-                        "/app/viz/bm-log" "🧻" "neon-azure"))
-      (dashboard-card "Medication Calendar" "Medication intake calendar"
-                      "/app/viz/medication-log" "🗓️" "neon-pink")
-      (dashboard-card "Project Calendar" "Time tracking calendar"
-                      "/app/viz/project-log" "🗓️" "neon-yellow")
-      (dashboard-card "Symptom Calendar" "Symptom log frequency"
-                      "/app/viz/symptom-log" "🗓️" "neon-pink")
-      (dashboard-card "Mood Calendar" "Mood check-in patterns"
-                      "/app/viz/mood-log" "🗓️" "neon-cyan")
-      (dashboard-card "Exercise Calendar" "Workout session frequency"
-                      "/app/viz/exercise-session" "🗓️" "neon-pink")
-      (dashboard-card "Bouldering Calendar" "Climbing session frequency"
-                      "/app/viz/boulder-session" "🗓️" "neon-lime")
+     (dashboard-card "Habit Calendar" "Daily habit completion patterns"
+                     "/app/viz/habit-log" "🗓️" "neon-lime")
+     (dashboard-card "Meditation Calendar" "Meditation session frequency"
+                     "/app/viz/meditation-log" "🗓️" "neon-cyan")
+     (when (show-bm-logs? ctx)
+       (dashboard-card "BM Calendar" "BM tracking calendar"
+                       "/app/viz/bm-log" "🧻" "neon-azure"))
+     (dashboard-card "Medication Calendar" "Medication intake calendar"
+                     "/app/viz/medication-log" "🗓️" "neon-pink")
+     (dashboard-card "Project Calendar" "Time tracking calendar"
+                     "/app/viz/project-log" "🗓️" "neon-yellow")
+     (dashboard-card "Symptom Calendar" "Symptom log frequency"
+                     "/app/viz/symptom-log" "🗓️" "neon-pink")
+     (dashboard-card "Mood Calendar" "Mood check-in patterns"
+                     "/app/viz/mood-log" "🗓️" "neon-cyan")
+     (dashboard-card "Exercise Calendar" "Workout session frequency"
+                     "/app/viz/exercise-session" "🗓️" "neon-pink")
+     (dashboard-card "Bouldering Calendar" "Climbing session frequency"
+                     "/app/viz/boulder-session" "🗓️" "neon-lime")
 
       ;; Statistics
-      [:div.lg:col-span-3.mt-8
-       [:h2.text-xl.font-semibold.mb-4.text-neon-cyan "📊 Statistics"]]
+     [:div.lg:col-span-3.mt-4 (layout/section-header "📊 STATISTICS")]
 
-      (dashboard-card "Habit Patterns" "Pattern detection and date predictions"
-                      "/app/stats/habit-patterns" "🔍" "neon-lime")
-      (dashboard-card "Meditation Stats" "Session duration and frequency stats"
-                      "/app/stats/meditation" "📊" "neon-cyan")
-      (when (show-bm-logs? ctx)
-        (dashboard-card "BM Stats" "BM tracking statistics"
-                        "/app/stats/bm" "🧻" "neon-azure"))
-      (dashboard-card "Medication History" "Per-medication dosage timeline"
-                      "/app/stats/medication-history" "💊" "neon-pink")]])))
+     (dashboard-card "Habit Patterns" "Pattern detection and date predictions"
+                     "/app/stats/habit-patterns" "🔍" "neon-lime")
+     (dashboard-card "Meditation Stats" "Session duration and frequency stats"
+                     "/app/stats/meditation" "📊" "neon-cyan")
+     (when (show-bm-logs? ctx)
+       (dashboard-card "BM Stats" "BM tracking statistics"
+                       "/app/stats/bm" "🧻" "neon-azure"))
+     (dashboard-card "Medication History" "Per-medication dosage timeline"
+                     "/app/stats/medication-history" "💊" "neon-pink")])))
 
 (def routes
   ["/dashboards" {}

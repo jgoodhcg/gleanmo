@@ -32,6 +32,7 @@
    [tech.jgood.gleanmo.app.project :as project]
    [tech.jgood.gleanmo.app.project-log :as project-log]
    [tech.jgood.gleanmo.app.task :as task]
+   [tech.jgood.gleanmo.app.layout :as layout]
    [tech.jgood.gleanmo.app.shared :as    shared
     :refer [side-bar]]
    [tech.jgood.gleanmo.app.timers :as timers]
@@ -229,6 +230,28 @@
     ctx
     (pwa-install-banner)
     (overview/overview-shell ctx))))
+
+(defn log-hub
+  "The 'log something' primary surface (see shared/primary-surfaces).
+
+   On mobile the tab bar needs a real destination for logging rather than a
+   sheet, and on desktop this gives the same frequency-ordered set one click
+   from anywhere. Pure links over the shared `quick-action-items`, so it adds
+   no queries and can't drift from the sidebar."
+  [ctx]
+  (let [show-bm-logs (:show-bm-logs (db/resolve-user-settings ctx))]
+    (ui/page
+     ctx
+     (layout/page-shell
+      ctx {:width :normal}
+      (layout/page-header
+       {:title "Log something"
+        :subtitle "Ordered by how often you actually use them"})
+      [:div.grid.grid-cols-1.sm:grid-cols-2.gap-3
+       (for [{:keys [label href]} (shared/visible-quick-actions show-bm-logs)]
+         [:a.no-underline.rounded-xl.border.border-dark.bg-dark-surface.px-4.py-4.text-base.text-gray-200.transition-colors.hover:border-neon-cyan.hover:text-white
+          {:key href, :href href}
+          label])]))))
 
 (defn- super-user?
   [db user-id]
@@ -596,6 +619,7 @@
             ["/overview/events" {:get overview/upcoming-events-fragment}]
             ["/overview/recent" {:get overview/recent-activity-fragment}]
             ["" {:get root}]
+            ["/log" {:get log-hub}]
 
             ["/db" {:get db-viz}]
             ["/db/:type" {:get db-viz}]

@@ -31,13 +31,24 @@ function trackConsoleErrors(page: Page): string[] {
   return errors;
 }
 
-/** Assert the sidebar is present and has expected nav links. */
+/** Assert the sidebar is present and has expected nav links.
+ *  Scoped to #sidebar: these hrefs also appear in the mobile tab bar
+ *  (shared/primary-surfaces), so an unscoped locator matches twice. */
 async function assertSidebar(page: Page, label: string) {
-  const todayLink = page.locator('a[href="/app/task/today"]');
-  await expect(todayLink).toBeVisible({ timeout: 5000 });
-  const homeLink = page.locator('a[href="/app"]');
-  await expect(homeLink).toBeVisible({ timeout: 5000 });
+  const sidebar = page.locator('#sidebar');
+  await expect(sidebar.locator('a[href="/app/task/today"]')).toBeVisible({ timeout: 5000 });
+  await expect(sidebar.locator('a[href="/app"]')).toBeVisible({ timeout: 5000 });
   console.log(`  + sidebar OK (${label})`);
+}
+
+/** Assert the mobile tab bar renders the primary surfaces. */
+async function assertTabBar(page: Page, label: string) {
+  const bar = page.locator('nav[aria-label="Primary"]');
+  const count = await bar.locator('a, button').count();
+  if (count !== 5) {
+    throw new Error(`Tab bar should expose 5 primary surfaces, found ${count} (${label})`);
+  }
+  console.log(`  + tab bar OK (${label})`);
 }
 
 /** Load a page, assert no HTTP errors, return console errors. */
@@ -63,6 +74,7 @@ async function main() {
     console.log('1. Home page (overview with HTMX fragments)...');
     await loadPage(page, '/app', 'home');
     await assertSidebar(page, 'home');
+    await assertTabBar(page, 'home');
 
     // Wait for the HTMX lazy-loaded overview section to hydrate
     await expect(page.locator('#overview-recent')).toBeVisible({ timeout: 15000 });

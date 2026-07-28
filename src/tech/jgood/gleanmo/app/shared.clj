@@ -133,6 +133,64 @@
       {:key href, :href href}
       label])])
 
+(def primary-surfaces
+  "Layer 1 of the navigation: the handful of places the app is actually used
+   from, grouped by intent rather than by implementation. Everything else is
+   reachable *through* these rather than sitting beside them in a flat list.
+   Shared by the desktop sidebar and the mobile tab bar so the two agree."
+  [{:label "home",   :icon "🏠", :href "/app"}
+   {:label "timers", :icon "⏱️", :href "/app/timers"}
+   {:label "log",    :icon "➕", :href "/app/log"}
+   {:label "today",  :icon "✅", :href "/app/task/today"}])
+
+(defn- surface-active?
+  "Whether `href` is the surface the current request is on. Home is matched
+   exactly; everything else by prefix so drill-down pages keep their tab lit."
+  [uri href]
+  (if (= href "/app")
+    (= uri "/app")
+    (and uri (str/starts-with? uri href))))
+
+(defn mobile-tab-bar
+  "Fixed bottom navigation for the mobile PWA — the primary layer on a phone,
+   where a hamburger-only nav buries the things used most.
+
+   z-40 matches the fixed top bar; pages reserve room for this with the
+   `pb-24` in `layout/page-shell`. The last tab toggles the sidebar, which
+   holds the full, layered navigation."
+  [ctx]
+  (let [uri (:uri ctx)]
+    [:nav.fixed.bottom-0.inset-x-0.z-40.md:hidden.bg-dark-surface.border-t.border-dark
+     {:aria-label "Primary"}
+     [:div.flex.items-stretch.justify-around
+      (for [{:keys [label icon href]} primary-surfaces
+            :let [active? (surface-active? uri href)]]
+        [:a
+         (cond-> {:key   href
+                  :href  href
+                  ;; Class as a string, not keyword shorthand: Rum splits on
+                  ;; "." so `.gap-0.5` would become "gap-0 5".
+                  :class (str "flex flex-col items-center justify-center gap-1 "
+                              "py-2 flex-1 no-underline transition-colors "
+                              (if active? "text-neon-cyan" "text-gray-400"))}
+           active? (assoc :aria-current "page"))
+         [:span.text-lg.leading-none icon]
+         [:span.text-xs.tracking-wide label]])
+      [:button
+       {:type "button"
+        :class (str "flex flex-col items-center justify-center gap-1 py-2 "
+                    "flex-1 bg-transparent border-none text-gray-400 "
+                    "cursor-pointer")
+        :aria-label "Open navigation menu"
+        :aria-controls "sidebar"
+        :onclick
+        "document.getElementById('sidebar').classList.toggle('hidden');
+         document.getElementById('sidebar').classList.toggle('flex');
+         document.getElementById('menu-btn').classList.toggle('hidden');
+         document.getElementById('side-bar-page-content').classList.toggle('hidden');"}
+       [:span.text-lg.leading-none "☰"]
+       [:span.text-xs.tracking-wide "more"]]]]))
+
 (defn side-bar
   [{:keys [session] :as ctx} & content]
   (let [user-id     (:uid session)
@@ -159,41 +217,33 @@
       ;; Hide BM logs button (when BM logs are visible)
       (turn-off-bm-logs-button show-bm-logs user-id)
 
-      ;; Navigation
-      [:a.link {:href "/app"} "home"]
-      [:a.link {:href account-url} "account"]
+      ;; Layer 1 — primary surfaces, same set as the mobile tab bar.
+      (for [{:keys [label icon href]} primary-surfaces]
+        [:a.link.font-semibold {:key href, :href href} (str icon " " label)])
       [:hr.border-dark]
 
-      ;; Timers / Quick Add — ordered by measured use (28-day Plausible
-      ;; sample, see roadmap/qol-quick-actions.md item 1): the timer
-      ;; workspace and top log forms are the app's real daily workload.
-      ;; Order lives in `quick-action-items`, shared with the home strip.
-      (let [items (visible-quick-actions show-bm-logs)]
-        [:<>
-         (for [{:keys [label href]} (filter :lead? items)]
-           [:a.link.font-semibold {:key href, :href href} label])
-         [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Quick Add"]
-         (for [{:keys [label href]} (remove :lead? items)]
-           [:a.link {:key href, :href href} label])])
+      ;; Layer 2 — log something. Ordered by measured use (28-day Plausible
+      ;; sample, see roadmap/qol-quick-actions.md item 1); the order lives in
+      ;; `quick-action-items`, shared with the home strip and the /app/log hub.
+      [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Log Something"]
+      (for [{:keys [label href]} (remove :lead? (visible-quick-actions
+                                                 show-bm-logs))]
+        [:a.link {:key href, :href href} label])
       [:hr.border-dark]
 
-      ;; Tasks
-      [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Tasks"]
-      [:a.link.font-semibold {:href "/app/task/today"} "Today"]
-      [:a.link {:href "/app/task/focus"} "Task Focus"]
-      [:hr.border-dark]
-
-      ;; Calendar
-      [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Calendar"]
+      ;; Layer 3 — look back at what was logged.
+      [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Review"]
       [:a.link {:href "/app/calendar/year"} "📅 calendar (year)"]
-      [:hr.border-dark]
-
-      ;; Dashboards
-      [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Dashboards"]
-      [:a.link {:href "/app/dashboards/entities"} "📦 manage entities"]
-      [:a.link {:href "/app/dashboards/activity-logs"} "📋 activity logs"]
       [:a.link {:href "/app/dashboards/stats"} "📊 stats & charts"]
       [:a.link {:href "/app/stats/medication-history"} "💊 medication history"]
+      [:a.link {:href "/app/dashboards/activity-logs"} "📋 activity logs"]
+      [:hr.border-dark]
+
+      ;; Layer 4 — manage the data and the account behind it all.
+      [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Manage"]
+      [:a.link {:href "/app/dashboards/entities"} "📦 manage entities"]
+      [:a.link {:href "/app/task/focus"} "🎯 task focus"]
+      [:a.link {:href account-url} "⚙️ account"]
       (when super-user?
         [:a.link {:href "/app/monitoring/performance"} "🛡️ monitoring"])
 
@@ -208,7 +258,8 @@
      [:div.flex-grow.bg-dark.pt-12.px-4.min-w-0
       {:id "side-bar-page-content"
        :tabindex "-1"}
-      content]
+      content
+      (mobile-tab-bar ctx)]
 
      ;; Mobile menu button — z-40 keeps the fixed bar above scrolling page
      ;; content (the overview timeline's sticky day headers are z-20 and its
