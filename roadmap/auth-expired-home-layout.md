@@ -62,6 +62,15 @@ page, so all authenticated routes degrade to a clean sign-in page on expiry.
 
 Tested in `test/tech/jgood/gleanmo/test/middleware_test.clj`.
 
+**Amendment (2026-07-28):** the landing page redesign (`d5808f7`) retargeted
+both branches from `/signin?error=not-signed-in` to `/?error=not-signed-in`,
+since the new landing page renders the `not-signed-in` message itself. The
+middleware docstring was updated at the time but the unit test was not, so it
+asserted the old target and had been failing on `dev` ever since; the test is
+now aligned. The fix's substance is unchanged — what prevents the
+sidebar-around-a-login-form state is the `HX-Redirect`-on-200 branch forcing a
+full-page navigation, not which clean page it lands on.
+
 ### Open Questions — answered
 
 - **Built-in Biff mechanism?** Biff's `wrap-signed-in` equivalent only does a plain

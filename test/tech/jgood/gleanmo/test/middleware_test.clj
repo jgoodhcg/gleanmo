@@ -17,10 +17,14 @@
         (is (= 200 (:status resp)))
         (is (= ::reached (:body resp)))))
 
-    (testing "anonymous browser navigation gets a 303 redirect to sign-in"
+    ;; Target is the landing page, not /signin: the landing redesign
+    ;; (d5808f7) retargeted both branches and the landing page renders the
+    ;; not-signed-in message itself. What matters for the auth-expiry bug is
+    ;; the 303-vs-HX-Redirect split, not which clean page we land on.
+    (testing "anonymous browser navigation gets a 303 redirect to the landing page"
       (let [resp (handler {:session {}})]
         (is (= 303 (:status resp)))
-        (is (= "/signin?error=not-signed-in"
+        (is (= "/?error=not-signed-in"
                (get-in resp [:headers "location"])))
         (is (nil? (get-in resp [:headers "HX-Redirect"]))
             "must not set HX-Redirect for non-HTMX requests")))
@@ -31,7 +35,7 @@
                            :headers {"hx-request" "true"}})]
         (is (= 200 (:status resp))
             "HX-Redirect must ride on a 2xx; a 303 would be followed transparently by the XHR")
-        (is (= "/signin?error=not-signed-in"
+        (is (= "/?error=not-signed-in"
                (get-in resp [:headers "HX-Redirect"])))
         (is (nil? (get-in resp [:headers "location"]))
             "must not also emit a plain redirect that the XHR would follow")))
