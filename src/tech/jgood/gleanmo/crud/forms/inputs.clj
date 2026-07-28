@@ -5,7 +5,7 @@
    [tech.jgood.gleanmo.app.shared :refer
     [format-date-time-local
      get-user-time-zone]]
-   [tech.jgood.gleanmo.db.queries :refer [all-for-user-query]]
+   [tech.jgood.gleanmo.db.queries :as queries :refer [all-for-user-query]]
    [tech.jgood.gleanmo.db.relation-labels :as rel-labels]
    [tech.jgood.gleanmo.schema :as schema-registry]
    [tech.jgood.gleanmo.schema.utils :as schema-utils]
@@ -19,15 +19,55 @@
    Dispatches on the :input-type of the field."
   :input-type)
 
+(defn field-dom-id
+  "DOM-safe id derived from a field's input name, which is a namespaced
+   keyword string like \"exercise-line/exercise-id\" and so cannot be used as
+   an id in a CSS selector without escaping."
+  [prefix input-name]
+  (str prefix "-" (str/replace (str input-name) #"[^A-Za-z0-9_-]" "-")))
+
+(defn- suggested-values
+  "Values the user has already used for this field, for its datalist."
+  [{:keys [field-key]} {:keys [biff/db session]}]
+  (when (and db field-key)
+    (queries/distinct-field-values db (:uid session)
+                                   (keyword (namespace field-key))
+                                   field-key)))
+
 (defmethod render :string
   [field ctx]
   (let [{:keys [input-name
                 input-label
                 input-required
+                opts
                 value]}
         field
         time-zone (get-user-time-zone ctx)]
     (cond
+      ;; Open vocabulary: the schema keeps `:string` so any value is allowed,
+      ;; but the field offers what has actually been used before. A native
+      ;; datalist rather than Choices.js precisely because this is *not* a
+      ;; select — the user must be able to type a value that doesn't exist
+      ;; yet (a new gym, a new wall) without the widget fighting them.
+      (:crud/suggest-existing opts)
+      (let [list-id     (field-dom-id "suggest" input-name)
+            suggestions (suggested-values field ctx)]
+        [:div
+         [:label.form-label {:for input-name} input-label]
+         [:div.mt-2
+          [:input.form-input
+           (cond-> {:type                "text"
+                    :id                  input-name
+                    :name                input-name
+                    :required            input-required
+                    :autocomplete        "off"
+                    :list                list-id
+                    :data-original-value (str value)}
+             value (assoc :value value))]
+          (when (seq suggestions)
+            (into [:datalist {:id list-id}]
+                  (for [v suggestions] [:option {:value v}])))]])
+
       (str/includes? input-name "label")
       [:div
        [:label.form-label
@@ -246,13 +286,6 @@
          (map (fn [e]
                 {:id    (:xt/id e)
                  :label (rel-labels/entity->label e (:xt/id e) time-zone)})))))
-
-(defn field-dom-id
-  "DOM-safe id derived from a field's input name, which is a namespaced
-   keyword string like \"exercise-line/exercise-id\" and so cannot be used as
-   an id in a CSS selector without escaping."
-  [prefix input-name]
-  (str prefix "-" (str/replace (str input-name) #"[^A-Za-z0-9_-]" "-")))
 
 (defn- inline-create-affordance
   "\"+ New <entity>\" button that swaps a mini-form in below the select,

@@ -31,6 +31,18 @@
     (layout/page-header
      {:title "Manage Entities"
       :subtitle "Create and manage your core data entities"})
+    ;; First, and in its own section: every card below lands on a generated
+    ;; CRUD list and these do not. Mixed into that grid, a custom screen read
+    ;; as though it were just another CRUD entity.
+    (layout/section-header "PURPOSE-BUILT SCREENS")
+    [:p.text-sm.text-gray-400
+     "Hand-built for jobs the generic CRUD forms handle awkwardly."]
+    [:div.grid.grid-cols-1.md:grid-cols-2.gap-6
+     (dashboard-card "Retire / Restore Problems"
+                     "Bulk-manage which problems are on the wall"
+                     "/app/boulder/problems" "🧗" "neon-lime")]
+
+    (layout/section-header "ENTITIES")
     [:div.grid.grid-cols-1.md:grid-cols-2.gap-6
      (dashboard-card "Tasks" "Things to do, with behavioral signals"
                      "/app/crud/task" "✅" "neon-lime")
@@ -53,18 +65,7 @@
      (dashboard-card "Boulder Problems" "Gym problems, walls, and holds"
                      "/app/crud/boulder-problem" "🧱" "neon-lime")
      (dashboard-card "Symptom Episodes" "Illness or injury periods"
-                     "/app/crud/symptom-episode" "🤒" "neon-pink")]
-
-    ;; Kept in its own section because every card above lands on a generated
-    ;; CRUD list and this one does not. Mixed in, the custom screen read as
-    ;; though it were just another CRUD entity.
-    (layout/section-header "PURPOSE-BUILT SCREENS")
-    [:p.text-sm.text-gray-400
-     "Hand-built for jobs the generic CRUD forms handle awkwardly."]
-    [:div.grid.grid-cols-1.md:grid-cols-2.gap-6
-     (dashboard-card "Retire / Restore Problems"
-                     "Bulk-manage which problems are on the wall"
-                     "/app/boulder/problems" "🧗" "neon-lime")])))
+                     "/app/crud/symptom-episode" "🤒" "neon-pink")])))
 
 (defn activity-logs-dashboard
   "Dashboard for viewing activity logs"

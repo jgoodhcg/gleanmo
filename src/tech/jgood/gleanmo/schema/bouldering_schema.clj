@@ -24,7 +24,7 @@
    [:boulder-session/label {:optional true} :string]
    [:boulder-session/beginning :instant]
    [:boulder-session/end {:optional true} :instant]
-   [:boulder-session/gym {:crud/priority 1} :string]
+   [:boulder-session/gym {:crud/priority 1 :crud/suggest-existing true} :string]
    [:boulder-session/perceived-exertion {:optional true :crud/priority 2}
     perceived-exertion-enum]
    [:boulder-session/notes {:optional true :crud/priority 3} :string]
@@ -40,11 +40,19 @@
    [::sm/deleted-at {:optional true} :instant]
    [::sm/created-at :instant]
    [:user/id :user/id]
-   [:boulder-problem/gym {:crud/priority 1} :string]
+   ;; Gym vocabulary stays :string rather than an enum — gyms, circuits, hold
+   ;; colours and walls all change without warning, and an enum would need a
+   ;; schema edit every time. :crud/suggest-existing gives the form a datalist
+   ;; of values already used so they can be picked rather than retyped, while
+   ;; still accepting anything new.
+   [:boulder-problem/gym {:crud/priority 1 :crud/suggest-existing true} :string]
    ;; Circuit label as the gym presents it, e.g. "pink v0-v2"
-   [:boulder-problem/difficulty {:crud/priority 2} :string]
-   [:boulder-problem/hold-color {:optional true :crud/priority 3} :string]
-   [:boulder-problem/wall {:optional true :crud/priority 4} :string]
+   [:boulder-problem/difficulty
+    {:crud/priority 2 :crud/suggest-existing true} :string]
+   [:boulder-problem/hold-color
+    {:optional true :crud/priority 3 :crud/suggest-existing true} :string]
+   [:boulder-problem/wall
+    {:optional true :crud/priority 4 :crud/suggest-existing true} :string]
    ;; Known/estimated V-grade (Airtable guessed-grade)
    [:boulder-problem/grade {:optional true} grade-enum]
    [:boulder-problem/label {:optional true} :string]

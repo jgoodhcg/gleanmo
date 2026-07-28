@@ -1,5 +1,6 @@
 (ns tech.jgood.gleanmo.db.queries
   (:require
+   [clojure.string :as str]
    [com.biffweb :as    biff
     :refer [q]]
    [tech.jgood.gleanmo.schema :as schema-registry]
@@ -637,6 +638,33 @@
           :filter-sensitive show-sensitive
           :filter-archived  show-archived)
          (sort-by :project/label))))
+
+(defnp distinct-field-values
+  "Distinct non-blank values the user has already stored for `attr` on entities
+   of `entity-type`, sorted.
+
+   Backs the suggestion list for open-vocabulary string fields (see
+   `:crud/suggest-existing`): the schema stays `:string` so any value is
+   allowed, while the form can still offer what has actually been used.
+
+   Index-only — `:find` binds the value directly with no `pull`, so the scan
+   never materializes documents. The attribute is interpolated into the query
+   as a literal because XTDB 1.x rejects a variable in attribute position."
+  [db user-id entity-type attr]
+  (when (and user-id entity-type attr)
+    (->> (q db
+            {:find  '[?v]
+             :where [['?e :user/id 'user-id]
+                     ['?e ::sm/type entity-type]
+                     ['?e attr '?v]]
+             :in    '[user-id]}
+            user-id)
+         (map first)
+         (filter string?)
+         (remove str/blank?)
+         distinct
+         sort
+         vec)))
 
 (defnp all-for-user-query
   "Get all entities for a user with include/exclude options from user settings.
