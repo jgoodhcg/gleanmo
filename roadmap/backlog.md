@@ -84,26 +84,43 @@ overview timeline puts the entry icons and the sticky day headings ("Today",
   underneath. The desktop calendar's own fixed bar also uses `z-40` but is
   `md:block`-only, so the two never coexist.
 
-### Timeline Day Headings Never Stick
-Found while fixing the z-index bug above (2026-07-28). The timeline's day
-headings are marked `position: sticky` (`app/overview.clj` `render-group-header`)
-but have **never actually pinned** — on any viewport.
-- **Cause**: the app shell's outer `div` (`app/shared.clj` `side-bar`) uses
-  `overflow-x-hidden`. A non-`visible` `overflow-x` forces computed
-  `overflow-y` to `auto`, which makes that div the nearest scrolling ancestor.
-  The headings therefore stick relative to a container that never scrolls
-  internally (the viewport does the scrolling), so they scroll away normally.
-- **Evidence**: scrolling past a heading traces its viewport top as
-  0 → -100 → -200 → -300 — linear, never pinned.
-- **Fix shape**: remove `overflow-x-hidden` from the shell and contain
-  horizontal overflow at the specific wide children that need it (tables,
-  charts), or make the shell a real scroll container with its own height.
-  The first is safer but needs an audit for horizontal-scroll regressions.
-- **Already in place**: the headings carry `top-12 md:top-0` so that once
-  sticky works they park below the fixed mobile bar rather than under it.
-- **Validation**: the scroll trace above should show the heading top clamping
-  at 48 (mobile) / 0 (desktop) instead of going negative.
-- Relates to the sticky/fixed layering audit in `navigation-redesign.md`.
+### ~~Timeline Day Headings Never Stick~~ — RESOLVED 2026-07-28 by removing the feature
+
+The home timeline's day headings carried `position: sticky` and had **never
+pinned**, on any viewport, since they were written.
+
+**Root cause (corrected).** Not the app shell, as first diagnosed.
+`resources/tailwind.css` sets `overflow-x: hidden` on both `html` and `body` —
+a deliberate iOS Safari fix, documented there, stopping html/body expanding
+past the viewport when a descendant is wider than the screen. Per spec a
+non-`visible` overflow on one axis forces the other to compute to `auto`, so
+`body` becomes a scroll container. `position: sticky` then resolves against
+`body`, which never scrolls internally (the viewport does), so nothing pins.
+
+The app shell's own `overflow-x-hidden` (`app/shared.clj`) is a second,
+nearer instance of the same thing. Removing it alone would have fixed nothing.
+
+**Resolution.** The owner decided a pinned day heading isn't wanted on that
+page, so the sticky classes were removed rather than the iOS fix reworked.
+Zero visual change — nothing was ever pinning. This also retires the risky
+option of unpicking the html/body overflow rule.
+
+**Consequence worth knowing: `position: sticky` does not work anywhere in this
+app.** Any future sticky element will be silently inert. If one is ever
+genuinely needed, the iOS overflow fix has to be reworked first — probably by
+scoping the horizontal clamp to the specific wide descendants instead of
+html/body.
+
+### Landing page header is sticky but inert
+
+`home.clj` marks the landing page header `sticky top-0 z-10`. It is dead for
+the same global reason as above (verified: its viewport top traces
+0 → -150 → -300 while scrolling past it, rather than clamping at 0).
+
+Left in place deliberately — the marketing page was out of scope for the
+timeline change. Either drop the classes as dead code, or treat it as the
+motivating case for reworking the iOS overflow fix, since a pinned header is
+more clearly wanted there than on the timeline.
 
 ## Performance / Queries
 

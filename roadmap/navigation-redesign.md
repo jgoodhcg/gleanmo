@@ -118,7 +118,10 @@ restyling a page does not break it.
 - Command palette: no palette in this pass; the sidebar plus tab bar carry it.
 - Whether the sidebar should become a "more" sheet on mobile now that the tab
   bar is the primary layer.
-- **Timeline day headings still never stick** (`backlog.md`). `page-shell` now
-  exists to own the overflow strategy, but the shell's `overflow-x-hidden`
-  still makes that div the scrolling ancestor, so every `position: sticky` in
-  the app is inert. This is now a one-place fix rather than a per-page one.
+- ~~Timeline day headings never stick~~ — **closed 2026-07-28 by removing the
+  feature.** The real cause turned out to be global rather than shell-level:
+  `overflow-x: hidden` on html/body in `tailwind.css` (an iOS Safari fix)
+  makes body a scroll container and disables `position: sticky` app-wide. The
+  owner decided a pinned day heading wasn't wanted, so the classes went
+  instead. See `backlog.md` — note that sticky remains unavailable app-wide,
+  and the landing page header is inert for the same reason.

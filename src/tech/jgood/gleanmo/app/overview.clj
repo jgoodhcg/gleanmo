@@ -817,13 +817,12 @@
                      :else     (group-date date))
         scheduled? (or upcoming?
                        (t/> date (t/date (t/in (t/now) (user-zone ctx)))))]
-    ;; Offset so a pinned heading parks below the fixed mobile top bar (z-40,
-    ;; matching the shell's pt-12) instead of hiding under it; on md+ that bar
-    ;; is hidden, so it pins to the very top. NOTE: this is inert today —
-    ;; `overflow-x-hidden` on the shell (app/shared.clj) computes overflow-y
-    ;; to auto, making that div the scroll container, so these headings never
-    ;; actually pin. See roadmap/backlog.md "Timeline Day Headings Never Stick".
-    [:summary.sticky.top-12.md:top-0.z-20.flex.cursor-pointer.select-none.items-center.gap-3.bg-dark.py-3
+    ;; Deliberately not sticky. It was marked `sticky top-0 z-20` for years and
+    ;; never once pinned — `overflow-x: hidden` on html/body (an iOS Safari fix
+    ;; in tailwind.css) makes body a scroll container, which disables
+    ;; position:sticky app-wide. Rather than rework that fix, we decided a
+    ;; pinned day heading isn't wanted here. See roadmap/backlog.md.
+    [:summary.flex.cursor-pointer.select-none.items-center.gap-3.py-3
      {:style {:list-style "none"}}
      [:span.flex.h-6.w-6.items-center.justify-center.rounded.bg-dark-surface.text-gray-500.transition-colors.hover:bg-dark-light.hover:text-white
       [:span.text-sm.transition-transform.group-open:rotate-90 "›"]]
