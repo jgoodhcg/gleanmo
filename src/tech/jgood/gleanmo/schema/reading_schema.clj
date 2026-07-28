@@ -43,11 +43,15 @@
        [::sm/deleted-at {:optional true} :instant]
        [::sm/created-at :instant]
        [:user/id :user/id]
-       [:reading-log/book-id {:crud/priority 1, :crud/label "Book"} :book/id]
+       [:reading-log/book-id
+        {:crud/priority 1, :crud/label "Book", :crud/inline-create true}
+        :book/id]
        [:reading-log/beginning :instant]
        [:reading-log/end {:optional true} :instant]
        [:reading-log/time-zone :string]
-       [:reading-log/location-id {:optional true, :crud/priority 2, :crud/label "Location"}
+       [:reading-log/location-id
+        {:optional true, :crud/priority 2, :crud/label "Location",
+         :crud/inline-create true}
         :location/id]
        [:reading-log/format {:optional true, :crud/priority 3}
         [:enum :audiobook :paperback :hardcover]]

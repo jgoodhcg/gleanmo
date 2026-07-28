@@ -91,6 +91,9 @@ e2e-test-timer-start:
 e2e-test-timers-workspace:
     cd e2e && npm run test:timers-workspace
 
+e2e-test-inline-create:
+    cd e2e && npm run test:inline-create
+
 # Run reading CRUD test
 e2e-test-reading-crud:
     cd e2e && npm run test:reading-crud

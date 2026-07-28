@@ -29,13 +29,16 @@
        [::sm/deleted-at {:optional true} :instant]
        [::sm/created-at :instant]
        [:user/id :user/id]
-       [:meditation-log/location-id {:crud/priority 2} :location/id]
+       [:meditation-log/location-id
+        {:crud/priority 2, :crud/inline-create true}
+        :location/id]
        [:meditation-log/beginning  :instant]
        [:meditation-log/end {:optional true} :instant]
        [:meditation-log/position
         [:enum :sitting :lying :walking :standing :moving]]
        [:meditation-log/guided :boolean]
-       [:meditation-log/type-id {:crud/priority 1, :crud/label "Meditation"}
+       [:meditation-log/type-id
+        {:crud/priority 1, :crud/label "Meditation", :crud/inline-create true}
         :meditation/id]
        [:meditation-log/interrupted :boolean]
        [:meditation-log/notes {:optional true} :string]

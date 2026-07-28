@@ -1,5 +1,6 @@
 (ns tech.jgood.gleanmo.crud.forms.inputs
   (:require
+   [cheshire.core :as cheshire]
    [clojure.string :as str]
    [tech.jgood.gleanmo.app.shared :refer
     [format-date-time-local
@@ -246,21 +247,46 @@
                 {:id    (:xt/id e)
                  :label (rel-labels/entity->label e (:xt/id e) time-zone)})))))
 
-(defn- inline-create-link
-  "\"+ New\" link to the related entity's new form, bouncing back here after
-   create via the redirect param. Form state is not preserved across the
-   bounce; the fresh record sorts to the top of the (newest-first) select."
-  [field ctx]
-  (let [{:keys [opts related-entity-str]} field
-        uri (:uri ctx)]
-    (when (and (:crud/inline-create opts) uri)
-      [:div.mt-1
-       [:a.link.text-sm
-        {:href (str "/app/crud/form/" related-entity-str "/new?redirect="
-                    (java.net.URLEncoder/encode uri "UTF-8"))}
-        (str "+ New " (str/replace related-entity-str "-" " "))]])))
+(defn field-dom-id
+  "DOM-safe id derived from a field's input name, which is a namespaced
+   keyword string like \"exercise-line/exercise-id\" and so cannot be used as
+   an id in a CSS selector without escaping."
+  [prefix input-name]
+  (str prefix "-" (str/replace (str input-name) #"[^A-Za-z0-9_-]" "-")))
 
-(defmethod render :single-relationship
+(defn- inline-create-affordance
+  "\"+ New <entity>\" button that swaps a mini-form in below the select,
+   replacing the old bounce-link that lost form state. The mini-form is
+   fetched into the mount div; on success the whole field container is
+   re-rendered with the new entity selected. See
+   roadmap/inline-entity-creation.md."
+  [field]
+  (let [{:keys [opts related-entity-str input-name]} field]
+    (when (:crud/inline-create opts)
+      (let [mount-id (field-dom-id "inline-mount" input-name)]
+        [:div.mt-1
+         [:button.link.text-sm.cursor-pointer
+          {:type       "button"
+           :hx-get     (str "/app/crud/inline/" related-entity-str "/new")
+           :hx-vals    (cheshire/generate-string
+                        {:parent (namespace (keyword input-name))
+                         :field  input-name})
+           :hx-target  (str "#" mount-id)
+           :hx-swap    "innerHTML"
+           ;; hx-select is inheritable, and the enclosing CRUD form sets it to
+           ;; the form's own id (crud/forms.clj). Without unsetting it htmx
+           ;; would look for that id inside this fragment, find nothing, and
+           ;; swap in an empty string.
+           :hx-select  "unset"}
+          (str "+ New " (str/replace related-entity-str "-" " "))]
+         [:div {:id mount-id, :data-inline-mount true}]]))))
+
+(defn single-relationship-body
+  "Label + select + inline-create affordance for a single-relationship field.
+
+   Split out from the `render` method so the inline-create success response can
+   re-render exactly the same markup with the new entity selected, rather than
+   hand-rolling a second version of it that could drift."
   [field ctx]
   (let [{:keys [input-name
                 input-label
@@ -275,7 +301,7 @@
                               [[:option {:value "" :selected (nil? value)} ""]])
                             (for [{:keys [id label]} options]
                               [:option {:value id, :selected (= (str id) (str value))} label])))]
-    [:div
+    [:<>
      [:label.form-label {:for input-name}
       input-label]
      (into
@@ -289,7 +315,16 @@
          (not input-required)
          (assoc :data-allow-clear "true"))]
       option-elems)
-     (inline-create-link field ctx)]))
+     (inline-create-affordance field)]))
+
+(defmethod render :single-relationship
+  [field ctx]
+  ;; The container id is the inline-create swap target. Swapping its
+  ;; *innerHTML* (rather than the select's outerHTML) matters: main.js
+  ;; re-initializes Choices via `htmx:afterSettle` using
+  ;; `root.querySelectorAll`, which does not match the root element itself.
+  [:div {:id (field-dom-id "rel-field" (:input-name field))}
+   (single-relationship-body field ctx)])
 
 (defmethod render :many-relationship
   [field ctx]

@@ -66,6 +66,19 @@
   "Map of entity-key -> fallback field to use when label is not provided."
   {:book :book/title})
 
+(defn params->entity-data
+  "Convert submitted form params into a schema-shaped, user-owned entity map.
+
+   Shared by the full-form create handler and inline create (see
+   `tech.jgood.gleanmo.crud.inline`) so both apply the same field conversion,
+   label fallback, and ownership rules rather than drifting apart."
+  [schema entity-key params user-id ctx]
+  (-> params
+      (dissoc :__anti-forgery-token :redirect "redirect")
+      (form->schema schema ctx)
+      (default-label-from-field entity-key label-fallbacks)
+      (assoc :user/id user-id)))
+
 (defn create-entity!
   "Handle entity creation from form submission"
   [{:keys [schema entity-key entity-str]}
@@ -73,11 +86,8 @@
   (let [user-id        (:uid session)
         user           (db/get-entity-by-id db user-id)
         redirect-url   (or (get params "redirect") (get params :redirect))
-        schema-params  (dissoc params :__anti-forgery-token :redirect "redirect")
-        data           (-> (form->schema schema-params schema ctx)
-                           (default-label-from-field entity-key label-fallbacks))
-        ;; Add user ID to data
-        data-with-user (assoc data :user/id (:xt/id user))
+        data-with-user (params->entity-data schema entity-key params
+                                            (:xt/id user) ctx)
         ;; Check if time zone is being updated
         time-zone      (-> params
                            (get (str entity-str "/time-zone")))

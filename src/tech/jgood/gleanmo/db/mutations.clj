@@ -4,13 +4,21 @@
    [tech.jgood.gleanmo.schema.meta :as sm]
    [tick.core :as t]))
 
+(defn entity-doc
+  "Shape `data` into the document `create-entity!` would submit, without
+   submitting it. Callers that need to validate before writing (e.g. inline
+   create, which re-renders a form on failure instead of throwing) build the
+   doc with this so their check sees exactly the meta fields that get stored."
+  [entity-key data]
+  (merge {:xt/id          (random-uuid),
+          ::sm/type       entity-key,
+          ::sm/created-at (t/now)}
+         data))
+
 (defn create-entity!
   "Create a new entity in the database."
   [ctx {:keys [entity-key data]}]
-  (let [doc (merge {:xt/id          (random-uuid),
-                    ::sm/type       entity-key,
-                    ::sm/created-at (t/now)}
-                   data)]
+  (let [doc (entity-doc entity-key data)]
     (biff/submit-tx ctx
                     [(merge {:db/doc-type entity-key,
                              :xt/id       (:xt/id doc)}

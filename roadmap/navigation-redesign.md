@@ -1,9 +1,9 @@
 ---
 title: "Navigation & Page Architecture Redesign"
-status: draft
+status: ready
 description: "Layered navigation (primary surfaces vs. drill-down pages), consistent styling across all pages, and an intentional information architecture"
 created: 2026-07-27
-updated: 2026-07-27
+updated: 2026-07-28
 tags: [ux, navigation, design-system, architecture]
 priority: medium
 ---
@@ -37,19 +37,43 @@ Two threads:
    vocabulary (page shell, section header, card, empty state) applied
    everywhere.
 
-## Open questions (draft)
+## Resolved decisions (user, 2026-07-28)
 
-- Relationship to `mobile-tab-bar.md`: a bottom tab bar may *be* the primary
-  layer on mobile — does this work unit absorb it or build on it?
-- Relationship to `qol-quick-actions.md` item 5 (home quick-actions strip)
-  and `workflow-optimization.md` (adaptive ordering): the strip is probably
-  the first "layer 1" artifact.
+- **Scope: both threads, full pass.** IA restructure *and* the styling audit
+  ship together, before the Airtable prod migration runs — the user wants to
+  validate the new schemas in a deployed app that already has its final
+  navigation.
+- **Styling vocabulary: shared Rum components**, not a documented class list.
+  `page-shell`, `section-header`, `card`, `empty-state` become real components
+  so new pages get consistency by default and drift becomes a deliberate act.
+  Accepted cost: every page is rewritten to consume them, so the diff is large.
+- **`mobile-tab-bar.md` is absorbed into this work unit.** The bottom tab bar
+  *is* the mobile primary layer, so mobile navigation gets designed once
+  rather than twice. That file becomes a pointer here rather than separate
+  work.
+
+## Still open (decide during execution)
+
 - How much goes behind a command palette (`backlog.md` Generic Components)
-  on desktop vs. visible chrome?
-- Styling: codify as shared Rum components (page-shell, section, card) or
-  as a documented Tailwind class vocabulary? Components are more enforceable.
-- Scope of the audit: every route in `app.clj`, including custom screens
-  (workout, boulder, calendar year) and CRUD-generated pages.
+  on desktop vs. visible chrome? Default: no palette in this pass; the
+  sidebar plus tab bar should carry it.
+- Whether the sidebar survives on mobile at all once the tab bar exists, or
+  becomes a "more" sheet behind one of the tabs.
+
+## Folded-in fixes
+
+- **Timeline day headings never stick** (`backlog.md`): the shell's
+  `overflow-x-hidden` makes that div the scrolling ancestor, so every
+  `position: sticky` in the app is inert. The page-shell component is the
+  right place to fix this, since it owns the overflow strategy. Any sticky
+  header elsewhere is silently broken today too — the audit should confirm.
+- Container-width and heading drift (`container.mx-auto` vs `max-w-4xl` vs
+  `max-w-2xl` on the custom screens) collapses into `page-shell` variants.
+
+## Scope of the audit
+
+Every route in `app.clj`, including custom screens (workout, boulder,
+calendar year, timers workspace) and CRUD-generated pages.
 
 ## Context
 

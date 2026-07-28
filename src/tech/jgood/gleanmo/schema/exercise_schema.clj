@@ -89,7 +89,7 @@
     {:crud/priority 1 :crud/label "Set" :crud/inline-create true}
     :exercise-set/id]
    [:exercise-line/exercise-id
-    {:crud/priority 2 :crud/label "Exercise"}
+    {:crud/priority 2 :crud/label "Exercise" :crud/inline-create true}
     :exercise/id]
    [:exercise-line/reps {:optional true :crud/priority 3} :int]
    [:exercise-line/weight {:optional true :crud/priority 4} :number]

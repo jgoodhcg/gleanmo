@@ -1,6 +1,7 @@
 (ns tech.jgood.gleanmo.crud.routes
   (:require [tech.jgood.gleanmo.crud.forms :as forms]
             [tech.jgood.gleanmo.crud.handlers :as handlers]
+            [tech.jgood.gleanmo.crud.inline :as inline]
             [tech.jgood.gleanmo.crud.views :as views]))
 
 (defn gen-routes
@@ -17,6 +18,11 @@
      ["/form" {}
       [(str "/" entity-str "/new") {:get (partial forms/new-form args)}]
       [(str "/" entity-str "/edit/:id") {:get (partial forms/edit-form args)}]]
+     ;; Inline create - mini-form fragments rendered inside another entity's
+     ;; form, so a missing relation can be created without leaving the page.
+     ["/inline" {}
+      [(str "/" entity-str "/new") {:get (partial inline/mini-form args)}]
+      [(str "/" entity-str) {:post (partial inline/create! args)}]]
      ;; Data routes - using query param for view type
      [(str "/" entity-str)
       {:get  (partial views/list-entities args)

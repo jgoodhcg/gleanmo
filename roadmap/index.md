@@ -60,13 +60,13 @@ runs of m003–m006 → Airtable retirement.
 
 ### Ready
 
+- [navigation-redesign.md](./navigation-redesign.md) - Layered navigation, page hierarchy, consistent styling, and the mobile tab bar (scope resolved 2026-07-28; absorbs mobile-tab-bar.md)
 - [qol-quick-actions.md](./qol-quick-actions.md) - Navigation & logging QOL: sidebar reorder, stop-in-place timers, boulder problem discoverability, home quick actions
 - [inline-entity-creation.md](./inline-entity-creation.md) - Create related entities mid-form without losing context (executed as item 3 of qol-quick-actions.md)
 - [heatmap-performance.md](./heatmap-performance.md) - Heatmap viz page perf via year-bounded projection scans, shared rel-cache, parallel lazy-loaded year cards
 
 ### Draft
 
-- [navigation-redesign.md](./navigation-redesign.md) - Layered navigation, page hierarchy, and consistent styling across all pages
 - [mood.md](./mood.md) - Structured mood logging with Airtable backfill
 - [bouldering.md](./bouldering.md) - Climbing sessions and problem attempts with Airtable backfill
 - [local-dev-db-locking.md](./local-dev-db-locking.md) - RocksDB file lock prevents running REPL and CLI migrations concurrently
