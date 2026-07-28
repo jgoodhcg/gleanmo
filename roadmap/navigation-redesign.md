@@ -75,6 +75,45 @@ Two threads:
 Every route in `app.clj`, including custom screens (workout, boulder,
 calendar year, timers workspace) and CRUD-generated pages.
 
+## Progress (2026-07-28)
+
+**Shipped:**
+- `app/layout.clj` — the shared vocabulary: `page-shell` (with `content-widths`
+  :narrow/:normal/:wide/:full), `page-header`, `section-header`, `card`,
+  `empty-state`. `page-shell` owns the bottom clearance the tab bar needs.
+- `shared/primary-surfaces` — layer 1 (home, timers, log, today), shared by
+  the sidebar and the tab bar so they cannot disagree.
+- `shared/mobile-tab-bar` — fixed bottom nav, five slots, prefix-matched
+  active state, "more" toggles the sidebar. This absorbs `mobile-tab-bar.md`.
+- Sidebar restructured into Log Something / Review / Manage.
+- `/app/log` hub — the tab bar's logging destination, built from the shared
+  `quick-action-items`.
+- **Converted to the shell:** entities / activity-logs / stats dashboards,
+  timers workspace, Today, Task Focus.
+
+**Not yet converted** (still on their own shells):
+- CRUD list pages (`crud/views.clj`) and **CRUD new/edit forms**
+  (`crud/forms.clj`). The forms are a deliberate hold: they sit at
+  `w-full md:w-96`, and moving them to `:narrow` (`max-w-2xl`) changes the
+  look of *every* form in the app. That deserves its own before/after
+  screenshot pass rather than riding along here.
+- Custom screens `boulder.clj` and `workout.clj`. Their containers already
+  match `:narrow` (`max-w-2xl … pb-24`), so they are visually consistent
+  already; the conversion is mechanical but their shells live inside view
+  functions rather than at the `side-bar` call site, so it is a real
+  refactor rather than a substitution.
+- `user.clj`, `medication_history.clj`, `habit_log.clj`, `bm_log.clj`,
+  `meditation_log.clj`, `calendar.clj`.
+
+**Still open:** the command-palette question (default: no palette this pass),
+and whether the sidebar should become a "more" sheet on mobile now that the
+tab bar carries the primary layer.
+
+**Note:** the sticky-heading bug in `backlog.md` ("Timeline Day Headings Never
+Stick") is still unfixed — `page-shell` does not yet own the overflow
+strategy, so the shell's `overflow-x-hidden` still breaks every
+`position: sticky` in the app.
+
 ## Context
 
 - Current sidebar: `src/tech/jgood/gleanmo/app/shared.clj` `side-bar`
