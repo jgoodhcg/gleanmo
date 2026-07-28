@@ -972,12 +972,9 @@
         {:style delay :class "w-1/3"}]]])])
 
 (defn overview-shell
-  "Top-level layout for the home overview page; sections hydrate via HTMX.
-   The quick-action strip renders eagerly (pure links, no queries) so the
-   app's #1 entry point offers start-an-action affordances immediately."
-  [ctx]
+  "Top-level layout for the home overview page; sections hydrate via HTMX."
+  [_ctx]
   [:div.flex.flex-col.space-y-5
-   (shared/quick-action-strip (:show-bm-logs (db/resolve-user-settings ctx)))
    [:div {:id "overview-recent"
           :hx-get "/app/overview/recent"
           :hx-trigger "load"

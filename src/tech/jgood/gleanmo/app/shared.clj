@@ -89,24 +89,22 @@
 
 (def quick-action-items
   "Logging destinations ordered by measured use (28-day Plausible sample — see
-   roadmap/qol-quick-actions.md item 1). Shared by the sidebar and the home
-   quick-action strip so the two can never drift apart.
+   roadmap/qol-quick-actions.md item 1). Shared by the sidebar and the
+   /app/log hub so the two can never drift apart.
 
-   `:lead?` marks the timer workspace, which renders above the Quick Add
-   heading in the sidebar; `:home?` marks the subset compact enough for the
-   home strip; `:bm?` marks the entry gated behind the show-bm-logs setting."
-  [{:label "⏱️ timers", :href "/app/timers", :lead? true, :home? true}
-   {:label "habit log", :href "/app/crud/form/habit-log/new", :home? true}
-   {:label "project log", :href "/app/crud/form/project-log/new", :home? true}
+   `:lead?` marks the timer workspace, which the sidebar renders among the
+   primary surfaces rather than in this list; `:bm?` marks the entry gated
+   behind the show-bm-logs setting."
+  [{:label "⏱️ timers", :href "/app/timers", :lead? true}
+   {:label "habit log", :href "/app/crud/form/habit-log/new"}
+   {:label "project log", :href "/app/crud/form/project-log/new"}
    {:label "medication log",
-    :href  "/app/crud/form/medication-log/new",
-    :home? true}
+    :href  "/app/crud/form/medication-log/new"}
    {:label "bm log",
     :href  "/app/crud/form/bm-log/new",
-    :bm?   true,
-    :home? true}
-   {:label "workout", :href "/app/exercise/session", :home? true}
-   {:label "bouldering", :href "/app/boulder/session", :home? true}
+    :bm?   true}
+   {:label "workout", :href "/app/exercise/session"}
+   {:label "bouldering", :href "/app/boulder/session"}
    {:label "symptom log", :href "/app/crud/form/symptom-log/new"}
    {:label "mood log", :href "/app/crud/form/mood-log/new"}
    {:label "meditation log", :href "/app/crud/form/meditation-log/new"}
@@ -119,23 +117,6 @@
    logs turned on."
   [show-bm-logs]
   (remove #(and (:bm? %) (not show-bm-logs)) quick-action-items))
-
-(defn quick-action-strip
-  "Compact chip row of the top logging destinations, for the home overview.
-   Pure links — renders no queries of its own, so it cannot regress the
-   dashboard load path (see roadmap/dashboard-performance.md).
-
-   Desktop only. On mobile the tab bar already carries timers and the log hub
-   a thumb-reach away, so the strip was spending scarce vertical space above
-   the timeline to duplicate them."
-  [show-bm-logs]
-  [:nav.hidden.md:flex.flex-wrap.gap-2
-   {:aria-label "Quick actions"}
-   (for [{:keys [label href]} (filter :home? (visible-quick-actions
-                                              show-bm-logs))]
-     [:a.no-underline.rounded-lg.border.border-dark.bg-dark-surface.px-3.py-2.text-sm.text-gray-300.transition-colors.hover:border-neon-cyan.hover:text-white
-      {:key href, :href href}
-      label])])
 
 (def primary-surfaces
   "Layer 1 of the navigation: the handful of places the app is actually used
@@ -159,9 +140,9 @@
   "Fixed bottom navigation for the mobile PWA — the primary layer on a phone,
    where a hamburger-only nav buries the things used most.
 
-   z-40 matches the fixed top bar; pages reserve room for this with the
-   `pb-24` in `layout/page-shell`. The last tab toggles the sidebar, which
-   holds the full, layered navigation."
+   z-40 sits above page content; `side-bar` reserves room for it with
+   `pb-24 md:pb-0` on the main content area. The last tab swaps in the
+   sidebar, which holds the full layered navigation and its own close."
   [ctx]
   (let [uri (:uri ctx)]
     [:nav.fixed.bottom-0.inset-x-0.z-40.md:hidden.bg-dark-surface.border-t.border-dark
@@ -187,10 +168,12 @@
                     "cursor-pointer")
         :aria-label "Open navigation menu"
         :aria-controls "sidebar"
+        ;; Swaps the sidebar in for the page content. The old mobile top bar
+        ;; used to be toggled here too; it no longer exists, and referencing
+        ;; a missing element would throw and leave the menu unopenable.
         :onclick
         "document.getElementById('sidebar').classList.toggle('hidden');
          document.getElementById('sidebar').classList.toggle('flex');
-         document.getElementById('menu-btn').classList.toggle('hidden');
          document.getElementById('side-bar-page-content').classList.toggle('hidden');"}
        [:span.text-lg.leading-none "☰"]
        [:span.text-xs.tracking-wide "more"]]]]))
@@ -211,9 +194,24 @@
        "sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:bg-dark-surface focus:px-4 focus:py-2 focus:rounded"}
       "Skip to content"]
      ;; Sidebar
-     [:div#sidebar.hidden.md:flex.flex-col.space-y-4.bg-dark-surface.p-4.z-50.border-r.border-dark.w-64.flex-shrink-0
-      ;; Wordmark
-      [:div.mb-2 (gleanmo-wordmark)]
+     ;; `w-full md:w-64`: on a phone the sidebar replaces the page rather than
+     ;; sitting beside it, so a 16rem column would leave dead space to its
+     ;; right and needlessly small tap targets.
+     [:div#sidebar.hidden.md:flex.flex-col.space-y-4.bg-dark-surface.p-4.z-50.border-r.border-dark.w-full.md:w-64.flex-shrink-0
+      ;; Wordmark, plus a mobile-only close. The sidebar replaces the page
+      ;; content when open, so on a phone it hides the tab bar that opened it;
+      ;; without this the only way out is to navigate somewhere.
+      [:div.mb-2.flex.items-center.justify-between.gap-3
+       (gleanmo-wordmark)
+       [:button.md:hidden.text-2xl.leading-none.text-gray-400.bg-transparent.border-none.cursor-pointer
+        {:type "button"
+         :aria-label "Close navigation menu"
+         :aria-controls "sidebar"
+         :onclick
+         "document.getElementById('sidebar').classList.toggle('hidden');
+          document.getElementById('sidebar').classList.toggle('flex');
+          document.getElementById('side-bar-page-content').classList.toggle('hidden');"}
+        "✕"]]
       ;; Turn off sensitive button (when sensitive mode is on)
       (turn-off-sensitive-button show-sensitive user-id)
       ;; Turn off archived button (when archived mode is on)
@@ -262,43 +260,16 @@
      ;; tab bar rendered just below: the clearance lives here, with the chrome
      ;; that causes the obstruction, so every page gets it — including ones
      ;; that still use their own shell instead of `layout/page-shell`.
-     [:div.flex-grow.bg-dark.pt-12.px-4.pb-24.md:pb-0.min-w-0
+     ;;
+     ;; Top padding is small and uniform. It used to be `pt-12`, clearing a
+     ;; fixed mobile top bar that no longer exists — and because that bar was
+     ;; `md:hidden`, desktop was paying 3rem of dead space for a bar that was
+     ;; never rendered there.
+     [:div.flex-grow.bg-dark.pt-4.px-4.pb-24.md:pb-0.min-w-0
       {:id "side-bar-page-content"
        :tabindex "-1"}
       content
-      (mobile-tab-bar ctx)]
-
-     ;; Mobile menu button — z-40 keeps the fixed bar above scrolling page
-     ;; content (the overview timeline's sticky day headers are z-20 and its
-     ;; icon circles z-10) while staying below the z-50 sidebar it toggles.
-     [:div.fixed.md:hidden.p-2.bg-dark-surface.w-full.border-b.border-dark.z-40
-      {:id "menu-btn"}
-      [:div.flex.items-center.gap-3
-       [:button
-        {:type "button",
-         :class
-         "text-primary focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-yellow-400",
-         :aria-label "Toggle navigation menu",
-         :aria-controls "sidebar",
-         ;; TODO move this to js?
-         :onclick
-         "document.getElementById('sidebar').classList.toggle('hidden');
-                 document.getElementById('sidebar').classList.toggle('flex');
-                 document.getElementById('menu-btn').classList.toggle('hidden');
-                 document.getElementById('side-bar-page-content').classList.toggle('hidden');"}
-        ;; Menu icon (hamburger)
-        [:svg
-         {:class   "h-6 w-6",
-          :xmlns   "http://www.w3.org/2000/svg",
-          :fill    "none",
-          :viewBox "0 0 24 24",
-          :stroke  "currentColor"}
-         [:path
-          {:stroke-linecap "round",
-           :stroke-linejoin "round",
-           :stroke-width "2",
-           :d "M4 6h16M4 12h16M4 18h16"}]]]
-       (gleanmo-wordmark)]]]))
+      (mobile-tab-bar ctx)]]))
 
 (def local-date-time-fmt "yyyy-MM-dd'T'HH:mm")
 
