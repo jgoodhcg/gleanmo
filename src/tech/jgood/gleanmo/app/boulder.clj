@@ -353,7 +353,7 @@
                         (:boulder-attempt/problem-id running))
         n           (count done)
         sends       (count (filter :boulder-attempt/sent done))]
-    [:div {:class "max-w-2xl mx-auto p-4 sm:p-6 pb-24 space-y-5"}
+    [:div {:class "max-w-2xl mx-auto p-4 sm:p-6 space-y-5"}
      [:div.flex.items-start.justify-between.gap-3
       [:div
        [:h1.text-2xl.font-bold.text-white "Bouldering"]
@@ -468,7 +468,7 @@
         flashes     (count (filter :boulder-attempt/flash attempts))
         n-problems  (count (distinct (keep :boulder-attempt/problem-id attempts)))
         ended       (:boulder-session/end boulder-session)]
-    [:div {:class "max-w-2xl mx-auto p-4 sm:p-6 pb-24 space-y-6"}
+    [:div {:class "max-w-2xl mx-auto p-4 sm:p-6 space-y-6"}
      [:div
       [:a.link.text-xs {:href screen-url} "← bouldering"]
       [:h1.text-2xl.font-bold.text-white.mt-2
@@ -563,7 +563,7 @@
                       (remove str/blank?)
                       distinct
                       sort)]
-    [:div {:class "max-w-2xl mx-auto p-4 sm:p-6 pb-24 space-y-5"}
+    [:div {:class "max-w-2xl mx-auto p-4 sm:p-6 space-y-5"}
      [:div
       [:a.link.text-xs {:href screen-url} "← bouldering"]
       [:h1.text-2xl.font-bold.text-white.mt-2 "Problems"]]

@@ -123,9 +123,13 @@
 (defn quick-action-strip
   "Compact chip row of the top logging destinations, for the home overview.
    Pure links — renders no queries of its own, so it cannot regress the
-   dashboard load path (see roadmap/dashboard-performance.md)."
+   dashboard load path (see roadmap/dashboard-performance.md).
+
+   Desktop only. On mobile the tab bar already carries timers and the log hub
+   a thumb-reach away, so the strip was spending scarce vertical space above
+   the timeline to duplicate them."
   [show-bm-logs]
-  [:nav.flex.flex-wrap.gap-2
+  [:nav.hidden.md:flex.flex-wrap.gap-2
    {:aria-label "Quick actions"}
    (for [{:keys [label href]} (filter :home? (visible-quick-actions
                                               show-bm-logs))]
@@ -254,8 +258,11 @@
        [:button.btn {:type "submit"}
         "sign out"])]
 
-     ;; Main content area
-     [:div.flex-grow.bg-dark.pt-12.px-4.min-w-0
+     ;; Main content area. `pb-24 md:pb-0` reserves room for the fixed mobile
+     ;; tab bar rendered just below: the clearance lives here, with the chrome
+     ;; that causes the obstruction, so every page gets it — including ones
+     ;; that still use their own shell instead of `layout/page-shell`.
+     [:div.flex-grow.bg-dark.pt-12.px-4.pb-24.md:pb-0.min-w-0
       {:id "side-bar-page-content"
        :tabindex "-1"}
       content

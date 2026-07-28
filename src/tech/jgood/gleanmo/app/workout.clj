@@ -368,7 +368,7 @@
         ex-by-id   (into {} (map (juxt :xt/id identity)) exercises)
         memory     (exercise-memory ctx)
         n-sets     (count sets)]
-    [:div {:class "max-w-2xl mx-auto p-4 sm:p-6 pb-24 space-y-5"}
+    [:div {:class "max-w-2xl mx-auto p-4 sm:p-6 space-y-5"}
      [:div.flex.items-start.justify-between.gap-3
       [:div
        [:h1.text-2xl.font-bold.text-white "Workout"]
@@ -469,7 +469,7 @@
                         (str/join " · "))
         ended      (:exercise-session/end session)
         duration   (when ended (fmt-session-len (:exercise-session/beginning session) ended))]
-    [:div {:class "max-w-2xl mx-auto p-4 sm:p-6 pb-24 space-y-6"}
+    [:div {:class "max-w-2xl mx-auto p-4 sm:p-6 space-y-6"}
      [:div
       [:a.link.text-xs {:href screen-url} "← workout"]
       [:h1.text-2xl.font-bold.text-white.mt-2

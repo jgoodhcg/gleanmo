@@ -29,15 +29,15 @@
 (defn page-shell
   "An authenticated page: sidebar chrome around a width-constrained column.
 
-   `pb-24` is not decoration — the mobile tab bar is fixed over the bottom of
-   the viewport, and without the clearance the last row of every page sits
-   underneath it."
+   Clearance for the fixed mobile tab bar is *not* handled here — it lives on
+   the main content area in `shared/side-bar`, so pages that still use their
+   own shell get it too."
   [ctx {:keys [width]} & content]
   (shared/side-bar
    ctx
    (into [:div {:class (str (get content-widths (or width :normal)
                                  (:normal content-widths))
-                            " mx-auto w-full p-4 sm:p-6 pb-24 space-y-6")}]
+                            " mx-auto w-full p-4 sm:p-6 space-y-6")}]
          content)))
 
 (defn page-header
