@@ -19,11 +19,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install clj-kondo
+      # Pinned to match local dev clj-kondo exactly. Local/CI skew lets code
+      # pass `just lint-fast` locally but fail here (or vice versa). When bumping,
+      # update this version AND the local install together. See AGENTS.md
+      # "Lint version parity".
+      - name: Install clj-kondo (pinned)
+        env:
+          CLJ_KONDO_VERSION: v2026.07.24
         run: |
-          curl -sLO https://raw.githubusercontent.com/clj-kondo/clj-kondo/master/script/install-clj-kondo
-          chmod +x install-clj-kondo
-          sudo ./install-clj-kondo
+          v="${CLJ_KONDO_VERSION#v}"
+          curl -sL "https://github.com/clj-kondo/clj-kondo/releases/download/${CLJ_KONDO_VERSION}/clj-kondo-${v}-linux-static-amd64.zip" -o kondo.zip
+          unzip -o kondo.zip
+          sudo install clj-kondo /usr/local/bin/clj-kondo
+          clj-kondo --version
 
       - name: Lint
         run: clj-kondo --lint src --lint test --lint dev --fail-level error

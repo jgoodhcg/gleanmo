@@ -2,7 +2,7 @@
   (:require
    [clojure.string           :as str]
    [clojure.test             :as test]
-   [com.biffweb.tasks        :as tasks]
+   [com.biffweb.tasks        :as biff-tasks]
    [tasks.airtable           :as airtable]
    [tasks.migrate            :as migrate]))
 
@@ -80,4 +80,4 @@
    "test"               #'run-tests
    "notebook"           #'notebook})
 
-(def tasks (merge tasks/tasks custom-tasks))
+(def tasks (merge biff-tasks/tasks custom-tasks))

@@ -68,6 +68,29 @@ which clj-kondo
 - **Lint-only environment** (no java, clj-kondo found): Use Level 1 only. Defer Levels 3-7 to GitHub Actions CI.
 - **Bare environment** (no java, no clj-kondo): Run `./script/setup-cloud-lint.sh` first, then operate as lint-only.
 
+### Lint version parity
+
+CI's clj-kondo is **pinned** (see `CLJ_KONDO_VERSION` in `.github/workflows/validate.yml`). Local and CI must run the same version — otherwise code can pass `just lint-fast` locally and fail in CI (a newer CI clj-kondo flags checks the local one doesn't), or vice versa. This exact skew caused repeated red CI runs in mid-2026.
+
+Verify parity at session start:
+
+```sh
+clj-kondo --version    # must match .github/workflows/validate.yml CLJ_KONDO_VERSION
+```
+
+If they differ, reinstall the pinned version locally (macOS, Apple Silicon — adjust arch otherwise):
+
+```sh
+v=v2026.07.24   # whatever CLJ_KONDO_VERSION is pinned to
+curl -sL "https://github.com/clj-kondo/clj-kondo/releases/download/${v}/clj-kondo-${v#v}-macos-aarch64.zip" -o /tmp/kondo.zip
+unzip -o /tmp/kondo.zip -d /tmp/kondo
+brew unlink clj-kondo 2>/dev/null || true   # stop shadowing if brew-installed
+sudo install /tmp/kondo/clj-kondo /usr/local/bin/clj-kondo
+clj-kondo --version
+```
+
+**Bump rule:** when upgrading, change `CLJ_KONDO_VERSION` in the workflow AND reinstall locally in the same change. Homebrew lags GitHub releases, so `brew upgrade` is not a reliable way to match the pinned version.
+
 ### Cloud Environment Setup
 
 Remote/cloud agentic runtimes (Ubuntu 24+) that lack a JVM should run the setup script on first use:
