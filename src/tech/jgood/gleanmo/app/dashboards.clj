@@ -51,6 +51,10 @@
                       "/app/crud/book-source" "🏪" "neon-azure")
       (dashboard-card "Exercises" "Exercise definitions for workouts"
                       "/app/crud/exercise" "🏋️" "neon-pink")
+      ;; Points at the purpose-built retire/restore screen rather than the
+      ;; generic CRUD list; full CRUD stays reachable from its badges.
+      (dashboard-card "Boulder Problems" "Gym problems, walls, and holds"
+                      "/app/boulder/session/problems" "🧱" "neon-lime")
       (dashboard-card "Symptom Episodes" "Illness or injury periods"
                       "/app/crud/symptom-episode" "🤒" "neon-pink")]])))
 

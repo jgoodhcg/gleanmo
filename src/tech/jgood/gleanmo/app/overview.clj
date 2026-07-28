@@ -817,7 +817,13 @@
                      :else     (group-date date))
         scheduled? (or upcoming?
                        (t/> date (t/date (t/in (t/now) (user-zone ctx)))))]
-    [:summary.sticky.top-0.z-20.flex.cursor-pointer.select-none.items-center.gap-3.bg-dark.py-3
+    ;; Offset so a pinned heading parks below the fixed mobile top bar (z-40,
+    ;; matching the shell's pt-12) instead of hiding under it; on md+ that bar
+    ;; is hidden, so it pins to the very top. NOTE: this is inert today —
+    ;; `overflow-x-hidden` on the shell (app/shared.clj) computes overflow-y
+    ;; to auto, making that div the scroll container, so these headings never
+    ;; actually pin. See roadmap/backlog.md "Timeline Day Headings Never Stick".
+    [:summary.sticky.top-12.md:top-0.z-20.flex.cursor-pointer.select-none.items-center.gap-3.bg-dark.py-3
      {:style {:list-style "none"}}
      [:span.flex.h-6.w-6.items-center.justify-center.rounded.bg-dark-surface.text-gray-500.transition-colors.hover:bg-dark-light.hover:text-white
       [:span.text-sm.transition-transform.group-open:rotate-90 "›"]]
@@ -966,9 +972,12 @@
         {:style delay :class "w-1/3"}]]])])
 
 (defn overview-shell
-  "Top-level layout for the home overview page; sections hydrate via HTMX."
-  [_ctx]
+  "Top-level layout for the home overview page; sections hydrate via HTMX.
+   The quick-action strip renders eagerly (pure links, no queries) so the
+   app's #1 entry point offers start-an-action affordances immediately."
+  [ctx]
   [:div.flex.flex-col.space-y-5
+   (shared/quick-action-strip (:show-bm-logs (db/resolve-user-settings ctx)))
    [:div {:id "overview-recent"
           :hx-get "/app/overview/recent"
           :hx-trigger "load"

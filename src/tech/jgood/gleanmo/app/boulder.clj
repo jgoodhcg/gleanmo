@@ -363,10 +363,13 @@
                 :data-fmt "session"} "…"]
         (str " · " n (if (= 1 n) " attempt" " attempts")
              (when (pos? sends) (str " · " sends (if (= 1 sends) " send" " sends"))))]]
-      (biff/form {:action (str screen-url "/" session-id "/end"), :method "post"}
-                 [:button {:type "submit"
-                           :class "px-3.5 py-2 rounded-lg text-xs font-semibold text-red-400 bg-transparent border border-red-400/30 whitespace-nowrap"}
-                  "End session"])]
+      [:div.flex.items-center.gap-3
+       [:a.link.text-xs.text-gray-400.whitespace-nowrap
+        {:href (str screen-url "/problems")} "problems"]
+       (biff/form {:action (str screen-url "/" session-id "/end"), :method "post"}
+                  [:button {:type "submit"
+                            :class "px-3.5 py-2 rounded-lg text-xs font-semibold text-red-400 bg-transparent border border-red-400/30 whitespace-nowrap"}
+                   "End session"])]]
 
      (if running
        (running-attempt-panel running)
@@ -420,7 +423,10 @@
         recent  (queries/recent-boulder-sessions-for-user db user-id 5)
         gyms    (->> recent (map :boulder-session/gym) (remove str/blank?) distinct)]
     [:div {:class "max-w-2xl mx-auto p-4 sm:p-6 space-y-6"}
-     [:h1.text-2xl.font-bold.text-white "Bouldering"]
+     [:div.flex.items-center.justify-between.gap-3
+      [:h1.text-2xl.font-bold.text-white "Bouldering"]
+      [:a.link.text-xs.text-gray-400.whitespace-nowrap
+       {:href (str screen-url "/problems")} "problems"]]
      (biff/form {:action (str screen-url "/start"), :method "post"}
                 [:div {:class "text-[10px] font-semibold tracking-widest text-gray-500 mb-2"} "GYM"]
                 [:input {:type "text" :name "gym" :required true :list "bd-gyms"

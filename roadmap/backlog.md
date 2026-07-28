@@ -70,18 +70,40 @@ or dashboard without touching the sidebar
 ### Recent List View Visual Refresh
 Improve the main dashboard recent list view with better information density, clearer hierarchy, and more deliberate visual styling.
 
-### Home Timeline Renders Over Mobile Top Bar (z-index)
+### ~~Home Timeline Renders Over Mobile Top Bar (z-index)~~ — FIXED 2026-07-28
 User-reported with screenshots (2026-07-27): on mobile, scrolling the home
 overview timeline puts the entry icons and the sticky day headings ("Today",
 "Yesterday") on top of the fixed hamburger/wordmark bar.
-- **Likely cause**: the fixed mobile bar (`app/shared.clj` `#menu-btn`) has
-  no z-index while the timeline's sticky day headers and icon circles create
-  stacking contexts above it (the sidebar itself uses `z-50`).
-- **Fix shape**: raise the fixed bar's z-index above content (and give it an
-  opaque background), audit the overview timeline's sticky/positioned
-  elements for unnecessary high z-indexes.
-- **Validation**: mobile screenshot mid-scroll on `/app`; check other pages
-  with sticky headers for the same layering.
+- **Confirmed cause**: the fixed mobile bar (`app/shared.clj` `#menu-btn`) had
+  no z-index (`z-index: auto`) while the timeline's day headers (`z-20`) and
+  icon circles (`z-10`) painted above it.
+- **Fix**: `#menu-btn` gains `z-40` — above page content, below the `z-50`
+  sidebar it toggles. Its `bg-dark-surface` (`#161b22`) was already opaque.
+- **Verified**: computed style on a 390×844 viewport is `z-index: 40 /
+  fixed`; mid-scroll screenshot shows timeline content passing cleanly
+  underneath. The desktop calendar's own fixed bar also uses `z-40` but is
+  `md:block`-only, so the two never coexist.
+
+### Timeline Day Headings Never Stick
+Found while fixing the z-index bug above (2026-07-28). The timeline's day
+headings are marked `position: sticky` (`app/overview.clj` `render-group-header`)
+but have **never actually pinned** — on any viewport.
+- **Cause**: the app shell's outer `div` (`app/shared.clj` `side-bar`) uses
+  `overflow-x-hidden`. A non-`visible` `overflow-x` forces computed
+  `overflow-y` to `auto`, which makes that div the nearest scrolling ancestor.
+  The headings therefore stick relative to a container that never scrolls
+  internally (the viewport does the scrolling), so they scroll away normally.
+- **Evidence**: scrolling past a heading traces its viewport top as
+  0 → -100 → -200 → -300 — linear, never pinned.
+- **Fix shape**: remove `overflow-x-hidden` from the shell and contain
+  horizontal overflow at the specific wide children that need it (tables,
+  charts), or make the shell a real scroll container with its own height.
+  The first is safer but needs an audit for horizontal-scroll regressions.
+- **Already in place**: the headings carry `top-12 md:top-0` so that once
+  sticky works they park below the fixed mobile bar rather than under it.
+- **Validation**: the scroll trace above should show the heading top clamping
+  at 48 (mobile) / 0 (desktop) instead of going negative.
+- Relates to the sticky/fixed layering audit in `navigation-redesign.md`.
 
 ## Performance / Queries
 

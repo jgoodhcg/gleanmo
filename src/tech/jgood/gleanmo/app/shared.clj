@@ -87,6 +87,52 @@
          {:style {:color "#0ea5e9"}}
          "🧻 BM logs"]]]])))
 
+(def quick-action-items
+  "Logging destinations ordered by measured use (28-day Plausible sample — see
+   roadmap/qol-quick-actions.md item 1). Shared by the sidebar and the home
+   quick-action strip so the two can never drift apart.
+
+   `:lead?` marks the timer workspace, which renders above the Quick Add
+   heading in the sidebar; `:home?` marks the subset compact enough for the
+   home strip; `:bm?` marks the entry gated behind the show-bm-logs setting."
+  [{:label "⏱️ timers", :href "/app/timers", :lead? true, :home? true}
+   {:label "habit log", :href "/app/crud/form/habit-log/new", :home? true}
+   {:label "project log", :href "/app/crud/form/project-log/new", :home? true}
+   {:label "medication log",
+    :href  "/app/crud/form/medication-log/new",
+    :home? true}
+   {:label "bm log",
+    :href  "/app/crud/form/bm-log/new",
+    :bm?   true,
+    :home? true}
+   {:label "workout", :href "/app/exercise/session", :home? true}
+   {:label "bouldering", :href "/app/boulder/session", :home? true}
+   {:label "symptom log", :href "/app/crud/form/symptom-log/new"}
+   {:label "mood log", :href "/app/crud/form/mood-log/new"}
+   {:label "meditation log", :href "/app/crud/form/meditation-log/new"}
+   {:label "reading log", :href "/app/crud/form/reading-log/new"}
+   {:label "calendar event", :href "/app/crud/form/calendar-event/new"}
+   {:label "task (full form)", :href "/app/crud/form/task/new"}])
+
+(defn visible-quick-actions
+  "Quick action items with the bm-log entry dropped unless the user has bm
+   logs turned on."
+  [show-bm-logs]
+  (remove #(and (:bm? %) (not show-bm-logs)) quick-action-items))
+
+(defn quick-action-strip
+  "Compact chip row of the top logging destinations, for the home overview.
+   Pure links — renders no queries of its own, so it cannot regress the
+   dashboard load path (see roadmap/dashboard-performance.md)."
+  [show-bm-logs]
+  [:nav.flex.flex-wrap.gap-2
+   {:aria-label "Quick actions"}
+   (for [{:keys [label href]} (filter :home? (visible-quick-actions
+                                              show-bm-logs))]
+     [:a.no-underline.rounded-lg.border.border-dark.bg-dark-surface.px-3.py-2.text-sm.text-gray-300.transition-colors.hover:border-neon-cyan.hover:text-white
+      {:key href, :href href}
+      label])])
+
 (defn side-bar
   [{:keys [session] :as ctx} & content]
   (let [user-id     (:uid session)
@@ -121,21 +167,14 @@
       ;; Timers / Quick Add — ordered by measured use (28-day Plausible
       ;; sample, see roadmap/qol-quick-actions.md item 1): the timer
       ;; workspace and top log forms are the app's real daily workload.
-      [:a.link.font-semibold {:href "/app/timers"} "⏱️ timers"]
-      [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Quick Add"]
-      [:a.link {:href "/app/crud/form/habit-log/new"} "habit log"]
-      [:a.link {:href "/app/crud/form/project-log/new"} "project log"]
-      [:a.link {:href "/app/crud/form/medication-log/new"} "medication log"]
-      (when show-bm-logs
-        [:a.link {:href "/app/crud/form/bm-log/new"} "bm log"])
-      [:a.link {:href "/app/exercise/session"} "workout"]
-      [:a.link {:href "/app/boulder/session"} "bouldering"]
-      [:a.link {:href "/app/crud/form/symptom-log/new"} "symptom log"]
-      [:a.link {:href "/app/crud/form/mood-log/new"} "mood log"]
-      [:a.link {:href "/app/crud/form/meditation-log/new"} "meditation log"]
-      [:a.link {:href "/app/crud/form/reading-log/new"} "reading log"]
-      [:a.link {:href "/app/crud/form/calendar-event/new"} "calendar event"]
-      [:a.link {:href "/app/crud/form/task/new"} "task (full form)"]
+      ;; Order lives in `quick-action-items`, shared with the home strip.
+      (let [items (visible-quick-actions show-bm-logs)]
+        [:<>
+         (for [{:keys [label href]} (filter :lead? items)]
+           [:a.link.font-semibold {:key href, :href href} label])
+         [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Quick Add"]
+         (for [{:keys [label href]} (remove :lead? items)]
+           [:a.link {:key href, :href href} label])])
       [:hr.border-dark]
 
       ;; Tasks
@@ -171,8 +210,10 @@
        :tabindex "-1"}
       content]
 
-     ;; Mobile menu button
-     [:div.fixed.md:hidden.p-2.bg-dark-surface.w-full.border-b.border-dark
+     ;; Mobile menu button — z-40 keeps the fixed bar above scrolling page
+     ;; content (the overview timeline's sticky day headers are z-20 and its
+     ;; icon circles z-10) while staying below the z-50 sidebar it toggles.
+     [:div.fixed.md:hidden.p-2.bg-dark-surface.w-full.border-b.border-dark.z-40
       {:id "menu-btn"}
       [:div.flex.items-center.gap-3
        [:button
