@@ -165,25 +165,33 @@ async function main() {
     await setUserSetting(page, editUrl, { 'show-sensitive': true, 'show-archived': true, 'show-bm-logs': true });
     await page.goto(`${BASE_URL}/app`, { waitUntil: 'networkidle' });
 
-    // Sidebar should have BM log quick-add link
-    await expect(page.locator('a[href="/app/crud/form/bm-log/new"]')).toBeVisible({ timeout: 5000 });
-    console.log('  + BM log sidebar link visible when show-bm-logs=true');
+    // The bm-log link is gated in two places now: the sidebar's Log Something
+    // section and the home quick-action strip. Assert both honor the setting.
+    await expect(
+      page.locator('#sidebar a[href="/app/crud/form/bm-log/new"]')
+    ).toBeVisible({ timeout: 5000 });
+    await expect(
+      page.locator('nav[aria-label="Quick actions"] a[href="/app/crud/form/bm-log/new"]')
+    ).toBeVisible({ timeout: 5000 });
+    console.log('  + BM log link visible in sidebar and quick-action strip when show-bm-logs=true');
     await captureScreenshot(page, '05-home-bm-on');
 
     // Disable BM logs
     await setUserSetting(page, editUrl, { 'show-sensitive': true, 'show-archived': true, 'show-bm-logs': false });
     await page.goto(`${BASE_URL}/app`, { waitUntil: 'networkidle' });
 
-    // Sidebar should NOT have BM log quick-add link
+    // Gone from the whole page — sidebar and strip alike.
     await expect(page.locator('a[href="/app/crud/form/bm-log/new"]')).toHaveCount(0);
-    console.log('  + BM log sidebar link hidden when show-bm-logs=false');
+    console.log('  + BM log link hidden everywhere when show-bm-logs=false');
     await captureScreenshot(page, '06-home-bm-off');
 
     // Re-enable and verify it comes back
     await setUserSetting(page, editUrl, { 'show-sensitive': true, 'show-archived': true, 'show-bm-logs': true });
     await page.goto(`${BASE_URL}/app`, { waitUntil: 'networkidle' });
-    await expect(page.locator('a[href="/app/crud/form/bm-log/new"]')).toBeVisible({ timeout: 5000 });
-    console.log('  + BM log sidebar link reappears after re-enabling');
+    await expect(
+      page.locator('#sidebar a[href="/app/crud/form/bm-log/new"]')
+    ).toBeVisible({ timeout: 5000 });
+    console.log('  + BM log link reappears after re-enabling');
 
     console.log('\n=== Settings Filter Test Passed ===\n');
   } catch (error) {
