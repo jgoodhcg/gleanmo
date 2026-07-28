@@ -66,6 +66,7 @@ runs of m003–m006 → Airtable retirement.
 
 ### Draft
 
+- [navigation-redesign.md](./navigation-redesign.md) - Layered navigation, page hierarchy, and consistent styling across all pages
 - [mood.md](./mood.md) - Structured mood logging with Airtable backfill
 - [bouldering.md](./bouldering.md) - Climbing sessions and problem attempts with Airtable backfill
 - [local-dev-db-locking.md](./local-dev-db-locking.md) - RocksDB file lock prevents running REPL and CLI migrations concurrently

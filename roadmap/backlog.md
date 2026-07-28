@@ -70,6 +70,19 @@ or dashboard without touching the sidebar
 ### Recent List View Visual Refresh
 Improve the main dashboard recent list view with better information density, clearer hierarchy, and more deliberate visual styling.
 
+### Home Timeline Renders Over Mobile Top Bar (z-index)
+User-reported with screenshots (2026-07-27): on mobile, scrolling the home
+overview timeline puts the entry icons and the sticky day headings ("Today",
+"Yesterday") on top of the fixed hamburger/wordmark bar.
+- **Likely cause**: the fixed mobile bar (`app/shared.clj` `#menu-btn`) has
+  no z-index while the timeline's sticky day headers and icon circles create
+  stacking contexts above it (the sidebar itself uses `z-50`).
+- **Fix shape**: raise the fixed bar's z-index above content (and give it an
+  opaque background), audit the overview timeline's sticky/positioned
+  elements for unnecessary high z-indexes.
+- **Validation**: mobile screenshot mid-scroll on `/app`; check other pages
+  with sticky headers for the same layering.
+
 ## Performance / Queries
 
 ### Habit Labels Query Optimization
@@ -114,6 +127,16 @@ The current two-column timer page list layout makes alphabetical scanning harder
 - Prefer a single vertical scan path on larger screens (single-column layout or a user-controlled list/grid toggle).
 - Preserve alphabetical ordering while improving findability and reducing cross-column eye jumps.
 - Validate with manual checks on long timer lists (desktop widths) to confirm quicker visual lookup.
+
+### Current Location on User Settings Form
+Open question from the user (2026-07-27): should `:user/current-location-id`
+appear on the account/user settings form? Today it is only settable from the
+timer workspace picker.
+- It is a fast-changing contextual setting ("where am I now"), not
+  configuration — a settings-form field risks becoming a stale second write
+  path without the relocate-running-timers prompt the workspace picker has.
+- If exposed, reuse the same Choices select and consider read-only display +
+  "change on the timers page" link instead of a bare editable field.
 
 ### Timer Stats Active Timer Inclusion
 Timer page stats do not account for currently active timers (project-logs with no end time).
