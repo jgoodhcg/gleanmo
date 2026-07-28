@@ -51,6 +51,12 @@
    ;; No longer on the wall at the gym (Airtable called this Archived).
    ;; Deliberately not named archived — that has app-wide hide semantics.
    [:boulder-problem/inactive {:optional true} :boolean]
+   ;; When it came off the wall, so the retired list can order by what was
+   ;; taken down most recently rather than by what was created most recently.
+   ;; Absent on problems imported from Airtable (which never recorded it) and
+   ;; on anything retired before this field existed; those fall back to
+   ;; created-at. Cleared on restore.
+   [:boulder-problem/inactive-at {:optional true} :instant]
    [:boulder-problem/notes {:optional true} :string]
    [:airtable/id {:optional true} :string]
    [:airtable/created-time {:optional true} :instant]

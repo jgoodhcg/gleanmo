@@ -557,7 +557,18 @@
   [{:keys [biff/db session]}]
   (let [problems (queries/boulder-problems-for-user db (:uid session))
         active   (remove :boulder-problem/inactive problems)
-        retired  (filter :boulder-problem/inactive problems)
+        ;; Most recently taken off the wall first. `problems` already arrives
+        ;; newest-created first, so problems with no inactive-at (imported
+        ;; from Airtable, or retired before the field existed) keep that order
+        ;; behind everything with a real retirement time.
+        retired  (->> problems
+                      (filter :boulder-problem/inactive)
+                      (sort-by :boulder-problem/inactive-at
+                               #(cond
+                                  (= %1 %2) 0
+                                  (nil? %1) 1
+                                  (nil? %2) -1
+                                  :else     (compare %2 %1))))
         walls    (->> problems
                       (keep :boulder-problem/wall)
                       (remove str/blank?)
@@ -566,7 +577,15 @@
     [:div {:class "max-w-2xl mx-auto p-4 sm:p-6 space-y-5"}
      [:div
       [:a.link.text-xs {:href screen-url} "← bouldering"]
-      [:h1.text-2xl.font-bold.text-white.mt-2 "Problems"]]
+      [:div.flex.items-center.justify-between.gap-3.mt-2
+       [:h1.text-2xl.font-bold.text-white "Problems"]
+       ;; This screen manages problems but had no way to add one, which also
+       ;; made the Manage Entities card pointing here a dead end for creation.
+       [:a.link.text-sm.whitespace-nowrap
+        {:href (str "/app/crud/form/boulder-problem/new?redirect="
+                    (java.net.URLEncoder/encode (str screen-url "/problems")
+                                                "UTF-8"))}
+        "+ New problem"]]]
      (when (seq walls)
        [:div {:class "flex flex-wrap gap-1.5"}
         (for [[value label] (cons ["__all__" "all walls"]
@@ -585,8 +604,13 @@
       (if (seq active)
         [:div {:class "flex flex-col gap-2"}
          (for [p active] ^{:key (:xt/id p)} (problem-row p))]
-        [:div {:class "rounded-xl border border-dashed border-dark p-7 text-center text-xs text-gray-500"}
-         "No active problems."])]
+        [:div {:class "rounded-xl border border-dashed border-dark p-7 text-center space-y-2"}
+         [:p.text-xs.text-gray-500 "No active problems."]
+         [:a.link.text-sm
+          {:href (str "/app/crud/form/boulder-problem/new?redirect="
+                      (java.net.URLEncoder/encode (str screen-url "/problems")
+                                                  "UTF-8"))}
+          "+ New problem"]])]
      (when (seq retired)
        [:div
         [:div.flex.items-baseline.gap-3.mb-3
@@ -624,10 +648,16 @@
 (defn toggle-problem-inactive!
   [ctx]
   (when-let [p (owned-entity ctx :boulder-problem)]
-    (mutations/update-entity! ctx {:entity-key :boulder-problem
-                                   :entity-id (:xt/id p)
-                                   :data {:boulder-problem/inactive
-                                          (not (:boulder-problem/inactive p))}}))
+    (let [retiring? (not (:boulder-problem/inactive p))]
+      (mutations/update-entity!
+       ctx {:entity-key :boulder-problem
+            :entity-id  (:xt/id p)
+            ;; Stamp when it came off the wall so the retired list can order
+            ;; by that; clear it on restore so a later retire re-stamps.
+            :data       {:boulder-problem/inactive    retiring?
+                         :boulder-problem/inactive-at (if retiring?
+                                                        (t/now)
+                                                        :db/dissoc)}})))
   {:status 303 :headers {"location" (str screen-url "/problems")}})
 
 (defn start-session!
