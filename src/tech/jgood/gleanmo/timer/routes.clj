@@ -402,8 +402,18 @@
            (for [parent parent-entities]
              ^{:key (:xt/id parent)}
              (start-timer-card parent config))]
-          [:p.text-gray-400
-           (str "No " parent-entity-str "s found. Create some first!")])]
+          ;; Tactical fix per roadmap/inline-entity-creation.md: this used to
+          ;; be bare text, so a user with zero parents landed here with no way
+          ;; forward. True inline-create on this list surface is deferred to
+          ;; timer-dashboard-inline-create.md.
+          [:div.space-y-2
+           [:p.text-gray-400
+            (str "No " parent-entity-str "s yet.")]
+           [:a.link.text-sm
+            {:href (str "/app/crud/form/" parent-entity-str "/new?redirect="
+                        (java.net.URLEncoder/encode
+                         (str "/app/timer/" entity-str) "UTF-8"))}
+            (str "+ New " (str/replace parent-entity-str "-" " "))]])]
 
        [:div.mb-8
         [:h2.text-xl.font-semibold.mb-4.text-white "Recent Logs"]

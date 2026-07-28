@@ -302,20 +302,50 @@
                             (for [{:keys [id label]} options]
                               [:option {:value id, :selected (= (str id) (str value))} label])))]
     [:<>
-     [:label.form-label {:for input-name}
-      input-label]
+     ;; Custom screens (e.g. the workout picker) supply their own heading and
+     ;; pass no input-label, so don't render an empty one for them.
+     (when (seq (str input-label))
+       [:label.form-label {:for input-name} input-label])
      (into
-      [:select.form-select
+      [:select
        (cond-> {:id                  input-name
                 :name                input-name
                 :required            input-required
+                :class               "form-select"
                 :data-enhance        "choices"
-                :data-placeholder    input-label
+                :data-placeholder    (or input-label "Select…")
                 :data-original-value (str value)}
          (not input-required)
          (assoc :data-allow-clear "true"))]
       option-elems)
      (inline-create-affordance field)]))
+
+(defn inline-create-trigger
+  "Standalone \"+ New <entity>\" button and mini-form mount, for a surface that
+   has no select to refill — an empty state, say. With no `field-name` the
+   create handler has nothing to swap into and answers `HX-Refresh`, which is
+   what an empty screen wants anyway: reload and show the real form."
+  [related-entity-str]
+  (inline-create-affordance {:opts               {:crud/inline-create true}
+                             :related-entity-str related-entity-str
+                             :input-name         ""}))
+
+(defn inline-create-select
+  "Select + inline-create trigger for a custom screen whose picker is not a
+   generated CRUD relationship field (the workout exercise picker, say).
+
+   `field-name` is the plain `name` the surrounding form expects. Because it
+   carries no namespace, the POST resolves no CRUD parent field and the
+   handler falls back to re-rendering this same select."
+  [{:keys [field-name related-entity-str required? value]} ctx]
+  [:div {:id (field-dom-id "rel-field" field-name)}
+   (single-relationship-body
+    {:input-name         field-name
+     :input-required     (boolean required?)
+     :related-entity-str related-entity-str
+     :value              value
+     :opts               {:crud/inline-create true}}
+    ctx)])
 
 (defmethod render :single-relationship
   [field ctx]

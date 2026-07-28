@@ -268,8 +268,70 @@ function initializeChoices(select) {
     options.allowHTML = false;
     options.removeItemButton = true;
   }
+  // When the select offers inline create, point a fruitless search at the
+  // affordance below it (plain text — allowHTML stays false).
+  if (select.closest('[id^="rel-field-"]')?.querySelector('button[hx-get*="/app/crud/inline/"]')) {
+    options.noResultsText = 'No results — close this and use “+ Create” below';
+  }
   new Choices(select, options);
   select.dataset.choicesInitialized = 'true';
+  wireInlineCreateSearch(select);
+}
+
+// Bridge "searched for something that doesn't exist" to "create it".
+//
+// The inline-create trigger below the select (see crud/forms/inputs.clj)
+// normally reads "+ New exercise". While a search matches nothing it becomes
+// `+ Create "<typed text>"` and passes that text along as the label prefill,
+// so creating costs no extra typing.
+//
+// Deliberately NOT rendered inside the Choices dropdown: doing that needs a
+// custom noResultsText returning markup, which requires allowHTML: true —
+// and this codebase sets allowHTML: false everywhere on purpose. Repurposing
+// the adjacent button keeps that guarantee and stays keyboard reachable.
+function wireInlineCreateSearch(select) {
+  const container = select.closest('[id^="rel-field-"]');
+  if (!container) return;
+  const btn = container.querySelector('button[hx-get*="/app/crud/inline/"]');
+  if (!btn) return;
+
+  const defaultText = btn.textContent;
+  const baseVals = JSON.parse(btn.getAttribute('hx-vals') || '{}');
+  let query = '';
+
+  function apply() {
+    const q = query.trim();
+    const needle = q.toLowerCase();
+    // Compare against the real options; Choices keeps the select in sync.
+    const hasMatch =
+      !needle ||
+      Array.from(select.options).some(
+        (o) => o.value && o.text.toLowerCase().includes(needle)
+      );
+
+    if (q && !hasMatch) {
+      btn.textContent = '+ Create "' + q + '"';
+      btn.setAttribute('hx-vals', JSON.stringify(Object.assign({}, baseVals, { label: q })));
+    } else {
+      btn.textContent = defaultText;
+      btn.setAttribute('hx-vals', JSON.stringify(baseVals));
+    }
+  }
+
+  select.addEventListener('search', function (e) {
+    const value = (e.detail && e.detail.value) || '';
+    // Ignore empty searches. Choices clears its search box when the dropdown
+    // closes, which fires search:"" — treating that as the user clearing the
+    // box would revert the affordance exactly when they reach for it.
+    if (!value) return;
+    query = value;
+    apply();
+  });
+  // Deliberately NOT reset on hideDropdown. The open dropdown covers the
+  // button, so the user must close it to reach the affordance — resetting
+  // there would revert the label at the exact moment they went to click it.
+  // Only an actual selection clears the pending search.
+  select.addEventListener('choice', function () { query = ''; apply(); });
 }
 
 function initChoicesSelectors(root = document) {

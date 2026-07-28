@@ -27,6 +27,7 @@
    [clojure.string :as str]
    [com.biffweb :as biff]
    [tech.jgood.gleanmo.app.shared :refer [side-bar]]
+   [tech.jgood.gleanmo.crud.forms.inputs :as inputs]
    [tech.jgood.gleanmo.db.mutations :as mutations]
    [tech.jgood.gleanmo.db.queries :as queries]
    [tech.jgood.gleanmo.schema.exercise-schema :as exercise-schema]
@@ -229,7 +230,7 @@
    button that names its payload ('Log pullup × 12'). Posts to the session;
    the line lands in the running set (closing it on the primary action) or
    backfills an auto-started set when none is running."
-  [session-id exercises memory running?]
+  [session-id exercises memory running? ctx]
   (let [{:keys [by-exercise last]} memory
         ex-by-id (into {} (map (juxt :xt/id identity)) exercises)
         sel-id   (or last (some-> exercises first :xt/id))
@@ -245,14 +246,16 @@
       :data-default-reps default-reps
       :data-default-weight default-weight}
      [:div {:class "text-[10px] font-semibold tracking-widest text-gray-500 mb-2"} "EXERCISE"]
+     ;; Shared inline-create picker rather than a hand-rolled select, so
+     ;; discovering a missing movement mid-workout follows the same flow as
+     ;; everywhere else (roadmap/inline-entity-creation.md Phase 2).
      [:div.mb-5
-      [:select.form-select.w-full {:name "exercise-id" :required true
-                                   :data-enhance "choices"
-                                   :data-placeholder "Exercise"}
-       (for [ex exercises]
-         [:option {:value (:xt/id ex)
-                   :selected (= (:xt/id ex) sel-id)}
-          (:exercise/label ex)])]]
+      (inputs/inline-create-select
+       {:field-name         "exercise-id"
+        :related-entity-str "exercise"
+        :required?          true
+        :value              sel-id}
+       ctx)]
      [:div.flex.items-center.justify-between.gap-3.py-2
       [:span {:class "text-[10px] font-semibold tracking-widest text-gray-500"} "REPS"]
       (stepper-ctrl "reps" (str reps))]
@@ -279,7 +282,7 @@
 (defn- form-card
   "Card wrapping the log form. Visible while a set records; otherwise hidden
    until the backfill toggle reveals it (with a Cancel to collapse again)."
-  [session-id exercises memory running?]
+  [session-id exercises memory running? ctx]
   [:div {:id "wk-form-card"
          :class (str "rounded-xl border border-dark bg-dark-surface p-4 sm:p-6 "
                      (when-not running? "hidden"))}
@@ -290,12 +293,12 @@
                 :class "text-xs text-gray-500 bg-transparent border-none"}
        "Cancel"])]
    (if (seq exercises)
-     (log-form session-id exercises memory running?)
-     [:p.text-sm.text-gray-400
-      "No exercises yet. "
-      [:a.link {:href (str "/app/crud/form/exercise/new?redirect=" (redirect-param))}
-       "Create one"]
-      " first."])])
+     (log-form session-id exercises memory running? ctx)
+     ;; Guarded because log-form's primary button names the selected exercise
+     ;; ("Log pullup × 12") and would render empty with none to select.
+     [:div.space-y-2
+      [:p.text-sm.text-gray-400 "No exercises yet."]
+      (inputs/inline-create-trigger "exercise")])])
 
 (defn- running-set-panel
   "The recording hero card: pulsing dot, SET N · RECORDING, big live m:ss
@@ -391,7 +394,7 @@
                   :class "w-full py-3 rounded-lg text-xs text-gray-500 border border-dashed border-dark bg-transparent"}
          "Forgot to start? Log a completed set"]])
 
-     (form-card session-id exercises memory (some? running))
+     (form-card session-id exercises memory (some? running) ctx)
 
      [:div
       [:div.flex.items-baseline.gap-3.mb-3

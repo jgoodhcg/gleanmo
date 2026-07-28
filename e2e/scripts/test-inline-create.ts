@@ -183,6 +183,98 @@ async function testTimerEntityPath(page: Page) {
   console.log('  [✓] New project auto-selected on the project-log form');
 }
 
+async function testSearchEmptyBridge(page: Page) {
+  console.log('\n5. Search-empty bridge: + Create "<typed text>"');
+  await page.goto(`${BASE_URL}/app/crud/form/exercise-line/new`);
+  await page.waitForLoadState('networkidle');
+  await page.waitForTimeout(800); // Choices.js init
+
+  const trigger = page.locator(
+    '#rel-field-exercise-line-exercise-id button[hx-get*="/app/crud/inline/"]'
+  );
+  const before = (await trigger.textContent())?.trim();
+  console.log(`  [i] Trigger before search: "${before}"`);
+
+  // Open the Choices dropdown and type something that matches nothing.
+  const typed = `Zzz Nonexistent ${Date.now()}`;
+  await page.locator('#rel-field-exercise-line-exercise-id .choices').click();
+  await page.waitForTimeout(300);
+  await page.keyboard.type(typed);
+  await page.waitForTimeout(600);
+  await captureScreenshot(page, '06-search-empty');
+
+  const after = (await trigger.textContent())?.trim();
+  console.log(`  [i] Trigger after search: "${after}"`);
+  if (after !== `+ Create "${typed}"`) {
+    throw new Error(`Expected '+ Create "${typed}"', got "${after}"`);
+  }
+  console.log('  [✓] Trigger became a create-from-search affordance');
+
+  // And it must carry the typed text through as the label prefill.
+  const vals = await trigger.getAttribute('hx-vals');
+  if (!vals || !JSON.parse(vals).label) {
+    throw new Error(`hx-vals missing label prefill: ${vals}`);
+  }
+  console.log('  [✓] Typed text passed through as label prefill');
+
+  // The open dropdown overlays the button, so close it first — and the
+  // create affordance must survive that close.
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(400);
+  const afterClose = (await trigger.textContent())?.trim();
+  if (afterClose !== `+ Create "${typed}"`) {
+    throw new Error(
+      `Affordance lost when the dropdown closed: "${afterClose}" — the user ` +
+      `has to close it to reach the button`
+    );
+  }
+  console.log('  [✓] Affordance survives closing the dropdown');
+
+  await trigger.click();
+  await page.waitForTimeout(900);
+  const labelValue = await page.locator('input[name="exercise/label"]').inputValue();
+  if (labelValue !== typed) {
+    throw new Error(`Mini-form label should be prefilled with "${typed}", got "${labelValue}"`);
+  }
+  console.log('  [✓] Mini-form opened with the label pre-populated');
+  await captureScreenshot(page, '07-prefilled-miniform');
+}
+
+async function testWorkoutPicker(page: Page) {
+  console.log('\n6. Workout screen picker uses the shared component');
+  await page.goto(`${BASE_URL}/app/exercise/session`);
+  await page.waitForLoadState('networkidle');
+
+  // The picker only exists inside a running session.
+  const startSession = page.getByRole('button', { name: 'Start session', exact: true });
+  if (await startSession.count()) {
+    await startSession.click();
+    await page.waitForLoadState('networkidle');
+    console.log('  [+] Started a session');
+  }
+
+  // Reveal the log form (it is hidden until a set runs or backfill is toggled).
+  const backfill = page.locator('#wk-backfill-toggle');
+  if (await backfill.count()) {
+    await backfill.click();
+    await page.waitForTimeout(400);
+  }
+  await captureScreenshot(page, '08-workout-screen');
+
+  const trigger = page.locator('#wk-form-card button[hx-get*="/app/crud/inline/exercise"]');
+  if (!(await trigger.count())) {
+    throw new Error('Workout log form has no shared inline-create affordance');
+  }
+  console.log('  [✓] Workout picker renders the shared inline-create trigger');
+
+  // And it must be the shared container, so the swap target exists.
+  const container = page.locator('#rel-field-exercise-id');
+  if (!(await container.count())) {
+    throw new Error('Workout picker is not wrapped in the shared swap container');
+  }
+  console.log('  [✓] Shared swap container present (#rel-field-exercise-id)');
+}
+
 async function main() {
   console.log('\n=== Inline Entity Creation Test ===');
 
@@ -206,6 +298,8 @@ async function main() {
     await testGenericCrudPath(page);
     await testValidationFailure(page);
     await testTimerEntityPath(page);
+    await testSearchEmptyBridge(page);
+    await testWorkoutPicker(page);
 
     console.log('\n=== Test Passed ===\n');
   } catch (error) {

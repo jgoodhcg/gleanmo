@@ -202,7 +202,7 @@
 
    On validation failure nothing is written and the mini-form comes back with
    per-field errors, so the user stays in place."
-  [{:keys [entity-key schema schema-map] :as args}
+  [{:keys [entity-key entity-str schema schema-map] :as args}
    {:keys [session biff/db params] :as ctx}]
   (let [user-id     (:uid session)
         user        (db/get-entity-by-id db user-id)
@@ -239,11 +239,26 @@
             ctx'   (cond-> (assoc ctx :schema-map schema-map)
                      (:biff.xtdb/node ctx)
                      (assoc :biff/db (xt/db (:biff.xtdb/node ctx))))]
-        (if field
+        (cond
+          field
           (fragment ctx (inputs/single-relationship-body
                          (assoc field :value new-id)
                          ctx'))
-          ;; Unknown parent field: the entity was still created, so fall back
-          ;; to a full page load rather than swapping in something misleading.
+
+          ;; No CRUD parent field matched, but we know which select to refill:
+          ;; a custom screen used `inputs/inline-create-select` with a plain,
+          ;; unnamespaced field name. Re-render that same select.
+          (seq (str field-name))
+          (fragment ctx (inputs/single-relationship-body
+                         {:input-name         field-name
+                          :input-required     true
+                          :related-entity-str entity-str
+                          :value              new-id
+                          :opts               {:crud/inline-create true}}
+                         ctx'))
+
+          ;; Nothing to swap into: the entity was still created, so reload
+          ;; rather than leave the page showing something misleading.
+          :else
           {:status  200
            :headers {"HX-Refresh" "true"}})))))

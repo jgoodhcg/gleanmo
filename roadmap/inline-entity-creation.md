@@ -1,9 +1,9 @@
 ---
 title: "Inline Related Entity Creation"
-status: ready
+status: active
 description: "Create related entities mid-form via HTMX inline expansion — no bounce, no form-state loss, auto-select on return; bridges search-empty state to creation"
 created: 2026-03-15
-updated: 2026-07-18
+updated: 2026-07-28
 tags: [ux, forms, crud, relationships, htmx, timers, search]
 priority: high
 ---
@@ -374,16 +374,51 @@ real inline-create deferred to a follow-up work unit.** Concretely:
   inline-create component must satisfy its tab-order and focus-return
   requirements; visual and a11y validation steps above cover this.
 
+## Implementation notes (Phases 1–2 shipped 2026-07-28)
+
+Five things differed from the spec, all forced by the surrounding code:
+
+1. **The search-empty affordance is not inside the Choices dropdown.** The
+   spec called for a `+ Create "<text>"` row via `renderNoResults`, which
+   needs markup and therefore `allowHTML: true` — and `initializeChoices`
+   sets `allowHTML: false` everywhere deliberately. Instead the existing
+   "+ New \<entity\>" button below the select *becomes* `+ Create "<typed>"`
+   while a search matches nothing, carrying the text as the label prefill.
+   Choices' `noResultsText` points the user at it. Same outcome, no HTML
+   injection, still keyboard reachable.
+2. **The affordance must survive closing the dropdown.** The open dropdown
+   covers the button, so the user has to close it to click — and Choices
+   fires `search:""` when it clears its box on close. Empty searches are
+   ignored; only an actual selection resets the pending text.
+3. **`hx-select` is inheritable.** The enclosing CRUD form sets it to its own
+   id, so every inline-create button must set `hx-select "unset"` or htmx
+   swaps in an empty string.
+4. **No CSRF input in the mini-form.** htmx already includes the enclosing
+   form's fields on non-GET, so adding one sends the token twice; Ring parses
+   that into a vector and anti-forgery rejects it.
+5. **Blank required strings needed their own check.** Malli accepts `""` for
+   a required `:string`; the full form is protected only by the HTML
+   `required` attribute, which never fires when htmx posts from a button.
+
+Also: the success path takes a fresh db snapshot (the request's predates the
+write), validation failures use `HX-Retarget` so they don't destroy the
+select, and custom screens use `inputs/inline-create-select` (workout picker)
+or `inputs/inline-create-trigger` (empty states) since their pickers are not
+generated CRUD relationship fields.
+
+Covered by `e2e/scripts/test-inline-create.ts`.
+
 ## Phasing
 
 1. **Phase 1 — Generic inline-create for `:single-relationship`, button path
-   only.** Quick-create (label) tier only. Ship exercise-line → exercise as
+   only.** — **DONE 2026-07-28** Quick-create (label) tier only. Ship exercise-line → exercise as
    the first end-to-end path. Replace the stub link. Add `:crud/inline-create
    true` to `:exercise-line/exercise-id`. Add the same flag to the timer-entity
    relationship fields (`:project-log/project-id`, `:meditation-log/type-id`,
    `:reading-log/book-id`, `:reading-log/location-id`, etc.) since they ride
    the same code path.
-2. **Phase 2 — Search-empty → create bridge + workouts integration.** Add the
+2. **Phase 2 — Search-empty → create bridge + workouts integration.**
+   — **DONE 2026-07-28.** Add the
    Choices.js `noResultsText`/custom-render hook and the `+ Create "<text>"`
    affordance. Replace `app/workout.clj:352-358` hand-rolled link with the
    shared component (which now also picks up the search-empty affordance).
