@@ -22,7 +22,8 @@
 //     home-mobile.png
 //     home-desktop.png
 //     …
-//     metadata.json       { timestamp, gitSha, branch, baseUrl, email,
+//     metadata.json       { timestamp, gitSha, branch, gitDirty,
+//                           workingTreeFingerprint, baseUrl, email,
 //                           viewports, routes: [{ slug, group, viewport, status }] }
 //
 // Exits non-zero if any route fails to load, so this can gate future
@@ -33,15 +34,15 @@
 
 import { chromium, Page } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
-import { authenticateForDev } from './auth.js';
+import { join, resolve } from 'node:path';
+import { authenticateTimelineForDev } from './auth.js';
 import {
   DEFAULT_VIEWPORTS,
   MANIFEST_ROUTES,
   type ManifestRoute,
   type ViewportName,
-  type ViewportSpec,
 } from './manifest.js';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:8080';
@@ -56,16 +57,45 @@ function isoStamp(now = new Date()): string {
 
 function gitValue(args: string[]): string {
   try {
-    return execFileSync('git', args, { encoding: 'utf-8', cwd: process.cwd() }).trim();
+    return execFileSync('git', args, {
+      encoding: 'utf-8',
+      cwd: process.cwd(),
+      maxBuffer: 50 * 1024 * 1024,
+    }).trim();
   } catch {
     return 'unknown';
   }
 }
 
-function viewportFor(route: ManifestRoute, name: ViewportName): ViewportSpec {
-  const spec = DEFAULT_VIEWPORTS.find((v) => v.name === name);
-  if (!spec) throw new Error(`unknown viewport "${name}"`);
-  return spec;
+interface GitWorkingState {
+  dirty: boolean | null;
+  status: string | null;
+  fingerprint: string | null;
+}
+
+function gitWorkingState(gitSha: string): GitWorkingState {
+  const status = gitValue(['status', '--porcelain=v1', '--untracked-files=all']);
+  if (status === 'unknown') {
+    return { dirty: null, status: null, fingerprint: null };
+  }
+
+  const trackedDiff = gitValue(['diff', '--binary', 'HEAD']);
+  const untracked = gitValue(['ls-files', '--others', '--exclude-standard', '-z'])
+    .split('\0')
+    .filter(Boolean);
+  const untrackedHashes = untracked.map((path) => [
+    path,
+    gitValue(['hash-object', '--', path]),
+  ]);
+  const fingerprint = createHash('sha256')
+    .update(JSON.stringify({ gitSha, trackedDiff, untrackedHashes }))
+    .digest('hex');
+
+  return {
+    dirty: status.length > 0,
+    status: status || null,
+    fingerprint,
+  };
 }
 
 interface CaptureResult {
@@ -126,14 +156,21 @@ async function captureRoute(
 async function main() {
   const stamp = isoStamp();
   const outDir = resolve(SERIES_DIR, stamp);
-  mkdirSync(outDir, { recursive: true });
 
   const gitSha = gitValue(['rev-parse', 'HEAD']);
   const branch = gitValue(['rev-parse', '--abbrev-ref', 'HEAD']);
+  const workingTree = gitWorkingState(gitSha);
   console.log(`\n=== Series capture ===`);
   console.log(`  dir:    ${outDir}`);
   console.log(`  sha:    ${gitSha}`);
   console.log(`  branch: ${branch}`);
+  console.log(`  state:  ${
+    workingTree.dirty === null
+      ? 'unknown'
+      : workingTree.dirty
+        ? `dirty (${workingTree.fingerprint?.slice(0, 12)})`
+        : 'clean'
+  }`);
   console.log(`  base:   ${BASE_URL}`);
   console.log(`  email:  ${EMAIL}${LABEL ? `\n  label:  ${LABEL}` : ''}\n`);
 
@@ -150,7 +187,8 @@ async function main() {
         hasTouch: vp.hasTouch ?? false,
       });
       const page = await context.newPage();
-      await authenticateForDev(page, EMAIL);
+      await authenticateTimelineForDev(page, EMAIL);
+      mkdirSync(outDir, { recursive: true });
       console.log(`\n— ${vp.name} (${vp.width}x${vp.height}) —`);
 
       for (const route of MANIFEST_ROUTES) {
@@ -171,6 +209,9 @@ async function main() {
     capturedAt: new Date().toISOString(),
     gitSha,
     branch,
+    gitDirty: workingTree.dirty,
+    gitStatus: workingTree.status,
+    workingTreeFingerprint: workingTree.fingerprint,
     baseUrl: BASE_URL,
     email: EMAIL,
     label: LABEL || null,

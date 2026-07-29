@@ -235,12 +235,22 @@ Testing philosophy
   just e2e-shot-series
   ```
   Output lands in `e2e/screenshots/series/<ISO-timestamp>/` with a
-  `metadata.json` sidecar (git SHA, branch, per-route status). The route list
-  is the canonical `e2e/scripts/manifest.ts` — update it in the same PR when
-  navigation changes so every tick stays comparable (same routes, same
-  viewports, same wait conditions = frames that line up for a timelapse).
-  **Run a tick at the start of any UI-touching session** (baseline before
-  edits) and **again before committing UI changes** — even if you think nothing
+  `metadata.json` sidecar (git SHA, branch, dirty status/fingerprint, per-route
+  status). The route list is the canonical `e2e/scripts/manifest.ts` — update
+  it in the same PR when navigation changes so every tick stays comparable
+  (same routes, same viewports, same wait conditions = frames that line up for
+  a timelapse).
+
+  **Before making UI edits, ask the user to run `just e2e-shot-series` and wait
+  for the baseline result.** Do not silently start the user's dev server. A
+  prior successful tick from the current source state counts; the user may
+  explicitly waive the baseline. Tell the user that the command creates or
+  advances the dedicated local-dev series account. If the working tree is
+  already dirty, ask whether those existing changes belong in the baseline
+  rather than assuming they do. Dirty captures are supported and record the
+  status plus a source fingerprint in metadata.
+
+  Run another tick before committing UI changes — even if you think nothing
   visible moved. This is how the progression archive gets a regular heartbeat
   instead of only capturing sessions that happened to touch UI. Per-route
   one-offs (`just e2e-screenshot /path`) and per-change before/after pairs are

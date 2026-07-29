@@ -25,6 +25,21 @@
                             doc)])
     (:xt/id doc)))
 
+(defn create-entities!
+  "Create multiple entities in one transaction and return their IDs in input order."
+  [ctx entity-specs]
+  (let [docs    (mapv (fn [{:keys [entity-key data]}]
+                        [entity-key (entity-doc entity-key data)])
+                      entity-specs)
+        tx-docs (mapv (fn [[entity-key doc]]
+                        (merge {:db/doc-type entity-key
+                                :xt/id       (:xt/id doc)}
+                               doc))
+                      docs)]
+    (when (seq tx-docs)
+      (biff/submit-tx ctx tx-docs))
+    (mapv (comp :xt/id second) docs)))
+
 (defn update-entity!
   "Update an existing entity in the database."
   [ctx {:keys [entity-key entity-id data]}]
@@ -61,4 +76,3 @@
   [ctx event-data]
   (create-entity! ctx {:entity-key :event
                        :data event-data}))
-

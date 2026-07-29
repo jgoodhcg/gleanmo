@@ -55,6 +55,23 @@
         (is (= (:cruddy/bool test-data) (:cruddy/bool entity)))
         (is (some? (::sm/created-at entity)))))))
 
+(deftest create-entities-test
+  (testing "create-entities! submits one batch and preserves input order"
+    (with-open [node (test-xtdb-node [])]
+      (let [ctx      (get-context node)
+            user-id  (UUID/randomUUID)
+            ids      (mutations/create-entities!
+                      ctx
+                      [{:entity-key :habit
+                        :data {:user/id user-id
+                               :habit/label "First"}}
+                       {:entity-key :habit
+                        :data {:user/id user-id
+                               :habit/label "Second"}}])
+            entities (mapv #(xt/entity (xt/db node) %) ids)]
+        (is (= 2 (count ids)))
+        (is (= ["First" "Second"] (mapv :habit/label entities)))))))
+
 (deftest update-entity-test
   (testing "update-entity!"
     (with-open [node (test-xtdb-node [])]

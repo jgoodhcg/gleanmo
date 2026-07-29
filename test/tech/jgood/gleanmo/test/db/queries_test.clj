@@ -41,6 +41,30 @@
       :cruddy/time-zone "UTC",
       :cruddy/timestamp now})))
 
+(deftest get-entity-by-attribute-for-user-test
+  (testing "the lookup is constrained by user, type, attribute, and value"
+    (with-open [node (test-xtdb-node [])]
+      (let [ctx           (get-context node)
+            user-id       (UUID/randomUUID)
+            other-user-id (UUID/randomUUID)
+            expected-id   (mutations/create-entity!
+                           ctx
+                           {:entity-key :habit
+                            :data {:user/id user-id
+                                   :habit/label "Timeline habit"}})]
+        (mutations/create-entity!
+         ctx
+         {:entity-key :habit
+          :data {:user/id other-user-id
+                 :habit/label "Timeline habit"}})
+        (let [entity (queries/get-entity-by-attribute-for-user
+                      (xt/db node)
+                      user-id
+                      :habit
+                      :habit/label
+                      "Timeline habit")]
+          (is (= expected-id (:xt/id entity))))))))
+
 ;; Create test entities with various attributes to test filtering
 (defn create-test-entities
   [ctx user-id]

@@ -219,6 +219,21 @@
       (-> result
           first))))
 
+(defnp get-entity-by-attribute-for-user
+  "Get one user-owned entity of `entity-type` whose attribute equals `value`."
+  [db user-id entity-type attr value]
+  (-> (q db
+         {:find  '(pull ?e [*])
+          :where [['?e :user/id 'user-id]
+                  ['?e ::sm/type 'entity-type]
+                  ['?e attr 'value]]
+          :in    '[user-id entity-type value]
+          :limit 1}
+         user-id
+         entity-type
+         value)
+      first))
+
 (def ^:private default-order-direction :desc)
 
 (defn- build-entity-query

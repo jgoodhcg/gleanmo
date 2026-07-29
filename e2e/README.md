@@ -128,11 +128,22 @@ just e2e-shot-series
 ```
 
 Output lands in `e2e/screenshots/series/<ISO-timestamp>/` (one frame per
-route × viewport) with a `metadata.json` sidecar (git SHA, branch, per-route
-status). The route list is `scripts/manifest.ts` — update it when navigation
-changes so every tick stays comparable. Env overrides: `BASE_URL`,
-`E2E_EMAIL`, `SCREENSHOT_SERIES_DIR`, `SCREENSHOT_LABEL`. Exits non-zero on any
-route failure. See `roadmap/screenshot-runner.md` for the full design.
+route × viewport) with a `metadata.json` sidecar (git SHA, branch, dirty
+status/source fingerprint, and per-route status). Dirty working trees are
+supported; the fingerprint distinguishes captures made from different
+uncommitted source states.
+
+The command signs in as the dedicated `e2e-series@localhost` account. On its
+first run, the dev-only seed endpoint creates a bounded history across the
+charted activity types. On later calendar days it adds one idempotent daily
+pulse, so charts remain populated and the account develops gradually without
+duplicating data on repeated runs that day. This writes only to that account
+in the local development database; it is not a read-only capture command.
+
+The route list is `scripts/manifest.ts` — update it when navigation changes so
+every tick stays comparable. Env overrides: `BASE_URL`, `E2E_EMAIL`,
+`SCREENSHOT_SERIES_DIR`, `SCREENSHOT_LABEL`. Exits non-zero on any route
+failure. See `roadmap/screenshot-runner.md` for the full design.
 
 ## File Layout
 

@@ -60,7 +60,7 @@ export const MANIFEST_ROUTES: ManifestRoute[] = [
   { slug: 'today',     path: '/app/task/today', group: 'surfaces', waitForSelector: '#today-quick-add' },
   { slug: 'focus',     path: '/app/task/focus', group: 'surfaces' },
   { slug: 'calendar',  path: '/app/calendar/year', group: 'surfaces', settleMs: 800 },
-  { slug: 'timers',    path: '/app/timers',     group: 'surfaces', waitForSelector: '#sidebar' },
+  { slug: 'timers',    path: '/app/timers',     group: 'surfaces', waitForSelector: '#recent-logs-section' },
 
   // ── Dashboards ───────────────────────────────────────────────────────
   { slug: 'dashboards-entities',     path: '/app/dashboards/entities',     group: 'dashboards', viewports: ['desktop'] },

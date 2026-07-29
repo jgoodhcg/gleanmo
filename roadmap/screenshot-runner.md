@@ -33,10 +33,10 @@ e2e/screenshots/series/<ISO-timestamp>/
   metadata.json
 ```
 
-`metadata.json` records, per tick: ISO timestamp, git SHA, branch, base URL,
-auth email, viewport specs, and a per-route `{ slug, group, viewport, status }`
-result list. The runner exits non-zero if any route fails, so it can gate
-future automation.
+`metadata.json` records, per tick: ISO timestamp, git SHA, branch, dirty
+working-tree status and source fingerprint, base URL, auth email, viewport
+specs, and a per-route `{ slug, group, viewport, status }` result list. The
+runner exits non-zero if any route fails, so it can gate future automation.
 
 **Built (this work unit):**
 - `e2e/scripts/manifest.ts` — canonical route manifest. Single source of truth
@@ -46,9 +46,14 @@ future automation.
   for async content (ECharts, HTMX fragments) so frames don't flicker.
 - `e2e/scripts/shot-manifest.ts` — runner. One authenticated context per
   viewport, walks the manifest, writes timestamped dir + metadata.
+- Dedicated `e2e-series@localhost` fixture — first use creates a bounded
+  history across the charted activity types; later calendar days add one
+  idempotent daily pulse. Repeated captures on the same day do not duplicate
+  data.
 - `just e2e-shot-series` recipe + `npm run shot:series` script.
-- `AGENTS.md` policy: agents run a tick at the **start of any UI-touching
-  session** (baseline) and **again before committing UI changes**.
+- `AGENTS.md` policy: agents ask the user for a tick **before UI edits**
+  (baseline) and run another **before committing UI changes**. Dirty baselines
+  require explicit alignment and are identified honestly in metadata.
 - Viewports match `shot-pages.ts` (mobile 390×844, desktop 1280×900) so series
   frames line up with the existing per-change capture tool.
 
@@ -90,9 +95,10 @@ Git-LFS wiring. Each is a discrete follow-up.
   `e2e/scripts/shot-pages.ts` (per-change page-shell pairs). Both keep working;
   the series runner is the new timelapse capability, the others stay for
   narrow / per-change work.
-- Auth: `e2e/scripts/auth.ts` → dev-only `/auth/e2e-login` (never in prod
-  builds). Series uses `E2E_EMAIL` (default `e2e-series@localhost`) so the
-  timelapse renders a stable, dedicated user rather than test-flow throwaways.
+- Auth: `e2e/scripts/auth.ts` → dev-only `/auth/e2e-seed-series` (never in
+  prod builds). Series uses `E2E_EMAIL` (default `e2e-series@localhost`) so the
+  timelapse renders a stable, progressively seeded user rather than test-flow
+  throwaways.
 - Related: `screenshots.md` (the higher-level "visual changelog" intent) and
   the "Visual timeline (series capture)" subsection of `AGENTS.md`.
 - `manifest.ts` is TypeScript, not the EDN file originally proposed below —
