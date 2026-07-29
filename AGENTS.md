@@ -42,6 +42,7 @@ AI-Model: [AI_MODEL]
 | 5 | `just validate` | Before commits / significant changes | ~60s+ |
 | 6 | `just e2e-screenshot /path` | After UI changes (requires user-run dev server) | varies |
 | 7 | `just e2e-flow <name>` | User flow regression checks (requires user-run dev server) | varies |
+| 8 | `just e2e-shot-series` | Visual-timeline tick — capture every manifest route at session start of UI work, and before committing UI changes (requires user-run dev server) | varies |
 
 ### File-Type Specific Validation
 
@@ -130,6 +131,7 @@ The `validate` workflow cascades: **lint-fast → format → test → e2e**. A f
 - `just e2e-screenshot /path` — screenshot a route (requires dev server)
 - `just e2e-screenshot-full /path` — full-page screenshot (requires dev server)
 - `just e2e-flow <name>` — run a UI flow (requires dev server)
+- `just e2e-shot-series` — capture one visual-timeline tick of every manifest route (requires dev server)
 
 ## Require Confirmation
 
@@ -225,6 +227,24 @@ Testing philosophy
   This produces paired files in `e2e/screenshots/` for changelogs and blog posts:
   `before-today-mobile-01-desktop-collapsed.png` / `after-today-mobile-01-desktop-collapsed.png`.
   Without the env var, screenshots use no prefix (default behavior for CI).
+- **Visual timeline (series capture) — separate from before/after pairs.** The
+  paired `SCREENSHOT_PHASE` workflow above is per-change changelog art. For an
+  ongoing progression / timelapse series, agents capture **every manifest
+  route** at mobile + desktop in one timestamped directory:
+  ```
+  just e2e-shot-series
+  ```
+  Output lands in `e2e/screenshots/series/<ISO-timestamp>/` with a
+  `metadata.json` sidecar (git SHA, branch, per-route status). The route list
+  is the canonical `e2e/scripts/manifest.ts` — update it in the same PR when
+  navigation changes so every tick stays comparable (same routes, same
+  viewports, same wait conditions = frames that line up for a timelapse).
+  **Run a tick at the start of any UI-touching session** (baseline before
+  edits) and **again before committing UI changes** — even if you think nothing
+  visible moved. This is how the progression archive gets a regular heartbeat
+  instead of only capturing sessions that happened to touch UI. Per-route
+  one-offs (`just e2e-screenshot /path`) and per-change before/after pairs are
+  still appropriate for narrow, non-series work.
 
 Styling rules
 - Do not use `px` values in Tailwind class names; use named sizes.

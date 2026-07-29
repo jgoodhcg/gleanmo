@@ -50,6 +50,12 @@ e2e-screenshot path="/app":
 e2e-screenshot-full path="/app":
     cd e2e && npm run screenshot -- {{path}} --full
 
+# Capture one tick of the visual timeline (all manifest routes, mobile + desktop).
+# Writes timestamped dir + metadata.json under e2e/screenshots/series/.
+# Usage: just e2e-shot-series
+e2e-shot-series:
+    cd e2e && npm run shot:series
+
 # Run a UI flow
 # Usage: just e2e-flow example
 e2e-flow name="example":

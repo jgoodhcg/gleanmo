@@ -62,6 +62,7 @@ runs of m003–m006 → Airtable retirement.
 - [qol-quick-actions.md](./qol-quick-actions.md) - Navigation & logging QOL: sidebar reorder, stop-in-place timers, boulder problem discoverability, home quick actions
 - [inline-entity-creation.md](./inline-entity-creation.md) - Create related entities mid-form without losing context (executed as item 3 of qol-quick-actions.md)
 - [heatmap-performance.md](./heatmap-performance.md) - Heatmap viz page perf via year-bounded projection scans, shared rel-cache, parallel lazy-loaded year cards
+- [screenshot-runner.md](./screenshot-runner.md) - Manifest-driven series capture for the visual timeline (manifest + runner + agent policy shipped; Biff-task glue + CI archive pending)
 
 ### Draft
 
@@ -87,7 +88,6 @@ runs of m003–m006 → Airtable retirement.
 - [redirect-audit.md](./redirect-audit.md) - Audit all actions to implement intuitive redirects with query parameter support
 - [reading-airtable-spec.md](./reading-airtable-spec.md) - Airtable schema reference for reading migration
 - [roam-integration.md](./roam-integration.md) - Project timers shipped; Roam metrics integration pending
-- [screenshot-runner.md](./screenshot-runner.md) - Authenticated screenshot capture for docs and CI
 - [today-reorder-performance.md](./today-reorder-performance.md) - Fix slow response when reordering items on the today page
 - [pwa-experience.md](./pwa-experience.md) - Improve progressive web app experience for native-like feel on iOS and Android
 - [timer-dashboard-inline-create.md](./timer-dashboard-inline-create.md) - True inline parent creation on timer dashboards (follow-up to inline-entity-creation.md)

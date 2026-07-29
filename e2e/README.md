@@ -118,13 +118,32 @@ SCREENSHOT_PHASE=before just e2e-test-today-mobile
 SCREENSHOT_PHASE=after just e2e-test-today-mobile
 ```
 
+### Visual timeline (series capture)
+
+For an ongoing progression / timelapse series, capture **every route in the
+canonical manifest** at mobile + desktop in one timestamped directory:
+
+```sh
+just e2e-shot-series
+```
+
+Output lands in `e2e/screenshots/series/<ISO-timestamp>/` (one frame per
+route × viewport) with a `metadata.json` sidecar (git SHA, branch, per-route
+status). The route list is `scripts/manifest.ts` — update it when navigation
+changes so every tick stays comparable. Env overrides: `BASE_URL`,
+`E2E_EMAIL`, `SCREENSHOT_SERIES_DIR`, `SCREENSHOT_LABEL`. Exits non-zero on any
+route failure. See `roadmap/screenshot-runner.md` for the full design.
+
 ## File Layout
 
 ```
 e2e/
   scripts/
     auth.ts              # Shared authenticateForDev() helper
-    screenshot.ts        # Standalone screenshot utility
+    screenshot.ts        # Standalone one-route screenshot utility
+    manifest.ts          # Canonical route manifest for series capture
+    shot-manifest.ts     # Series capture runner (writes timestamped dir + metadata)
+    shot-pages.ts        # Per-change page-shell before/after pairs
     flow.ts              # UI flow runner
     test-smoke.ts        # Smoke test: key pages load
     test-reading-crud.ts # Book + reading-log CRUD

@@ -22,6 +22,7 @@
     "test:timers-workspace": "tsx scripts/test-timers-workspace.ts",
     "test:inline-create": "tsx scripts/test-inline-create.ts",
     "shot:pages": "tsx scripts/shot-pages.ts",
+    "shot:series": "tsx scripts/shot-manifest.ts",
     "test:navigation": "tsx scripts/test-navigation.ts",
     "test:boulder-problems": "tsx scripts/test-boulder-problems.ts",
     "test:field-suggestions": "tsx scripts/test-field-suggestions.ts"
