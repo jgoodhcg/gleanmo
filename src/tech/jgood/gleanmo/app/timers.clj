@@ -1,6 +1,5 @@
 (ns tech.jgood.gleanmo.app.timers
   (:require
-   [cheshire.core :as cheshire]
    [clojure.string :as str]
    [com.biffweb :as biff]
    [tech.jgood.gleanmo.app.layout :as layout]
@@ -62,8 +61,9 @@
                       (vec (timer-routes/fetch-completed-logs ctx config 5))))))
 
 (defn- combined-active-section
-  "All running timers across types, wrapped for the 30s HTMX poll. Also
-   refreshes on the refresh-active-timers event the location chips trigger."
+  "All running timers across types, wrapped for the 30s HTMX poll that keeps
+   elapsed times moving. Every action that changes these cards navigates, so
+   the poll is the only reason this needs an endpoint of its own."
   [ctx sections locations]
   (let [cards (for [{:keys [config parents active]} sections
                     timer active]
@@ -74,7 +74,7 @@
     [:div
      {:id "active-timers-section"
       :hx-get "/app/timers/active"
-      :hx-trigger "every 30s, refresh-active-timers from:body"
+      :hx-trigger "every 30s"
       :hx-swap "outerHTML"}
      (if (seq cards)
        [:div.space-y-4 cards]
@@ -102,18 +102,29 @@
    {}
    sections))
 
+(def ^:private start-row-preview-count
+  "How many start rows stay visible when the filter is empty. Every row is
+   still in the DOM — the filter is client-side — so this only trims the
+   resting height of a list that spans every parent across all timer types.
+   Typing reveals the full set."
+  5)
+
 (defn- start-row
   "One filterable row in the search-to-start list. The Start button submits
    the surrounding form to its own entity's endpoint via formaction, carrying
-   the parent id as the button value — so the shared location chips ride along
-   with every start."
+   the parent id as the button value — so the shared location picker rides
+   along with every start.
+
+   Deliberately dense: the list spans every parent across all three types and
+   the filter is the primary way in, so rows are single-line and quiet rather
+   than card-like."
   [{:keys [parent icon config label]}]
-  [:div.flex.items-center.justify-between.gap-3.bg-dark-surface.rounded.p-3.border.border-dark.transition-all.duration-300.hover:border-neon-yellow
+  [:div.flex.items-center.justify-between.gap-2.bg-dark-surface.rounded.px-3.py-2.border.border-dark.transition-colors.duration-300.hover:border-neon-yellow
    {:data-filter-text label}
-   [:div.flex.items-center.gap-3.min-w-0
-    [:span.text-lg icon]
+   [:div.flex.items-center.gap-2.min-w-0
+    [:span.text-base.shrink-0 icon]
     [:span.text-sm.text-white.truncate label]]
-   [:button.bg-neon-yellow.bg-opacity-20.text-neon-yellow.px-3.py-2.rounded.text-sm.font-medium.hover:bg-opacity-30.transition-all.shrink-0
+   [:button.bg-neon-yellow.bg-opacity-20.text-neon-yellow.px-2.py-1.rounded.text-xs.font-medium.hover:bg-opacity-30.transition-all.shrink-0
     {:type "submit"
      :formaction (str "/app/timers/start/" (:entity-str config))
      :name "parent-id"
@@ -180,25 +191,38 @@
 
 (defn- relocate-prompt
   "Confirmation offered when the current location changes while timers run:
-   end them all now and start continuations at the new location."
+   end them all at this instant and start continuations at the new location.
+
+   The copy spells out that no elapsed time is lost — the old label
+   (\"Restart here\") read as \"start over from zero\", which is the one thing
+   this action does not do."
   [location active-count]
-  [:div.bg-dark-surface.border.border-neon-yellow.rounded-lg.p-3.flex.flex-wrap.items-center.justify-between.gap-3
-   [:p.text-sm.text-gray-300
-    (str "Restart " active-count " running timer"
-         (when (< 1 active-count) "s")
-         " at " (or (:location/label location) "Unnamed") "?")]
-   [:div.flex.items-center.gap-2
-    [:button.bg-neon-yellow.bg-opacity-20.text-neon-yellow.px-3.py-1.rounded.text-sm.font-medium.hover:bg-opacity-30.transition-all
-     {:type "button"
-      :hx-post "/app/timers/relocate"
-      :hx-vals (cheshire/generate-string {:location-id (str (:xt/id location))})
-      :hx-target "#relocate-prompt"
-      :hx-swap "innerHTML"}
-     "Restart here"]
-    [:button.text-sm.text-gray-400.hover:text-white.transition-all
-     {:type "button"
-      :onclick "document.getElementById('relocate-prompt').innerHTML = '';"}
-     "Dismiss"]]])
+  (let [label  (or (:location/label location) "Unnamed")
+        plural (< 1 active-count)]
+    [:div.bg-dark-surface.border.border-neon-yellow.rounded-lg.p-3.space-y-3
+     [:div.space-y-1
+      [:p.text-sm.text-gray-200
+       (str "Move " active-count " running timer" (when plural "s")
+            " to " label "?")]
+      [:p.text-xs.text-gray-400
+       (str (if plural "Each one is split" "The timer is split")
+            " at this moment: the current segment ends here and a new one"
+            " continues at " label ". No elapsed time is lost.")]]
+     [:div.flex.flex-wrap.items-center.gap-3
+      ;; A plain form post, like Start and End Session: the handler writes and
+      ;; 303s back here, so the whole page re-renders from a fresh db
+      ;; snapshot. Safe to nest — #relocate-prompt is a sibling of the start
+      ;; form, not inside it.
+      (biff/form
+       {:action "/app/timers/relocate"}
+       [:input {:type "hidden" :name "location-id" :value (str (:xt/id location))}]
+       [:button.bg-neon-yellow.bg-opacity-20.text-neon-yellow.px-3.py-1.rounded.text-sm.font-medium.hover:bg-opacity-30.transition-all
+        {:type "submit"}
+        (str "Split and continue at " label)])
+      [:button.text-sm.text-gray-400.hover:text-white.transition-all
+       {:type "button"
+        :onclick "document.getElementById('relocate-prompt').innerHTML = '';"}
+       (str "Keep " (if plural "them" "it") " running here")]]]))
 
 (defn- create-parent-links
   "Buttons to create parents via the CRUD new-form, returning here after."
@@ -214,11 +238,12 @@
 
 (defn- search-to-start-section
   "One text input filtering a single list of all parent entities across types.
-   Empty-filter order: recently-timed first, remainder alphabetical. The
-   current-location picker sits above the filter, associated with the start
-   form via the form attribute, so every Start posts the visible location;
-   the filter input belongs to no form to avoid implicit submission. Types
-   with no parents yet get create links so the page is never a dead end."
+   Empty-filter order: recently-timed first, remainder alphabetical, trimmed
+   to `start-row-preview-count` until the user types. The current-location
+   picker sits above the filter, associated with the start form via the form
+   attribute, so every Start posts the visible location; the filter input
+   belongs to no form to avoid implicit submission. Types with no parents yet
+   get create links so the page is never a dead end."
   [sections locations current-location]
   (let [recency (latest-instant-by-parent sections)
         rows    (->> (for [{:keys [config icon] :as section} sections
@@ -242,17 +267,20 @@
         {:type "search"
          :placeholder "Type to filter…"
          :aria-label "Filter timers"
-         :data-filter-list "#start-timer-list"}])
+         :data-filter-list "#start-timer-list"
+         :data-filter-empty-limit (str start-row-preview-count)}])
      (when (seq rows)
        (biff/form
         {:id     "start-timer-form"
          :action "/app/timers"
          :class  "space-y-3"}
         [:input {:type "hidden" :name "redirect" :value "/app/timers"}]
-        [:div#start-timer-list.space-y-2
+        [:div#start-timer-list.space-y-1
          (for [{:keys [parent config] :as row} rows]
            ^{:key (str (:entity-str config) "-" (:xt/id parent))}
-           (start-row row))]))
+           (start-row row))
+         ;; Filled in by the filter JS with the count it collapsed away.
+         [:p.text-xs.text-gray-500.pt-1.hidden {:data-filter-more "true"}]]))
      (when (seq missing)
        [:div.space-y-2
         [:p.text-gray-400
@@ -337,7 +365,9 @@
 
       [:div.space-y-3
        (layout/section-header "RECENT LOGS")
-       (combined-recent-logs ctx sections)]
+       ;; Id is a stable anchor for tests: these edit links look identical to
+       ;; the active cards' edit links without a scope to distinguish them.
+       [:div#recent-logs-section (combined-recent-logs ctx sections)]]
 
       (per-type-links sections)))))
 
@@ -369,11 +399,6 @@
   [ctx]
   (with-timer-config ctx timer-routes/start-timer))
 
-(defn set-location!
-  "Set or clear a log's location from an active-card select."
-  [ctx]
-  (with-timer-config ctx timer-routes/set-timer-location))
-
 (defn- count-active-timers
   [ctx]
   (transduce (map #(count (timer-routes/fetch-active-timers ctx (:config %))))
@@ -404,23 +429,29 @@
                "")})))
 
 (defn relocate!
-  "End every running timer now and start continuations at the new location.
-   Clears the prompt and tells the active sections to refresh."
+  "End every running timer and start continuations at the new location.
+   One instant is computed for the whole batch and used as both the old
+   segments' end and the new ones' beginning, so every timer is cut at the
+   same moment and the segments meet exactly — no gap, no counted overlap.
+
+   Write-only, like every other timer mutation: it 303s back to the
+   workspace rather than rendering anything, so the follow-up GET re-renders
+   the whole page from a fresh db snapshot. That keeps every region
+   consistent at once — active timers, recent logs, and the start list's
+   recency ordering — with no partial-refresh wiring to keep in sync."
   [ctx]
   (when-let [location-id (timer-routes/uuid-param ctx "location-id")]
-    (doseq [{:keys [config]} @timer-entity-configs
-            timer (timer-routes/fetch-active-timers ctx config)]
-      (timer-routes/relocate-timer! ctx config timer location-id)))
-  {:status 200
-   :headers {"Content-Type" "text/html"
-             "HX-Trigger" "refresh-active-timers"}
-   :body ""})
+    (let [at (t/now)]
+      (doseq [{:keys [config]} @timer-entity-configs
+              timer (timer-routes/fetch-active-timers ctx config)]
+        (timer-routes/relocate-timer! ctx config timer location-id at))))
+  {:status 303
+   :headers {"location" "/app/timers"}})
 
 (def routes
   ["/timers" {}
    ["" {:get timer-workspace}]
    ["/active" {:get active-timers-fragment}]
    ["/start/:entity-str" {:post start-timer!}]
-   ["/location/:entity-str" {:post set-location!}]
    ["/current-location" {:post set-current-location!}]
    ["/relocate" {:post relocate!}]])

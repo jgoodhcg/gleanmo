@@ -2,6 +2,7 @@
 (ns tech.jgood.gleanmo.test.timer.routes-test
   (:require
    [clojure.test :refer [deftest is testing]]
+   [tech.jgood.gleanmo.db.mutations :as mutations]
    [tech.jgood.gleanmo.schema.utils :as schema-utils]
    [tech.jgood.gleanmo.timer.routes :as timer-routes]))
 
@@ -113,3 +114,43 @@
                        [(i "2026-02-07T10:30:00Z") (i "2026-02-07T11:30:00Z")]]]
         (is (= 5400
                (unique-seconds intervals)))))))
+
+(deftest relocate-timer-shared-instant-test
+  (let [config      (timer-routes/timer-config {:entity-key :project-log
+                                                :entity-str "project-log"})
+        at          (java.time.Instant/parse "2026-07-28T15:00:00Z")
+        project-id  (random-uuid)
+        location-id (random-uuid)
+        timer       {:xt/id                   (random-uuid)
+                     :project-log/project-id  project-id
+                     :project-log/beginning   (java.time.Instant/parse
+                                               "2026-07-28T14:00:00Z")
+                     :project-log/time-zone   "UTC"
+                     :project-log/location-id (random-uuid)
+                     :project-log/notes       "first segment"}
+        updates     (atom [])
+        creates     (atom [])]
+    (with-redefs [mutations/update-entity! (fn [_ m] (swap! updates conj m))
+                  mutations/create-entity! (fn [_ m] (swap! creates conj m))]
+      (timer-routes/relocate-timer! {:session {:uid (random-uuid)}}
+                                    config
+                                    timer
+                                    location-id
+                                    at))
+    (testing "the running segment ends at the caller's instant"
+      (is (= 1 (count @updates)))
+      (is (= at (get-in (first @updates) [:data :project-log/end]))))
+    (testing "the continuation begins at that same instant — segments meet
+              exactly, so there is no gap and no overlap to subtract"
+      (is (= 1 (count @creates)))
+      (is (= at (get-in (first @creates) [:data :project-log/beginning])))
+      (is (= (get-in (first @updates) [:data :project-log/end])
+             (get-in (first @creates) [:data :project-log/beginning]))))
+    (testing "the continuation carries the new location and runs open-ended"
+      (let [data (:data (first @creates))]
+        (is (= location-id (:project-log/location-id data)))
+        (is (= project-id (:project-log/project-id data)))
+        (is (= "UTC" (:project-log/time-zone data)))
+        (is (nil? (:project-log/end data)))))
+    (testing "notes stay with the finished segment"
+      (is (nil? (:project-log/notes (:data (first @creates))))))))

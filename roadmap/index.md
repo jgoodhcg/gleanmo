@@ -92,6 +92,7 @@ runs of m003–m006 → Airtable retirement.
 - [pwa-experience.md](./pwa-experience.md) - Improve progressive web app experience for native-like feel on iOS and Android
 - [timer-dashboard-inline-create.md](./timer-dashboard-inline-create.md) - True inline parent creation on timer dashboards (follow-up to inline-entity-creation.md)
 - [ui-juice.md](./ui-juice.md) - Micro-interactions, animations, and haptic feedback for delight
+- [global-action-modal.md](./global-action-modal.md) - One shared HTMX modal shell for confirm-and-act prompts, replacing per-page overlays and inline prompt slots
 - [plausible-user-identification.md](./plausible-user-identification.md) - Add user identifiers to Plausible analytics to distinguish individuals
 - [life-chart.md](./life-chart.md) - Lifetime view with years as rows and weeks as cells
 - [memento-mori.md](./memento-mori.md) - Finite-time visualization anchored to calendar data

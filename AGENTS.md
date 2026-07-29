@@ -178,6 +178,32 @@ Database layer
 - Fetch-all-then-filter is a rule violation even when it goes through `db/queries.clj`: calling `all-for-user-query` (or similar) and filtering in the app namespace for a parent-scoped subset (e.g. one session's sets) or a recent-N slice counts as "a needed query doesn't exist" — add a targeted query instead. Parent-scoped reads get equality-bound where clauses (cost tracks the parent, not user history); recent-N reads get scan-then-pull with a limit. Examples: `sets-for-session`, `lines-for-sets`, `recent-lines-for-user`.
 - Why `:limit` doesn't rescue an inline pull: in XTDB 1.x, `(pull ?e [*])` in the `:find` runs for **every matching row before** `:order-by`/`:limit` are applied, so a "recent 5" query with an inline pull still fetches every document the where clauses match. The fix is scan-then-pull: an index-only query (`:find [?e ?sort]`, no pull), sort/truncate the tuples in Clojure, then `fetch-entities-by-ids` on the survivors. Inline pull is fine only when the where clauses already bound the match set to what you'll return (e.g. equality on a parent id).
 
+### Anti-pattern: write, then read through the same `:biff/db`
+
+`:biff/db` is an **immutable XTDB snapshot taken when the request arrived** (Biff's `assoc-db` middleware calls `(xt/db node)` once per request). Writing during a request does **not** advance it. So this silently renders the page as it looked *before* the action:
+
+```clojure
+;; WRONG — reads the pre-write snapshot, renders stale state
+(mutations/update-entity! ctx {...})
+(render (queries/whatever (:biff/db ctx) ...))
+```
+
+The failure is invisible in review — `(fetch-thing ctx)` looks identical before and after a write — and **self-concealing in manual testing**, because the data is correct; only the response is stale, so reloading the page shows the right answer.
+
+Biff's docs say `submit-tx` calls `xt/await-tx` "so you can read your writes." That means the write is *indexed* — a **new** `xt/db` will see it. It does not refresh a snapshot you already hold. (Biff knows this: `submit-with-retries` refreshes `:biff/db` internally for its retry loop, but that fresh ctx never reaches the caller.)
+
+**Preferred fix — don't read at all.** Mutation handlers should write and `303` back to the page, the way `start-timer`, `stop-timer`, and the CRUD handlers do. The follow-up GET is a new request with a fresh snapshot, so every region of the page becomes consistent at once with no partial-refresh wiring to maintain. Applies to HTMX-triggered mutations too: use a plain `biff/form` post rather than `hx-post` when the result is "this page changed."
+
+**When a handler genuinely must render its own response** (a fragment that would be wasteful to reload, an inline row update), refresh the snapshot explicitly first:
+
+```clojure
+(mutations/update-entity! ctx {...})
+(let [ctx (assoc ctx :biff/db (xt/db node))]   ; node from :biff.xtdb/node
+  (render ...))
+```
+
+See `app/task.clj` and `crud/inline.clj` for that pattern. `xt/db` for snapshot refresh is explicitly allowed outside `db/queries.clj` (see the rule above). History: this bit the timer relocate action — `roadmap/unified-timer-page.md`.
+
 Code style
 - Namespaces use `tech.jgood.gleanmo.*`.
 - Kebab-case for functions/vars; PascalCase for records/types.

@@ -1,6 +1,5 @@
 (ns tech.jgood.gleanmo.timer.routes
   (:require
-   [cheshire.core :as cheshire]
    [clojure.string :as str]
    [com.biffweb :as biff]
    [tech.jgood.gleanmo.app.shared :refer [side-bar get-user-time-zone]]
@@ -300,29 +299,24 @@
      [:option {:value (str id) :selected (= id current)}
       (or label "Unnamed")])))
 
-(defn- card-location-select
-  "Compact location select on an active card: posts on change, and the
-   refresh event re-renders the section. Skipped when the entity has no
-   location field or the user has no locations. The empty option only
-   renders for optional location fields (meditation-log's is required)."
+(defn- card-location-label
+  "The running timer's location as read-only text, not a control. An editable
+   select here competed for attention with the global current-location
+   switcher, which is the intended way to move timers; per-log corrections go
+   through the card's edit link. Renders nothing when the entity has no
+   location field or the log has none set."
   [timer locations {:keys [entity-str entity-schema]}]
-  (let [loc-key    (schema-utils/entity-field-key entity-str "location-id")
-        field-info (schema-utils/get-field-info entity-schema loc-key)
-        current    (get timer loc-key)]
-    (when (and field-info (seq locations))
-      [:div.flex.items-center.gap-2.mt-3
-       [:span.text-sm {:aria-hidden "true"} "📍"]
-       [:div.flex-1.min-w-0
-        [:select.form-select.w-full
-         {:name "location-id"
-          :aria-label "Timer location"
-          :data-enhance "choices"
-          :hx-post (str "/app/timers/location/" entity-str)
-          :hx-trigger "change"
-          :hx-swap "none"
-          :hx-vals (cheshire/generate-string {:timer-id (str (:xt/id timer))})}
-         (location-options locations current
-                           :include-empty (get-in field-info [:opts :optional]))]]])))
+  (let [loc-key (schema-utils/entity-field-key entity-str "location-id")
+        current (get timer loc-key)]
+    (when (and current (schema-utils/schema-field entity-schema loc-key))
+      [:p.text-sm.text-gray-400.truncate
+       {:data-timer-location (str current)}
+       [:span.mr-1 {:aria-hidden "true"} "📍"]
+       (or (->> locations
+                (filter #(= current (:xt/id %)))
+                first
+                :location/label)
+           "Unnamed")])))
 
 (defn active-timer-card
   "Create a card for an active timer with stop functionality"
@@ -356,9 +350,9 @@
       [:div.flex.flex-col.space-y-1.text-white.transition-all.duration-300.hover:text-neon-cyan
        [:h3.text-lg.font-semibold parent-name]
        [:p.text-sm.text-neon-cyan (str "Running for " elapsed-str)]
+       (card-location-label timer locations config)
        (when timer-notes
-         [:p.text-sm.text-gray-400.truncate timer-notes])]]
-     (card-location-select timer locations config)]))
+         [:p.text-sm.text-gray-400.truncate timer-notes])]]]))
 
 (defn timer-page
   "Timer page showing parent entities and active timers"
@@ -382,7 +376,7 @@
         [:div
          {:id "active-timers-section"
           :hx-get (str "/app/timer/" entity-str "/active")
-          :hx-trigger "every 30s, refresh-active-timers from:body"
+          :hx-trigger "every 30s"
           :hx-swap "outerHTML"}
          (when (seq active-timers)
            [:div.space-y-4
@@ -433,7 +427,7 @@
             [:div
              {:id "active-timers-section"
               :hx-get (str "/app/timer/" entity-str "/active")
-              :hx-trigger "every 30s, refresh-active-timers from:body"
+              :hx-trigger "every 30s"
               :hx-swap "outerHTML"}
              (when (seq active-timers)
                [:div.space-y-4
@@ -566,42 +560,14 @@
                                    "=" location-id))
                             "&redirect=" (java.net.URLEncoder/encode redirect "UTF-8"))}}))))))
 
-(defn set-timer-location
-  "Set or clear the location on one of the user's running or completed logs.
-   Clearing is only allowed when the location field is optional
-   (meditation-log's is required). Responds 204 with an HX-Trigger event the
-   active-timers sections listen for, so the issuing card re-renders in place."
-  [ctx {:keys [entity-key entity-str entity-schema]}]
-  (let [timer-id    (uuid-param ctx "timer-id")
-        location-id (uuid-param ctx "location-id")
-        loc-key     (schema-utils/entity-field-key entity-str "location-id")
-        field-info  (schema-utils/get-field-info entity-schema loc-key)
-        timer       (when timer-id
-                      (queries/get-entity-for-user (:biff/db ctx)
-                                                   timer-id
-                                                   (-> ctx :session :uid)
-                                                   entity-key))]
-    (when (and timer
-               field-info
-               (or location-id (get-in field-info [:opts :optional])))
-      (mutations/update-entity!
-       ctx
-       {:entity-key entity-key,
-        :entity-id  timer-id,
-        :data       {loc-key (or location-id :db/dissoc)}}))
-    (if (get-in ctx [:headers "hx-request"])
-      {:status 204, :headers {"HX-Trigger" "refresh-active-timers"}}
-      {:status  303
-       :headers {"location" (sanitize-redirect (request-param ctx "redirect")
-                                               (str "/app/timer/" entity-str))}})))
-
 (defn- relocate-log-data
   "Build the continuation log for a relocated timer: every schema field of
    the old log except the interval and notes (they belong to the finished
-   segment), beginning now at the new location."
+   segment), beginning at `at` at the new location."
   [old-log
    {:keys [entity-str entity-schema beginning-key end-key notes-key]}
-   location-id]
+   location-id
+   at]
   (let [loc-key   (schema-utils/entity-field-key entity-str "location-id")
         copy-keys (->> (schema-utils/extract-schema-fields entity-schema)
                        (map schema-utils/prepare-field)
@@ -609,21 +575,23 @@
                        (map :field-key)
                        (remove #{beginning-key end-key notes-key}))]
     (-> (select-keys old-log copy-keys)
-        (assoc beginning-key (t/now)
+        (assoc beginning-key at
                loc-key location-id))))
 
 (defn relocate-timer!
-  "End a running timer now and start a continuation log at location-id."
-  [ctx {:keys [entity-key end-key] :as config} timer location-id]
+  "End a running timer at `at` and start a continuation log at location-id
+   beginning at that same instant. Callers pass one instant for the whole
+   relocate so segments meet exactly: no gap, and no overlap to subtract."
+  [ctx {:keys [entity-key end-key] :as config} timer location-id at]
   (mutations/update-entity!
    ctx
    {:entity-key entity-key,
     :entity-id  (:xt/id timer),
-    :data       {end-key (t/now)}})
+    :data       {end-key at}})
   (mutations/create-entity!
    ctx
    {:entity-key entity-key,
-    :data       (assoc (relocate-log-data timer config location-id)
+    :data       (assoc (relocate-log-data timer config location-id at)
                        :user/id (-> ctx :session :uid))}))
 
 (defn gen-routes

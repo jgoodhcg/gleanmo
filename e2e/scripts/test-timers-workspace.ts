@@ -2,12 +2,13 @@
 // Usage: npm run test:timers-workspace
 //
 // Verifies the workspace flows from roadmap/unified-timer-page.md:
-// 1. Search-to-start: typing filters the combined parent list
+// 1. Search-to-start: the list is capped at rest and typing filters the full
+//    combined parent list
 // 2. One-tap start for project + reading (no CRUD form page)
 // 3. Current location: a persisted global setting; starts stamp it; the
-//    active-card select sets/clears per-log location via HTMX on change;
-//    switching it with running timers offers to restart them at the new
-//    location (confirm/dismiss)
+//    active card shows it as read-only text; switching it with running timers
+//    offers to split them and continue at the new location (confirm/dismiss),
+//    and confirming refreshes both the active and recent-log sections
 // 4. Active timers across types visible with elapsed time
 // 5. Stop returns to /app/timers (stop-in-place)
 // 6. Recent-log edit links redirect back to /app/timers
@@ -99,11 +100,16 @@ async function setCurrentLocation(page: Page, label: string): Promise<string> {
   return value;
 }
 
-function cardLocationSelect(page: Page): Locator {
-  return page.locator('#active-timers-section select[name="location-id"]');
+// The active card's location is read-only text, not a control.
+function cardLocation(page: Page): Locator {
+  return page.locator('#active-timers-section [data-timer-location]');
 }
 
 async function startFromWorkspace(page: Page, label: string) {
+  // Rows past the resting cap are collapsed until the filter narrows the
+  // list, so always filter down to the row before starting it.
+  await page.locator('input[data-filter-list]').fill(label);
+  await expect(startRow(page, label)).toBeVisible({ timeout: 5000 });
   await startRow(page, label).locator('button:has-text("Start")').click();
   await page.waitForLoadState('networkidle');
 }
@@ -140,6 +146,10 @@ async function main() {
     const locationLabel = `Quiet Room ${stamp}`;
     const secondLocationLabel = `Cafe Corner ${stamp}`;
 
+    // Filler projects push the start list past its resting cap of 5 so the
+    // collapse behavior is exercised. Named to sort between Beta and Zen.
+    const fillerLabels = [1, 2, 3, 4].map((n) => `Filler Project ${n} ${stamp}`);
+
     // 1. Create one parent entity per timer type (+ locations for the picker)
     console.log('1. Creating parent entities...');
     await authenticateForDev(page, email);
@@ -148,16 +158,24 @@ async function main() {
     await createEntity(page, 'meditation', 'meditation/label', 'input', meditationLabel);
     await createEntity(page, 'location', 'location/label', 'input', locationLabel);
     await createEntity(page, 'location', 'location/label', 'input', secondLocationLabel);
+    for (const filler of fillerLabels) {
+      await createEntity(page, 'project', 'project/label', 'input', filler);
+    }
 
     // 2. Load the workspace
     console.log('\n2. Loading /app/timers...');
     await page.goto(`${BASE_URL}/app/timers`);
     await page.waitForLoadState('networkidle');
     await expect(page.locator('text=Start Timer').first()).toBeVisible({ timeout: 10000 });
+    // 7 parents, cap of 5: the two alphabetically last are collapsed away and
+    // the overflow note reports them. Every row is still in the DOM.
     await expect(startRow(page, projectLabel)).toBeVisible({ timeout: 10000 });
     await expect(startRow(page, bookTitle)).toBeVisible({ timeout: 5000 });
-    await expect(startRow(page, meditationLabel)).toBeVisible({ timeout: 5000 });
-    console.log('  [+] All three parent types listed');
+    await expect(startRow(page, meditationLabel)).toBeAttached({ timeout: 5000 });
+    await expect(startRow(page, meditationLabel)).toBeHidden({ timeout: 5000 });
+    const moreNote = page.locator('#start-timer-list [data-filter-more]');
+    await expect(moreNote).toHaveText('+2 more — type to filter', { timeout: 5000 });
+    console.log('  [+] Start list capped at 5 rows with a "+2 more" note');
 
     // Location select: present, defaulting to "no location" (no logs yet)
     await expect(startLocationSelect(page)).toBeAttached({ timeout: 5000 });
@@ -172,10 +190,18 @@ async function main() {
     await expect(startRow(page, projectLabel)).toBeVisible({ timeout: 5000 });
     await expect(startRow(page, bookTitle)).toBeHidden({ timeout: 5000 });
     await expect(startRow(page, meditationLabel)).toBeHidden({ timeout: 5000 });
-    console.log('  [+] Filter hides non-matching rows');
+    await expect(moreNote).toBeHidden({ timeout: 5000 });
+    console.log('  [+] Filter hides non-matching rows and the overflow note');
     await captureScreenshot(page, '02-filtered');
+
+    // Typing lifts the cap: a row collapsed at rest becomes reachable.
+    await filterInput.fill('Zen');
+    await expect(startRow(page, meditationLabel)).toBeVisible({ timeout: 5000 });
+    console.log('  [+] Filtering reveals rows collapsed by the resting cap');
+
     await filterInput.fill('');
     await expect(startRow(page, bookTitle)).toBeVisible({ timeout: 5000 });
+    await expect(startRow(page, meditationLabel)).toBeHidden({ timeout: 5000 });
 
     // 4. Start a project timer with a location — one tap, no form.
     //    Setting the picker persists it and shows no prompt (nothing running).
@@ -188,8 +214,12 @@ async function main() {
     await expect(
       page.locator('#active-timers-section').locator(`text=${projectLabel}`)
     ).toBeVisible({ timeout: 10000 });
-    // The active card's location select shows the chosen location
-    await expect(cardLocationSelect(page)).toHaveValue(locationId, { timeout: 10000 });
+    // The active card shows the chosen location as read-only text
+    await expect(cardLocation(page)).toHaveText(new RegExp(locationLabel), {
+      timeout: 10000,
+    });
+    await expect(cardLocation(page)).toHaveAttribute('data-timer-location', locationId);
+    await expect(page.locator('#active-timers-section select')).toHaveCount(0);
     console.log('  [+] Project timer active with elapsed time and location, no form page');
     await captureScreenshot(page, '03-project-active');
 
@@ -226,61 +256,58 @@ async function main() {
     }
     console.log('  [+] Edit link round-trips back to /app/timers');
 
-    // 7. Reading: start without location, then set + clear it on the card
-    console.log('\n7. Reading timer with the card location select...');
+    // 7. Reading: start without a location — the card shows no location line
+    console.log('\n7. Reading timer started without a location...');
     await setCurrentLocation(page, 'no location');
     await startFromWorkspace(page, bookTitle);
     await expectOnWorkspace(page, 'Reading start');
     const activeSection = page.locator('#active-timers-section');
     await expect(activeSection.locator(`text=${bookTitle}`)).toBeVisible({ timeout: 10000 });
-    await expect(cardLocationSelect(page)).toHaveValue('');
-    console.log('  [+] Reading timer active without location');
+    await expect(cardLocation(page)).toHaveCount(0);
+    console.log('  [+] Reading timer active with no location shown');
 
-    // Set location from the card select (HTMX change, no page reload).
-    // Wait for the section refresh so the assertion reads server state,
-    // not the value we just set programmatically.
-    let refresh = page.waitForResponse((r) => r.url().includes('/app/timers/active'));
-    await setSelectValueByLabel(cardLocationSelect(page), locationLabel);
-    await refresh;
-    await page.waitForTimeout(300);
-    await expect(cardLocationSelect(page)).toHaveValue(locationId, { timeout: 10000 });
-    console.log('  [+] Card select set the location in place');
-    await captureScreenshot(page, '05-card-location-set');
-
-    // Clear it via the "no location" option (optional on reading-log)
-    refresh = page.waitForResponse((r) => r.url().includes('/app/timers/active'));
-    await setSelectValueByLabel(cardLocationSelect(page), 'no location');
-    await refresh;
-    await page.waitForTimeout(300);
-    await expect(cardLocationSelect(page)).toHaveValue('', { timeout: 10000 });
-    console.log('  [+] "no location" cleared it in place');
-
-    // 7b. Switching the global location with a running timer prompts to
-    //     relocate. Dismiss first, then confirm.
+    // 7b. Switching the global location with a running timer prompts to split
+    //     and continue. Dismiss first, then confirm.
     console.log('\n7b. Relocate prompt (dismiss, then confirm)...');
     await setCurrentLocation(page, secondLocationLabel);
     const prompt = page.locator('#relocate-prompt');
-    await expect(prompt).toContainText('Restart 1 running timer', { timeout: 10000 });
+    await expect(prompt).toContainText('Move 1 running timer to', { timeout: 10000 });
+    await expect(prompt).toContainText('No elapsed time is lost.');
     await expect(prompt).toContainText(secondLocationLabel);
     await captureScreenshot(page, '05b-relocate-prompt');
 
-    await prompt.locator('button:has-text("Dismiss")').click();
+    await prompt.locator('button:has-text("Keep it running here")').click();
     await expect(prompt).toBeEmpty();
-    await expect(cardLocationSelect(page)).toHaveValue('');
+    await expect(cardLocation(page)).toHaveCount(0);
     console.log('  [+] Dismiss keeps the running timer untouched');
 
     const quietRoomId = await setCurrentLocation(page, locationLabel);
-    await expect(prompt).toContainText('Restart 1 running timer', { timeout: 10000 });
-    refresh = page.waitForResponse((r) => r.url().includes('/app/timers/active'));
-    await prompt.locator('button:has-text("Restart here")').click();
-    await refresh;
-    await page.waitForTimeout(300);
+    await expect(prompt).toContainText('Move 1 running timer to', { timeout: 10000 });
+
+    // The relocate is what creates the first completed reading segment.
+    // Regression guard: this list once went stale after a relocate, first
+    // because nothing refreshed it, then because the handler rendered it
+    // from the pre-write db snapshot.
+    const recentReadingLogs = page
+      .locator('#recent-logs-section')
+      .locator('a[href*="/app/crud/form/reading-log/edit/"]');
+    await expect(recentReadingLogs).toHaveCount(0);
+
+    // Confirm is a plain form post: it writes and 303s back here, so the
+    // whole page re-renders from a fresh snapshot.
+    await prompt.locator('button:has-text("Split and continue at")').click();
+    await page.waitForLoadState('networkidle');
+    await expectOnWorkspace(page, 'Relocate confirm');
     await expect(prompt).toBeEmpty();
+    await expect(recentReadingLogs).toHaveCount(1, { timeout: 10000 });
+    console.log('  [+] Recent logs picked up the ended segment after redirect');
     // Still one running timer for the same book, now at the new location
     await expect(activeSection.locator(`text=${bookTitle}`)).toBeVisible({ timeout: 10000 });
     await expect(activeSection.locator('a:has-text("End Session")')).toHaveCount(1);
-    await expect(cardLocationSelect(page)).toHaveValue(quietRoomId, { timeout: 10000 });
-    console.log('  [+] Confirm ended the old segment and restarted at the new location');
+    await expect(cardLocation(page)).toHaveAttribute('data-timer-location', quietRoomId, {
+      timeout: 10000,
+    });
+    console.log('  [+] Confirm split the segment and continued at the new location');
     await captureScreenshot(page, '05c-relocated');
     await stopFromWorkspace(page, bookTitle);
 

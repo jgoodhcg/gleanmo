@@ -518,15 +518,35 @@ document.addEventListener('htmx:afterSettle', function(event) {
 // target container that carry data-filter-text: rows whose text does not
 // contain the input value (case-insensitive substring) get the 'hidden' class.
 // Used by the timer workspace's search-to-start list; CRUD lists can reuse it.
+//
+// Optional data-filter-empty-limit="<n>" keeps a long list compact at rest:
+// with an empty query only the first n matching rows show, and an element in
+// the container marked data-filter-more reports how many were collapsed.
+// Typing any query lifts the cap and searches the whole list.
 (function() {
   function applyFilter(input) {
     var container = document.querySelector(input.getAttribute('data-filter-list'));
     if (!container) return;
     var query = input.value.trim().toLowerCase();
+    var limit = parseInt(input.getAttribute('data-filter-empty-limit'), 10);
+    var capped = query === '' && limit > 0;
+    var shown = 0;
+    var collapsed = 0;
     container.querySelectorAll('[data-filter-text]').forEach(function(item) {
       var text = (item.getAttribute('data-filter-text') || '').toLowerCase();
-      item.classList.toggle('hidden', query !== '' && text.indexOf(query) === -1);
+      var matches = query === '' || text.indexOf(query) !== -1;
+      var overLimit = matches && capped && shown >= limit;
+      if (overLimit) collapsed++;
+      if (matches && !overLimit) shown++;
+      item.classList.toggle('hidden', !matches || overLimit);
     });
+    var note = container.querySelector('[data-filter-more]');
+    if (note) {
+      note.textContent = collapsed > 0
+        ? '+' + collapsed + ' more — type to filter'
+        : '';
+      note.classList.toggle('hidden', collapsed === 0);
+    }
   }
 
   function initFilterInputs(root) {

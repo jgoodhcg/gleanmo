@@ -3,7 +3,7 @@ title: "Unified Timer Workspace"
 status: active
 description: "One timer page: all running timers across types, search-to-start any parent, one-tap start/stop without CRUD form bounces"
 created: 2026-07-27
-updated: 2026-07-27
+updated: 2026-07-28
 tags: [ux, timers, search, htmx]
 priority: high
 ---
@@ -201,3 +201,91 @@ active timer now and starts continuation logs at the new location
 notes belong to the finished segment); Dismiss just keeps the setting.
 Cold start: the setting is authoritative, so a user who has never set it
 sees "no location" regardless of log history.
+
+Third iteration (2026-07-28, user-requested — four observations from daily
+use):
+
+1. **Compact start list.** Rows went single-line and quiet (`px-3 py-2`,
+   `text-xs` Start button, `space-y-1`), and the list now rests at
+   `start-row-preview-count` (5) rows. The cap is enforced by the same
+   client-side filter primitive via a new optional
+   `data-filter-empty-limit` attribute: with an empty query only the first
+   n matching rows show and a `data-filter-more` element reports the
+   remainder ("+N more — type to filter"); typing lifts the cap and
+   searches the full list. Every row is still server-rendered into the DOM,
+   so this is purely resting height — the user reports they always filter
+   anyway.
+2. **Relocate prompt reworded.** The behavior was already correct (end the
+   running segment now, continue at the new location, nothing lost) but
+   "Restart here" read as "start over from zero", so the user believed the
+   action they wanted was missing. Now: "Move N running timers to X?" with
+   a sub-line spelling out the split and "No elapsed time is lost.",
+   buttons "Split and continue at X" / "Keep them running here". No
+   behavior change — this was a naming bug.
+3. **Relocate cuts on one instant.** `relocate!` computes `(t/now)` once
+   for the whole batch and passes it to `relocate-timer!`, which uses it as
+   both the old log's end and the continuation's beginning. Previously each
+   call hit `(t/now)` twice, leaving a sub-millisecond gap per timer and
+   cutting multiple timers at different moments. Segments now meet exactly:
+   no gap, and nothing for `timer-overlap-metrics.md` to subtract.
+4. **Active-card location is read-only.** The per-card location select was
+   removed — it competed for attention with the global current-location
+   switcher, which is the intended way to move timers. The card now shows
+   the location as text (`card-location-label`, carrying
+   `data-timer-location` for tests) inside the edit link, so per-log
+   corrections go through the log's edit form. `POST /app/timers/location/
+   :entity-str`, `set-location!`, and `set-timer-location` were deleted as
+   dead code along with it; `cheshire` dropped out of `timer/routes.clj`.
+
+5. **Recent logs refresh on relocate** (bug found in review). Relocating
+   ends a segment over HTMX with no page load, but RECENT LOGS was rendered
+   once at page load with no refresh wiring, so the just-ended segment
+   didn't appear until a manual reload — only `#active-timers-section`
+   listened for `refresh-active-timers`. Stopping a timer was never
+   affected: that path is a 303 full-page navigation.
+
+   **Settled on: relocate is write-only and redirects.** `POST
+   /app/timers/relocate` writes and 303s back to `/app/timers`, and the
+   confirm button is a plain `biff/form` post rather than `hx-post` —
+   exactly what Start and End Session already do. The follow-up GET
+   re-renders everything from a fresh snapshot, so *all* the regions land
+   consistent at once, including the start list's recency ordering and the
+   location picker's option order that partial refreshes had left stale.
+
+   Two earlier attempts, kept here because the reasoning is worth not
+   repeating:
+
+   - *Event broadcast* (`HX-Trigger: refresh-active-timers` + a second
+     listener on the recent-logs section). Worked, but cost three round
+     trips and fetched every section's data twice. The event had also
+     stopped paying for itself once the per-card location selects were
+     deleted in item 4 — one emitter, one page, plus two listeners on
+     per-entity pages that could never receive it.
+   - *Out-of-band swaps* (return both sections marked `hx-swap-oob`). One
+     round trip, but it **shipped a stale-render bug that e2e caught**:
+     `:biff/db` is a snapshot taken when the request arrived, so rendering
+     after the writes showed the page exactly as it looked before the
+     relocate. Writes were correct; only the response was stale, which made
+     it invisible on reload. Would have needed
+     `(assoc ctx :biff/db (xt/db node))` — see the anti-pattern section now
+     in AGENTS.md.
+
+   The redirect version needs none of that machinery: no event, no OOB, no
+   snapshot refresh, no `/app/timers/recent` endpoint. `GET
+   /app/timers/active` survives only because the 30s poll that keeps
+   elapsed times moving needs it. `refresh-active-timers` is gone entirely.
+
+   Rule of thumb: **a mutation whose result is "this page changed" should
+   write and redirect, not render.** Reach for partial refresh only when a
+   full reload would genuinely lose something (in-progress input, scroll
+   position, an expensive unrelated region).
+
+Known-stale-and-accepted: the START TIMER list's recency ordering and the
+location picker's option order don't re-sort after a relocate. Both are
+cosmetic (every row stays present and functional) and correct themselves on
+the next page load.
+
+The user also asked for a global modal component for prompts like the
+relocate confirmation — written up as `global-action-modal.md` and left at
+draft on purpose, since the reworded inline prompt may resolve enough of
+the "easy to miss" problem to change what that component needs to be.
