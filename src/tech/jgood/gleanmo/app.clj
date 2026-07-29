@@ -226,8 +226,8 @@
   [ctx]
   (ui/page
    ctx
-   (side-bar
-    ctx
+   (layout/page-shell
+    ctx {:width :normal}
     (pwa-install-banner)
     (overview/overview-shell ctx))))
 
