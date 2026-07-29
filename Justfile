@@ -100,6 +100,10 @@ e2e-test-timers-workspace:
 e2e-test-inline-create:
     cd e2e && npm run test:inline-create
 
+# Run the compact workout lifecycle test
+e2e-test-workout:
+    cd e2e && npm run test:workout
+
 # Run reading CRUD test
 e2e-test-reading-crud:
     cd e2e && npm run test:reading-crud

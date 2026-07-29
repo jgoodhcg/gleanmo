@@ -906,3 +906,45 @@
         (is (= #{"Now Today" "Now Carryover"} labels))
         (is (not (contains? labels "Done Today")))
         (is (not (contains? labels "Canceled Carryover")))))))
+
+(deftest sets-for-sessions-test
+  (testing "sets-for-sessions stays within the requested sessions and user"
+    (with-open [node (test-xtdb-node [])]
+      (let [ctx           (get-context node)
+            user-id       (UUID/randomUUID)
+            other-user-id (UUID/randomUUID)
+            session-a     (UUID/randomUUID)
+            session-b     (UUID/randomUUID)
+            ignored       (UUID/randomUUID)
+            beginning-a   (t/instant "2026-07-29T12:00:00Z")
+            beginning-b   (t/instant "2026-07-29T13:00:00Z")
+            set-a         (mutations/create-entity!
+                           ctx
+                           {:entity-key :exercise-set
+                            :data {:user/id user-id
+                                   :exercise-set/session-id session-a
+                                   :exercise-set/beginning beginning-a}})
+            set-b         (mutations/create-entity!
+                           ctx
+                           {:entity-key :exercise-set
+                            :data {:user/id user-id
+                                   :exercise-set/session-id session-b
+                                   :exercise-set/beginning beginning-b}})]
+        (mutations/create-entity!
+         ctx
+         {:entity-key :exercise-set
+          :data {:user/id user-id
+                 :exercise-set/session-id ignored
+                 :exercise-set/beginning beginning-a}})
+        (mutations/create-entity!
+         ctx
+         {:entity-key :exercise-set
+          :data {:user/id other-user-id
+                 :exercise-set/session-id session-a
+                 :exercise-set/beginning beginning-a}})
+        (is (= [set-a set-b]
+               (mapv :xt/id
+                     (queries/sets-for-sessions
+                      (xt/db node) user-id [session-a session-b]))))
+        (is (= [] (queries/sets-for-sessions
+                   (xt/db node) user-id [])))))))

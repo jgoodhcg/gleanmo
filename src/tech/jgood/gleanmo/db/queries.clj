@@ -937,6 +937,25 @@
        (sort-by :exercise-set/beginning)
        vec))
 
+(defnp sets-for-sessions
+  "Exercise sets belonging to the given sessions, oldest first.
+   Equality-bound to a small caller-supplied session collection so recent
+   session summaries do not scan the user's full exercise history."
+  [db user-id session-ids]
+  (if (seq session-ids)
+    (->> (q db
+            '{:find  [(pull ?e [*])]
+              :where [[?e :user/id user-id]
+                      [?e ::sm/type :exercise-set]
+                      [?e :exercise-set/session-id ?sid]]
+              :in    [user-id [?sid ...]]}
+            user-id (vec session-ids))
+         (map first)
+         (remove ::sm/deleted-at)
+         (sort-by :exercise-set/beginning)
+         vec)
+    []))
+
 (defnp lines-for-sets
   "Exercise lines belonging to the given sets, in creation order."
   [db user-id set-ids]

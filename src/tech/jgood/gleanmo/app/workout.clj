@@ -27,6 +27,7 @@
    [clojure.string :as str]
    [com.biffweb :as biff]
    [tech.jgood.gleanmo.app.layout :as layout]
+   [tech.jgood.gleanmo.app.shared :as shared]
    [tech.jgood.gleanmo.crud.forms.inputs :as inputs]
    [tech.jgood.gleanmo.db.mutations :as mutations]
    [tech.jgood.gleanmo.db.queries :as queries]
@@ -127,6 +128,20 @@
   (let [m (quot (t/seconds (t/between beginning end)) 60)]
     (if (< m 60) (str m " min") (str (quot m 60) "h " (mod m 60) "m"))))
 
+(defn- fmt-session-start
+  "User-local session timestamp without seconds or fractional seconds."
+  [ctx instant]
+  (->> (t/in instant (shared/user-zone-id ctx))
+       (t/format (t/formatter "MMM d, yyyy '·' h:mm a"))))
+
+(defn- adjusted-beginning
+  "Move a timer's beginning to change its displayed duration by delta seconds.
+   A negative adjustment clamps at the latest valid beginning (now for a set,
+   or the first set's beginning for a session)."
+  [beginning latest-beginning delta-seconds]
+  (let [candidate (.minusSeconds beginning (long delta-seconds))]
+    (if (t/> candidate latest-beginning) latest-beginning candidate)))
+
 ;; Timers tick client-side: elements carrying data-epoch-ms get their text
 ;; recomputed every second from the wall clock, so the page needs no reloads
 ;; while a set runs. Default fmt is a stopwatch 'm:ss'; data-fmt "session"
@@ -212,15 +227,15 @@
    (into {} (map (fn [[k v]] [(str k) v])) by-exercise)))
 
 (defn- stepper-ctrl
-  "−/+ flanking a borderless numeric input. Buttons are 44px squares (touch
-   minimum); their behavior (step size, clamping) wires up in form-script via
+  "−/+ flanking a borderless numeric input. Buttons use 44px-equivalent touch
+   targets; their behavior (step size, clamping) wires up in form-script via
    data-adjust."
   [input-name value]
   [:div.flex.items-center.gap-1.5.shrink-0
    [:button {:type "button" :data-adjust (str input-name ":-1")
              :class "w-11 h-11 shrink-0 flex items-center justify-center rounded-lg border border-dark bg-dark-surface text-gray-300 text-lg"} "−"]
    [:input {:type "number" :step "any" :name input-name :value value
-            :class "w-12 text-center text-xl font-bold text-white bg-transparent border-none p-0 tabular-nums"}]
+            :class "w-16 text-center text-xl font-bold text-white bg-transparent border-none p-0 tabular-nums"}]
    [:button {:type "button" :data-adjust (str input-name ":1")
              :class "w-11 h-11 shrink-0 flex items-center justify-center rounded-lg border border-dark bg-dark-surface text-gray-300 text-lg"} "+"]])
 
@@ -272,7 +287,7 @@
       (stepper-ctrl "weight" (str weight))]
      [:div.flex.flex-col.gap-2.mt-4
       [:button {:id "wk-log-primary" :type "submit" :name "stop-set" :value "true"
-                :class "w-full py-4 rounded-xl text-sm font-bold bg-neon-cyan text-black"}
+                :class "w-full py-4 px-3 rounded-xl text-sm leading-5 font-bold bg-neon-cyan text-black whitespace-normal break-words overflow-hidden"}
        (str "Log " (:exercise/label sel-ex) " × " reps)]
       (when running?
         [:button {:type "submit"
@@ -300,37 +315,61 @@
       [:p.text-sm.text-gray-400 "No exercises yet."]
       (inputs/inline-create-trigger "exercise")])])
 
+(defn- duration-adjustment-controls
+  "Compact forms that adjust a running timer by one minute in either
+   direction. The server clamps negative elapsed time to zero."
+  [action]
+  [:div.flex.items-center.gap-2
+   (for [[label seconds] [["−1m" -60] ["+1m" 60]]]
+     ^{:key label}
+     (biff/form
+      {:action action :method "post" :class "inline"}
+      [:button {:type "submit" :name "seconds" :value (str seconds)
+                :class "px-3 py-2 rounded-lg text-xs font-semibold border border-dark text-gray-400 bg-transparent"
+                :aria-label (str (if (neg? seconds) "Subtract" "Add")
+                                 " one minute")}
+       label]))])
+
 (defn- running-set-panel
   "The recording hero card: pulsing dot, SET N · RECORDING, big live m:ss
-   timer, ghost End set, and chips for lines already logged in this set
-   (the superset case)."
+   timer, restart/adjust/end controls, and chips for lines already logged in
+   this set (the superset case)."
   [running set-n running-lines ex-by-id]
-  [:div {:class "rounded-xl border p-5"
-         :style {:border-color "rgba(34,211,238,.3)"
-                 :background "rgba(34,211,238,.05)"}}
-   [:div.flex.items-center.justify-between.gap-3
-    [:div.flex.items-center.gap-2
-     [:span {:class "w-2 h-2 rounded-full bg-neon-cyan animate-pulse"}]
-     [:span {:class "text-[11px] font-semibold tracking-widest text-gray-400"}
-      (str "SET " set-n " · RECORDING")]]
-    (biff/form {:action (str "/app/exercise/set/" (:xt/id running) "/stop"), :method "post"}
-               [:button {:type "submit"
-                         :class "px-3.5 py-2 rounded-lg text-xs font-semibold border border-dark text-gray-400 bg-transparent"}
-                "End set"])]
-   [:div {:class "text-[46px] font-bold text-neon-cyan tabular-nums leading-tight mt-2"
-          :data-epoch-ms (epoch-ms (:exercise-set/beginning running))} "…"]
-   (when (seq running-lines)
-     [:div {:class "flex flex-wrap gap-1.5 mt-3"}
-      (for [line running-lines]
-        [:span {:class "text-[11px] text-gray-300 bg-dark-surface border border-dark rounded-md px-2.5 py-1 tabular-nums"}
-         (line-summary line ex-by-id)])])])
+  (let [set-id (:xt/id running)]
+    [:div {:class "rounded-xl border p-5"
+           :style {:border-color "rgba(34,211,238,.3)"
+                   :background "rgba(34,211,238,.05)"}}
+     [:div.flex.items-center.justify-between.gap-3
+      [:div.flex.items-center.gap-2.min-w-0
+       [:span {:class "w-2 h-2 rounded-full bg-neon-cyan animate-pulse shrink-0"}]
+       [:span {:class "text-[11px] font-semibold tracking-widest text-gray-400 truncate"}
+        (str "SET " set-n " · RECORDING")]]
+      (biff/form {:action (str "/app/exercise/set/" set-id "/stop"), :method "post"}
+                 [:button {:type "submit"
+                           :class "px-3.5 py-2 rounded-lg text-xs font-semibold border border-dark text-gray-400 bg-transparent whitespace-nowrap"}
+                  "End set"])]
+     [:div {:class "text-[46px] font-bold text-neon-cyan tabular-nums leading-tight mt-2"
+            :data-epoch-ms (epoch-ms (:exercise-set/beginning running))} "…"]
+     [:div.flex.flex-wrap.items-center.gap-2.mt-3
+      (duration-adjustment-controls (str "/app/exercise/set/" set-id "/adjust"))
+      (biff/form
+       {:action (str "/app/exercise/set/" set-id "/restart")
+        :method "post" :class "inline"}
+       [:button {:type "submit"
+                 :class "px-3 py-2 rounded-lg text-xs font-semibold border border-dark text-gray-300 bg-transparent"}
+        "Restart timer"])]
+     (when (seq running-lines)
+       [:div {:class "flex flex-wrap gap-1.5 mt-3 min-w-0"}
+        (for [line running-lines]
+          [:span {:class "max-w-full text-[11px] text-gray-300 bg-dark-surface border border-dark rounded-md px-2.5 py-1 tabular-nums break-words"}
+           (line-summary line ex-by-id)])])]))
 
 (defn- set-card
   "One closed set in the history: SET N, bold m:ss duration, optional
    'backfilled' tag, edit link; each line as exercise-name left and detail
    right, both linking to the line's edit form."
   [{:keys [xt/id] :as ex-set} set-n set-lines ex-by-id]
-  [:div {:class "rounded-xl border border-dark bg-dark-surface px-4 py-3.5"}
+  [:div {:class "rounded-xl border border-dark bg-dark-surface px-4 py-3.5 min-w-0 overflow-hidden"}
    [:div {:class "flex items-center gap-2.5 mb-2.5"}
     [:span {:class "text-[10px] font-semibold tracking-widest text-gray-500"}
      (str "SET " set-n)]
@@ -348,10 +387,10 @@
      "edit"]]
    [:div {:class "flex flex-col gap-1.5"}
     (for [line set-lines]
-      [:a {:class "flex items-baseline justify-between gap-3 no-underline hover:text-neon-cyan"
+      [:a {:class "flex items-start justify-between gap-3 min-w-0 no-underline hover:text-neon-cyan"
            :href (str "/app/crud/form/exercise-line/edit/" (:xt/id line)
                       "?redirect=" (redirect-param))}
-       [:span.text-sm.text-gray-200
+       [:span {:class "text-sm text-gray-200 min-w-0 break-words"}
         (get-in ex-by-id [(:exercise-line/exercise-id line) :exercise/label] "Unknown")]
        [:span {:class "text-xs text-gray-400 tabular-nums whitespace-nowrap"}
         (line-detail line)]])]])
@@ -370,13 +409,18 @@
         n-sets     (count sets)]
     [:div.space-y-5
      [:div.flex.items-start.justify-between.gap-3
-      [:div
+      [:div.min-w-0
        [:h1.text-2xl.font-bold.text-white "Workout"]
        [:p.text-xs.text-gray-500.mt-1.tabular-nums
         "Session "
         [:span {:data-epoch-ms (epoch-ms (:exercise-session/beginning session))
                 :data-fmt "session"} "…"]
-        (str " · " n-sets (if (= 1 n-sets) " set" " sets"))]]
+        (str " · " n-sets (if (= 1 n-sets) " set" " sets"))]
+       (when-let [location (not-empty (:exercise-session/location session))]
+         [:p.text-xs.text-gray-400.mt-1.truncate {:title location} location])
+       [:div.mt-2
+        (duration-adjustment-controls
+         (str "/app/exercise/session/" session-id "/adjust"))]]
       (biff/form {:action (str "/app/exercise/session/" session-id "/end"), :method "post"}
                  [:button {:type "submit"
                            :class "px-3.5 py-2 rounded-lg text-xs font-semibold text-red-400 bg-transparent border border-red-400/30 whitespace-nowrap"}
@@ -418,12 +462,60 @@
        "edit session"]]
      [:script (biff/unsafe (str tick-script "\n" form-script))]]))
 
+(defn- recent-session-card
+  "Recent-session link with a local timestamp and compact workout totals."
+  [ctx session sets lines-by-set]
+  (let [all-lines  (mapcat #(get lines-by-set (:xt/id %)) sets)
+        total-reps (reduce + 0 (keep :exercise-line/reps all-lines))
+        end        (:exercise-session/end session)
+        duration   (when end
+                     (fmt-session-len (:exercise-session/beginning session) end))
+        location   (:exercise-session/location session)]
+    [:a.block.no-underline
+     {:href (str screen-url "/" (:xt/id session) "/summary")}
+     [:div {:class "rounded-lg border border-dark bg-dark-surface hover:border-neon-cyan p-3 min-w-0"}
+      [:div.flex.items-start.justify-between.gap-3.min-w-0
+       [:span {:class "text-sm text-gray-200 font-semibold min-w-0 break-words"}
+        (fmt-session-start ctx (:exercise-session/beginning session))]
+       (when-not (str/blank? location)
+         [:span.text-xs.text-gray-500.truncate.shrink.min-w-0
+          {:title location}
+          location])]
+      (when-let [label (not-empty (:exercise-session/label session))]
+        [:div.text-xs.text-gray-400.mt-1.break-words label])
+      [:div.flex.flex-wrap.items-center.gap-x-2.gap-y-1.mt-1.text-xs.text-gray-500.tabular-nums
+       [:span (str (count sets) (if (= 1 (count sets)) " set" " sets"))]
+       [:span "·"]
+       [:span (str total-reps " reps")]
+       (when duration
+         [:<>
+          [:span "·"]
+          [:span duration]])]]]))
+
 (defn- idle-view
-  [{:keys [biff/db session]}]
-  (let [recent (queries/recent-sessions-for-user db (:uid session) 5)]
+  [{:keys [biff/db session] :as ctx}]
+  (let [user-id       (:uid session)
+        recent        (queries/recent-sessions-for-user db user-id 5)
+        session-ids   (map :xt/id recent)
+        recent-sets   (queries/sets-for-sessions db user-id session-ids)
+        sets-by-sess  (group-by :exercise-set/session-id recent-sets)
+        recent-lines  (queries/lines-for-sets db user-id (set (map :xt/id recent-sets)))
+        lines-by-set  (group-by :exercise-line/set-id recent-lines)
+        locations     (queries/distinct-field-values
+                       db user-id :exercise-session :exercise-session/location)]
     [:div.space-y-6
      [:h1.text-2xl.font-bold.text-white "Workout"]
      (biff/form {:action "/app/exercise/session/start", :method "post"}
+                [:div {:class "text-[10px] font-semibold tracking-widest text-gray-500 mb-2"}
+                 "LOCATION (OPTIONAL)"]
+                [:input {:type "text" :name "location" :list "wk-locations"
+                         :autocomplete "off" :data-original-value ""
+                         :class "form-input w-full mb-3"
+                         :placeholder "Gym, home, park…"}]
+                (when (seq locations)
+                  [:datalist {:id "wk-locations"}
+                   (for [location locations]
+                     [:option {:value location}])])
                 [:button {:type "submit"
                           :class "w-full py-4 rounded-xl text-base font-bold bg-neon-cyan text-black"}
                  "Start session"])
@@ -432,11 +524,7 @@
         [:h2 {:class "text-[11px] font-bold tracking-widest text-gray-400"} "RECENT SESSIONS"]
         (for [s recent]
           ^{:key (:xt/id s)}
-          [:a.block.no-underline
-           {:href (str screen-url "/" (:xt/id s) "/summary")}
-           [:div {:class "rounded-lg border border-dark bg-dark-surface hover:border-neon-cyan p-3 text-sm text-gray-300"}
-            (or (:exercise-session/label s)
-                (str (:exercise-session/beginning s)))]])])]))
+          (recent-session-card ctx s (get sets-by-sess (:xt/id s)) lines-by-set))])]))
 
 (defn- stat-tile
   [label value]
@@ -475,8 +563,10 @@
       [:h1.text-2xl.font-bold.text-white.mt-2
        (or (:exercise-session/label session) "Workout session")]
       [:p.text-sm.text-gray-400.mt-1
-       (str (:exercise-session/beginning session)
+       (str (fmt-session-start ctx (:exercise-session/beginning session))
             (if ended (str " · " duration) " · in progress"))]]
+     (when-let [location (not-empty (:exercise-session/location session))]
+       [:p.text-sm.text-gray-400 location])
 
      [:div {:class "grid grid-cols-2 sm:grid-cols-4 gap-3"}
       (stat-tile "SETS" (str (count sets)))
@@ -536,11 +626,15 @@
     (queries/get-entity-for-user db entity-id (:uid session) entity-key)))
 
 (defn start-session!
-  [{:keys [session] :as ctx}]
+  [{:keys [session params] :as ctx}]
   (when-not (open-session ctx)
-    (mutations/create-entity! ctx {:entity-key :exercise-session
-                                   :data {:user/id (:uid session)
-                                          :exercise-session/beginning (t/now)}}))
+    (let [location (some-> (:location params) str/trim not-empty)]
+      (mutations/create-entity!
+       ctx
+       {:entity-key :exercise-session
+        :data (cond-> {:user/id (:uid session)
+                       :exercise-session/beginning (t/now)}
+                location (assoc :exercise-session/location location))})))
   (redirect-home))
 
 (defn end-session!
@@ -577,6 +671,56 @@
       (mutations/update-entity! ctx {:entity-key :exercise-set
                                      :entity-id (:xt/id ex-set)
                                      :data {:exercise-set/end (t/now)}})))
+  (redirect-home))
+
+(def ^:private allowed-duration-adjustments #{-60 60})
+
+(defn- requested-adjustment
+  [params]
+  (let [seconds (parse-int* (:seconds params))]
+    (when (allowed-duration-adjustments seconds) seconds)))
+
+(defn- adjust-session!
+  [{:keys [params] :as ctx}]
+  (when-let [sess (owned-entity ctx :exercise-session)]
+    (when-let [seconds (and (nil? (:exercise-session/end sess))
+                            (requested-adjustment params))]
+      (let [now         (t/now)
+            first-set   (first (session-sets ctx (:xt/id sess)))
+            latest-start (or (:exercise-set/beginning first-set) now)]
+        (mutations/update-entity!
+         ctx
+         {:entity-key :exercise-session
+          :entity-id (:xt/id sess)
+          :data {:exercise-session/beginning
+                 (adjusted-beginning (:exercise-session/beginning sess)
+                                     latest-start seconds)}}))))
+  (redirect-home))
+
+(defn- restart-set!
+  [ctx]
+  (when-let [ex-set (owned-entity ctx :exercise-set)]
+    (when (nil? (:exercise-set/end ex-set))
+      (mutations/update-entity!
+       ctx
+       {:entity-key :exercise-set
+        :entity-id (:xt/id ex-set)
+        :data {:exercise-set/beginning (t/now)}})))
+  (redirect-home))
+
+(defn- adjust-set!
+  [{:keys [params] :as ctx}]
+  (when-let [ex-set (owned-entity ctx :exercise-set)]
+    (when-let [seconds (and (nil? (:exercise-set/end ex-set))
+                            (requested-adjustment params))]
+      (let [now (t/now)]
+        (mutations/update-entity!
+         ctx
+         {:entity-key :exercise-set
+          :entity-id (:xt/id ex-set)
+          :data {:exercise-set/beginning
+                 (adjusted-beginning (:exercise-set/beginning ex-set)
+                                     now seconds)}}))))
   (redirect-home))
 
 (defn add-line!
@@ -629,6 +773,9 @@
    ["/session/:id/summary" {:get session-summary-page}]
    ["/session/start" {:post start-session!}]
    ["/session/:id/end" {:post end-session!}]
+   ["/session/:id/adjust" {:post adjust-session!}]
    ["/session/:id/line" {:post add-line!}]
    ["/session/:id/set/start" {:post start-set!}]
-   ["/set/:id/stop" {:post stop-set!}]])
+   ["/set/:id/stop" {:post stop-set!}]
+   ["/set/:id/restart" {:post restart-set!}]
+   ["/set/:id/adjust" {:post adjust-set!}]])

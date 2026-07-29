@@ -25,7 +25,8 @@
     "shot:series": "tsx scripts/shot-manifest.ts",
     "test:navigation": "tsx scripts/test-navigation.ts",
     "test:boulder-problems": "tsx scripts/test-boulder-problems.ts",
-    "test:field-suggestions": "tsx scripts/test-field-suggestions.ts"
+    "test:field-suggestions": "tsx scripts/test-field-suggestions.ts",
+    "test:workout": "tsx scripts/test-workout.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.40.0",

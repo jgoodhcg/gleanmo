@@ -6,6 +6,7 @@
    [tech.jgood.gleanmo.test.app.shared-test]
    [tech.jgood.gleanmo.test.app.task-test]
    [tech.jgood.gleanmo.test.app.user-test]
+   [tech.jgood.gleanmo.test.app.workout-test]
    [tech.jgood.gleanmo.test.crud.forms-test]
    [tech.jgood.gleanmo.test.crud.forms.converters-test]
    [tech.jgood.gleanmo.test.crud.forms.inputs-test]
@@ -20,4 +21,3 @@
 
 (deftest example-test
   (is (= 2 (+ 1 1))))
-

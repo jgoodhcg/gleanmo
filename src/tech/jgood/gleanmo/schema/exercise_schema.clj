@@ -30,7 +30,9 @@
    [:exercise-session/label {:optional true} :string]
    [:exercise-session/beginning :instant]
    [:exercise-session/end {:optional true} :instant]
-   [:exercise-session/notes {:optional true} :string]
+   [:exercise-session/location
+    {:optional true :crud/priority 1 :crud/suggest-existing true} :string]
+   [:exercise-session/notes {:optional true :crud/priority 2} :string]
    [:airtable/ported-at {:optional true} :instant]])
 
 ;; Naming follows gym vocabulary: a session contains *sets* (timed intervals
