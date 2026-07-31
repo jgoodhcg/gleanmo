@@ -45,7 +45,7 @@ async function createTestTask(page: Page, label: string, email: string, opts: {
 
   // Set optional fields if provided
   if (opts.effort) {
-    const effortSelect = taskForm.locator('select[name="task/effort"]');
+    const effortSelect = taskForm.locator('select[name="task/effort-score"]');
     if (await effortSelect.isVisible()) {
       await effortSelect.selectOption(opts.effort);
     }
@@ -102,13 +102,16 @@ async function main() {
     const taskB = `Mobile Task Beta ${Date.now()}`;
     const taskC = `Mobile Task Gamma ${Date.now()}`;
 
+    // Effort moved to task/effort-score, a Fibonacci scale (see
+    // task-schema/effort-scale), so option values are numbers rather than
+    // the deprecated task/effort enum's :low/:medium/:high names.
     await createTestTask(desktopPage, taskA, testEmail, {
-      effort: 'high',
+      effort: '8',
       domain: 'work',
       notes: 'This is a test note for the expanded view. It should be truncated if too long.',
     });
     await createTestTask(desktopPage, taskB, testEmail, {
-      effort: 'low',
+      effort: '2',
       domain: 'personal',
     });
     await createTestTask(desktopPage, taskC, testEmail);

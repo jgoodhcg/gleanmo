@@ -10,6 +10,7 @@ goal: "Get off Neon/Hikari pain and Airtable dependency while keeping Gleanmo fa
 - [qol-quick-actions.md](./qol-quick-actions.md) - Navigation & logging QOL (analytics-backed; deliberate detour before prod migration runs — see note below)
 - [infrastructure.md](./infrastructure.md) - Database migration from Neon to DigitalOcean
 - [data-migration-status.md](./data-migration-status.md) - Tracker for Airtable backfills and remaining imports
+- [labeled-rating-scales.md](./labeled-rating-scales.md) - Store ratings as numbers, pick them by label; lands before the m003/m006 prod runs
 - [exercise.md](./exercise.md) - Exercise tracking with superset support and Airtable backfill
 - [mood.md](./mood.md) - Structured mood logging with Airtable backfill
 - [bouldering.md](./bouldering.md) - Climbing sessions and problem attempts with Airtable backfill
@@ -47,6 +48,7 @@ runs of m003–m006 → Airtable retirement.
 
 - [infrastructure.md](./infrastructure.md) - Database migration from Neon to DigitalOcean
 - [data-migration-status.md](./data-migration-status.md) - Tracker for Airtable backfills and remaining imports
+- [labeled-rating-scales.md](./labeled-rating-scales.md) - Store ratings as numbers, pick them by label (`:crud/scale`)
 - [exercise.md](./exercise.md) - Exercise tracking with superset support and Airtable backfill
 - [performance.md](./performance.md) - Performance monitoring and profiling dashboard
 - [dashboard-performance.md](./dashboard-performance.md) - Home page dashboard performance improvements

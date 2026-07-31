@@ -34,6 +34,27 @@
                                    (keyword (namespace field-key))
                                    field-key)))
 
+(defn- number-eq
+  "Numeric equality that ignores long/double representation — a stored 5.0
+   matches a scale's 5. False for non-numbers, so a legacy keyword value can
+   never match a scale point."
+  [a b]
+  (and (number? a) (number? b) (== a b)))
+
+(defn- scale-options
+  "Option tuples [value-string display-text selected?] for a `:crud/scale`
+   field, in scale order.
+
+   A numeric value that isn't on the scale (older record, seed data) gets its
+   own leading option so opening and saving never silently rewrites it."
+  [scale value]
+  (let [on-scale? (some (fn [[n _]] (number-eq n value)) scale)
+        base      (for [[n label] scale]
+                    [(str n) (str n " — " label) (number-eq n value)])]
+    (if (and (number? value) (not on-scale?))
+      (vec (cons [(str value) (str value " — (off scale)") true] base))
+      (vec base))))
+
 (defmethod render :string
   [field ctx]
   (let [{:keys [input-name
@@ -138,21 +159,55 @@
   (let [{:keys [input-name
                 input-label
                 input-required
+                opts
                 value]}
-        field]
-    [:div
-     [:label.form-label {:for input-name}
-      input-label]
-     [:div.mt-2
-      [:input.form-input
-       (cond-> {:type                "number",
-                :step                "any",
-                :id                  input-name,
-                :name                input-name,
-                :required            input-required,
-                :autocomplete        "off",
-                :data-original-value (str value)}
-         value (assoc :value value))]]]))
+        field
+        scale (:crud/scale opts)]
+    (if (seq scale)
+      ;; Labeled scale: the number is what gets stored and analyzed, the label
+      ;; is the cue for picking it. A select rather than a free number input
+      ;; because these are the only values worth recording — see the schema
+      ;; conventions in AGENTS.md for when a rating earns a number at all.
+      (let [options  (scale-options scale value)
+            selected (some (fn [[v _ selected?]] (when selected? v)) options)
+            ;; A field converted from an enum in place (allowed only before an
+            ;; entity's data is ported — see AGENTS.md) can still meet
+            ;; documents holding the old keyword. Those submit blank, which the
+            ;; handler skips for an optional field, so the stored value
+            ;; survives until a scale point is actually chosen.
+            legacy   (when (and (some? value) (not (number? value)))
+                       (if (keyword? value) (name value) (str value)))]
+        [:div
+         [:label.form-label {:for input-name}
+          input-label]
+         [:div.mt-2
+          (into
+           [:select.form-select
+            {:id                  input-name,
+             :name                input-name,
+             :required            input-required,
+             :autocomplete        "off",
+             :data-original-value (or selected "")}
+            (when (or (not input-required) legacy)
+              [:option {:value "", :selected (nil? selected)}
+               (if legacy
+                 (str "-- " legacy " (legacy — pick a value) --")
+                 "-- Select --")])]
+           (for [[v text selected?] options]
+             [:option {:value v, :selected selected?} text]))]])
+      [:div
+       [:label.form-label {:for input-name}
+        input-label]
+       [:div.mt-2
+        [:input.form-input
+         (cond-> {:type                "number",
+                  :step                "any",
+                  :id                  input-name,
+                  :name                input-name,
+                  :required            input-required,
+                  :autocomplete        "off",
+                  :data-original-value (str value)}
+           value (assoc :value value))]]])))
 
 (defmethod render :int
   [field _]

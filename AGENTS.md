@@ -268,6 +268,26 @@ Schema conventions
 - Add new field types by updating schema registry, input renderer, form converter, and list formatter in that order.
 - Boolean attributes are past-tense state words with no `?` suffix (`sent`, `archived`, `interrupted`). `reading-log/finished?` predates this rule; don't copy it.
 
+### Changing a field that already has data — add, don't rewrite
+
+Once an entity has documents in production, changing a field's type or meaning in place is off the table. Add a new attribute alongside the old one and mark the old one deprecated with `:hide true` so forms stop writing to it. No migration, and existing documents stay valid.
+
+**Readers use the new attribute only — don't write fallback chains.** The deprecated field stays in the schema for one reason: these maps are `:closed true`, so removing an attribute that documents still carry would fail validation on their next write. Historical values remain on disk if they are ever wanted; nothing in the app looks at them, and records predating the new field simply show nothing for it.
+
+`task/effort-score` supersedes `task/effort` this way (`task_schema.clj`). `bm-log`, `habit`, and `meditation` carry older examples of the same pattern.
+
+The exception is an entity whose data has not been ported yet — schema, ingester, and seeds can all change together because the only copies live in Airtable and a re-runnable dev import. `symptom-log` and `mood-log` were converted in place on exactly that basis. Once the prod run happens, they fall under the rule above.
+
+### Ratings — ordinal enums stay enums
+
+Storing a rating as `:number` is a claim that arithmetic on it is meaningful — that means, variances, and correlations over the field would describe something real. A rating earns `:number` plus a `:crud/scale` only when the **spacing** between points carries that meaning, not merely their order.
+
+- **Earns a number:** `symptom-log/severity-score`, `task/effort`, `mood-log/stress` — Fibonacci-spaced, because the gap from 8 to 13 is meant to dwarf the gap from 1 to 2. `mood-log/valence` and `arousal` — evenly spaced, because they are circumplex coordinates and the geometry depends on equal steps.
+- **Stays an enum:** `bm-log/bristol` (a published clinical form taxonomy — "mean Bristol 3.5" describes no stool that exists), `bm-log/urgency`, `bm-log/blood`, `bm-log/ease-of-passage`. These are ordered but not spaced, and every question you'd ask of them is a `count` or `group-by`.
+- An `:n-a` member is a strong signal the field is categorical. A measurement has no value for "not applicable"; absence is how a number says that.
+
+`:crud/scale` is a vector of `[number label]` pairs on a `:number` field. `render :number` turns it into a select showing `"5 — Medium"`, and a stored value that isn't on the scale keeps its own option so editing a record never silently rewrites it. Numeric malli enums (`[:enum 0.5 1 2]`) are not the mechanism — they route to `render :enum`, which calls `name` on each option and throws on numbers.
+
 ### Legacy meta fields — never on new schemas
 
 `sm/legacy-meta` (`tech.jgood.gleanmo.schema/created-at|deleted-at|type`) exists only for entities that already had documents written under those old attribute names before the `tech.jgood.gleanmo.schema.meta` namespace was adopted. Every schema that should ever carry it already does. **Do not append `(concat sm/legacy-meta)` to any new schema** — new entities use only the `::sm/*` meta fields.

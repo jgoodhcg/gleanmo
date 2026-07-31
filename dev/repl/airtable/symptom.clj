@@ -2,8 +2,8 @@
   "Airtable migration for the pain log -> symptom-log entities.
 
    Airtable pain rows map to symptom-log with :symptom-log/type :pain.
-   The 0.5-8 descriptive rating ('3 - It's impactful') becomes a numeric
-   severity-score plus a coarse severity bucket; the 39-value area
+   The descriptive rating ('3 - It's impactful') becomes a numeric
+   severity-score on the app's 1-13 Fibonacci scale; the 39-value area
    multi-select maps to :symptom-log/areas; pain-type descriptors map to
    :symptom-log/qualifiers. Original strings are preserved on
    airtable/original-* fields."
@@ -44,22 +44,38 @@
    "pressure" :pressure "trembling" :trembling "tense" :tense
    "flutter" :flutter "bloating" :bloating})
 
-(defn- score->severity
-  [score]
-  (cond (nil? score)  :mild
-        (<= score 2)  :mild
-        (<= score 5)  :moderate
-        :else         :severe))
+(def rating->severity-score
+  "Airtable pain-scale option -> app severity-score.
+
+   Matched on the label's leading number rather than the whole string, because
+   the export has inconsistent separators and trailing spaces ('0.5 Barely
+   there' vs '3 - It's impactful '). Airtable numbered these 0.5/1/2/3/5/8;
+   the app's scale is the same six labels shifted one position up the Fibonacci
+   sequence (see symptom-schema/severity-scale). An explicit map rather than
+   parsing the leading number, so a new or renamed Airtable option surfaces as
+   an unmapped warning instead of silently importing Airtable's numbering."
+  {"0.5" 1
+   "1"   2
+   "2"   3
+   "3"   5
+   "5"   8
+   "8"   13})
+
+(defn- rating->score
+  [rating]
+  (some->> rating (re-find #"[\d.]+") rating->severity-score))
 
 (defn airtable->symptom-log
   [{:strs [id createdTime fields]} user-id now]
   (let [{:strs [time areas rating side type notes]} fields
         created (core/parse-timestamp createdTime)
         ts      (or (core/parse-timestamp time) created)
-        score   (some->> rating (re-find #"[\d.]+") parse-double)
+        score   (rating->score rating)
         areas'  (set (keep #(area->keyword (norm %)) areas))
         quals   (set (keep #(pain-type->qualifier (norm %)) type))
         side'   (some-> side norm keyword #{:left :right :both})]
+    (when (and rating (nil? score))
+      (println "  WARN: unmapped pain rating:" (pr-str rating)))
     (cond->
      {:db/doc-type :symptom-log
       :xt/id (core/deterministic-uuid symptom-log-namespace-uuid id)
@@ -68,7 +84,6 @@
       :user/id user-id
       :symptom-log/timestamp ts
       :symptom-log/type :pain
-      :symptom-log/severity (score->severity score)
       :airtable/id id
       :airtable/created-time created
       :airtable/ported-at now}

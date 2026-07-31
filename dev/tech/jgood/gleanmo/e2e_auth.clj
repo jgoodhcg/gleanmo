@@ -159,7 +159,7 @@
                 :task/state :now
                 :task/due-on (t/date (t/in (now) demo-zone))
                 :task/focus-date (t/date (t/in (now) demo-zone))
-                :task/effort :low
+                :task/effort-score 2
                 :task/mode :solo
                 :task/domain :work
                 :task/project-id blog-id})
@@ -322,15 +322,14 @@
      {:entity-key :symptom-log
       :data {:symptom-log/timestamp midday
              :symptom-log/type :fatigue
-             :symptom-log/severity (choice [:mild :mild :moderate])
-             :symptom-log/severity-score (+ 2 (mod day-number 3))
+             :symptom-log/severity-score (choice [2 3 3 5])
              :symptom-log/location :generalized
              :symptom-log/notes "Synthetic fixture data"}}
      {:entity-key :mood-log
       :data {:mood-log/timestamp evening
-             :mood-log/valence (choice [:neutral :pleasant :very-pleasant])
-             :mood-log/arousal (choice [:low :moderate :high])
-             :mood-log/stress (choice [:very-low :low :moderate])
+             :mood-log/valence (choice [0 1 2])
+             :mood-log/arousal (choice [-1 0 1])
+             :mood-log/stress (choice [0 1 2])
              :mood-log/tags #{:work}
              :mood-log/notes "Daily visual-timeline pulse"}}
      {:entity-key :exercise-session

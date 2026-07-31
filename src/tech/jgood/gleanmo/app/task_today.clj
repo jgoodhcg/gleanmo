@@ -5,9 +5,17 @@
    [tech.jgood.gleanmo.app.layout :as layout]
    [tech.jgood.gleanmo.app.shared :refer [user-local-date]]
    [tech.jgood.gleanmo.db.queries :as queries]
+   [tech.jgood.gleanmo.schema.task-schema :as task-schema]
    [tech.jgood.gleanmo.ui :as ui]
    [tech.jgood.gleanmo.ui.icons :as icons]
    [tech.jgood.gleanmo.ui.sortable :as sortable]))
+
+(defn- effort-label
+  "Effort reads as \"5 Medium\"."
+  [score]
+  (let [label (some (fn [[n label]] (when (== n score) label))
+                    task-schema/effort-scale)]
+    (str score (when label (str " " label)))))
 
 (defn- week-boundaries
   "Get start and end instants for a week. Week starts on Monday."
@@ -103,7 +111,7 @@
         project-id (:task/project-id task)
         proj-label (get project-by-id project-id)
         due-on     (:task/due-on task)
-        effort     (:task/effort task)
+        effort     (:task/effort-score task)
         domain     (:task/domain task)
         mode       (:task/mode task)
         notes      (:task/notes task)]
@@ -130,7 +138,7 @@
        ;; Metadata line
        (let [meta-items (cond-> []
                           due-on  (conj (format-due-date due-on today))
-                          effort  (conj [:span (str "Effort: " (name effort))])
+                          effort  (conj [:span (str "Effort: " (effort-label effort))])
                           domain  (conj [:span (str "Domain: " (name domain))])
                           mode    (conj [:span (str "Mode: " (name mode))]))]
          (when (seq meta-items)

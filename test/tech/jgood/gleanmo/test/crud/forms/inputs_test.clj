@@ -326,6 +326,65 @@
           (is (some? admin-option))
           (is (true? (get-attr admin-option :selected))))))))
 
+(defn- collect-options
+  "All [value text selected?] tuples from the <option> elements in a render."
+  [hiccup]
+  (->> (tree-seq (some-fn vector? seq?) seq hiccup)
+       (filter #(and (vector? %) (= :option (first %)) (map? (second %))))
+       (mapv (fn [[_ attrs text]] [(:value attrs) text (:selected attrs)]))))
+
+(deftest render-number-scale-test
+  (testing "render number field carrying a :crud/scale"
+    (let [ctx   {:biff/db {}}
+          scale [[1 "Trivial"] [2 "Quick"] [3 "Small"] [5 "Medium"]]
+          field {:input-name     "task/effort-score",
+                 :input-label    "Effort",
+                 :input-required false,
+                 :input-type     :number,
+                 :opts           {:crud/scale scale}}]
+
+      (testing "renders a select of the scale points, not a free number input"
+        (let [result  (inputs/render field ctx)
+              options (collect-options result)]
+          (is (nil? (find-element result :input)))
+          (is (some? (find-element result :select)))
+          ;; four scale points plus the optional field's blank option
+          (is (= 5 (count options)))
+          (is (= ["1" "2" "3" "5"] (mapv first (rest options))))))
+
+      (testing "option text carries both the number and its label"
+        (is (= "3 — Small"
+               (->> (collect-options (inputs/render field ctx))
+                    (some (fn [[v text _]] (when (= "3" v) text)))))))
+
+      (testing "selects the current value"
+        (let [options (collect-options (inputs/render (assoc field :value 3) ctx))]
+          (is (= ["3"] (keep (fn [[v _ sel?]] (when sel? v)) options)))))
+
+      (testing "a stored double matches its long scale point"
+        (let [options (collect-options (inputs/render (assoc field :value 3.0) ctx))]
+          (is (= ["3"] (keep (fn [[v _ sel?]] (when sel? v)) options)))
+          (is (= 5 (count options)))))
+
+      (testing "an off-scale number keeps its own option so a save cannot rewrite it"
+        (let [options (collect-options (inputs/render (assoc field :value 4) ctx))
+              [value text selected?] (second options)]
+          (is (= 6 (count options)))
+          (is (= "4" value))
+          (is (re-find #"off scale" text))
+          (is (true? selected?))))
+
+      (testing "a pre-conversion keyword submits blank, leaving the stored value alone"
+        (let [result  (inputs/render (assoc field :value :low) ctx)
+              options (collect-options result)
+              [value text selected?] (first options)]
+          (is (= "" value))
+          (is (re-find #"legacy" text))
+          (is (true? selected?))
+          (is (= "" (get-attr (find-element result :select) :data-original-value)))
+          ;; no scale point is also marked selected
+          (is (= [""] (keep (fn [[v _ sel?]] (when sel? v)) options))))))))
+
 (deftest render-default-test
   (testing "render default for unknown type"
     (let [ctx   {:biff/db {}}

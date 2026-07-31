@@ -13,7 +13,7 @@
    extremity and arousal (serenity -> joy -> ecstasy), which translates
    cleanly onto the circumplex. Placements follow published affective
    norms (Russell's circumplex; Warriner et al. valence/arousal ratings)
-   rounded to the schema's 5-point enums.
+   rounded to the schema's 5-point scales.
 
    Export quirks (2026-07-26): one log row has a timestamp but no mood
    link and no notes — it is skipped and counted in the report. One label
@@ -33,49 +33,53 @@
 
 (def word->circumplex
   "Plutchik emotion word -> circumplex coordinates. Covers all 32 labels
-   in the Airtable moods table (both spellings of ecstasy)."
+   in the Airtable moods table (both spellings of ecstasy).
+
+   Both axes are signed and centred on neutral (-2..2), matching
+   mood-schema/valence-scale and arousal-scale: 0 is neutral valence /
+   moderate arousal, so each quadrant is a sign pair."
   {;; joy family
-   "serenity"       {:valence :pleasant       :arousal :low}
-   "joy"            {:valence :very-pleasant  :arousal :high}
-   "ecstacy"        {:valence :very-pleasant  :arousal :very-high}
-   "ecstasy"        {:valence :very-pleasant  :arousal :very-high}
+   "serenity"       {:valence  1 :arousal -1}
+   "joy"            {:valence  2 :arousal  1}
+   "ecstacy"        {:valence  2 :arousal  2}
+   "ecstasy"        {:valence  2 :arousal  2}
    ;; trust family
-   "acceptance"     {:valence :pleasant       :arousal :low}
-   "trust"          {:valence :pleasant       :arousal :moderate}
-   "admiration"     {:valence :very-pleasant  :arousal :moderate}
+   "acceptance"     {:valence  1 :arousal -1}
+   "trust"          {:valence  1 :arousal  0}
+   "admiration"     {:valence  2 :arousal  0}
    ;; fear family
-   "apprehension"   {:valence :unpleasant     :arousal :moderate}
-   "fear"           {:valence :very-unpleasant :arousal :high}
-   "terror"         {:valence :very-unpleasant :arousal :very-high}
+   "apprehension"   {:valence -1 :arousal  0}
+   "fear"           {:valence -2 :arousal  1}
+   "terror"         {:valence -2 :arousal  2}
    ;; surprise family
-   "distraction"    {:valence :neutral        :arousal :moderate}
-   "surprise"       {:valence :neutral        :arousal :high}
-   "amazement"      {:valence :neutral        :arousal :very-high}
+   "distraction"    {:valence  0 :arousal  0}
+   "surprise"       {:valence  0 :arousal  1}
+   "amazement"      {:valence  0 :arousal  2}
    ;; sadness family
-   "pensiveness"    {:valence :unpleasant     :arousal :very-low}
-   "sadness"        {:valence :unpleasant     :arousal :low}
-   "grief"          {:valence :very-unpleasant :arousal :moderate}
+   "pensiveness"    {:valence -1 :arousal -2}
+   "sadness"        {:valence -1 :arousal -1}
+   "grief"          {:valence -2 :arousal  0}
    ;; disgust family
-   "boredom"        {:valence :unpleasant     :arousal :very-low}
-   "disgust"        {:valence :unpleasant     :arousal :moderate}
-   "loathing"       {:valence :very-unpleasant :arousal :high}
+   "boredom"        {:valence -1 :arousal -2}
+   "disgust"        {:valence -1 :arousal  0}
+   "loathing"       {:valence -2 :arousal  1}
    ;; anger family
-   "annoyance"      {:valence :unpleasant     :arousal :moderate}
-   "anger"          {:valence :very-unpleasant :arousal :high}
-   "rage"           {:valence :very-unpleasant :arousal :very-high}
+   "annoyance"      {:valence -1 :arousal  0}
+   "anger"          {:valence -2 :arousal  1}
+   "rage"           {:valence -2 :arousal  2}
    ;; anticipation family
-   "interest"       {:valence :pleasant       :arousal :moderate}
-   "anticipation"   {:valence :pleasant       :arousal :high}
-   "vigilance"      {:valence :pleasant       :arousal :very-high}
+   "interest"       {:valence  1 :arousal  0}
+   "anticipation"   {:valence  1 :arousal  1}
+   "vigilance"      {:valence  1 :arousal  2}
    ;; dyads
-   "love"           {:valence :very-pleasant  :arousal :moderate}
-   "optimism"       {:valence :pleasant       :arousal :moderate}
-   "submission"     {:valence :neutral        :arousal :moderate}
-   "awe"            {:valence :pleasant       :arousal :high}
-   "disapproval"    {:valence :unpleasant     :arousal :moderate}
-   "remorse"        {:valence :unpleasant     :arousal :low}
-   "contempt"       {:valence :unpleasant     :arousal :moderate}
-   "aggressiveness" {:valence :unpleasant     :arousal :high}})
+   "love"           {:valence  2 :arousal  0}
+   "optimism"       {:valence  1 :arousal  0}
+   "submission"     {:valence  0 :arousal  0}
+   "awe"            {:valence  1 :arousal  1}
+   "disapproval"    {:valence -1 :arousal  0}
+   "remorse"        {:valence -1 :arousal -1}
+   "contempt"       {:valence -1 :arousal  0}
+   "aggressiveness" {:valence -1 :arousal  1}})
 
 (defn label->word
   "Extract the emotion word from an Airtable mood Name (strips emoji,
@@ -109,7 +113,7 @@
         ::sm/created-at created
         :user/id user-id
         :mood-log/timestamp ts
-        :mood-log/valence (get coords :valence :neutral)
+        :mood-log/valence (get coords :valence 0)
         :airtable/id id
         :airtable/created-time created
         :airtable/ported-at now
