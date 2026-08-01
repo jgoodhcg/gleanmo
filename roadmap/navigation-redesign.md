@@ -43,6 +43,9 @@ Two threads:
   ship together, before the Airtable prod migration runs — the user wants to
   validate the new schemas in a deployed app that already has its final
   navigation.
+  - *Overtaken by events (2026-07-31): the m003–m006 prod runs went ahead
+    first, so the historical data is already live and this work no longer
+    gates it. The scope decision stands; only the sequencing claim is stale.*
 - **Styling vocabulary: shared Rum components**, not a documented class list.
   `page-shell`, `section-header`, `card`, `empty-state` become real components
   so new pages get consistency by default and drift becomes a deliberate act.

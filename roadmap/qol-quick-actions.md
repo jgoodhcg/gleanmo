@@ -154,6 +154,11 @@ prod migration runs — a deliberate detour from the prioritization lens in
 user-initiated fresh exports. After this ships and is user-tested: prod runs
 of m003–m006, then Airtable retirement (see `data-migration-status.md`).
 
+Superseded (2026-07-31): the migration overtook this batch. Items 1, 2, and
+the unified timer page shipped; items 3-5 had not, and the m003–m006 prod runs
+went ahead anyway once fresh exports were pulled. Nothing here blocks or is
+blocked by the migration — the remaining items stand on their own merits.
+
 Suggested execution order: 1 → 4 → 5 (one commit each or one combined), then
 2 (touches e2e), then `unified-timer-page.md` (builds on 2's redirect param),
 then 3 (largest, has its own spec).

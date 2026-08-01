@@ -1,6 +1,6 @@
 ---
 title: "Labeled Rating Scales"
-status: active
+status: done
 description: "Store ratings as numbers, pick them by label — one :crud/scale mechanism for severity, effort, and mood"
 created: 2026-07-31
 updated: 2026-07-31
@@ -56,8 +56,13 @@ ordinal enums stay enums", since it needs to be enforced on every future schema.
       severity distribution maps 1:1 onto the Airtable option counts
       (6/256/344/288/141/38 → 1/2/3/5/8/13, plus 58 unrated)
 - [x] m006 transform validated: 24/24 pass, valence and arousal within −2…2
-- [ ] Re-run m003 and m006 against dev and spot-check both forms in the UI
-      (blocked on the RocksDB index lock — needs the dev server stopped)
+- [x] Re-run m003 and m006 against dev and spot-check both forms in the UI
+      (2026-07-31: 1,131/1,131 and 24/24 written to dev with the server stopped;
+      severity and valence/arousal/stress confirmed rendering as labeled selects,
+      and a new symptom log saved cleanly through the form)
+- [x] Shipped to prod 2026-07-31 ahead of the m003/m006 production imports
+      (`76e11e6` on `main`); both imports then ran against prod under the new
+      scales — see `data-migration-status.md`
 
 ## Scope
 

@@ -7,13 +7,9 @@ goal: "Get off Neon/Hikari pain and Airtable dependency while keeping Gleanmo fa
 
 ## Current Focus
 
-- [qol-quick-actions.md](./qol-quick-actions.md) - Navigation & logging QOL (analytics-backed; deliberate detour before prod migration runs — see note below)
-- [infrastructure.md](./infrastructure.md) - Database migration from Neon to DigitalOcean
-- [data-migration-status.md](./data-migration-status.md) - Tracker for Airtable backfills and remaining imports
-- [labeled-rating-scales.md](./labeled-rating-scales.md) - Store ratings as numbers, pick them by label; lands before the m003/m006 prod runs
-- [exercise.md](./exercise.md) - Exercise tracking with superset support and Airtable backfill
-- [mood.md](./mood.md) - Structured mood logging with Airtable backfill
-- [bouldering.md](./bouldering.md) - Climbing sessions and problem attempts with Airtable backfill
+- [infrastructure.md](./infrastructure.md) - Database migration from Neon to DigitalOcean (now the top priority — see note below)
+- [data-migration-status.md](./data-migration-status.md) - Tracker for Airtable backfills and remaining imports (Airtable exit complete; retirement housekeeping left)
+- [qol-quick-actions.md](./qol-quick-actions.md) - Navigation & logging QOL (analytics-backed; items 3-5 remain)
 - [local-dev-db-locking.md](./local-dev-db-locking.md) - RocksDB file lock prevents running REPL and CLI migrations concurrently
 
 ## Prioritization Lens
@@ -26,13 +22,15 @@ Immediate work should remove infrastructure friction or reduce dependency on Air
 4. Preserve lineage and cleanup metadata only where it helps migration confidence.
 5. Resume product polish after the database and Airtable exit paths are complete.
 
-**Detour note (2026-07-26, amended 07-27):** all four remaining Airtable
-ingesters are built and verified on dev; prod runs are gated on
-user-initiated fresh exports. One QOL batch
-([qol-quick-actions.md](./qol-quick-actions.md) +
-[unified-timer-page.md](./unified-timer-page.md)) executes in that gap
-because daily-use friction compounds. Sequence: QOL → user testing → prod
-runs of m003–m006 → Airtable retirement.
+**Airtable exit complete (2026-07-31).** m003–m006 all ran against production
+on same-day exports: 1,132 symptom-logs, 24 mood-logs, 277 boulder-problems /
+84 sessions / 676 attempts, and 471 exercises / 2,563 sessions / 10,190 sets +
+lines. No Airtable-backed dataset remains — see
+[data-migration-status.md](./data-migration-status.md). Remaining exit work is
+retirement housekeeping: a final archive export and shutting the base down.
+With item 2 of the lens discharged, priority 1 (Neon → DigitalOcean,
+[infrastructure.md](./infrastructure.md)) is now the top of the list, and the
+unfinished QOL batch items 3-5 are no longer competing with a migration.
 
 ## Secondary Focus
 
@@ -48,7 +46,6 @@ runs of m003–m006 → Airtable retirement.
 
 - [infrastructure.md](./infrastructure.md) - Database migration from Neon to DigitalOcean
 - [data-migration-status.md](./data-migration-status.md) - Tracker for Airtable backfills and remaining imports
-- [labeled-rating-scales.md](./labeled-rating-scales.md) - Store ratings as numbers, pick them by label (`:crud/scale`)
 - [exercise.md](./exercise.md) - Exercise tracking with superset support and Airtable backfill
 - [performance.md](./performance.md) - Performance monitoring and profiling dashboard
 - [dashboard-performance.md](./dashboard-performance.md) - Home page dashboard performance improvements
@@ -111,6 +108,7 @@ runs of m003–m006 → Airtable retirement.
 
 ### Done
 
+- [labeled-rating-scales.md](./labeled-rating-scales.md) - Store ratings as numbers, pick them by label (`:crud/scale`); shipped 2026-07-31 ahead of the m003/m006 prod imports
 - [navigation-redesign.md](./navigation-redesign.md) - Layered navigation, shared page shell across every page, and the mobile tab bar (absorbed mobile-tab-bar.md)
 - [mobile-tab-bar.md](./mobile-tab-bar.md) - Absorbed into navigation-redesign.md
 - [airtable-metadata-consistency.md](./airtable-metadata-consistency.md) - Settled: the four deployed entities need no action
