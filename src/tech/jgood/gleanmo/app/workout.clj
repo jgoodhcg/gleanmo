@@ -5,13 +5,17 @@
    contains timed *sets*; each set contains one *line* per exercise performed,
    so a superset is one set with several lines.
 
-   The screen has three states, all served from the one URL /app/exercise/session
-   and all derived from the data rather than the path (see 'One URL' below):
+   The screen has four states, all served from the one URL
+   /app/exercise/session and all derived from the data rather than the path
+   (see 'One URL' below):
 
      idle          no open session — start one, or open a recent summary
-     between-sets  session open, no set running — 'Start set' is the primary
-                   action, and every set in the history can be filled in
      recording     a set is running — live timer card with the log form below
+     stopped       the newest set has ended with nothing logged on it — the
+                   frozen timer takes the running card's place, log form
+                   unchanged beneath it
+     between-sets  none of the above — 'Start set' is the primary action, and
+                   every set in the history can still be filled in
 
    Interaction design rationale: a set is an interval, and lines are logged
    *after* the work happens, so an honest interval needs one interaction
@@ -19,17 +23,25 @@
    exits, and which one is cheaper depends on whether you already know what
    you did:
 
-     'Log <exercise> × <reps>' logs and ends in one action. The ~80% case
+     'Log <exercise> × <reps>' logs and stops in one action. The ~80% case
      (one exercise per set, prefilled from memory) closes in a single tap and
      forgetting to stop is impossible on that path. 'Log + keep timing' is the
      superset variant — the exceptional case pays the extra decision.
 
-     'End set' stops the clock having recorded nothing. This is the honest
+     'Stop timer' stops the clock having recorded nothing. This is the honest
      move when reaching for the picker would cost real seconds of timer
-     accuracy: the set drops into the history asking to be described, and
-     '+ Add exercise' writes a line into that exact set without touching its
-     interval. 'Resume' reopens the newest set for when you stopped a beat
-     early.
+     accuracy, and it is deliberately not a dead end: the screen enters the
+     stopped state, where the log form stays exactly where it was — same
+     card, same fields, same primary button — now writing into the set you
+     just stopped instead of into a running one. Nothing about logging
+     changes except that the clock is no longer moving. 'Resume timer' takes
+     the clock back if you stopped a beat early; 'Skip' starts the next set
+     and leaves the bare one in the history, where '+ Add exercise' can still
+     describe it later.
+
+   Every set card carries '+ Add exercise' and every line row opens an inline
+   editor, so any set from any session stays fillable and correctable long
+   after the fact — none of it touching the interval.
 
    One URL, no state in the path: which state you see follows from the open
    session and the open set, and both can change from another device or from
@@ -336,11 +348,14 @@
     (stepper-ctrl "weight" (str weight))]])
 
 (defn- log-form
-  "The recording form: shared line fields and a primary button that names its
-   payload ('Log pullup × 12'). Posts to the session; the line lands in the
-   running set (closing it on the primary action) or backfills an
-   auto-started set when none is running."
-  [session-id exercises memory running? ctx]
+  "The main log form: shared line fields and a primary button that names its
+   payload ('Log pullup × 12').
+
+   `action` decides what the primary submit means. Against the session it
+   lands the line in the running set and closes it — or backfills an
+   auto-started set when none is running. Against a set id it only writes the
+   line, because that set's clock is already stopped and correct."
+  [{:keys [action superset? stop-set?]} exercises memory ctx]
   (let [{:keys [by-exercise last]} memory
         ex-by-id (into {} (map (juxt :xt/id identity)) exercises)
         sel-id   (or last (some-> exercises first :xt/id))
@@ -349,7 +364,7 @@
         reps     (or (:reps m) default-reps)]
     (biff/form
      {:id "wk-line-form" :data-line-form true
-      :action (str "/app/exercise/session/" session-id "/line"), :method "post"
+      :action action, :method "post"
       :data-memory (memory-json by-exercise)
       :data-default-reps default-reps
       :data-default-weight default-weight}
@@ -360,11 +375,11 @@
                    :unit        (or (:unit m) "lbs")}
                   ctx)
      [:div.flex.flex-col.gap-2.mt-4
-      [:button {:id "wk-log-primary" :data-line-primary true
-                :type "submit" :name "stop-set" :value "true"
-                :class "w-full py-4 px-3 rounded-xl text-sm leading-5 font-bold bg-neon-cyan text-black whitespace-normal break-words overflow-hidden"}
+      [:button (cond-> {:id "wk-log-primary" :data-line-primary true :type "submit"
+                        :class "w-full py-4 px-3 rounded-xl text-sm leading-5 font-bold bg-neon-cyan text-black whitespace-normal break-words overflow-hidden"}
+                 stop-set? (assoc :name "stop-set" :value "true"))
        (str "Log " (:exercise/label sel-ex) " × " reps)]
-      (when running?
+      (when superset?
         [:button {:type "submit"
                   :class "w-full py-3 rounded-lg text-xs font-semibold border border-dark text-gray-400 bg-transparent"}
          "Log + keep timing (superset)"])])))
@@ -401,25 +416,44 @@
                  "Delete line"]))])
 
 (defn- form-card
-  "Card wrapping the log form. Visible while a set records; otherwise hidden
-   until the backfill toggle reveals it (with a Cancel to collapse again)."
-  [session-id exercises memory running? ctx]
-  [:div {:id "wk-form-card"
-         :class (str "rounded-xl border border-dark bg-dark-surface p-4 sm:p-6 "
-                     (when-not running? "hidden"))}
-   [:div.flex.items-center.justify-between.gap-3.mb-4
-    [:h2.text-sm.font-bold.text-white (if running? "Log exercise" "Log a completed set")]
-    (when-not running?
-      [:button {:id "wk-backfill-cancel" :type "button"
-                :class "text-xs text-gray-500 bg-transparent border-none"}
-       "Cancel"])]
-   (if (seq exercises)
-     (log-form session-id exercises memory running? ctx)
-     ;; Guarded because log-form's primary button names the selected exercise
-     ;; ("Log pullup × 12") and would render empty with none to select.
-     [:div.space-y-2
-      [:p.text-sm.text-gray-400 "No exercises yet."]
-      (inputs/inline-create-trigger "exercise")])])
+  "Card wrapping the log form. One component in three modes, because logging
+   should look and read the same wherever you do it:
+
+     :recording  a set is running — the primary logs the line and stops the
+                 clock in one action
+     :stopped    the clock is already stopped on a set with nothing on it —
+                 the same form, same place, same primary button, now writing
+                 into that set and leaving its interval alone
+     :backfill   no set to speak of — hidden until the toggle reveals it,
+                 then fabricates an auto-started set
+
+   The :stopped mode is what makes 'stop the timer first' a real option
+   rather than a dead end: the form does not move or change shape when the
+   timer goes away."
+  [{:keys [mode session-id set-id]} exercises memory ctx]
+  (let [backfill? (= mode :backfill)]
+    [:div {:id "wk-form-card"
+           :class (str "rounded-xl border border-dark bg-dark-surface p-4 sm:p-6 "
+                       (when backfill? "hidden"))}
+     [:div.flex.items-center.justify-between.gap-3.mb-4
+      [:h2.text-sm.font-bold.text-white
+       (if backfill? "Log a completed set" "Log exercise")]
+      (when backfill?
+        [:button {:id "wk-backfill-cancel" :type "button"
+                  :class "text-xs text-gray-500 bg-transparent border-none"}
+         "Cancel"])]
+     (if (seq exercises)
+       (log-form {:action    (if (= mode :stopped)
+                               (str "/app/exercise/set/" set-id "/line")
+                               (str "/app/exercise/session/" session-id "/line"))
+                  :superset? (= mode :recording)
+                  :stop-set? (not= mode :stopped)}
+                 exercises memory ctx)
+       ;; Guarded because log-form's primary button names the selected exercise
+       ;; ("Log pullup × 12") and would render empty with none to select.
+       [:div.space-y-2
+        [:p.text-sm.text-gray-400 "No exercises yet."]
+        (inputs/inline-create-trigger "exercise")])]))
 
 (defn- duration-adjustment-controls
   "Compact forms that adjust a running timer by one minute in either
@@ -450,10 +484,12 @@
        [:span {:class "w-2 h-2 rounded-full bg-neon-cyan animate-pulse shrink-0"}]
        [:span {:class "text-[11px] font-semibold tracking-widest text-gray-400 truncate"}
         (str "SET " set-n " · RECORDING")]]
+      ;; "Stop timer", not "End set": the set isn't finished with — it still
+      ;; wants a line, and Resume can take the clock back.
       (biff/form {:action (str "/app/exercise/set/" set-id "/stop"), :method "post"}
                  [:button {:type "submit"
-                           :class "px-3.5 py-2 rounded-lg text-xs font-semibold border border-dark text-gray-400 bg-transparent whitespace-nowrap"}
-                  "End set"])]
+                           :class "px-3.5 py-2 rounded-lg text-xs font-semibold border border-dark text-gray-300 bg-transparent whitespace-nowrap"}
+                  "Stop timer"])]
      [:div {:class "text-[46px] font-bold text-neon-cyan tabular-nums leading-tight mt-2"
             :data-epoch-ms (epoch-ms (:exercise-set/beginning running))} "…"]
      [:div.flex.flex-wrap.items-center.gap-2.mt-3
@@ -469,6 +505,29 @@
         (for [line running-lines]
           [:span {:class "max-w-full text-[11px] text-gray-300 bg-dark-surface border border-dark rounded-md px-2.5 py-1 tabular-nums break-words"}
            (line-summary line ex-by-id)])])]))
+
+(defn- stopped-set-panel
+  "The counterpart to running-set-panel for a set whose clock has stopped with
+   nothing logged on it. Same footprint, same place, drained of colour and
+   with the timer frozen — so stopping mid-set reads as 'the clock is safe,
+   now tell me what it was' rather than as the set having vanished."
+  [ex-set set-n]
+  (let [set-id (:xt/id ex-set)]
+    [:div {:id "wk-stopped-panel"
+           :class "rounded-xl border border-dark bg-dark-surface p-5"}
+     [:div.flex.items-center.justify-between.gap-3
+      [:div.flex.items-center.gap-2.min-w-0
+       [:span {:class "w-2 h-2 rounded-full bg-gray-600 shrink-0"}]
+       [:span {:class "text-[11px] font-semibold tracking-widest text-gray-400 truncate"}
+        (str "SET " set-n " · STOPPED")]]
+      (biff/form {:action (str "/app/exercise/set/" set-id "/resume"), :method "post"}
+                 [:button {:type "submit"
+                           :class "px-3.5 py-2 rounded-lg text-xs font-semibold border border-dark text-gray-300 bg-transparent whitespace-nowrap"}
+                  "Resume timer"])]
+     [:div {:class "text-[46px] font-bold text-gray-400 tabular-nums leading-tight mt-2"}
+      (fmt-clock (:exercise-set/beginning ex-set) (:exercise-set/end ex-set))]
+     [:p.text-xs.text-gray-500.mt-1
+      "Clock stopped and saved. Log what you did below."]]))
 
 ;; Line rows and the add button fetch their form on demand instead of having
 ;; one rendered inline. The picker is a select over every exercise the user
@@ -531,14 +590,17 @@
               :title "Set was backfilled at log time — its start time is not accurate."}
        "backfilled"])
     [:span.flex-1]
+    ;; Both controls are flex items with their own line-height. A plain
+    ;; `display:inline` form would inherit the row's strut instead of hugging
+    ;; its button, dropping "resume" a couple of pixels below "edit".
     (when resumable?
       (biff/form {:action (str "/app/exercise/set/" id "/resume")
-                  :method "post" :class "inline"}
+                  :method "post" :class "flex items-center"}
                  [:button {:type "submit"
-                           :class "text-[11px] text-neon-cyan bg-transparent border-none p-0 cursor-pointer"
+                           :class "text-[11px] leading-none text-neon-cyan bg-transparent border-none p-0 cursor-pointer"
                            :title "Reopen this set's timer — for when you stopped it a beat early."}
                   "resume"]))
-    [:a.link {:class "text-[11px]"
+    [:a.link {:class "text-[11px] leading-none"
               :href (str "/app/crud/form/exercise-set/edit/" id
                          "?redirect=" (redirect-param))}
      "edit"]]
@@ -564,12 +626,23 @@
         sets       (session-sets ctx session-id)
         set-n-of   (into {} (map-indexed (fn [i s] [(:xt/id s) (inc i)]) sets))
         running    (first (filter #(nil? (:exercise-set/end %)) sets))
-        done-sets  (filter :exercise-set/end sets)
+        lines      (lines-by-set ctx (set (map :xt/id sets)))
+        newest     (last sets)
+        ;; The set you just stopped without saying what it was. It takes the
+        ;; running set's place at the top rather than dropping into the
+        ;; history, so the log form below it never moves — stopping the clock
+        ;; costs you nothing but the clock.
+        stopped    (when (and (nil? running)
+                              (:exercise-set/end newest)
+                              (empty? (get lines (:xt/id newest))))
+                     newest)
         ;; Only the newest set can resume, and only with nothing else running
         ;; — reopening an older one would silently stretch its duration by
-        ;; everything that has happened since.
-        resumable  (when-not running (:xt/id (last sets)))
-        lines      (lines-by-set ctx (set (map :xt/id sets)))
+        ;; everything that has happened since. The stopped set carries its own
+        ;; Resume in the panel above, so it doesn't need one in the history.
+        resumable  (when (and (nil? running) (nil? stopped)) (:xt/id newest))
+        done-sets  (cond->> (filter :exercise-set/end sets)
+                     stopped (remove #(= (:xt/id %) (:xt/id stopped))))
         exercises  (exercises-for-user ctx)
         ex-by-id   (into {} (map (juxt :xt/id identity)) exercises)
         memory     (exercise-memory ctx)
@@ -594,9 +667,11 @@
                            :class "px-3.5 py-2 rounded-lg text-xs font-semibold text-red-400 bg-transparent border border-red-400/30 whitespace-nowrap"}
                   "End session"])]
 
-     (if running
-       (running-set-panel running (get set-n-of (:xt/id running))
-                          (get lines (:xt/id running)) ex-by-id)
+     (cond
+       running (running-set-panel running (get set-n-of (:xt/id running))
+                                  (get lines (:xt/id running)) ex-by-id)
+       stopped (stopped-set-panel stopped (get set-n-of (:xt/id stopped)))
+       :else
        [:div {:class "flex flex-col gap-2.5"}
         (biff/form {:action (str "/app/exercise/session/" session-id "/set/start"), :method "post"}
                    [:button {:type "submit"
@@ -606,7 +681,19 @@
                   :class "w-full py-3 rounded-lg text-xs text-gray-500 border border-dashed border-dark bg-transparent"}
          "Forgot to start? Log a completed set"]])
 
-     (form-card session-id exercises memory (some? running) ctx)
+     (form-card {:mode       (cond running :recording stopped :stopped :else :backfill)
+                 :session-id session-id
+                 :set-id     (:xt/id stopped)}
+                exercises memory ctx)
+
+     ;; Only in the stopped state: the primary action is the log form above,
+     ;; so moving on without describing the set has to stay possible but must
+     ;; not compete with it.
+     (when stopped
+       (biff/form {:action (str "/app/exercise/session/" session-id "/set/start"), :method "post"}
+                  [:button {:type "submit"
+                            :class "w-full py-3 rounded-lg text-xs font-semibold border border-dark text-gray-400 bg-transparent"}
+                   "Skip — start next set"]))
 
      [:div
       [:div.flex.items-baseline.gap-3.mb-3
@@ -621,7 +708,7 @@
            (set-card ex-set (get set-n-of (:xt/id ex-set))
                      (get lines (:xt/id ex-set)) ex-by-id
                      {:resumable? (= resumable (:xt/id ex-set))}))]
-        (when-not running
+        (when-not (or running stopped)
           [:div {:class "rounded-xl border border-dashed border-dark p-7 text-center text-xs text-gray-500"}
            "Nothing logged yet — hit Start set when you begin."]))]
 

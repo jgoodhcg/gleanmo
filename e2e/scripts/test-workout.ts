@@ -100,44 +100,66 @@ async function main() {
     await expectNoHorizontalOverflow(page);
     await capture(page, '01-logged-set');
 
-    // ---- Time the set honestly first, describe it afterwards. ----
-    // End set records nothing, so the interval never waits on the picker.
+    // ---- Stop the clock first, log the line the same way afterwards. ----
+    // Stop timer records nothing, so the interval never waits on the picker.
     await page.getByRole('button', { name: 'Start set', exact: true }).click();
     await page.waitForLoadState('networkidle');
-    await page.getByRole('button', { name: 'End set', exact: true }).click();
+    await page.getByRole('button', { name: 'Stop timer', exact: true }).click();
     await page.waitForLoadState('networkidle');
 
-    const bare = setCard(page, 2);
-    await expect(bare).toBeVisible();
-    await expect(bare.getByRole('button', { name: '+ Add exercise' })).toBeVisible();
-    await capture(page, '03-bare-set');
+    // The stopped state: frozen timer where the running card was, and the
+    // same log form still sitting under it — not dropped into the history.
+    await expect(page.getByText('SET 2 · STOPPED')).toBeVisible();
+    await expect(page.locator('[data-set-card]')).toHaveCount(1);
+    const stoppedClock = await page.locator('#wk-stopped-panel .tabular-nums')
+      .first().innerText();
+    expect(stoppedClock).toMatch(/^\d+:\d\d$/);
+    await expect(page.locator('#wk-form-card')).not.toHaveClass(/hidden/);
+    await expect(page.locator('#wk-log-primary')).toContainText(`Log ${exercise}`);
+    await expect(page.getByRole('button', { name: 'Skip — start next set' })).toBeVisible();
+    await capture(page, '03-stopped-set');
 
-    // Resume reopens that same set rather than starting a new one.
-    await bare.getByRole('button', { name: 'resume' }).click();
+    // Resume takes the clock back on that same set rather than starting a new one.
+    await page.getByRole('button', { name: 'Resume timer', exact: true }).click();
     await page.waitForLoadState('networkidle');
     await expect(page.getByText('SET 2 · RECORDING')).toBeVisible();
     await expect(page.locator('[data-set-card]')).toHaveCount(1);
-    await page.getByRole('button', { name: 'End set', exact: true }).click();
+    await page.getByRole('button', { name: 'Stop timer', exact: true }).click();
     await page.waitForLoadState('networkidle');
 
-    // Fill the bare set in. The line must land on set 2, and set 2's
-    // duration must survive being described after the fact — the whole point
-    // of stopping the clock before reaching for the picker.
-    const bareDuration = await setCard(page, 2).locator('.tabular-nums').first().innerText();
-    const setTwoId = await setCard(page, 2).getAttribute('data-set-card');
-    await setCard(page, 2).getByRole('button', { name: '+ Add exercise' }).click();
-    await expect(page.locator(`#wk-set-mount-${setTwoId}`)).toContainText('EXERCISE');
-    await pickExercise(page, 'line-exercise-id', exercise);
-    await page.locator('[data-line-form] [name="reps"]').last().fill('7');
-    await page.getByRole('button', { name: 'Add to set', exact: true }).click();
+    // Logging from the stopped state writes into set 2 and leaves its clock
+    // alone — the whole point of stopping before reaching for the picker.
+    const stoppedAgain = await page.locator('#wk-stopped-panel .tabular-nums')
+      .first().innerText();
+    await page.locator('#wk-line-form [name="reps"]').fill('7');
+    await page.locator('#wk-log-primary').click();
     await page.waitForLoadState('networkidle');
 
+    await expect(page.getByText('SET 2 · STOPPED')).toHaveCount(0);
     await expect(setCard(page, 2).getByText(exercise, { exact: true })).toBeVisible();
     await expect(setCard(page, 2).getByText('7 reps', { exact: true })).toBeVisible();
     expect(await setCard(page, 2).locator('.tabular-nums').first().innerText())
-      .toBe(bareDuration);
+      .toBe(stoppedAgain);
     await expectNoHorizontalOverflow(page);
     await capture(page, '04-filled-in-set');
+
+    // "resume" and "edit" sit on one baseline in the set-card header.
+    const header = setCard(page, 2).locator('div').first();
+    const [resumeBox, editBox] = await Promise.all([
+      header.getByRole('button', { name: 'resume' }).boundingBox(),
+      header.getByRole('link', { name: 'edit' }).boundingBox(),
+    ]);
+    if (!resumeBox || !editBox) throw new Error('resume/edit controls not laid out');
+    expect(Math.abs(
+      (resumeBox.y + resumeBox.height / 2) - (editBox.y + editBox.height / 2)
+    )).toBeLessThanOrEqual(1);
+
+    // The quiet "+ Add exercise" still backfills a superset after the fact.
+    const setTwoId = await setCard(page, 2).getAttribute('data-set-card');
+    await setCard(page, 2).getByRole('button', { name: '+ Add exercise' }).click();
+    await expect(page.locator(`#wk-set-mount-${setTwoId}`)).toContainText('EXERCISE');
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(page.locator(`#wk-set-mount-${setTwoId}`)).toBeEmpty();
 
     // ---- Correct a line in place, without bouncing to a CRUD form. ----
     const other = `E2E Second movement ${stamp}`;
@@ -161,11 +183,25 @@ async function main() {
     await expect(page.locator('[data-line-form]')).toHaveCount(2); // session form + one
     await capture(page, '05-inline-line-edit');
 
-    // Deleting the line leaves the set, and the set stays fillable.
+    // Deleting a line keeps its set. Emptying the newest set puts the screen
+    // back in the stopped state — the set is once again timed but undescribed,
+    // which is exactly what that state is for.
     await page.getByRole('button', { name: 'Delete line', exact: true }).click();
     await page.waitForLoadState('networkidle');
-    await expect(setCard(page, 2).getByText(other, { exact: true })).toHaveCount(0);
+    // Scoped to set cards: the label also appears among the picker's options.
+    await expect(page.locator('[data-set-card]').getByText(other, { exact: true }))
+      .toHaveCount(0);
+    await expect(page.getByText('SET 2 · STOPPED')).toBeVisible();
+    await expect(page.locator('#wk-form-card')).not.toHaveClass(/hidden/);
+
+    // Skipping leaves the bare set in the history, still fillable later.
+    await page.getByRole('button', { name: 'Skip — start next set' }).click();
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByText('SET 3 · RECORDING')).toBeVisible();
     await expect(setCard(page, 2).getByRole('button', { name: '+ Add exercise' })).toBeVisible();
+    await expect(setCard(page, 2).getByRole('button', { name: 'resume' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Stop timer', exact: true }).click();
+    await page.waitForLoadState('networkidle');
 
     // Finished-session card covers suggestions, readable timestamp, and totals.
     await page.getByRole('button', { name: 'End session', exact: true }).click();
@@ -173,7 +209,7 @@ async function main() {
     await expect(page.locator('#wk-locations option')).toHaveAttribute('value', location);
     const recent = page.locator('a[href*="/summary"]').first();
     await expect(recent).toContainText(location);
-    await expect(recent).toContainText('2 sets');
+    await expect(recent).toContainText('3 sets');
     await expect(recent).toContainText('100 reps');
     expect(await recent.innerText()).toMatch(/[A-Z][a-z]{2} \d{1,2}, \d{4} · \d{1,2}:\d{2}/);
     await capture(page, '02-recent-session');

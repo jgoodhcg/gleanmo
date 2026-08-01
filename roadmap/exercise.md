@@ -189,11 +189,35 @@ never be described afterwards.
 - The summary page for a finished session carries the same editors (minus
   resume), so a badly logged workout is fixable later.
 
+### Second pass, same day: stopping the clock is a first-class path
+
+The first pass gave `End set` a destination but buried it — the set dropped
+into the history and the log form vanished, so "stop first" still meant
+scrolling and a different affordance than the one you'd been using. Fixed by
+adding a fourth state:
+
+- **`stopped`** — the newest set has ended with nothing logged on it. A
+  frozen-timer card takes the running card's place, and the log form stays
+  exactly where it was: same card, same fields, same `Log <exercise> × <reps>`
+  button, now posting to that set instead of the session. Nothing about
+  logging changes except that the clock is no longer moving.
+- The button is now **`Stop timer`**, not `End set` — the set isn't finished
+  with, and `Resume timer` can take the clock back.
+- **`Skip — start next set`** moves on without describing it; the bare set
+  stays in the history where `+ Add exercise` still works.
+- The stopped set is pulled out of the history list while it holds the panel,
+  so its `resume` isn't offered twice. Deleting the last line off the newest
+  set drops back into this state, which is correct — it is timed and
+  undescribed again.
+- `resume` and `edit` in the set-card header now share a baseline: the resume
+  form was `display:inline`, so it inherited the row's strut instead of
+  hugging its 11px button and sat ~2px low. It's `flex items-center` now,
+  with an E2E assertion on the two bounding boxes.
+
 ### Deliberately not changed
 
 - **The recording state's primary action** stays `Log <exercise> × <reps>`.
-  It is still the cheapest path when you already know what you did; `End set`
-  now has a real destination, which is what was actually missing.
+  It is still the cheapest path when you already know what you did.
 - **State stays out of the URL.** All three states (idle / between-sets /
   recording) derive from the open session and open set. A `/recording` path
   would be a second source of truth that can disagree with the data after an
