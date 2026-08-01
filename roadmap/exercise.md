@@ -5,7 +5,7 @@ description: "Exercise tracking with superset support and Airtable backfill"
 tags: []
 priority: high
 created: 2026-02-02
-updated: 2026-05-16
+updated: 2026-08-01
 ---
 
 # Exercise Tracking Requirements
@@ -148,3 +148,62 @@ Change `[:sm/type [:enum :habit-log]]` to `[:sm/type [:enum :exercise]]`
   2. Build REPL ingesters mirroring the BM log approach: deterministic UUIDs per Airtable record, enum normalization, and Malli validation.
   3. Persist historical sessions before enabling the new UI so trends remain continuous.
 - Once migration helpers exist, document the run (record counts, file names) alongside any cleanup scripts so future backfills are reproducible.
+
+## First real-workout feedback (2026-08-01)
+
+The screen was used to run an actual workout for the first time and three
+things failed. All three shared one root cause: **lines could only be written
+against "whatever set is running,"** so a set that was timed honestly could
+never be described afterwards.
+
+1. **Timing accuracy and exercise entry were in competition.** The recording
+   state's only logging action was `Log <exercise> × <reps>`, which logs *and*
+   ends the set. Reaching for the picker while the clock ran cost real
+   seconds, so the set was ended bare instead — and then there was no way back
+   to it.
+2. **A submit with no exercise ended the set and discarded the entry.**
+   `add-line!` guarded the line write with `(when exercise-id ...)` but ended
+   the set unconditionally. Reps and weight went nowhere and nothing said so.
+3. **The generic CRUD edit forms were unusable at production scale.**
+   `:exercise-line/set-id` renders as a `:single-relationship` select, and
+   `relation-options` pulls every entity of the related type with no limit.
+   After the Airtable import that is ~10,190 `<option>` elements plus a
+   Choices.js init — a freeze on mobile, not a form.
+
+### Shipped
+
+- Lines are written against a **set id**, never against the running set:
+  `POST /set/:id/line` (add), `POST /line/:id` (update), `POST /line/:id/delete`.
+  Adding a line to an existing set never touches its `beginning`/`end`.
+- Every set card carries **+ Add exercise** (loud on a bare set, quiet once a
+  line exists — the after-the-fact superset), and every line row opens an
+  **inline edit form**. Both fetch the form as an htmx fragment
+  (`GET /set/:id/line/new`, `GET /line/:id/edit`) so only one exercise picker
+  exists on the page at a time.
+- The edit fragment deliberately carries **no exercise memory**: swapping a
+  mis-picked exercise must not overwrite the reps and weight being kept.
+- **`POST /set/:id/resume`** reopens the newest set, guarded three ways —
+  session still open, nothing else running, newest set only — because each
+  would corrupt an interval rather than merely annoy.
+- No-exercise submits write nothing, **end nothing**, and show a banner.
+- The summary page for a finished session carries the same editors (minus
+  resume), so a badly logged workout is fixable later.
+
+### Deliberately not changed
+
+- **The recording state's primary action** stays `Log <exercise> × <reps>`.
+  It is still the cheapest path when you already know what you did; `End set`
+  now has a real destination, which is what was actually missing.
+- **State stays out of the URL.** All three states (idle / between-sets /
+  recording) derive from the open session and open set. A `/recording` path
+  would be a second source of truth that can disagree with the data after an
+  `End session` from another device, and would make bookmarks and the back
+  button land on states that no longer exist. Identity does belong in the
+  path and already is: `/session/:id/summary`.
+
+### Still open
+
+- The unbounded relationship select (point 3 above) is only *routed around*,
+  not fixed. `edit` on a set card still opens the `exercise-set` CRUD form
+  with a ~2,563-option Session select. See
+  [crud-relation-select-scale.md](./crud-relation-select-scale.md).
