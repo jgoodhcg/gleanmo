@@ -548,6 +548,41 @@
          (filter keep-doc?)
          (apply-relationship-exclusions exclusion-map))))
 
+(defnp running-timers-for-parent
+  "Running timers (beginning set, no end) belonging to one parent entity.
+
+   Unlike `active-timers-for-user` this applies no sensitivity, archived, or
+   relationship-exclusion filtering. Those govern what a user is shown; this
+   backs the double-submit guard, which has to see a timer the user can't —
+   a hidden duplicate is still a duplicate, and filtering one out would make
+   the guard silently stop working for sensitive or archived parents.
+
+   Same scan-then-pull shape as `active-timers-for-user`, with the parent
+   constraint folded into the first scan so the candidate set stays small."
+  [db user-id entity-type beginning-key end-key relationship-key parent-id]
+  (let [began      (into #{}
+                         (map first)
+                         (q db
+                            {:find  '[?e]
+                             :where [['?e :user/id 'user-id]
+                                     ['?e ::sm/type entity-type]
+                                     ['?e relationship-key 'parent-id]
+                                     ['?e beginning-key]]
+                             :in    '[user-id parent-id]}
+                            user-id parent-id))
+        ended      (into #{}
+                         (map first)
+                         (q db
+                            {:find  '[?e]
+                             :where [['?e :user/id 'user-id]
+                                     ['?e ::sm/type entity-type]
+                                     ['?e end-key]]
+                             :in    '[user-id]}
+                            user-id))
+        candidates (remove ended began)]
+    (->> (fetch-entities-by-ids db (vec candidates))
+         (remove #(get % ::sm/deleted-at)))))
+
 (defnp recent-completed-timer-logs
   "The user's most recent completed timer logs (beginning and end both set),
    newest first by beginning, bounded by limit. Scan-then-pull: intersects two

@@ -651,3 +651,68 @@ function toggleTaskRow(rowId) {
     }
   });
 })();
+
+// Double-submit guard: once a form has been submitted, further submits are
+// swallowed until the page navigates away.
+//
+// This exists because timer Start had no feedback on a slow round trip — the
+// tap looked like it hadn't registered, a second tap followed, and two timers
+// were created. The server-side guard in timer/routes.clj catches duplicates
+// that reach it; this one keeps the second tap from being sent at all, and is
+// the only half that addresses why the tap happened.
+(function() {
+  // Long enough to cover a slow round trip, short enough that a form is never
+  // stranded if navigation simply never happens (offline, blocked, a response
+  // that downloads instead of navigating).
+  var BUSY_MS = 8000;
+
+  function isHtmxDriven(form) {
+    return form.hasAttribute('hx-post') || form.hasAttribute('hx-get') ||
+           form.hasAttribute('data-hx-post') || form.hasAttribute('data-hx-get');
+  }
+
+  function unlock(form) {
+    delete form.dataset.submitting;
+    var busy = form.querySelectorAll('.is-submitting');
+    for (var i = 0; i < busy.length; i++) {
+      busy[i].classList.remove('is-submitting');
+    }
+  }
+
+  document.addEventListener('submit', function(event) {
+    var form = event.target;
+    if (!(form instanceof HTMLFormElement)) return;
+
+    // htmx owns its own request lifecycle and offers hx-disabled-elt for this.
+    // Locking an htmx form here would strand it: no navigation follows, so
+    // nothing would ever clear the lock.
+    if (isHtmxDriven(form) || event.defaultPrevented) return;
+
+    // Escape hatch for a form that legitimately submits more than once.
+    if (form.hasAttribute('data-allow-resubmit')) return;
+
+    if (form.dataset.submitting === 'true') {
+      event.preventDefault();
+      return;
+    }
+
+    form.dataset.submitting = 'true';
+
+    // Deliberately a class and never `disabled`. A disabled submitter is
+    // omitted from the form data, and several buttons here carry their payload
+    // as name/value — the timers workspace submits parent-id that way. Class
+    // changes cannot affect serialization; `disabled` would break start
+    // outright.
+    if (event.submitter) event.submitter.classList.add('is-submitting');
+
+    window.setTimeout(function() { unlock(form); }, BUSY_MS);
+  });
+
+  // Back/forward cache restores the previous DOM with the lock still set,
+  // leaving the form permanently unsubmittable.
+  window.addEventListener('pageshow', function(event) {
+    if (!event.persisted) return;
+    var forms = document.querySelectorAll('form[data-submitting]');
+    for (var i = 0; i < forms.length; i++) unlock(forms[i]);
+  });
+})();

@@ -1,0 +1,114 @@
+{
+  "id": "timer-double-submit-guard",
+  "title": "Guarding one-tap timer start against double submission",
+  "created": "2026-08-02",
+  "status": "accepted",
+  "decided": "2026-08-02",
+  "decision": "Option D — client submit lock plus a server-side recency check at 30s. Both open questions resolved by the user on 2026-08-02: no downstream code assumes one running timer per parent (overlap metrics will be built knowing same-parent overlap is representable), and 30s was confirmed as the window.",
+  "context": {
+    "problem": "Starting a timer from /app/timers is a plain form POST with no feedback: the browser posts, the server 303s, and the workspace re-renders every section. On 2026-08-02 the user tapped Start twice believing the first tap had not registered, and got two running timers on the same project. timer/routes.clj:509 calls create-entity! unconditionally — nothing checks whether that parent already has a running timer. Two distinct failures are tangled here: no feedback (why the second tap happened) and no idempotency (why the second tap cost anything).",
+    "constraints": [
+      "The user is explicitly wary of a data-model-level restriction ('no two running timers per project'), even though no legitimate use for one comes to mind. Stated preference: block the problematic action narrowly, do not restrict at a fundamental level.",
+      "Overlapping timers across DIFFERENT parents are intentional and load-bearing — see roadmap/timer-overlap-metrics.md. Any guard must not generalize to those.",
+      "Precedent from this codebase argues against broad restrictions: the workout screen's original 'lines may only be written against the running set' rule looked obviously correct and was the root cause of the 2026-08-01 real-workout failure. Restrictions fail late, mid-task, and lose the moment; extra rows can always be deleted.",
+      "Counter-precedent, same codebase: workout.clj:906 (start-session!) and workout.clj:934 (start-set!) already no-op when one is already open. The narrow guard pattern exists and is uncontroversial there because a set is inherently one-at-a-time within a session.",
+      "The Start button carries its payload as name=\"parent-id\" value=<uuid> (timers.clj:112-132). Any client-side guard that sets button.disabled inside a submit handler strips that from the POST and breaks start entirely.",
+      "A DigitalOcean migration is planned (roadmap/infrastructure.md), so solutions assuming a single server instance carry future cost."
+    ]
+  },
+  "options": [
+    {
+      "id": "A",
+      "label": "Server-side recency check",
+      "description": "In start-timer (timer/routes.clj:509), skip create-entity! when this parent already has a running timer that began within ~30s. Both conditions required — still running AND just started — so start/stop/restart still works. Returns the same 303 either way, so the user never sees a refusal. fetch-active-timers already runs on every page render; filtering to one parent is in-memory."
+    },
+    {
+      "id": "B",
+      "label": "Client-side submit lock",
+      "description": "Global handler in resources/public/js/main.js: on form submit, mark the form busy for a beat — dim the submitter, ignore further submits. Must use pointer-events/opacity or a deferred disable, never button.disabled inside the submit handler, or the parent-id payload is lost. Applies to every form in the app, not just timer start."
+    },
+    {
+      "id": "C",
+      "label": "One-time token per rendered button",
+      "description": "Each rendered Start button carries a nonce; the server ignores a repeat of a nonce it has already seen. No time window and no notion of what a duplicate timer is — it only knows this exact submission already happened. Requires a spent-token store (in-memory atom with TTL is sufficient; losing it on restart is harmless)."
+    },
+    {
+      "id": "D",
+      "label": "A + B together",
+      "description": "Client lock stops the tap and supplies the missing feedback; server recency check catches anything that gets past it. The two address the two distinct failures rather than the same one twice."
+    }
+  ],
+  "criteria": [
+    { "id": "blocks-duplicate-write", "label": "Duplicate timer is actually prevented", "weight": "high" },
+    { "id": "survives-no-js", "label": "Holds without JS — network retry, back-button re-POST, script failure", "weight": "high" },
+    { "id": "fixes-perceived-latency", "label": "Addresses why the second tap happened at all", "weight": "high" },
+    { "id": "no-false-refusal", "label": "Never blocks or silently drops a legitimate intent", "weight": "high" },
+    { "id": "narrow-blast-radius", "label": "Scoped to the accident, not a data-model rule", "weight": "medium" },
+    { "id": "implementation-cost", "label": "Low cost to build and get right", "weight": "medium" },
+    { "id": "operational-simplicity", "label": "No new server state or single-instance assumption", "weight": "medium" }
+  ],
+  "matrix": [
+    { "option": "A", "criteria_scores": {
+      "blocks-duplicate-write": 5,
+      "survives-no-js": 5,
+      "fixes-perceived-latency": 0,
+      "no-false-refusal": 4,
+      "narrow-blast-radius": 4,
+      "implementation-cost": 4,
+      "operational-simplicity": 5
+    }, "notes": "Catches every duplicate reaching the server regardless of cause. Does nothing about the feedback gap, so the user still taps twice — the taps just stop costing anything. The 30s window is a judgment call, and in the exotic case of a genuinely intended immediate second start on the same parent it no-ops silently, which is arguably worse than refusing visibly." },
+    { "option": "B", "criteria_scores": {
+      "blocks-duplicate-write": 2,
+      "survives-no-js": 0,
+      "fixes-perceived-latency": 5,
+      "no-false-refusal": 5,
+      "narrow-blast-radius": 3,
+      "implementation-cost": 4,
+      "operational-simplicity": 5
+    }, "notes": "The only option that treats the cause rather than the symptom. Insufficient alone: a network-layer retry or re-POST never touches the JS path, and the original incident involved exactly the slow-connection conditions where that is most likely. Global scope is a benefit (every form gets it) and a risk (wider regression surface, plus the name/value gotcha)." },
+    { "option": "C", "criteria_scores": {
+      "blocks-duplicate-write": 5,
+      "survives-no-js": 5,
+      "fixes-perceived-latency": 0,
+      "no-false-refusal": 5,
+      "narrow-blast-radius": 5,
+      "implementation-cost": 2,
+      "operational-simplicity": 2
+    }, "notes": "Most precise of the three: no tunable number, no policy about timers, and a page refresh mints a new token so an intentional immediate re-start works. Costs real server state and assumes a single instance, which the DigitalOcean move makes worse. Right answer for a payments endpoint; overbuilt for a personal timer." },
+    { "option": "D", "criteria_scores": {
+      "blocks-duplicate-write": 5,
+      "survives-no-js": 5,
+      "fixes-perceived-latency": 5,
+      "no-false-refusal": 4,
+      "narrow-blast-radius": 3,
+      "implementation-cost": 3,
+      "operational-simplicity": 5
+    }, "notes": "Only option scoring well on all four high-weight criteria. Inherits A's 30s window as its one soft spot. Two surfaces change instead of one, which is the honest cost." }
+  ],
+  "rationale": "The two failures are independent and want different layers. B is the only option that addresses the cause — the tap happened because nothing acknowledged the first one — but it cannot be the guard, because the conditions that produce a double-tap (slow, flaky connection) are the same conditions that produce network-layer retries the JS never sees. A is the only cheap option that holds regardless of how the duplicate request arrives. Together they cover both without either doing the other's job badly. C is the most rigorous single option and the only one with no magic number, but it introduces server state and a single-instance assumption to solve a problem that A solves adequately with one warm query, and it still leaves the feedback gap. Both A and D satisfy the user's stated constraint: neither is a data-model invariant, neither touches the CRUD path, and neither ever shows a refusal — both taps get the same 303 to the same page showing the timer running.",
+  "resolved_questions": [
+    "Does anything downstream assume at most one running timer per parent? — No. The user confirmed timer-overlap-metrics will be built knowing same-parent timers can overlap. This settles the frame: the guard stays a double-submit block and must never become a data-model invariant, because the data has to keep representing overlap.",
+    "Is 30s the right window? — Confirmed by the user. Still unmeasured against actual timer-workspace render time; revisit if that page gets slower rather than faster."
+  ],
+  "findings_during_implementation": [
+    "The client lock is NOT what fixes the reported bug. Chromium already discards a second submit while a navigation is pending, verified by opting the form out via data-allow-resubmit and observing a single request either way. The duplicate the user hit must therefore have been a tap after the page had already come back — a legitimately separate request that no client-side lock can see. The server guard is the fix; the client half earns its place on feedback alone, which is still the thing that stopped the second tap from being wanted.",
+    "That same check exposed a vacuous e2e assertion ('two clicks produce one request') that passed with the guard removed. Replaced with assertions that fail without it: in-flight marking, form locked, second submit prevented.",
+    "`.is-submitting` was silently purged from the built CSS — Tailwind's content glob was './src/**/*' and the class only ever appears in main.js. The lock would have shipped working but invisible, defeating its only real purpose. Fixed by adding './resources/public/js/**/*.js' to the globs; any future JS-applied class would have hit the same trap.",
+    "`running-timers-for-parent` deliberately skips the sensitivity/archived/exclusion filtering that `active-timers-for-user` applies. Reusing the display query would have made the guard silently stop working for sensitive or archived parents, since a filtered-out running timer reads as 'no timer running'."
+  ],
+  "follow_ups": [
+    "timer-workspace (app/timers.clj:344) refetches active + recent logs + every parent across all three timer types, and the 303 makes it run twice per start. That is the real latency; A and B both mask it. Worth measuring before deciding whether it needs its own work unit.",
+    "An HTMX variant of B was considered and set aside: hx-post + hx-disabled-elt on the Start button, swapping active-timers-fragment (app/timers.clj:374) in place. Better UX than a full page round trip and the fragment endpoint already exists, but it is a larger change than the incident justifies. Revisit if the workspace stays slow.",
+    "The user has one stray duplicate timer from the 2026-08-02 incident that may still be running."
+  ],
+  "references": [
+    "src/tech/jgood/gleanmo/timer/routes.clj:509-560 — start-timer, the unguarded create",
+    "src/tech/jgood/gleanmo/app/timers.clj:112-132 — start-row, the name/value payload gotcha",
+    "src/tech/jgood/gleanmo/app/timers.clj:344-372 — timer-workspace render cost",
+    "src/tech/jgood/gleanmo/app/timers.clj:374-382 — active-timers-fragment, already exists",
+    "src/tech/jgood/gleanmo/app/workout.clj:906,934 — existing narrow-guard precedent",
+    "resources/public/js/main.js — where the submit lock would live",
+    "roadmap/timer-overlap-metrics.md — why cross-parent overlap must stay legal",
+    "roadmap/exercise.md — the 2026-08-01 failure that argues against broad restrictions"
+  ]
+}

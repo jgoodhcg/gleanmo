@@ -1,6 +1,10 @@
 module.exports = {
   content: [
     './src/**/*',
+    // Classes applied from JS are invisible to a scan of src/ alone and get
+    // purged. `.is-submitting` (the double-submit guard) is defined in
+    // tailwind.css and only ever referenced here.
+    './resources/public/js/**/*.js',
   ],
   theme: {
     extend: {

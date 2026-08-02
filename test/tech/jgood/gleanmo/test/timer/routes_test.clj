@@ -3,8 +3,10 @@
   (:require
    [clojure.test :refer [deftest is testing]]
    [tech.jgood.gleanmo.db.mutations :as mutations]
+   [tech.jgood.gleanmo.db.queries :as queries]
    [tech.jgood.gleanmo.schema.utils :as schema-utils]
-   [tech.jgood.gleanmo.timer.routes :as timer-routes]))
+   [tech.jgood.gleanmo.timer.routes :as timer-routes]
+   [tick.core :as t]))
 
 (deftest timer-config-test
   (testing "project-log config uses metadata"
@@ -154,3 +156,46 @@
         (is (nil? (:project-log/end data)))))
     (testing "notes stay with the finished segment"
       (is (nil? (:project-log/notes (:data (first @creates))))))))
+
+(deftest start-timer-double-submit-test
+  (let [config     (timer-routes/timer-config {:entity-key :project-log
+                                               :entity-str "project-log"})
+        project-id (random-uuid)
+        beg-key    (:beginning-key config)
+        running    (fn [seconds-ago]
+                     [{:xt/id                  (random-uuid)
+                       :project-log/project-id project-id
+                       beg-key                 (t/<< (t/now)
+                                                     (t/new-duration seconds-ago
+                                                                     :seconds))}])
+        run        (fn [existing]
+                     (let [creates (atom [])]
+                       (with-redefs [queries/running-timers-for-parent
+                                     (constantly existing)
+                                     queries/get-entity-by-id (constantly {})
+                                     mutations/create-entity!
+                                     (fn [_ m] (swap! creates conj m))]
+                         {:res     (timer-routes/start-timer
+                                    {:session {:uid (random-uuid)}
+                                     :biff/db {}
+                                     :params  {"parent-id" (str project-id)}}
+                                    config)
+                          :creates @creates})))]
+
+    (testing "a second tap seconds after the first writes nothing"
+      (let [{:keys [res creates]} (run (running 2))]
+        (is (empty? creates))
+        (testing "and is indistinguishable from success — same redirect, no error"
+          (is (= 303 (:status res)))
+          (is (= "/app/timer/project-log" (get-in res [:headers "location"]))))))
+
+    (testing "no running timer on this parent starts one"
+      (is (= 1 (count (:creates (run []))))))
+
+    (testing "a timer running since before the window is an intention, not a
+              misfire — overlapping timers on one parent stay legal"
+      (is (= 1 (count (:creates (run (running 120)))))))
+
+    (testing "a running timer with no beginning can't date a double submit and
+              must not block the start"
+      (is (= 1 (count (:creates (run [{:xt/id (random-uuid)}]))))))))

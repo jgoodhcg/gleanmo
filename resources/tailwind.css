@@ -725,6 +725,17 @@ body {
   input[type="number"] {
     -moz-appearance: textfield;
   }
+
+  /* Applied by the double-submit guard in main.js to a submitter whose form
+     is in flight. Cosmetic and interaction-blocking only — the guard must
+     never set `disabled`, because some submit buttons carry their payload as
+     name/value (the timer Start button's parent-id) and a disabled submitter
+     is dropped from the POST entirely. */
+  .is-submitting {
+    opacity: 0.55;
+    cursor: wait;
+    pointer-events: none;
+  }
 }
 
 @layer utilities {

@@ -5,7 +5,7 @@ description: "Show overlap-aware daily and per-project timer metrics with clear 
 tags: [area/timers, area/analytics, area/ux, type/improvement]
 priority: high
 created: 2026-02-07
-updated: 2026-02-07
+updated: 2026-08-02
 ---
 
 # Overlap-Aware Timer Metrics
@@ -49,6 +49,15 @@ The timer page currently sums all log durations directly. When two logs overlap,
 
 ## Open Questions
 
+- **Two logs of the *same* project can overlap — what should that report?** The
+  even-split and primary-project answers below both assume the overlap is
+  between different projects; neither says anything useful about a project
+  overlapping itself. Confirmed 2026-08-02 as legal and intentionally left
+  representable: the double-submit guard
+  ([.decisions/timer-double-submit-guard.json](../.decisions/timer-double-submit-guard.json))
+  was deliberately scoped to suppress accidental duplicates within 30s rather
+  than forbid same-parent overlap, precisely so this stays a display question
+  and not a data-model one. Unresolved.
 - For per-project overlap-aware attribution, should overlapping time be split evenly or assigned to a user-selected primary project?
 - Should the page default to unique metrics everywhere, or only at the day-level summary while project rows remain raw by default?
 - Is a dual-column project table ("Raw" and "Attributed") clearer than a mode toggle?

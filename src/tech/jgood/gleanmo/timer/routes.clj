@@ -506,18 +506,57 @@
             data
             missing)))
 
+(def ^:private double-submit-window-seconds
+  "How recently a running timer must have started for a second start on the
+   same parent to be read as a double submission rather than an intention.
+
+   Not a rule about timers — two running timers on one parent stay legal, and
+   overlap metrics are being built on that assumption. This only has to cover
+   how long a round trip can plausibly take while the user sits there
+   wondering whether the tap registered; past that, a second start is a
+   choice. Widening it would start swallowing real intentions silently, which
+   is the one failure mode this guard must not have."
+  30)
+
+(defn- double-submitted?
+  "True when this parent already has a timer that started inside the window —
+   i.e. the tap that produced this request almost certainly already succeeded."
+  [ctx {:keys [entity-key relationship-key beginning-key end-key]} parent-id]
+  (let [cutoff (t/<< (t/now) (t/new-duration double-submit-window-seconds :seconds))]
+    (->> (queries/running-timers-for-parent (:biff/db ctx)
+                                            (-> ctx :session :uid)
+                                            entity-key
+                                            beginning-key
+                                            end-key
+                                            relationship-key
+                                            parent-id)
+         (some #(when-let [began (get % beginning-key)]
+                  (t/> began cutoff)))
+         boolean)))
+
 (defn start-timer
   "Create a running log for a parent entity without a form round trip: the
    primary relationship and beginning are set directly, time-zone comes from
    the user, and any other required fields are defaulted or copied from the
    most recent log. Falls back to the CRUD new-form when that isn't possible
-   (e.g. first-ever log of a type with required fields)."
+   (e.g. first-ever log of a type with required fields).
+
+   A repeat start on a parent whose timer is already running and seconds old
+   is treated as a double submission: nothing is written and the redirect is
+   unchanged, so both taps land on the same page showing the same running
+   timer. The user cannot tell the difference except by not ending up with two."
   [ctx {:keys [entity-key entity-str relationship-key beginning-key] :as config}]
   (let [parent-id (uuid-param ctx "parent-id")
         redirect  (sanitize-redirect (request-param ctx "redirect")
                                      (str "/app/timer/" entity-str))]
-    (if-not parent-id
+    (cond
+      (not parent-id)
       {:status 303, :headers {"location" redirect}}
+
+      (double-submitted? ctx config parent-id)
+      {:status 303, :headers {"location" redirect}}
+
+      :else
       (let [tz-key      (schema-utils/entity-field-key entity-str "time-zone")
             loc-key     (schema-utils/entity-field-key entity-str "location-id")
             ;; The workspace picker submits location-id with the form — trust
