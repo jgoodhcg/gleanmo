@@ -102,7 +102,7 @@ jobs:
     name: E2E Tests
     needs: test
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v5
 
@@ -178,18 +178,44 @@ jobs:
           npm ci
           npx playwright install chromium --with-deps
 
+      # Discovered, not enumerated: every e2e/scripts/test-*.ts runs here.
+      # A hand-maintained list is how test:workout sat unguarded in CI — the
+      # test existed and passed locally, but nobody added the line, so the
+      # screen it covers broke in real use with a green checkmark on the
+      # commit. Adding a test file is now the only step required.
+      #
+      # To hold one back, name it in E2E_SKIP (space-separated) and say why.
       - name: Run e2e tests
         working-directory: e2e
+        env:
+          E2E_SKIP: ''
         run: |
-          npm run test:today-reorder
-          npm run test:today-toggle
-          npm run test:today-quick-add
-          npm run test:today-filter
-          npm run test:today-canceled
-          npm run test:today-mobile
-          npm run test:timer-overlap
-          npm run test:timers-workspace
-          npm run test:timer-stop
+          set -euo pipefail
+
+          # A test file with no npm script would otherwise fail deep in the
+          # loop with npm's "Missing script"; name all of them up front.
+          missing=''
+          for file in scripts/test-*.ts; do
+            script="test:$(basename "$file" .ts | cut -c6-)"
+            grep -q "\"$script\":" package.json || missing="$missing $script"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::package.json has no npm script for:$missing"
+            exit 1
+          fi
+
+          for file in scripts/test-*.ts; do
+            script="test:$(basename "$file" .ts | cut -c6-)"
+            case " $E2E_SKIP " in
+              *" $script "*)
+                echo "::notice::skipped $script (listed in E2E_SKIP)"
+                continue
+                ;;
+            esac
+            echo "::group::$script"
+            npm run "$script"
+            echo "::endgroup::"
+          done
 
       - name: Upload screenshots
         if: failure()

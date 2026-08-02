@@ -61,6 +61,22 @@ e2e-shot-series:
 e2e-flow name="example":
     cd e2e && npm run flow -- {{name}}
 
+# Run one e2e test by name (requires dev server)
+# Usage: just e2e-test workout      # runs e2e/scripts/test-workout.ts
+e2e-test name:
+    cd e2e && npm run test:{{name}}
+
+# Run every e2e/scripts/test-*.ts, the same set CI runs (requires dev server)
+e2e-test-all:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd e2e
+    for file in scripts/test-*.ts; do
+        script="test:$(basename "$file" .ts | cut -c6-)"
+        echo "── $script"
+        npm run --silent "$script"
+    done
+
 # Run Today page reorder test
 e2e-test-reorder:
     cd e2e && npm run test:today-reorder

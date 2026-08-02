@@ -116,6 +116,25 @@ gh run view --log-failed     # on failure, view only the failed step logs
 
 The `validate` workflow cascades: **lint-fast → format → test → e2e**. A failure in any stage cancels downstream stages, so the first failure reported is the one to fix. After fixing, push again and re-check.
 
+### Adding an e2e test
+
+CI runs **every** `e2e/scripts/test-*.ts` — the workflow discovers them rather
+than listing them, so a new test is covered the moment the file exists. Two
+things are required of a new test, and both are enforced:
+
+1. Name the file `test-<name>.ts`. Files outside that pattern never run.
+2. Add a matching `"test:<name>"` script to `e2e/package.json`. The workflow
+   checks for it up front and fails with a clear error if it's absent.
+
+No `justfile` target and no workflow edit are needed — `just e2e-test <name>`
+runs any test by name, and `just e2e-test-all` runs the same set CI does.
+
+A test that genuinely cannot run in CI goes in the `E2E_SKIP` env var in
+`.github/workflows/validate.yml` **with a comment saying why**. Silence is not
+an option: the alternative is what happened to `test:workout`, which passed
+locally for a day while the screen it covers broke in real use under a green
+checkmark.
+
 ## Allowed Commands
 
 - `just lint-fast` — fast standalone clj-kondo lint (for Clojure files only)
@@ -128,6 +147,8 @@ The `validate` workflow cascades: **lint-fast → format → test → e2e**. A f
 - `clj -M:cljfmt fix src test` — formatting fix
 - `clj -M:lint --lint src --lint test` — clj-kondo lint
 - `just e2e-install` — install Playwright and browsers (one-time)
+- `just e2e-test <name>` — run one e2e test (requires dev server)
+- `just e2e-test-all` — run every e2e test, the set CI runs (requires dev server)
 - `just e2e-screenshot /path` — screenshot a route (requires dev server)
 - `just e2e-screenshot-full /path` — full-page screenshot (requires dev server)
 - `just e2e-flow <name>` — run a UI flow (requires dev server)
