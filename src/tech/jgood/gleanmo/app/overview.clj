@@ -454,21 +454,65 @@
            entities)))
 
 (def ^:private overview-per-type-limit
-  "Per-type fetch bound shared by the timeline and the stats counts."
+  "Per-type fetch bound for the unbounded fallback read."
   100)
 
+(def ^:private overview-window-days
+  "How far back the merged activity scan reaches. Long enough that the
+   timeline and the week counts are always answered from inside it, short
+   enough that each type's scan seeks into its index instead of walking the
+   type's whole history."
+  90)
+
+(def ^:private overview-stats-window-days
+  "Everything at or after this is materialized, because the stats strip counts
+   entries today and over the last seven days and has to count them exactly.
+   Eight rather than seven so a timezone offset can never clip the oldest day."
+  8)
+
+(def ^:private overview-timeline-sample
+  "How many of the newest entries to materialize for the timeline. The rendered
+   list is 18; the slack absorbs dedupe and the future-item filter."
+  60)
+
+(def ^:private overview-fallback-threshold
+  "Below this many items the windowed read is treated as having come back
+   empty-handed and the unbounded per-type read runs instead — see
+   `fetch-overview-items`."
+  18)
+
 (defn- fetch-overview-items
-  "Single bounded fetch of recent entities shared by the timeline and stats."
+  "Single bounded fetch of recent entities shared by the timeline and stats.
+
+   The windowed merged read is the fast path. It can only come back short when
+   the user has logged almost nothing in the last `overview-window-days`, and
+   for that case a blank home page is a worse answer than a slow one — so it
+   falls back to the per-type read over all history."
   [ctx]
-  (let [user-id (-> ctx :session :uid)]
-    (->> (db/dashboard-recent-entities
-          (:biff/db ctx)
-          user-id
-          {:entity-types   (overview-activity-types ctx)
-           :per-type-limit overview-per-type-limit
-           :order-keys     recent-activity-order-keys
-           :user-settings  (db/resolve-user-settings ctx)})
-         (map #(assoc % ::activity-time (activity-time ctx %))))))
+  (let [user-id  (-> ctx :session :uid)
+        db*      (:biff/db ctx)
+        types    (overview-activity-types ctx)
+        settings (db/resolve-user-settings ctx)
+        now      (t/now)
+        windowed (db/recent-activity-across-types
+                  db*
+                  user-id
+                  {:entity-types  types
+                   :order-keys    recent-activity-order-keys
+                   :since         (t/<< now (t/new-duration overview-window-days :days))
+                   :full-since    (t/<< now (t/new-duration overview-stats-window-days :days))
+                   :limit         overview-timeline-sample
+                   :user-settings settings})
+        items    (if (< (count windowed) overview-fallback-threshold)
+                   (db/dashboard-recent-entities
+                    db*
+                    user-id
+                    {:entity-types   types
+                     :per-type-limit overview-per-type-limit
+                     :order-keys     recent-activity-order-keys
+                     :user-settings  settings})
+                   windowed)]
+    (map #(assoc % ::activity-time (activity-time ctx %)) items)))
 
 (defn dashboard-stats
   "Compute lightweight dashboard stats from an already-fetched bounded set of

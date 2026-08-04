@@ -184,23 +184,40 @@
                         (into {}))]
         (when (seq result) result)))))
 
+(defn- relationship-excluded?
+  "Whether one entity points at a sensitive/archived parent.
+   Handles both set-valued (many-relationship) and single-valued
+   (single-relationship) fields."
+  [exclusion-map entity]
+  (boolean
+   (some (fn [[field-key excluded-ids]]
+           (let [v (get entity field-key)]
+             (cond
+               (set? v)     (some excluded-ids v)
+               (some? v)    (contains? excluded-ids v)
+               :else        false)))
+         exclusion-map)))
+
 (defn- apply-relationship-exclusions
   "Phase 2: Post-filter entities whose related parent IDs intersect with exclusion sets.
-   Handles both set-valued (many-relationship) and single-valued (single-relationship) fields.
    Short-circuits when exclusion-map is nil or all sets are empty."
   [exclusion-map entities]
   (if-not (seq exclusion-map)
     entities
-    (remove
-     (fn [entity]
-       (some (fn [[field-key excluded-ids]]
-               (let [v (get entity field-key)]
-                 (cond
-                   (set? v)     (some excluded-ids v)
-                   (some? v)    (contains? excluded-ids v)
-                   :else        false)))
-             exclusion-map))
-     entities)))
+    (remove #(relationship-excluded? exclusion-map %) entities)))
+
+(defn- keep-doc-fn
+  "Predicate for the sparse direct flags that phase-1 scans deliberately skip —
+   soft-deleted, plus sensitive/archived unless the user opts into seeing them.
+   All three are rare, so they cost less checked on pulled documents than as
+   per-row `(not ...)` subqueries inside the scan."
+  [entity-type {:keys [show-sensitive show-archived]}]
+  (let [sens-key (keyword (name entity-type) "sensitive")
+        arch-key (keyword (name entity-type) "archived")]
+    (fn [doc]
+      (and (nil? (get doc ::sm/deleted-at))
+           (or show-sensitive (not (true? (get doc sens-key))))
+           (or show-archived  (not (true? (get doc arch-key))))))))
 
 (defnp get-entity-for-user
   "Get a single entity by ID that belongs to a specific user.
@@ -286,6 +303,52 @@
                  ['?e ::sm/type entity-type]]
                 (into sort-clause))
      :in    ['user-id]}))
+
+(defn- build-windowed-scan-query
+  "Index-only scan of `[?e ?sort ?user ?type]` tuples for entities whose sort
+   key is at or after `since`. Caller filters user and type on the tuples.
+
+   The odd-looking part — binding `:user/id` and `::sm/type` as *output*
+   variables instead of as constants — is the whole point, and it is what makes
+   this fast. XTDB 1.x picks a bound clause as the join driver, so
+   `[?e :user/id user-id]` makes it walk every entity the user owns and apply
+   the range as a row filter; the window buys nothing. Left unbound, the
+   range-constrained sort attribute drives the scan, XTDB seeks straight into
+   that attribute's index at `since`, and user/type become per-row lookups over
+   only the rows inside the window.
+
+   Measured on an in-memory node, 80k docs, 30k of them the user's habit-logs,
+   asking for a 30-day window:
+
+     user+type bound, no range           323ms   (what build-id-scan-query does)
+     user+type bound, with range         253ms
+     range drives, user as output var     21ms
+
+   So the range predicate is not pushed down at all while a bound clause is
+   present — an important thing to know before adding `[(>= ...)]` to any other
+   query here and expecting it to help.
+
+   `since` must be the same value type XTDB stores for the attribute, or the
+   range comparison silently matches nothing; pass what the write path writes."
+  [order-key]
+  {:find  '[?e ?sort ?scan-user ?scan-type]
+   :where [['?e order-key '?sort]
+           '[(>= ?sort since)]
+           '[?e :user/id ?scan-user]
+           '[?e ::sm/type ?scan-type]]
+   :in    '[since]})
+
+(defnp windowed-scan
+  "Sorted `[id sort-value]` tuples of one type inside `[since, now]`, newest
+   first. Index-only — no documents are materialized."
+  [db user-id entity-type order-key since]
+  (->> (q db (build-windowed-scan-query order-key) since)
+       (into []
+             (keep (fn [[eid sort-value scan-user scan-type]]
+                     (when (and (= scan-user user-id)
+                                (= scan-type entity-type))
+                       [eid sort-value]))))
+       (sort-by second #(compare %2 %1))))
 
 (defnp fetch-entities-by-ids
   "Batch-fetch full documents for a collection of ids, preserving order.
@@ -476,30 +539,33 @@
    size instead of the user's entire history for the type."
   [db user-id entity-type &
    {:keys [filter-sensitive filter-archived filter-references
-           limit offset order-key order-direction]}]
+           limit offset order-key order-direction since]}]
   (let [user-settings {:show-sensitive (boolean filter-sensitive)
                        :show-archived  (boolean filter-archived)}
         ;; Build exclusion map when filter-references requested
         exclusion-map (when filter-references
                         (p {:id (keyword "exclusions" (name entity-type))}
                            (build-exclusion-map db user-id entity-type user-settings)))
-        ;; Phase 1: minimal index-only scan of [id sort-value] tuples
-        scan-query    (build-id-scan-query entity-type order-key)
+        ;; Phase 1: minimal index-only scan of [id sort-value] tuples. A
+        ;; `since` bound switches to the range-driven scan shape, which needs
+        ;; an explicit order-key to range over.
         direction     (or order-direction default-order-direction)
         sorted-ids    (p {:id (keyword "scan" (name entity-type))}
-                         (cond->> (sort-by second (q db scan-query user-id))
-                           (= direction :desc) reverse
-                           true                (mapv first)))
+                         (if (and since order-key)
+                           (cond->> (windowed-scan db user-id entity-type
+                                                   order-key since)
+                             (= direction :asc) reverse
+                             true               (mapv first))
+                           (cond->> (sort-by second
+                                             (q db
+                                                (build-id-scan-query entity-type
+                                                                     order-key)
+                                                user-id))
+                             (= direction :desc) reverse
+                             true                (mapv first))))
         ;; Post-filters previously pushed into the scan as per-row (not ...)
         ;; subqueries — all sparse, so filtering pulled docs is cheaper.
-        sens-key      (keyword (name entity-type) "sensitive")
-        arch-key      (keyword (name entity-type) "archived")
-        keep-doc?     (fn [doc]
-                        (and (nil? (get doc ::sm/deleted-at))
-                             (or filter-sensitive
-                                 (not (true? (get doc sens-key))))
-                             (or filter-archived
-                                 (not (true? (get doc arch-key))))))
+        keep-doc?     (keep-doc-fn entity-type user-settings)
         ;; Phase 2: pull docs in chunks, dropping filtered ones, until the
         ;; page (offset + limit) is satisfied. Filtered docs are typically
         ;; sparse, so this usually pulls a single chunk of ~2x the limit.
@@ -515,6 +581,21 @@
       limit  (take limit)
       true   doall)))
 
+(defn- all-ids-with-attribute
+  "Every entity id carrying `attr-key`, deliberately unscoped by user or type.
+
+   Only ever used for the 'has an end' side of a running-timer set difference,
+   where the result is subtracted from an already user-scoped set — an id from
+   another user or another type can only fail to match something, never leak
+   one in. Dropping the two scoping clauses is what makes it cheap: a bound
+   clause becomes XTDB's join driver, so the scoped form walks the user's whole
+   history for the type (measured 283ms vs 139ms over 40k rows)."
+  [db attr-key]
+  (into #{}
+        (map first)
+        (q db {:find  '[?e]
+               :where [['?e attr-key]]})))
+
 (defnp active-timers-for-user
   "Fetch in-progress timer entities (beginning set, no end) for a user.
    Computed as a set difference of two minimal index scans — 'has beginning'
@@ -523,27 +604,18 @@
    pulled, then deleted/sensitivity/exclusion filters run on those docs."
   [db user-id entity-type beginning-key end-key & {:keys [user-settings]}]
   (let [settings      (or user-settings (get-user-settings db user-id))
-        {:keys [show-sensitive show-archived]} settings
         exclusion-map (build-exclusion-map db user-id entity-type settings)
-        ids-with      (fn [attr-key]
-                        (into #{}
-                              (map first)
-                              (q db
-                                 {:find  '[?e]
-                                  :where [['?e :user/id 'user-id]
-                                          ['?e ::sm/type entity-type]
-                                          ['?e attr-key]]
-                                  :in    '[user-id]}
-                                 user-id)))
-        candidates    (remove (ids-with end-key) (ids-with beginning-key))
-        sens-key      (keyword (name entity-type) "sensitive")
-        arch-key      (keyword (name entity-type) "archived")
-        keep-doc?     (fn [doc]
-                        (and (nil? (get doc ::sm/deleted-at))
-                             (or show-sensitive
-                                 (not (true? (get doc sens-key))))
-                             (or show-archived
-                                 (not (true? (get doc arch-key))))))]
+        began         (into #{}
+                            (map first)
+                            (q db
+                               {:find  '[?e]
+                                :where [['?e :user/id 'user-id]
+                                        ['?e ::sm/type entity-type]
+                                        ['?e beginning-key]]
+                                :in    '[user-id]}
+                               user-id))
+        candidates    (remove (all-ids-with-attribute db end-key) began)
+        keep-doc?     (keep-doc-fn entity-type settings)]
     (->> (fetch-entities-by-ids db (vec candidates))
          (filter keep-doc?)
          (apply-relationship-exclusions exclusion-map))))
@@ -570,15 +642,7 @@
                                      ['?e beginning-key]]
                              :in    '[user-id parent-id]}
                             user-id parent-id))
-        ended      (into #{}
-                         (map first)
-                         (q db
-                            {:find  '[?e]
-                             :where [['?e :user/id 'user-id]
-                                     ['?e ::sm/type entity-type]
-                                     ['?e end-key]]
-                             :in    '[user-id]}
-                            user-id))
+        ended      (all-ids-with-attribute db end-key)
         candidates (remove ended began)]
     (->> (fetch-entities-by-ids db (vec candidates))
          (remove #(get % ::sm/deleted-at)))))
@@ -592,17 +656,8 @@
    visible after the pull."
   [db user-id entity-type beginning-key end-key limit & {:keys [user-settings]}]
   (let [settings      (or user-settings (get-user-settings db user-id))
-        {:keys [show-sensitive show-archived]} settings
         exclusion-map (build-exclusion-map db user-id entity-type settings)
-        end-ids       (into #{}
-                            (map first)
-                            (q db
-                               {:find  '[?e]
-                                :where [['?e :user/id 'user-id]
-                                        ['?e ::sm/type entity-type]
-                                        ['?e end-key]]
-                                :in    '[user-id]}
-                               user-id))
+        end-ids       (all-ids-with-attribute db end-key)
         ids           (->> (q db
                               {:find  '[?e ?t]
                                :where [['?e :user/id 'user-id]
@@ -614,14 +669,7 @@
                            (sort-by second #(compare %2 %1))
                            (map first)
                            (take (+ limit 10)))
-        sens-key      (keyword (name entity-type) "sensitive")
-        arch-key      (keyword (name entity-type) "archived")
-        keep-doc?     (fn [doc]
-                        (and (nil? (get doc ::sm/deleted-at))
-                             (or show-sensitive
-                                 (not (true? (get doc sens-key))))
-                             (or show-archived
-                                 (not (true? (get doc arch-key))))))]
+        keep-doc?     (keep-doc-fn entity-type settings)]
     (->> (fetch-entities-by-ids db ids)
          (filter keep-doc?)
          (apply-relationship-exclusions exclusion-map)
@@ -797,6 +845,83 @@
                  :order-key           order-key
                  :order-direction     :desc))))
            entity-types))))
+
+(defnp recent-activity-across-types
+  "Recent entities across several types, newest first, as one globally-merged
+   scan-then-pull.
+
+   `dashboard-recent-entities` reads each type independently and pulls
+   `per-type-limit` documents for every one of them — around 2,600 documents
+   from the remote Neon doc store to render an 18-row timeline. Here each
+   type's work stops at index tuples; they are merged and ordered once, and a
+   single batch pull materializes only the documents that will actually be
+   shown or counted.
+
+   Two things have to come back: the newest `limit` entities, and everything at
+   or after `full-since` (the window the caller's counts cover). Both are
+   prefixes of the same descending sequence, so it is one `take` of whichever
+   prefix is longer, capped at `max-pull`.
+
+   `max-pull` is a safety valve, not a budget: only documents that actually
+   exist inside the window get pulled, so a normal week costs a fraction of it.
+   The default is set at the number of documents the per-type read materialized
+   unconditionally (13 types x 100), which makes this strictly never the more
+   expensive of the two. A week busy enough to hit the cap would undercount the
+   caller's stats, so raise it rather than let that happen quietly.
+
+   `since` bounds the scan itself and is the reason it is cheap — see
+   `build-windowed-scan-query` for why the shape looks the way it does. Types
+   with nothing in the window contribute nothing, so callers that must not come
+   back empty-handed should check the result and fall back to an unbounded
+   read.
+
+   Future-dated rows are dropped: they are not 'recent', and left in they would
+   crowd the merged head with scheduled calendar events."
+  [db user-id {:keys [entity-types order-keys since full-since limit max-pull
+                      user-settings]
+               :or   {limit 60, max-pull 1300}}]
+  (let [settings (or user-settings (get-user-settings db user-id))
+        now      (t/now)
+        ordered  (->> (bounded-pmap
+                       3
+                       (fn [entity-str]
+                         (let [entity-kw (keyword entity-str)
+                               order-key (get order-keys entity-str
+                                              ::sm/created-at)]
+                           (p {:id (keyword "window-scan" entity-str)}
+                              (windowed-scan db user-id entity-kw
+                                             order-key since))))
+                       entity-types)
+                      (into [] cat)
+                      (keep (fn [[eid sort-value]]
+                              (when-let [inst (->instant sort-value)]
+                                (when-not (t/> inst now)
+                                  [eid inst]))))
+                      (sort-by second #(compare %2 %1)))
+        wanted   (min max-pull
+                      (max limit
+                           (if full-since
+                             (count (take-while #(t/>= (second %) full-since)
+                                                ordered))
+                             0)))
+        docs     (p {:id ::recent-activity-pull}
+                    (fetch-entities-by-ids db (mapv first (take wanted ordered))))
+        ;; Exclusion maps cost a query per relationship field, so build them
+        ;; only for the types that actually survived into the pulled page.
+        exclusions (into {}
+                         (map (fn [entity-type]
+                                [entity-type
+                                 (build-exclusion-map db user-id entity-type
+                                                      settings)]))
+                         (into #{} (keep ::sm/type) docs))
+        keep-doc?  (memoize #(keep-doc-fn % settings))]
+    (into []
+          (filter (fn [doc]
+                    (when-let [entity-type (::sm/type doc)]
+                      (and ((keep-doc? entity-type) doc)
+                           (not (relationship-excluded?
+                                 (get exclusions entity-type) doc))))))
+          docs)))
 
 (defnp dashboard-upcoming-events
   "Fetch upcoming calendar events with visibility filtering and a small oversample to survive filtering."
@@ -1011,18 +1136,28 @@
 (defnp recent-lines-for-user
   "The user's most recent exercise lines, newest first, bounded by limit.
    Scan-then-pull: an index-only [id created-at] scan is sorted and truncated
-   before any documents are pulled, so cost stays flat as history grows."
-  [db user-id limit]
-  (let [ids (->> (q db
-                    '{:find  [?e ?t]
-                      :where [[?e :user/id user-id]
-                              [?e ::sm/type :exercise-line]
-                              [?e ::sm/created-at ?t]]
-                      :in    [user-id]}
-                    user-id)
-                 (sort-by second #(compare %2 %1))
-                 (map first)
-                 (take limit))]
+   before any documents are pulled, so cost stays flat as history grows.
+
+   `since` additionally bounds the scan, which matters more here than anywhere
+   else: exercise-line is the densest type in the database — a row per exercise
+   per set — and the unbounded scan walks all of it to keep the newest handful.
+   A caller that passes `since` has to read an empty result as 'nothing in the
+   window', not 'nothing at all'."
+  [db user-id limit & {:keys [since]}]
+  (let [ids (if since
+              (->> (windowed-scan db user-id :exercise-line ::sm/created-at since)
+                   (map first)
+                   (take limit))
+              (->> (q db
+                      '{:find  [?e ?t]
+                        :where [[?e :user/id user-id]
+                                [?e ::sm/type :exercise-line]
+                                [?e ::sm/created-at ?t]]
+                        :in    [user-id]}
+                      user-id)
+                   (sort-by second #(compare %2 %1))
+                   (map first)
+                   (take limit)))]
     (->> (fetch-entities-by-ids db ids)
          (remove ::sm/deleted-at)
          vec)))

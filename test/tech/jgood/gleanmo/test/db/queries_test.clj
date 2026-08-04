@@ -948,3 +948,151 @@
                       (xt/db node) user-id [session-a session-b]))))
         (is (= [] (queries/sets-for-sessions
                    (xt/db node) user-id [])))))))
+
+;; ---------------------------------------------------------------------------
+;; Windowed / merged activity reads
+;; ---------------------------------------------------------------------------
+
+(defn- ago
+  "An instant `days` before now."
+  [days]
+  (t/<< (t/now) (t/new-duration days :days)))
+
+(defn- ahead
+  "An instant `days` after now."
+  [days]
+  (t/>> (t/now) (t/new-duration days :days)))
+
+(deftest windowed-scan-test
+  (testing "the range-driven scan returns only this user's in-window rows"
+    (with-open [node (test-xtdb-node [])]
+      (let [ctx        (get-context node)
+            user-id    (UUID/randomUUID)
+            other-id   (UUID/randomUUID)
+            mk!        (fn [uid label ts]
+                         (mutations/create-entity!
+                          ctx
+                          {:entity-key :cruddy
+                           :data (merge (create-valid-cruddy-data uid)
+                                        {:cruddy/label     label
+                                         :cruddy/timestamp ts})}))
+            recent     (mk! user-id "recent" (ago 2))
+            older      (mk! user-id "older" (ago 20))
+            _stale     (mk! user-id "stale" (ago 400))
+            _theirs    (mk! other-id "theirs" (ago 1))
+            tuples     (queries/windowed-scan (xt/db node) user-id :cruddy
+                                              :cruddy/timestamp (ago 90))]
+        (testing "newest first, window-bounded, user-scoped"
+          (is (= [recent older] (mapv first tuples))))
+        (testing "a window with nothing in it comes back empty rather than falling back"
+          (is (= [] (vec (queries/windowed-scan (xt/db node) user-id :cruddy
+                                                :cruddy/timestamp (ahead 1))))))))))
+
+(deftest all-entities-for-user-since-test
+  (testing ":since bounds the scan without changing filtering or ordering"
+    (with-open [node (test-xtdb-node [])]
+      (let [ctx     (get-context node)
+            user-id (UUID/randomUUID)
+            mk!     (fn [label ts extra]
+                      (mutations/create-entity!
+                       ctx
+                       {:entity-key :cruddy
+                        :data (merge (create-valid-cruddy-data user-id)
+                                     {:cruddy/label     label
+                                      :cruddy/timestamp ts}
+                                     extra)}))
+            newest  (mk! "newest" (ago 1) {})
+            middle  (mk! "middle" (ago 5) {})
+            _hidden (mk! "sensitive" (ago 2) {:cruddy/sensitive true})
+            _old    (mk! "old" (ago 300) {})
+            windowed (queries/all-entities-for-user
+                      (xt/db node) user-id :cruddy
+                      :order-key :cruddy/timestamp
+                      :order-direction :desc
+                      :since (ago 60))]
+        (is (= [newest middle] (mapv :xt/id windowed))
+            "in-window, newest first, sensitive still filtered")
+        (is (= [newest middle]
+               (mapv :xt/id (queries/all-entities-for-user
+                             (xt/db node) user-id :cruddy
+                             :order-key :cruddy/timestamp
+                             :order-direction :desc
+                             :since (ago 60)
+                             :limit 2)))
+            ":limit still applies inside the window")))))
+
+(deftest recent-activity-across-types-test
+  (testing "one merged read across types, ordered, filtered and windowed"
+    (with-open [node (test-xtdb-node [])]
+      (let [ctx      (get-context node)
+            user-id  (UUID/randomUUID)
+            other-id (UUID/randomUUID)
+            habit-id (mutations/create-entity!
+                      ctx
+                      {:entity-key :habit
+                       :data {:user/id user-id :habit/label "Test Habit"}})
+            mk-habit-log! (fn [uid ts]
+                            (mutations/create-entity!
+                             ctx
+                             {:entity-key :habit-log
+                              :data {:user/id             uid
+                                     :habit-log/timestamp ts
+                                     :habit-log/time-zone "UTC"
+                                     :habit-log/habit-ids #{habit-id}}}))
+            mk-cruddy!    (fn [uid label ts extra]
+                            (mutations/create-entity!
+                             ctx
+                             {:entity-key :cruddy
+                              :data (merge (create-valid-cruddy-data uid)
+                                           {:cruddy/label     label
+                                            :cruddy/timestamp ts}
+                                           extra)}))
+            hl-new     (mk-habit-log! user-id (ago 1))
+            cr-mid     (mk-cruddy! user-id "mid" (ago 3) {})
+            hl-old     (mk-habit-log! user-id (ago 10))
+            _future    (mk-cruddy! user-id "future" (ahead 5) {})
+            _stale     (mk-cruddy! user-id "stale" (ago 400) {})
+            _sensitive (mk-cruddy! user-id "sensitive" (ago 2)
+                                   {:cruddy/sensitive true})
+            _theirs    (mk-habit-log! other-id (ago 1))
+            opts       {:entity-types ["habit-log" "cruddy"]
+                        :order-keys   {"habit-log" :habit-log/timestamp
+                                       "cruddy"    :cruddy/timestamp}
+                        :since        (ago 90)
+                        :limit        50}
+            result     (queries/recent-activity-across-types
+                        (xt/db node) user-id opts)]
+        (testing "merged newest-first across both types"
+          (is (= [hl-new cr-mid hl-old] (mapv :xt/id result))))
+        (testing "future-dated, out-of-window, other-user and sensitive rows are all absent"
+          (let [ids (set (map :xt/id result))]
+            (is (not (contains? ids _future)))
+            (is (not (contains? ids _stale)))
+            (is (not (contains? ids _sensitive)))
+            (is (not (contains? ids _theirs)))))
+        (testing "show-sensitive opts the hidden row back in"
+          (is (contains?
+               (set (map :xt/id (queries/recent-activity-across-types
+                                 (xt/db node) user-id
+                                 (assoc opts :user-settings
+                                        {:show-sensitive true
+                                         :show-archived  true}))))
+               _sensitive)))
+        (testing "limit caps the merged head"
+          (is (= [hl-new] (mapv :xt/id (queries/recent-activity-across-types
+                                        (xt/db node) user-id
+                                        (assoc opts :limit 1))))))
+        (testing "full-since materializes past the limit so counts stay exact"
+          (is (= [hl-new cr-mid]
+                 (mapv :xt/id (queries/recent-activity-across-types
+                               (xt/db node) user-id
+                               (assoc opts :limit 1 :full-since (ago 5)))))))
+        (testing "max-pull caps what full-since can ask for"
+          (is (= [hl-new]
+                 (mapv :xt/id (queries/recent-activity-across-types
+                               (xt/db node) user-id
+                               (assoc opts :limit 1 :full-since (ago 90)
+                                      :max-pull 1))))))
+        (testing "an empty window returns nothing, leaving the fallback to the caller"
+          (is (= [] (queries/recent-activity-across-types
+                     (xt/db node) user-id (assoc opts :since (ahead 1))))))))))

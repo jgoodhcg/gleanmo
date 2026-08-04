@@ -30,6 +30,18 @@ updated: 2026-02-02
 
 ## ✅ Implementation Update (2025-10-23)
 - **Request profiling middleware** is active app-wide via `obs/wrap-request-profiling`, so every Ring request records timing data into Tufte’s accumulator.
-- **Background snapshots** run every 60 seconds, flushing the accumulator into `:performance-report` XTDB documents that capture instance metadata, git SHA, and per-route aggregates.
+- ~~**Background snapshots** run every 60 seconds, flushing the accumulator into `:performance-report` XTDB documents that capture instance metadata, git SHA, and per-route aggregates.~~
+  **No longer true (corrected 2026-08-03).** There is no scheduled snapshot
+  task. `worker.clj`'s only `:tasks` entry is `print-usage` every 5 minutes,
+  and `obs/persist-instance-snapshot!` has exactly one caller —
+  `app.clj:384`, the "Persist & Reset Metrics" button on the monitoring page.
+  Snapshots are **manual**.
+
+  Worth knowing when reading the dashboard: "TOTAL SNAPSHOTS" counts button
+  presses, not elapsed minutes, and the live metrics panel covers only the
+  window since the last press. Neither tells you how long the instance has
+  been up, so neither tells you whether a slow number is a cold cache or the
+  steady state. To compare a deploy: press persist right after it comes up,
+  then again once it has been exercised.
 - **Super-user dashboard** now lives at `/app/monitoring/performance`, offering rolling windows, snapshot counts, and human-readable summaries for each profiled route.
 - **Planned follow-ups**: Cross-instance aggregation and chart visualizations of the history are still future enhancements—current UI is textual but the storage model is in place.

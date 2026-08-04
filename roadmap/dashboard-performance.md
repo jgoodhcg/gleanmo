@@ -5,7 +5,7 @@ description: "Home page dashboard performance improvements"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-02
+updated: 2026-08-02
 ---
 
 # Dashboard Home Page Performance
@@ -633,3 +633,107 @@ The existing `load-performance-history` function (app.clj:206) already queries t
 - URL: `/app/monitoring/performance`
 - Super-user only access
 - Shows text-based summary with time window selection (1h, 6h, 24h, 7d)
+
+## Windowed Scans + One Merged Pull (2026-08-02)
+
+Prompted by a prod snapshot on a two-minute-old instance (SHA `8a12635`):
+`get-app-overview-recent` 5.26s, `get-app-exercise-session` 3.08s,
+`get-app-timers` 1.16s. Cold caches inflate those, but two structural costs
+were real and are what this change removes.
+
+### The finding: a bound clause defeats range push-down
+
+The plan was "add `[(>= ?sort since)]` to the scans." Measured on an in-memory
+node, 80k docs, 30k of them the user's habit-logs, asking for 30 days:
+
+| Query shape | Time | Rows |
+|---|---|---|
+| `[?e :user/id u] [?e ::sm/type T] [?e ts ?t]` (what we ship) | 323ms | 30000 |
+| same, plus `[(>= ?t cutoff)]` | 253ms | 1440 |
+| `[?e ts ?t] [(>= ?t cutoff)]` — no user/type clauses | **10ms** | 2880 |
+| `[?e ts ?t] [(>= ?t cutoff)] [?e :user/id ?u]` — user as **output** var | **21ms** | 2880 |
+| `[?e ts ?t] [(>= ?t cutoff)] [?e :user/id u]` — user **bound** | 192ms | 1440 |
+
+XTDB 1.x picks a **bound** clause as the join driver. With `[?e :user/id u]`
+present it walks the user's entire history for the type and applies the range
+as a row filter — the window buys ~20%. Leave `:user/id` and `::sm/type`
+*unbound* and the range-constrained attribute drives the scan instead: XTDB
+seeks into that attribute's index at the cutoff, and user/type become per-row
+lookups over only the rows inside the window. Filter both in Clojure.
+
+This is worth knowing before adding `[(>= ...)]` anywhere else in
+`db/queries.clj` and expecting it to help — on its own, it does not.
+`build-windowed-scan-query` carries the finding in its docstring.
+
+### Changes
+
+1. **`recent-activity-across-types`** replaces the per-type cascade on the home
+   page. Every type's read stops at index tuples; they are merged and ordered
+   once, and **one** batch pull materializes only what will be shown or
+   counted. `dashboard-recent-entities` pulled `per-type-limit` docs for each
+   of 13 types — ~1,300 documents from the remote Neon doc store to render an
+   18-row timeline.
+   - Timeline gets the newest `limit`; the stats strip additionally gets
+     everything since `full-since` (8 days), so today/this-week counts stay
+     exact rather than sampled. Both are prefixes of one descending sequence,
+     so it is a single `take` of the longer one.
+   - Future-dated rows are dropped in the query. Previously they rode along and
+     were filtered at render; merged globally they would have crowded the head
+     of the list with scheduled calendar events.
+   - `max-pull` defaults to 1,300 — the number the old path materialized
+     unconditionally — so this is never the more expensive of the two.
+   - `fetch-overview-items` falls back to the old per-type read when the window
+     yields fewer than 18 items, so a user who has logged nothing in 90 days
+     gets a slow page rather than an empty one.
+2. **`recent-lines-for-user` takes `:since`.** Exercise-line is the densest
+   type in the database (10,190 sets and their lines came over from Airtable),
+   and the workout page scanned all of it on every load to prefill the entry
+   form. Now a 120-day window, falling back to all history when it comes back
+   empty so a comeback workout still gets its memory.
+3. **The ended-timer scans dropped their user/type clauses.**
+   `active-timers-for-user`, `running-timers-for-parent` and
+   `recent-completed-timer-logs` all subtract a "has an end" set from an
+   already user-scoped set, so ids from another user or type can only fail to
+   match — they can never leak one in. Unscoped, that scan is roughly half the
+   cost (139ms vs 283ms over 40k rows).
+
+### Measured (in-memory node, 74k docs across 13 types + 20k exercise-lines)
+
+| Path | Before | After | Change |
+|------|--------|-------|--------|
+| Home dashboard read | 691ms (1,300 docs pulled) | 88ms (359 pulled) | **7.9x** |
+| Workout memory prefill | 192ms | 78ms | **2.4x** |
+| Ended-timer scan | 8.6ms | 2.7ms | 3.2x |
+
+An in-memory node understates this: prod pulls documents from Neon over the
+network (`fetch-entities-by-ids` mean 75ms, max 719ms in the snapshot above),
+so cutting pulled documents ~4x pays a second time there. Full suite green
+(99 tests, 741 assertions); new coverage in `queries-test` for the windowed
+scan, `:since`, and the merged read's ordering/filtering/capping.
+
+### Next lever
+
+`active-timers-for-user` still scans the full history of each timer type on its
+**beginning** side, and both the timers page and home run it once per
+timer-enabled type. A window cannot fix it: the common case is "no timer
+running", which is exactly when a windowed scan would have to fall back to the
+unbounded one to prove it.
+
+Written up as its own work unit — [timer-running-flag.md](./timer-running-flag.md).
+The short version: an indexed `<entity>/running` attribute, **derived in
+`db/mutations.clj` on every write** rather than set by the start/stop handlers,
+so the CRUD edit form and every future write path inherit the invariant instead
+of having to remember it. Reads self-heal the phantom direction; a daily
+reconciliation task catches the other.
+
+### Measurement caveat (2026-08-03)
+
+The snapshot that prompted this work was read as coming from a two-minute-old
+instance, on the assumption that a 60-second Chime job was producing the two
+persisted snapshots. That job does not exist — snapshots are manual, and
+"TOTAL SNAPSHOTS" counts button presses (see
+[performance.md](./performance.md)). Instance age was therefore unknown, and
+the 5.26s `get-app-overview-recent` may have been a warm number rather than a
+cold-cache artifact. Nothing in the changes depends on which it was, but future
+before/after comparisons should press persist deliberately at both ends rather
+than inferring uptime from the snapshot count.
