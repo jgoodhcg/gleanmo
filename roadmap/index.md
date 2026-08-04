@@ -58,6 +58,8 @@ unfinished QOL batch items 3-5 are no longer competing with a migration.
 
 ### Ready
 
+- [timer-running-flag.md](./timer-running-flag.md) - Replace the two-full-scan set difference behind active timers with an indexed flag derived at write time, reconciled daily
+- [screenshot-series-heartbeat.md](./screenshot-series-heartbeat.md) - Capture the visual timeline in CI against a fixed fixture, published to an orphan branch
 - [qol-quick-actions.md](./qol-quick-actions.md) - Navigation & logging QOL: sidebar reorder, stop-in-place timers, boulder problem discoverability, home quick actions
 - [inline-entity-creation.md](./inline-entity-creation.md) - Create related entities mid-form without losing context (executed as item 3 of qol-quick-actions.md)
 - [heatmap-performance.md](./heatmap-performance.md) - Heatmap viz page perf via year-bounded projection scans, shared rel-cache, parallel lazy-loaded year cards
@@ -71,6 +73,7 @@ unfinished QOL batch items 3-5 are no longer competing with a migration.
 - [local-dev-db-locking.md](./local-dev-db-locking.md) - RocksDB file lock prevents running REPL and CLI migrations concurrently
 - [schema-consistency.md](./schema-consistency.md) - Audit and standardize all Malli schemas for naming, field ordering, and conventions
 - [entity-merge.md](./entity-merge.md) - Combine logs from duplicate entities into one target entity
+- [exercise-session-location-relation.md](./exercise-session-location-relation.md) - Replace the free-text location string on exercise-session with a proper location relation, matching every other log entity
 - [biff-upgrade-v1-9.md](./biff-upgrade-v1-9.md) - Upgrade Biff and task libs to at least v1.9.0, then validate XTDB/Agrona changes and Java 25 compatibility
 - [dynamic-server-port.md](./dynamic-server-port.md) - Make the server dynamically choose a port to run on to support git worktree and multiple project development
 - [generic-viz.md](./generic-viz.md) - Generic visualizations for timestamp/interval entities
