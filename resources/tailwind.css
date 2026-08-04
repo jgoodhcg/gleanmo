@@ -14,6 +14,22 @@ body {
   overflow-x: hidden;
 }
 
+/* Mobile browsers hold a tap for ~300ms to see whether it is the first half of
+   a double-tap zoom. Tapping a stepper (+/- reps, weight, distance) fast
+   enough to be useful therefore reads as that gesture and zooms the page
+   instead of incrementing. No control in this app wants double-tap zoom, so
+   opt every one of them out; `manipulation` keeps panning and pinch zoom,
+   which are the accessibility-relevant gestures. */
+button,
+[role="button"],
+input[type="submit"],
+input[type="button"],
+label,
+summary,
+a {
+  touch-action: manipulation;
+}
+
 :root {
   --gold: #ffd400;
   --azure: #3b82f6;
