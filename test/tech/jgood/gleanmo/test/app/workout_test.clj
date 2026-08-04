@@ -58,7 +58,22 @@
                           [:weight :unit]))))
     (testing "an unrecognized unit falls back to lbs rather than failing malli"
       (is (= :lbs (:unit (line-params {:weight "45" :weight-unit "stone"}))))
-      (is (= :lbs (:unit (line-params {:weight "45"})))))))
+      (is (= :lbs (:unit (line-params {:weight "45"})))))
+    (testing "zero distance means the movement isn't measured that way"
+      (let [{:keys [distance distance-unit]}
+            (line-params {:distance "0" :distance-unit "km"})]
+        (is (nil? distance))
+        (is (nil? distance-unit))))
+    (testing "distance carries its own unit, independent of weight's"
+      (is (= {:distance 3.1 :distance-unit :km}
+             (select-keys (line-params {:distance "3.1" :distance-unit "km"})
+                          [:distance :distance-unit])))
+      (is (= :meters (:distance-unit (line-params {:distance "400"
+                                                   :distance-unit "meters"})))))
+    (testing "an unrecognized distance unit falls back to miles"
+      (is (= :miles (:distance-unit (line-params {:distance "2"
+                                                  :distance-unit "furlongs"}))))
+      (is (= :miles (:distance-unit (line-params {:distance "2"})))))))
 
 (deftest add-line-without-exercise-writes-nothing-test
   (testing "a submit with no exercise leaves the set open instead of closing
@@ -111,7 +126,7 @@
                  (:data @created))))))))
 
 (deftest update-line-clears-emptied-fields-test
-  (testing "dropping the weight really drops it rather than keeping the old one"
+  (testing "dropping a measurement really drops it rather than keeping the old one"
     (let [updated (atom nil)
           ex-id   (random-uuid)]
       (with-redefs [queries/get-entity-for-user (fn [_ id _ _] {:xt/id id})
@@ -120,12 +135,31 @@
          {:session     {:uid (random-uuid)}
           :biff/db     {}
           :path-params {:id (str (random-uuid))}
-          :params      {:line-exercise-id (str ex-id) :reps "10" :weight "0"}})
-        (is (= {:exercise-line/exercise-id ex-id
-                :exercise-line/reps        10
-                :exercise-line/weight      :db/dissoc
-                :exercise-line/weight-unit :db/dissoc}
-               (:data @updated)))))))
+          :params      {:line-exercise-id (str ex-id) :reps "10" :weight "0"
+                        :distance "0"}})
+        (is (= {:exercise-line/exercise-id   ex-id
+                :exercise-line/reps          10
+                :exercise-line/weight        :db/dissoc
+                :exercise-line/weight-unit   :db/dissoc
+                :exercise-line/distance      :db/dissoc
+                :exercise-line/distance-unit :db/dissoc}
+               (:data @updated))))))
+  (testing "a distance survives the round trip with its unit"
+    (let [updated (atom nil)
+          ex-id   (random-uuid)]
+      (with-redefs [queries/get-entity-for-user (fn [_ id _ _] {:xt/id id})
+                    mutations/update-entity! (fn [_ spec] (reset! updated spec) nil)]
+        (workout/update-line!
+         {:session     {:uid (random-uuid)}
+          :biff/db     {}
+          :path-params {:id (str (random-uuid))}
+          :params      {:line-exercise-id (str ex-id) :reps "0" :weight "0"
+                        :distance "2.5" :distance-unit "km"}})
+        (is (= {:exercise-line/distance      2.5
+                :exercise-line/distance-unit :km}
+               (select-keys (:data @updated)
+                            [:exercise-line/distance
+                             :exercise-line/distance-unit])))))))
 
 (deftest resume-set-guards-test
   (let [session-id (random-uuid)

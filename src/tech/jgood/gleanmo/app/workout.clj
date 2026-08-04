@@ -101,23 +101,45 @@
                                    ctx)
        (sort-by #(some-> (:exercise/label %) str/lower-case))))
 
+(def ^:private memory-line-sample
+  "How many recent lines the prefill memory reads. Enough to cover every
+   exercise in a normal rotation several times over."
+  200)
+
+(def ^:private memory-window-days
+  "How far back the memory scan looks before giving up and reading all
+   history. Exercise-line is the densest type there is, so the window is what
+   keeps this page's cost flat — see `queries/recent-lines-for-user`."
+  120)
+
 (defn- exercise-memory
-  "The user's most recently logged reps/weight/unit per exercise, so the entry
-   form can prefill what they did last time instead of a fixed default. Returns
-   {:by-exercise {exercise-id {:reps _ :weight _ :unit _}}
+  "The user's most recently logged reps/weight/distance per exercise, so the
+   entry form can prefill what they did last time instead of a fixed default.
+   Returns
+   {:by-exercise {exercise-id {:reps _ :weight _ :unit _
+                               :distance _ :distance-unit _}}
     :last exercise-id}           ; from the single most recent line overall
-   Reads only the newest 200 lines (bounded scan-then-pull) — memory for an
-   exercise not logged in that window just falls back to defaults."
+
+   Reads the newest `memory-line-sample` lines from the last
+   `memory-window-days` — memory for an exercise not logged in that window
+   falls back to defaults. Coming back after a long layoff reads all history
+   once rather than showing a blank form."
   [{:keys [biff/db session]}]
-  (let [lines (queries/recent-lines-for-user db (:uid session) 200) ; newest first
+  (let [uid   (:uid session)
+        since (t/<< (t/now) (t/new-duration memory-window-days :days))
+        lines (or (not-empty (queries/recent-lines-for-user
+                              db uid memory-line-sample :since since))
+                  (queries/recent-lines-for-user db uid memory-line-sample))
         by-ex (reduce (fn [acc line]
                         (let [ex-id (:exercise-line/exercise-id line)]
                           (if (contains? acc ex-id)
                             acc
                             (assoc acc ex-id
-                                   {:reps   (:exercise-line/reps line)
-                                    :weight (:exercise-line/weight line)
-                                    :unit   (some-> (:exercise-line/weight-unit line) name)}))))
+                                   {:reps          (:exercise-line/reps line)
+                                    :weight        (:exercise-line/weight line)
+                                    :unit          (some-> (:exercise-line/weight-unit line) name)
+                                    :distance      (:exercise-line/distance line)
+                                    :distance-unit (some-> (:exercise-line/distance-unit line) name)}))))
                       {}
                       lines)]
     {:by-exercise by-ex
@@ -204,17 +226,22 @@
 ;; exercise-memory prefills what they did last time.
 (def ^:private default-reps 12)
 (def ^:private default-weight 0)
+(def ^:private default-distance 0)
 
 ;; All form behavior wires up here off data attributes, per `[data-line-form]`
 ;; rather than per id, because the same fields render in the session form and
 ;; in every fragment htmx swaps into a set card: −/+ steppers (weight steps 5
-;; lbs / 2.5 kg by unit), the lbs/kg toggle, and the primary button label
-;; ('Log pullup × 12', only where `[data-line-primary]` marks one).
+;; lbs / 2.5 kg, distance 0.1 mi/km or 10 m, by unit), the unit toggles, and
+;; the primary button label ('Log pullup × 12', only where `[data-line-primary]`
+;; marks one).
+;;
+;; Unit toggles are keyed by `data-unit-field` so weight and distance each
+;; drive their own hidden `<field>-unit` input off one code path.
 ;;
 ;; `data-memory` opts a form into recall-on-select: picking an exercise fills
-;; in its last-logged reps/weight/unit, so repeat sets need zero re-entry.
-;; The edit fragment deliberately omits it — correcting a mis-picked exercise
-;; must not overwrite the reps and weight you are keeping.
+;; in its last-logged reps/weight/distance and their units, so repeat sets need
+;; zero re-entry. The edit fragment deliberately omits it — correcting a
+;; mis-picked exercise must not overwrite the values you are keeping.
 (def ^:private form-script
   "(function(){
      function initLineForm(form){
@@ -222,13 +249,16 @@
        form.dataset.lineFormInit='true';
        var mem=form.dataset.memory?JSON.parse(form.dataset.memory):null;
        var dReps=Number(form.dataset.defaultReps||0), dWeight=Number(form.dataset.defaultWeight||0);
+       var dDistance=Number(form.dataset.defaultDistance||0);
        var sel=form.querySelector('select[name$=exercise-id]');
        var reps=form.querySelector('[name=reps]');
        var weight=form.querySelector('[name=weight]');
-       var unitInput=form.querySelector('[name=weight-unit]');
+       var distance=form.querySelector('[name=distance]');
        var primary=form.querySelector('[data-line-primary]');
-       function setUnit(u){ if(!unitInput) return; unitInput.value=u;
-         form.querySelectorAll('[data-unit-btn]').forEach(function(b){
+       function unitInput(field){ return form.querySelector('[name='+field+'-unit]'); }
+       function unitOf(field){ var i=unitInput(field); return i?i.value:null; }
+       function setUnit(field,u){ var i=unitInput(field); if(!i) return; i.value=u;
+         form.querySelectorAll('[data-unit-field='+field+']').forEach(function(b){
            var on=b.dataset.unitBtn===u;
            b.classList.toggle('bg-neon-cyan',on); b.classList.toggle('text-black',on);
            b.classList.toggle('text-gray-500',!on); }); }
@@ -240,17 +270,22 @@
          if(mem){ var m=mem[sel.value]||{};
            if(reps) reps.value=(m.reps!=null?m.reps:dReps);
            if(weight) weight.value=(m.weight!=null?m.weight:dWeight);
-           setUnit(m.unit||'lbs'); }
+           setUnit('weight',m.unit||'lbs');
+           if(distance) distance.value=(m.distance!=null?m.distance:dDistance);
+           setUnit('distance',m['distance-unit']||'miles'); }
          syncPrimary(); }); }
        form.querySelectorAll('[data-unit-btn]').forEach(function(b){
-         b.addEventListener('click',function(){ setUnit(b.dataset.unitBtn); }); });
+         b.addEventListener('click',function(){
+           setUnit(b.dataset.unitField,b.dataset.unitBtn); }); });
        form.querySelectorAll('[data-adjust]').forEach(function(b){
          b.addEventListener('click',function(){
            var p=b.dataset.adjust.split(':'); var name=p[0]; var dir=Number(p[1]);
            var i=form.querySelector('[name='+name+']');
-           var step=(name==='weight')?((unitInput&&unitInput.value==='kg')?2.5:5):1;
+           var step=1;
+           if(name==='weight') step=(unitOf('weight')==='kg')?2.5:5;
+           else if(name==='distance') step=(unitOf('distance')==='meters')?10:0.1;
            var min=(name==='reps')?1:0;
-           i.value=Math.max(min,Math.round(((parseFloat(i.value)||0)+dir*step)*10)/10);
+           i.value=Math.max(min,Math.round(((parseFloat(i.value)||0)+dir*step)*100)/100);
            syncPrimary(); }); });
        if(reps) reps.addEventListener('input',syncPrimary);
        syncPrimary();
@@ -287,7 +322,11 @@
 (defn- memory-json
   "Per-exercise last-logged values keyed by exercise id, embedded as JSON for
    the recall-on-select script. Values are numbers/short enums, but cheshire
-   handles any shape safely."
+   handles any shape safely.
+
+   Keys go over as written, so kebab-case ones reach the script as
+   `m['distance-unit']` rather than `m.distanceUnit` — the alternative was
+   naming a Clojure map key in camelCase to suit the reader."
   [by-exercise]
   (cheshire/generate-string
    (into {} (map (fn [[k v]] [(str k) v])) by-exercise)))
@@ -295,15 +334,39 @@
 (defn- stepper-ctrl
   "−/+ flanking a borderless numeric input. Buttons use 44px-equivalent touch
    targets; their behavior (step size, clamping) wires up in form-script via
-   data-adjust."
+   data-adjust.
+
+   `select-none` because tapping these fast enough to be useful otherwise
+   starts selecting the label text. The matching half of that fix — not
+   treating the second fast tap as a double-tap zoom — is a `touch-action`
+   rule on every button in tailwind.css."
   [input-name value]
-  [:div.flex.items-center.gap-1.5.shrink-0
-   [:button {:type "button" :data-adjust (str input-name ":-1")
-             :class "w-11 h-11 shrink-0 flex items-center justify-center rounded-lg border border-dark bg-dark-surface text-gray-300 text-lg"} "−"]
-   [:input {:type "number" :step "any" :name input-name :value value
-            :class "w-16 text-center text-xl font-bold text-white bg-transparent border-none p-0 tabular-nums"}]
-   [:button {:type "button" :data-adjust (str input-name ":1")
-             :class "w-11 h-11 shrink-0 flex items-center justify-center rounded-lg border border-dark bg-dark-surface text-gray-300 text-lg"} "+"]])
+  (let [btn-class (str "w-11 h-11 shrink-0 flex items-center justify-center "
+                       "rounded-lg border border-dark bg-dark-surface "
+                       "text-gray-300 text-lg select-none")]
+    [:div.flex.items-center.gap-1.5.shrink-0
+     [:button {:type "button" :data-adjust (str input-name ":-1") :class btn-class} "−"]
+     [:input {:type "number" :step "any" :name input-name :value value
+              :class "w-16 text-center text-xl font-bold text-white bg-transparent border-none p-0 tabular-nums"}]
+     [:button {:type "button" :data-adjust (str input-name ":1") :class btn-class} "+"]]))
+
+(defn- unit-toggle
+  "Segmented unit picker writing to a hidden `<field>-unit` input. One per
+   measurement field; form-script keys the click handler off data-unit-field.
+
+   `units` is `[[value label] ...]` rather than plain strings because the two
+   come apart for distance: three spelled-out units plus a stepper overflow the
+   row inside the inline-edit fragment at phone width, so they render as the
+   conventional abbreviations while still submitting the schema's enum names."
+  [field units selected]
+  [:<>
+   [:div {:class "inline-flex rounded-lg border border-dark p-0.5"}
+    (for [[value label] units]
+      [:button {:type "button" :data-unit-btn value :data-unit-field field
+                :class (str "px-2.5 py-1 text-[11px] font-bold rounded-md select-none "
+                            (if (= value selected) "bg-neon-cyan text-black" "text-gray-500"))}
+       label])]
+   [:input {:type "hidden" :name (str field "-unit") :value selected}]])
 
 ;; The session form and the fragment forms must not both call their exercise
 ;; select "exercise-id": the shared picker derives its container DOM id from
@@ -312,14 +375,24 @@
 (def ^:private session-field-name "exercise-id")
 (def ^:private fragment-field-name "line-exercise-id")
 
-;; The schema's weight-unit enum, as the form submits it. Kept as a lookup so
-;; an unexpected param can't become a keyword that fails malli at write time.
+;; The schema's unit enums, as the forms submit them. Kept as lookups so an
+;; unexpected param can't become a keyword that fails malli at write time.
 (def ^:private weight-units {"lbs" :lbs "kg" :kg})
+(def ^:private distance-units {"miles" :miles "km" :km "meters" :meters})
+
+(def ^:private default-distance-unit "miles")
 
 (defn- line-fields
-  "Exercise picker plus the reps and weight rows — the body every form that
-   writes a line shares."
-  [{:keys [field-name exercise-id reps weight unit]} ctx]
+  "Exercise picker plus the reps, weight and distance rows — the body every
+   form that writes a line shares.
+
+   Distance sits inline with the other two rather than behind a disclosure:
+   the whole reason it is here is that reaching it used to mean loading the
+   full CRUD edit form, and a row you have to reveal first is only marginally
+   better than one you have to navigate to. A zero reads as 'not applicable'
+   and is stored as no value, the same convention weight already uses for
+   bodyweight, so the extra row costs a lifter nothing."
+  [{:keys [field-name exercise-id reps weight unit distance distance-unit]} ctx]
   [:<>
    [:div {:class "text-[10px] font-semibold tracking-widest text-gray-500 mb-2"} "EXERCISE"]
    ;; Shared inline-create picker rather than a hand-rolled select, so
@@ -338,14 +411,14 @@
    [:div.flex.items-center.justify-between.gap-2.py-2
     [:div.flex.flex-wrap.items-center.gap-1.5.min-w-0
      [:span {:class "text-[10px] font-semibold tracking-widest text-gray-500"} "WEIGHT"]
-     [:div {:class "inline-flex rounded-lg border border-dark p-0.5"}
-      (for [u ["lbs" "kg"]]
-        [:button {:type "button" :data-unit-btn u
-                  :class (str "px-2.5 py-1 text-[11px] font-bold rounded-md "
-                              (if (= u unit) "bg-neon-cyan text-black" "text-gray-500"))}
-         u])]
-     [:input {:type "hidden" :name "weight-unit" :value unit}]]
-    (stepper-ctrl "weight" (str weight))]])
+     (unit-toggle "weight" [["lbs" "lbs"] ["kg" "kg"]] unit)]
+    (stepper-ctrl "weight" (str weight))]
+   [:div.flex.items-center.justify-between.gap-2.py-2
+    [:div.flex.flex-wrap.items-center.gap-1.5.min-w-0
+     [:span {:class "text-[10px] font-semibold tracking-widest text-gray-500"} "DIST"]
+     (unit-toggle "distance" [["miles" "mi"] ["km" "km"] ["meters" "m"]]
+                  (or distance-unit default-distance-unit))]
+    (stepper-ctrl "distance" (str (or distance 0)))]])
 
 (defn- log-form
   "The main log form: shared line fields and a primary button that names its
@@ -367,12 +440,15 @@
       :action action, :method "post"
       :data-memory (memory-json by-exercise)
       :data-default-reps default-reps
-      :data-default-weight default-weight}
-     (line-fields {:field-name  session-field-name
-                   :exercise-id sel-id
-                   :reps        reps
-                   :weight      (or (:weight m) default-weight)
-                   :unit        (or (:unit m) "lbs")}
+      :data-default-weight default-weight
+      :data-default-distance default-distance}
+     (line-fields {:field-name    session-field-name
+                   :exercise-id   sel-id
+                   :reps          reps
+                   :weight        (or (:weight m) default-weight)
+                   :unit          (or (:unit m) "lbs")
+                   :distance      (or (:distance m) default-distance)
+                   :distance-unit (or (:distance-unit m) default-distance-unit)}
                   ctx)
      [:div.flex.flex-col.gap-2.mt-4
       [:button (cond-> {:id "wk-log-primary" :data-line-primary true :type "submit"
@@ -389,18 +465,22 @@
    set that already ended, or correcting one that is already there. Never
    touches the set's interval, so describing a set later costs its timing
    nothing."
-  [{:keys [action submit-label exercise-id reps weight unit memory delete-action]} ctx]
+  [{:keys [action submit-label exercise-id reps weight unit distance
+           distance-unit memory delete-action]} ctx]
   [:div {:class "mt-2.5 rounded-lg border border-dark bg-dark p-3 min-w-0"}
    (biff/form
     (cond-> {:data-line-form true :action action :method "post"}
       memory (assoc :data-memory (memory-json memory)
                     :data-default-reps default-reps
-                    :data-default-weight default-weight))
-    (line-fields {:field-name  fragment-field-name
-                  :exercise-id exercise-id
-                  :reps        reps
-                  :weight      weight
-                  :unit        unit}
+                    :data-default-weight default-weight
+                    :data-default-distance default-distance))
+    (line-fields {:field-name    fragment-field-name
+                  :exercise-id   exercise-id
+                  :reps          reps
+                  :weight        weight
+                  :unit          unit
+                  :distance      distance
+                  :distance-unit distance-unit}
                  ctx)
     [:div.flex.items-center.gap-2.mt-3
      [:button {:type "submit"
@@ -1039,28 +1119,38 @@
 
    A blank or malformed exercise id yields nil rather than throwing — the
    handlers treat that as 'ask again', never as 'write a line with no
-   exercise'. Zero weight means bodyweight, stored as no weight at all, and an
-   unrecognized unit falls back to lbs rather than reaching the schema's enum
-   as a keyword that fails validation at write time."
+   exercise'. Zero weight means bodyweight and zero distance means the
+   movement isn't measured that way; both are stored as no value at all, and
+   an unrecognized unit falls back to the field's default rather than reaching
+   the schema's enum as a keyword that fails validation at write time. A unit
+   is only carried when its measurement is, so a bodyweight line does not
+   record that it was bodyweight in pounds."
   [params]
-  (let [raw    (or (not-empty (str/trim (str (get params (keyword fragment-field-name)))))
-                   (not-empty (str/trim (str (get params (keyword session-field-name))))))
-        w      (parse-num* (:weight params))
-        weight (when (and w (pos? w)) w)]
-    {:exercise-id (some-> raw parse-uuid)
-     :reps        (parse-int* (:reps params))
-     :weight      weight
-     :unit        (when weight (get weight-units (:weight-unit params) :lbs))}))
+  (let [raw      (or (not-empty (str/trim (str (get params (keyword fragment-field-name)))))
+                     (not-empty (str/trim (str (get params (keyword session-field-name))))))
+        w        (parse-num* (:weight params))
+        weight   (when (and w (pos? w)) w)
+        d        (parse-num* (:distance params))
+        distance (when (and d (pos? d)) d)]
+    {:exercise-id   (some-> raw parse-uuid)
+     :reps          (parse-int* (:reps params))
+     :weight        weight
+     :unit          (when weight (get weight-units (:weight-unit params) :lbs))
+     :distance      distance
+     :distance-unit (when distance
+                      (get distance-units (:distance-unit params) :miles))}))
 
 (defn- line-doc
   "The document a line form describes, ready for create-entity!."
-  [user-id set-id {:keys [exercise-id reps weight unit]}]
+  [user-id set-id {:keys [exercise-id reps weight unit distance distance-unit]}]
   (cond-> {:user/id                   user-id
            :exercise-line/set-id      set-id
            :exercise-line/exercise-id exercise-id}
-    reps   (assoc :exercise-line/reps reps)
-    weight (assoc :exercise-line/weight weight)
-    unit   (assoc :exercise-line/weight-unit unit)))
+    reps          (assoc :exercise-line/reps reps)
+    weight        (assoc :exercise-line/weight weight)
+    unit          (assoc :exercise-line/weight-unit unit)
+    distance      (assoc :exercise-line/distance distance)
+    distance-unit (assoc :exercise-line/distance-unit distance-unit)))
 
 (defn add-line!
   "Record a line against the session's running set. The primary submit also
@@ -1110,13 +1200,15 @@
           m      (get by-exercise sel-id)]
       (fragment ctx
                 (line-entry-form
-                 {:action       (str "/app/exercise/set/" (:xt/id ex-set) "/line")
-                  :submit-label "Add to set"
-                  :exercise-id  sel-id
-                  :reps         (or (:reps m) default-reps)
-                  :weight       (or (:weight m) default-weight)
-                  :unit         (or (:unit m) "lbs")
-                  :memory       by-exercise}
+                 {:action        (str "/app/exercise/set/" (:xt/id ex-set) "/line")
+                  :submit-label  "Add to set"
+                  :exercise-id   sel-id
+                  :reps          (or (:reps m) default-reps)
+                  :weight        (or (:weight m) default-weight)
+                  :unit          (or (:unit m) "lbs")
+                  :distance      (or (:distance m) default-distance)
+                  :distance-unit (or (:distance-unit m) default-distance-unit)
+                  :memory        by-exercise}
                  ctx)))
     (fragment ctx [:p.text-xs.text-gray-500 "Set not found."])))
 
@@ -1148,26 +1240,33 @@
                 :reps          (or (:exercise-line/reps line) default-reps)
                 :weight        (or (:exercise-line/weight line) default-weight)
                 :unit          (or (some-> (:exercise-line/weight-unit line) name) "lbs")
+                :distance      (or (:exercise-line/distance line) default-distance)
+                :distance-unit (or (some-> (:exercise-line/distance-unit line) name)
+                                   default-distance-unit)
                 :delete-action (str "/app/exercise/line/" (:xt/id line) "/delete")}
                ctx))
     (fragment ctx [:p.text-xs.text-gray-500 "Line not found."])))
 
 (defn update-line!
-  "Rewrite a line's exercise, reps and weight. Cleared fields are dissoc'd
-   rather than left behind, so dropping the weight off a line really does make
-   it bodyweight instead of silently keeping the old number."
+  "Rewrite a line's exercise, reps, weight and distance. Cleared fields are
+   dissoc'd rather than left behind, so dropping the weight off a line really
+   does make it bodyweight instead of silently keeping the old number, and
+   zeroing a distance really does remove it."
   [{:keys [params] :as ctx}]
   (if-let [line (owned-entity ctx :exercise-line)]
-    (let [{:keys [exercise-id reps weight unit]} (line-params params)]
+    (let [{:keys [exercise-id reps weight unit distance distance-unit]}
+          (line-params params)]
       (if exercise-id
         (do (mutations/update-entity!
              ctx
              {:entity-key :exercise-line
               :entity-id  (:xt/id line)
-              :data       {:exercise-line/exercise-id  exercise-id
-                           :exercise-line/reps         (or reps :db/dissoc)
-                           :exercise-line/weight       (or weight :db/dissoc)
-                           :exercise-line/weight-unit  (or unit :db/dissoc)}})
+              :data       {:exercise-line/exercise-id    exercise-id
+                           :exercise-line/reps           (or reps :db/dissoc)
+                           :exercise-line/weight         (or weight :db/dissoc)
+                           :exercise-line/weight-unit    (or unit :db/dissoc)
+                           :exercise-line/distance       (or distance :db/dissoc)
+                           :exercise-line/distance-unit  (or distance-unit :db/dissoc)}})
             (redirect-back ctx))
         (redirect-back ctx :error "pick-exercise")))
     (redirect-back ctx)))
