@@ -55,10 +55,10 @@ unfinished QOL batch items 3-5 are no longer competing with a migration.
 - [reading-tracker.md](./reading-tracker.md) - Lightweight Goodreads replacement with timer-backed sessions
 - [reading-schema-proposal.md](./reading-schema-proposal.md) - Draft Malli schemas for reading entities
 - [unified-timer-page.md](./unified-timer-page.md) - One timer workspace: all running timers, search-to-start, one-tap start/stop without form bounces (implemented 2026-07-27; e2e/screenshot validation pending)
+- [timer-running-flag.md](./timer-running-flag.md) - Replace the two-full-scan set difference behind active timers with an indexed flag derived at write time, reconciled daily (built and tested 2026-08-04; deploy + m007 backfill, prod confirmation pending)
 
 ### Ready
 
-- [timer-running-flag.md](./timer-running-flag.md) - Replace the two-full-scan set difference behind active timers with an indexed flag derived at write time, reconciled daily
 - [query-shape-audit.md](./query-shape-audit.md) - Find clauses that cost without narrowing, and ranges that never prune, across db/queries.clj
 - [qol-quick-actions.md](./qol-quick-actions.md) - Navigation & logging QOL: sidebar reorder, stop-in-place timers, boulder problem discoverability, home quick actions
 - [inline-entity-creation.md](./inline-entity-creation.md) - Create related entities mid-form without losing context (executed as item 3 of qol-quick-actions.md)

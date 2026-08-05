@@ -3,7 +3,7 @@ title: "Timer Running Flag"
 status: active
 description: "Replace the two-full-scan set difference behind active timers with an indexed flag derived at write time, reconciled daily"
 created: 2026-08-03
-updated: 2026-08-04
+updated: 2026-08-05
 tags: [performance, xtdb, timers, schema]
 priority: medium
 ---
@@ -230,6 +230,47 @@ Note: `worker.clj` currently has one task (`print-usage`, every 5 minutes), and
 - [ ] Prod: `active-timers-for-user` mean drops from the ~300-900ms range;
       confirm on `/app/monitoring/performance`
 
+## Deploy procedure
+
+Everything above is committed (`4038577` on `dev`). What remains is operational.
+§4 has the reasoning; this is the runbook.
+
+```
+1. Stop every running timer in prod
+2. biff deploy
+3. clj -M:dev migrate m007-timer-running-flag --target prod
+4. biff logs                       # reconcile-timer-flags should be silent
+5. /app/monitoring/performance     # confirm the mean drops
+```
+
+**Step 1 is not optional housekeeping.** Between the deploy and the backfill the
+new read filters on a flag no existing document carries, so any timer that
+*was* running is invisible in the UI. The data is untouched and step 3 restores
+the view, but stopping timers first is what makes that window empty rather than
+alarming.
+
+**`deploy`, never `soft-deploy`.** Two independent reasons, both silent
+failures rather than errors:
+
+- `use-chime` schedules tasks only at system start. Without a restart
+  `reconcile-timer-flags` is never scheduled, and nothing says so.
+- `malli-opts` is a `def` in `gleanmo.clj` that snapshots the schema registry
+  at load. `on-soft-deploy` runs `eval-files!` over *changed* files, and
+  `gleanmo.clj` is not one of them — so the registry would still lack
+  `<entity>/running` and every write of it would fail `:closed true`
+  validation.
+
+**`deploy` rsyncs the working tree, not a branch.** `push-files` prefers rsync
+when it exists locally, syncing the files `git ls-files` reports *as they are on
+disk*. `:biff.tasks/deploy-cmd ["git" "push" "prod" "main:master"]` in
+`config.edn` is only the fallback for machines without rsync. So uncommitted
+edits ship too — check `git status` is clean before running it.
+
+**Dev has the same gap.** Any timer left running in dev before this change
+carries no flag and won't show on `/app/timers` until m007 runs there too:
+`clj -M:dev migrate m007-timer-running-flag --target dev`, with the dev server
+stopped first for the RocksDB lock. `--dry-run` reports counts without writing.
+
 ## Scope
 
 Not included: changing how timers are started, stopped, or displayed. Not
@@ -300,6 +341,12 @@ against pages that pull 12 external requests from five third-party hosts
 CI loop with no retries. `auth.ts` already documents this exact bug ("a 3ms
 route time out at 30s when one asset stalled") and fixed one call site;
 `runningCount`, which failed here, is one of the 59 left exposed.
+
+`e2e/scripts/diagnose-networkidle.ts` is the instrument that produced those
+per-host numbers — it times `networkidle` over repeated loads of a route and
+attributes the wait to the requests responsible. Deliberately outside the
+`test-*.ts` glob so CI does not run it. It is the starting point if that work
+unit gets written.
 
 Related: the CRUD edit form cannot currently clear an optional field at all —
 `form->schema` *skips* blank optional values rather than emitting `:db/dissoc`,
