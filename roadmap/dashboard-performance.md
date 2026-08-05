@@ -5,7 +5,7 @@ description: "Home page dashboard performance improvements"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-08-02
+updated: 2026-08-04
 ---
 
 # Dashboard Home Page Performance
@@ -737,3 +737,38 @@ the 5.26s `get-app-overview-recent` may have been a warm number rather than a
 cold-cache artifact. Nothing in the changes depends on which it was, but future
 before/after comparisons should press persist deliberately at both ends rather
 than inferring uptime from the snapshot count.
+
+## Post-beb30d8 Snapshot — Inconclusive (2026-08-04, SHA eb5c428)
+
+Two snapshots, two `get-app-overview-recent` calls, unknown instance age —
+exactly the trap the beb30d8 commit message names. Logging what the numbers
+say and what they cannot.
+
+| Endpoint | Mean | Notes |
+|---|---|---|
+| `get-app-overview-recent` | 2.46s | vs. 1.34–1.9s warm on 2026-07-04 (8903aa6); vs. 5.26s that prompted beb30d8 |
+| `get-app-exercise-session` | 4.07s | worst endpoint; not addressed by any in-flight work |
+| `get-app-monitoring-performance` | 51ms | fine |
+
+**beb30d8 verdict: unknown.** `recent-activity-across-types` is 1.71s of the
+2.46s wall — the merged windowed scan is doing its job. But two calls cannot
+separate cold caches from steady state, and the comparison baseline decides
+the story: against the 5.26s prompting snapshot this is a win, against the
+1.34–1.9s warm baseline it looks worse. Re-press persist deliberately before
+and after the next deploy before calling it.
+
+**The running-flag work is uncommitted.** `active-timers-for-user` is still
+the old set-difference scan in prod: 6 calls × 378ms = 2.27s in parallel on
+the home page (max 797ms — the wall), 2 calls × 807ms = 1.62s on the workout
+page. The 0.18ms flag query measured in
+[timer-running-flag.md](./timer-running-flag.md) is on the working tree, not
+deployed. Shipping it is the next lever; until then, the home page is bounded
+by timer scans regardless of what beb30d8 did for the timeline cascade.
+
+**New finding — `sets-for-sessions` and `lines-for-sets`.** 1.48s and 1.42s
+mean on `get-app-exercise-session`, together the entire cost of that page.
+Both use inline `(pull ?e [*])` (`db/queries.clj:1151`, `:1168`); the
+equality-bound `:in [user-id [?sid ...]]` is the AGENTS.md inline-pull
+exception, but the prod numbers say the bound set or Neon doc-fetch cost is
+too high. Candidate for scan-then-pull (`fetch-entities-by-ids`). No work
+unit covers this yet — open one.
