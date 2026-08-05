@@ -1,6 +1,6 @@
 # AGENTS
 
-Follows `AGENT_BLUEPRINT.md` (version: 2026-07-05)
+Follows `AGENT_BLUEPRINT.md` (version: 2026-08-04.1)
 
 ## Project Overview
 
@@ -94,7 +94,7 @@ clj-kondo --version
 
 ### Cloud Environment Setup
 
-Remote/cloud agentic runtimes (Ubuntu 24+) that lack a JVM should run the setup script on first use:
+Remote/cloud agentic runtimes (Ubuntu 24+) that lack a JVM must run the setup script on first use:
 
 ```sh
 ./script/setup-cloud-lint.sh        # installs standalone clj-kondo to ~/.local/bin
@@ -182,6 +182,8 @@ commands for the user to run, prefer the `biff` shorthand (e.g., `biff notebook`
 
 ## Project-Specific Rules
 
+- `BP-WRITE-04` exemptions: none.
+
 - Always include commit trailers (Co-authored-by, AI-Provider, AI-Product, AI-Model) using the template above.
 - User control: never assume database state; ask the user if unsure.
 - Roadmap driven: canonical roadmap lives in `roadmap/` with `index.md` as canonical state and `README.md` as catalog.
@@ -200,7 +202,7 @@ Database layer
 - When reading user visibility settings, use `resolve-user-settings` (ctx-first), not `get-user-settings` directly.
 - Fetch-all-then-filter is a rule violation even when it goes through `db/queries.clj`: calling `all-for-user-query` (or similar) and filtering in the app namespace for a parent-scoped subset (e.g. one session's sets) or a recent-N slice counts as "a needed query doesn't exist" — add a targeted query instead. Parent-scoped reads get equality-bound where clauses (cost tracks the parent, not user history); recent-N reads get scan-then-pull with a limit. Examples: `sets-for-session`, `lines-for-sets`, `recent-lines-for-user`.
 - Why `:limit` doesn't rescue an inline pull: in XTDB 1.x, `(pull ?e [*])` in the `:find` runs for **every matching row before** `:order-by`/`:limit` are applied, so a "recent 5" query with an inline pull still fetches every document the where clauses match. The fix is scan-then-pull: an index-only query (`:find [?e ?sort]`, no pull), sort/truncate the tuples in Clojure, then `fetch-entities-by-ids` on the survivors. Inline pull is fine only when the where clauses already bound the match set to what you'll return (e.g. equality on a parent id).
-- Public functions in `db/queries.clj` describe **intent** (`:since`, `:limit`, `:order-key`); private ones carry engine tricks. A plain-Postgres implementation should be able to satisfy every public signature without knowing any XTDB specifics — that interface is the spec for a database swap, so nothing engine-shaped belongs in a public argument.
+- Public functions in `db/queries.clj` describe **intent** (`:since`, `:limit`, `:order-key`); private ones carry engine tricks. A plain-Postgres implementation must be able to satisfy every public signature without knowing any XTDB specifics — that interface is the spec for a database swap, so nothing engine-shaped belongs in a public argument.
 
 ### XTDB 1.x query shape — check it, don't reason about it
 
@@ -229,7 +231,7 @@ The failure is invisible in review — `(fetch-thing ctx)` looks identical befor
 
 Biff's docs say `submit-tx` calls `xt/await-tx` "so you can read your writes." That means the write is *indexed* — a **new** `xt/db` will see it. It does not refresh a snapshot you already hold. (Biff knows this: `submit-with-retries` refreshes `:biff/db` internally for its retry loop, but that fresh ctx never reaches the caller.)
 
-**Preferred fix — don't read at all.** Mutation handlers should write and `303` back to the page, the way `start-timer`, `stop-timer`, and the CRUD handlers do. The follow-up GET is a new request with a fresh snapshot, so every region of the page becomes consistent at once with no partial-refresh wiring to maintain. Applies to HTMX-triggered mutations too: use a plain `biff/form` post rather than `hx-post` when the result is "this page changed."
+**Preferred fix — don't read at all.** Mutation handlers must write and `303` back to the page, the way `start-timer`, `stop-timer`, and the CRUD handlers do. The follow-up GET is a new request with a fresh snapshot, so every region of the page becomes consistent at once with no partial-refresh wiring to maintain. Applies to HTMX-triggered mutations too: use a plain `biff/form` post rather than `hx-post` when the result is "this page changed."
 
 **When a handler genuinely must render its own response** (a fragment that would be wasteful to reload, an inline row update), refresh the snapshot explicitly first:
 
@@ -278,7 +280,7 @@ Testing philosophy
 
   **Before making UI edits, ask the user to run `just e2e-shot-series` and wait
   for the baseline result.** Do not silently start the user's dev server. A
-  prior successful tick from the current source state counts; the user may
+  prior successful tick from the current source state counts; the user can
   explicitly waive the baseline. Tell the user that the command creates or
   advances the dedicated local-dev series account. If the working tree is
   already dirty, ask whether those existing changes belong in the baseline
@@ -325,7 +327,7 @@ Storing a rating as `:number` is a claim that arithmetic on it is meaningful —
 
 ### Legacy meta fields — never on new schemas
 
-`sm/legacy-meta` (`tech.jgood.gleanmo.schema/created-at|deleted-at|type`) exists only for entities that already had documents written under those old attribute names before the `tech.jgood.gleanmo.schema.meta` namespace was adopted. Every schema that should ever carry it already does. **Do not append `(concat sm/legacy-meta)` to any new schema** — new entities use only the `::sm/*` meta fields.
+`sm/legacy-meta` (`tech.jgood.gleanmo.schema/created-at|deleted-at|type`) exists only for entities that already had documents written under those old attribute names before the `tech.jgood.gleanmo.schema.meta` namespace was adopted. Every schema permitted to carry it already does. **Do not append `(concat sm/legacy-meta)` to any new schema** — new entities use only the `::sm/*` meta fields.
 
 ### Airtable lineage fields
 
