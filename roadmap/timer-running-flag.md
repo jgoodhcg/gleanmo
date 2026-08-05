@@ -3,7 +3,7 @@ title: "Timer Running Flag"
 status: ready
 description: "Replace the two-full-scan set difference behind active timers with an indexed flag derived at write time, reconciled daily"
 created: 2026-08-03
-updated: 2026-08-03
+updated: 2026-08-04
 tags: [performance, xtdb, timers, schema]
 priority: medium
 ---
@@ -79,9 +79,37 @@ the CRUD form. The flag stops being *maintained* state and goes back to being
 *derived* state: derived at write time instead of read time. One derivation
 site, no call-site discipline.
 
-Interval field names come from `schema-utils/ensure-interval-fields`, the same
-helper `timer/routes.clj` already uses, so this stays schema-driven rather than
-a hardcoded list of types.
+**Opt-in is the schema itself.** Rather than `mutations.clj` importing a list
+of timer types from the app layer, it maintains the flag for exactly those
+entities whose schema declares a `<entity>/running` field alongside
+`beginning`/`end`. Adding the attribute to a schema is what turns the
+derivation on. Interval field names come from
+`schema-utils/ensure-interval-fields`, the helper `timer/routes.clj` already
+uses.
+
+`exercise-set` is deliberately **not** on the list. The workout screen finds
+its running set through `sets-for-session`, which is equality-bound on the
+parent and already cheap — it never calls `active-timers-for-user`, so a flag
+would buy nothing and add a fourth schema to keep in sync.
+
+#### The trap: `update-entity!` is a partial merge
+
+`:db/op :update` merges `data` into the stored document, so **the flag cannot
+be derived from `data` alone.** If `data` sets only `beginning`, whether the
+result is running depends on an `end` that is not in `data`. If it clears
+`end`, whether the result is running depends on a `beginning` that is not in
+`data` either.
+
+So the derivation has to see the merged document, which means reading the
+current one when `data` touches an interval field. `xt/entity` inside
+`mutations.clj` is permitted by the db-layer rule, and it is a single
+by-id lookup on a document the cache almost certainly holds. Getting this wrong
+is silent: it would leave the flag stale exactly on the CRUD-form path this
+design exists to protect, and every test that only exercises start/stop would
+still pass. Cover the partial-update case explicitly.
+
+`create-entity!` and `create-entities!` have no such problem — `data` is the
+whole document.
 
 ### 3. Read path
 
@@ -109,16 +137,39 @@ the 2-element stream against the others and the scoping clauses cost nothing
 measurable. There is no single-user-versus-multi-user trade to make here —
 unlike the ended-scan change this supersedes. Keep both clauses.
 
-Then pull the handful of candidates and **confirm `end` is nil on the pulled
-documents** before returning them. That check is free at this size and makes
-the read self-healing in the phantom direction: a document flagged running
-that actually has an end gets filtered out, logged, and its flag cleared.
+Then pull the handful of candidates and **confirm the interval on the pulled
+documents** — beginning present, end nil — before returning them. Free at this
+size, and it means a stale flag can never surface a stopped timer as running.
 
-### 4. Backfill
+**The read filters and logs; it does not repair.** An earlier draft of this
+unit had it clearing the flag inline. That is wrong twice over:
+`active-timers-for-user` takes `db`, not `ctx`, so it cannot write at all, and
+a GET that writes would be reading its own pre-write snapshot for the rest of
+the request (see the `:biff/db` anti-pattern in AGENTS.md). A `log/warn` here
+and repair in the daily job keeps the read path a read path — and the log is
+the useful half anyway, because a phantom means some write path skipped the
+derivation.
 
-One-time migration setting the flag on currently-running timers. The old
-set-difference query is exactly right for this — it is only unacceptable on
-the hot path, not as a one-off.
+### 4. Backfill and deploy order
+
+One-time migration (`m007`) setting the flag on currently-running timers. The
+old set-difference query is exactly right for this — it is only unacceptable on
+the hot path, not as a one-off. Idempotent, per the m003–m006 pattern; the
+RocksDB lock means the dev server must be stopped to run it locally.
+
+**Deploy order — decided 2026-08-04: single deploy.** Stop every running timer
+first, then ship schema, derivation, read path and reconciliation together, and
+run the backfill after.
+
+The consequence to be awake to: between the deploy and the backfill, any timer
+that *was* running is invisible in the UI, because the new read filters on a
+flag no existing document carries. Stopping timers beforehand is what makes
+that window empty rather than alarming. It is recoverable either way — the data
+is untouched and the backfill restores the view — but it is a real window, and
+it is the reason the staged alternative existed.
+
+That also means this can ship as **one commit**. The staged alternative would
+have split it on the deploy boundary.
 
 ### 5. Daily reconciliation job
 
@@ -150,12 +201,19 @@ Note: `worker.clj` currently has one task (`print-usage`, every 5 minutes), and
 - [ ] Unit: clearing `end` through `update-entity!` (the CRUD-form path,
       not a timer handler) sets the flag — the regression this design exists
       to prevent
+- [ ] Unit: **a partial update that touches only `beginning`** lands the right
+      flag, i.e. the derivation read the stored `end` rather than assuming
+      `data` was the whole document. The trap above; start/stop tests alone
+      pass without it
+- [ ] Unit: an update touching neither interval field leaves the flag alone
 - [ ] Unit: `active-timers-for-user` returns the same set as the old
       set-difference query across a fixture with running, stopped, deleted,
       sensitive and archived timers
 - [ ] Unit: a document flagged running but carrying an `end` is filtered out
-      of the read and its flag cleared
+      of the read and logged — and the read performs no write
 - [ ] Unit: the reconciliation job repairs both directions and logs each
+- [ ] Unit: an entity whose schema declares no `running` field is untouched by
+      the derivation
 - [ ] Migration is idempotent — re-running changes nothing
 - [ ] `just e2e-test timer-start` / `timer-stop` / `timer-overlap` /
       `timer-double-submit` / `timers-workspace` / `workout` all pass
