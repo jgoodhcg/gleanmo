@@ -94,6 +94,21 @@ a hardcoded list of types.
  :in    '[user-id]}
 ```
 
+**Measured before building (in-memory node, 40k exercise-sessions — 30k this
+user's, 10k another's, 2 running):**
+
+| Shape | Time |
+|---|---|
+| Set difference, two full scans (current) | 314.63 ms |
+| Flag, `:user/id` **and** `::sm/type` both kept | **0.18 ms** |
+| Flag, `:user/id` only (type implied by the attribute) | 0.15 ms |
+
+About 1,700x, with user scoping fully intact. This is the important result:
+because the flag clause is genuinely selective, XTDB's n-ary join intersects
+the 2-element stream against the others and the scoping clauses cost nothing
+measurable. There is no single-user-versus-multi-user trade to make here —
+unlike the ended-scan change this supersedes. Keep both clauses.
+
 Then pull the handful of candidates and **confirm `end` is nil on the pulled
 documents** before returning them. That check is free at this size and makes
 the read self-healing in the phantom direction: a document flagged running

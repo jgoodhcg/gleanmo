@@ -59,6 +59,7 @@ unfinished QOL batch items 3-5 are no longer competing with a migration.
 ### Ready
 
 - [timer-running-flag.md](./timer-running-flag.md) - Replace the two-full-scan set difference behind active timers with an indexed flag derived at write time, reconciled daily
+- [query-shape-audit.md](./query-shape-audit.md) - Find clauses that cost without narrowing, and ranges that never prune, across db/queries.clj
 - [screenshot-series-heartbeat.md](./screenshot-series-heartbeat.md) - Capture the visual timeline in CI against a fixed fixture, published to an orphan branch
 - [qol-quick-actions.md](./qol-quick-actions.md) - Navigation & logging QOL: sidebar reorder, stop-in-place timers, boulder problem discoverability, home quick actions
 - [inline-entity-creation.md](./inline-entity-creation.md) - Create related entities mid-form without losing context (executed as item 3 of qol-quick-actions.md)
@@ -80,6 +81,7 @@ unfinished QOL batch items 3-5 are no longer competing with a migration.
 - [search-filter.md](./search-filter.md) - Text search tool for CRUD and timer view pages
 - [timer-overlap-metrics.md](./timer-overlap-metrics.md) - Show overlap-aware daily and per-project timer metrics with clear unique vs. raw totals
 - [activity-timeline.md](./activity-timeline.md) - Chronological timeline view with day separation and quick edit access
+- [home-timeline-interval-times.md](./home-timeline-interval-times.md) - Render an interval's stop time alongside its start time in the home activity timeline, so a row shows its full span
 - [task-activity-logs.md](./task-activity-logs.md) - Spawn time logs from tasks and link habits/calendar events to tasks
 - [workflow-optimization.md](./workflow-optimization.md) - Dashboard quick reference, minimize clicks for logging, and motivating stats
 - [email-auth.md](./email-auth.md) - Restore email-based magic link authentication for user sign-in

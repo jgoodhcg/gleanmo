@@ -200,6 +200,20 @@ Database layer
 - When reading user visibility settings, use `resolve-user-settings` (ctx-first), not `get-user-settings` directly.
 - Fetch-all-then-filter is a rule violation even when it goes through `db/queries.clj`: calling `all-for-user-query` (or similar) and filtering in the app namespace for a parent-scoped subset (e.g. one session's sets) or a recent-N slice counts as "a needed query doesn't exist" — add a targeted query instead. Parent-scoped reads get equality-bound where clauses (cost tracks the parent, not user history); recent-N reads get scan-then-pull with a limit. Examples: `sets-for-session`, `lines-for-sets`, `recent-lines-for-user`.
 - Why `:limit` doesn't rescue an inline pull: in XTDB 1.x, `(pull ?e [*])` in the `:find` runs for **every matching row before** `:order-by`/`:limit` are applied, so a "recent 5" query with an inline pull still fetches every document the where clauses match. The fix is scan-then-pull: an index-only query (`:find [?e ?sort]`, no pull), sort/truncate the tuples in Clojure, then `fetch-entities-by-ids` on the survivors. Inline pull is fine only when the where clauses already bound the match set to what you'll return (e.g. equality on a parent id).
+- Public functions in `db/queries.clj` describe **intent** (`:since`, `:limit`, `:order-key`); private ones carry engine tricks. A plain-Postgres implementation should be able to satisfy every public signature without knowing any XTDB specifics — that interface is the spec for a database swap, so nothing engine-shaped belongs in a public argument.
+
+### XTDB 1.x query shape — check it, don't reason about it
+
+XTDB orders join **variables** by estimated cardinality, then reads each clause as `:ave` (seek by value, yield entities) or `:aev` (per entity, look up its value), and leapfrogs the resulting streams on `?e`. Four consequences, all measured:
+
+- **When one clause is genuinely selective, the others are near-free.** A sparse `[?e :exercise-session/running true]` answers in 0.18ms against 40k rows with `:user/id` **and** `::sm/type` both kept, against 315ms for the equivalent set difference. Reach for selectivity — never for removing user scoping.
+- **When nothing is selective, cost tracks result size × clause count.** Extra clauses then multiply without dividing.
+- **A range only prunes if its variable precedes `?e` in the join order.** Bound clauses lower `?e`'s estimated cardinality, which promotes `?e`, which demotes the range to a post-filter. Adding `[(>= ?t since)]` to a user+type scan bought 20%; letting the range drive the scan was 15x.
+- A type-specific attribute already implies the type, so `[?e ::sm/type :habit-log]` beside `[?e :habit-log/timestamp ?t]` is pure cost.
+
+Verify rather than assume: `-Dorg.slf4j.simpleLogger.log.xtdb.query=debug` prints `:triple-clause-var-order` and `:join-order :ave|:aev` per clause, and `xt/attribute-stats` gives per-attribute document counts. Method and a worked example: `roadmap/query-shape-audit.md`.
+
+**Absence is not indexable.** "Has no end value" costs a full scan; a sparse flag is one lookup. Materializing a state as a positive fact is the right fix *where the state is a real domain concept* (`<entity>/running`). It is not a licence to invent composite attributes that fake an index the engine lacks — that puts an engine workaround in the data model, the one layer a database swap cannot follow.
 
 ### Anti-pattern: write, then read through the same `:biff/db`
 
