@@ -30,6 +30,14 @@
    [:exercise-session/label {:optional true} :string]
    [:exercise-session/beginning :instant]
    [:exercise-session/end {:optional true} :instant]
+   ;; Derived at write time by db/mutations.clj, never by hand — present and
+   ;; true only while the session is open, absent otherwise. XTDB indexes
+   ;; presence, not absence, so this sparse flag is what makes "which timers
+   ;; are running" a lookup instead of a scan of the whole history. :hide
+   ;; keeps it out of forms and list views; it is state, not a field.
+   ;; Declaring it is also what opts this entity into the derivation —
+   ;; exercise-set deliberately has no counterpart.
+   [:exercise-session/running {:optional true :hide true} :boolean]
    [:exercise-session/location
     {:optional true :crud/priority 1 :crud/suggest-existing true} :string]
    [:exercise-session/notes {:optional true :crud/priority 2} :string]

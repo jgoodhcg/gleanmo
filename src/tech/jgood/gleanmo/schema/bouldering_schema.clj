@@ -24,6 +24,9 @@
    [:boulder-session/label {:optional true} :string]
    [:boulder-session/beginning :instant]
    [:boulder-session/end {:optional true} :instant]
+   ;; Sparse open-interval flag derived in db/mutations.clj — see
+   ;; :exercise-session/running.
+   [:boulder-session/running {:optional true :hide true} :boolean]
    [:boulder-session/gym {:crud/priority 1 :crud/suggest-existing true} :string]
    [:boulder-session/perceived-exertion {:optional true :crud/priority 2}
     perceived-exertion-enum]

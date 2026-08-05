@@ -1,6 +1,6 @@
 ---
 title: "Timer Running Flag"
-status: ready
+status: active
 description: "Replace the two-full-scan set difference behind active timers with an indexed flag derived at write time, reconciled daily"
 created: 2026-08-03
 updated: 2026-08-04
@@ -196,27 +196,37 @@ Note: `worker.clj` currently has one task (`print-usage`, every 5 minutes), and
 
 ## Validation
 
-- [ ] Unit: starting a timer writes `running true`; stopping dissocs it
-- [ ] Unit: `resume-set!` restores the flag
-- [ ] Unit: clearing `end` through `update-entity!` (the CRUD-form path,
+- [x] Unit: starting a timer writes `running true`; stopping dissocs it
+- [x] Unit: ~~`resume-set!` restores the flag~~ — corrected during the build.
+      `resume-set!` reopens an **exercise-set**, which §2 deliberately keeps
+      off the list, so there is no flag for it to restore. The check that
+      matters is the one below it (clearing `end` through `update-entity!`,
+      which is the same `{end :db/dissoc}` shape), plus an explicit assertion
+      that the exercise-set path stays flagless
+- [x] Unit: clearing `end` through `update-entity!` (the CRUD-form path,
       not a timer handler) sets the flag — the regression this design exists
       to prevent
-- [ ] Unit: **a partial update that touches only `beginning`** lands the right
+- [x] Unit: **a partial update that touches only `beginning`** lands the right
       flag, i.e. the derivation read the stored `end` rather than assuming
       `data` was the whole document. The trap above; start/stop tests alone
       pass without it
-- [ ] Unit: an update touching neither interval field leaves the flag alone
-- [ ] Unit: `active-timers-for-user` returns the same set as the old
+- [x] Unit: an update touching neither interval field leaves the flag alone
+- [x] Unit: `active-timers-for-user` returns the same set as the old
       set-difference query across a fixture with running, stopped, deleted,
       sensitive and archived timers
-- [ ] Unit: a document flagged running but carrying an `end` is filtered out
+- [x] Unit: a document flagged running but carrying an `end` is filtered out
       of the read and logged — and the read performs no write
-- [ ] Unit: the reconciliation job repairs both directions and logs each
-- [ ] Unit: an entity whose schema declares no `running` field is untouched by
+- [x] Unit: the reconciliation job repairs both directions and logs each
+- [x] Unit: an entity whose schema declares no `running` field is untouched by
       the derivation
-- [ ] Migration is idempotent — re-running changes nothing
-- [ ] `just e2e-test timer-start` / `timer-stop` / `timer-overlap` /
-      `timer-double-submit` / `timers-workspace` / `workout` all pass
+- [x] Migration is idempotent — re-running changes nothing. It repairs exactly
+      what `running-flag-audit` reports, so the second run has nothing to do;
+      covered by `reconcile-timer-flags-idempotent-test`, which asserts no tx
+      is submitted on a second sweep
+- [x] `just e2e-test timer-start` / `timer-stop` / `timer-overlap` /
+      `timer-double-submit` / `timers-workspace` / `workout` all pass —
+      and beyond the named six, `just e2e-test-all` is green end to end:
+      all 20 scripts CI runs, in one pass
 - [ ] Prod: `active-timers-for-user` mean drops from the ~300-900ms range;
       confirm on `/app/monitoring/performance`
 
@@ -242,6 +252,63 @@ nothing.
 - `schema/exercise_schema.clj` and the other timer-enabled schemas
 - [dashboard-performance.md](./dashboard-performance.md) — "Next lever", and
   the measurements that led here
+
+## Build notes (2026-08-04)
+
+Built as specified. Four things worth recording:
+
+**The flag is `:hide true`.** Not in the spec, but forced by it: every
+timer schema's fields flow into the generic CRUD form and list view, so an
+un-hidden `running` would render as a user-editable checkbox on derived
+state — the exact call-site discipline §2 exists to abolish. `:hide` is the
+established mechanism (see the deprecated-field rule in AGENTS.md).
+
+**The derivation reads a fresh snapshot, not ctx's `:biff/db`.** `submit-tx`
+routes through `submit-with-retries`, which calls `assoc-db` and therefore
+*overwrites* `:biff/db` with a fresh snapshot before building the tx. So Biff
+merges the update into a document possibly newer than the one the request
+holds. Deriving from the older one would be the `:biff/db` anti-pattern wearing
+a different hat: the flag would go stale precisely when two writes hit the same
+document in one request.
+
+**Reconciliation must not reuse `active-timers-for-user`.** §5 says to run "the
+old set-difference query", and the old query applied the
+deleted/sensitive/archived display filters. Reconciling against those would
+make the sweep fight itself: a running timer under a sensitive parent reads as
+"not running", gets its flag cleared, and disappears for good. `running-flag-audit`
+is deliberately unfiltered — those flags govern what a user is *shown*, not
+whether an interval is open.
+
+**`daily-at-utc` rather than `(every-n-minutes (* 60 24))`.** The note in §5
+offered both. `every-n-minutes` restarts its clock from `now` on every boot, so
+a once-a-day task can silently never run on a day with a few deploys.
+
+**All 20 e2e scripts pass in a single `just e2e-test-all` run.** Three earlier
+attempts failed — `timer-double-submit` on a 30s `waitForLoadState` timeout,
+`navigation` on `browserType.launch: Timeout 180000ms exceeded`, and one that
+hit `ERR_CONNECTION_REFUSED` because the dev server was down. None were this
+change: the first two were contention from running the suite while the machine
+was busy with other work, and no failure in any run was ever a failed
+assertion — only infrastructure failing to reach the app.
+
+Chasing that did surface real latent fragility in the suite, unrelated to this
+unit and worth its own work: 156 `waitForLoadState('networkidle')` calls (an
+anti-pattern Playwright's own docs discourage) plus 59 bare `page.goto()` calls
+that default to `waitUntil: 'load'` and therefore block on every subresource —
+against pages that pull 12 external requests from five third-party hosts
+(`ui.clj`), roughly a thousand public-internet round trips per suite run, in a
+CI loop with no retries. `auth.ts` already documents this exact bug ("a 3ms
+route time out at 30s when one asset stalled") and fixed one call site;
+`runningCount`, which failed here, is one of the 59 left exposed.
+
+Related: the CRUD edit form cannot currently clear an optional field at all —
+`form->schema` *skips* blank optional values rather than emitting `:db/dissoc`,
+so an omitted `end` leaves the stored one intact under `:db/op :update`. The
+scenario §2 names ("a user clearing the end field") is therefore not reachable
+through the form today. The derivation is still the right shape — it covers
+`resume-set!`, imports, migrations, REPL writes and whatever comes next — but
+the *form* path it was justified by is latent, not live. Worth a look on its
+own terms: silently ignoring a cleared field is surprising in either direction.
 
 ## Notes
 

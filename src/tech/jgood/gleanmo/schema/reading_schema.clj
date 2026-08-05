@@ -48,6 +48,9 @@
         :book/id]
        [:reading-log/beginning :instant]
        [:reading-log/end {:optional true} :instant]
+       ;; Sparse open-interval flag derived in db/mutations.clj — see
+       ;; :exercise-session/running.
+       [:reading-log/running {:optional true, :hide true} :boolean]
        [:reading-log/time-zone :string]
        [:reading-log/location-id
         {:optional true, :crud/priority 2, :crud/label "Location",

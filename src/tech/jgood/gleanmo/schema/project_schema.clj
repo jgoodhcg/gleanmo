@@ -26,6 +26,9 @@
     :project/id]
    [:project-log/beginning :instant]
    [:project-log/end {:optional true} :instant]
+   ;; Sparse open-interval flag derived in db/mutations.clj — see
+   ;; :exercise-session/running.
+   [:project-log/running {:optional true :hide true} :boolean]
    [:project-log/time-zone :string]
    [:project-log/location-id
     {:optional true :crud/label "Location" :crud/inline-create true}

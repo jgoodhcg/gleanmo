@@ -116,6 +116,18 @@ gh run view --log-failed     # on failure, view only the failed step logs
 
 The `validate` workflow cascades: **lint-fast → format → test → e2e**. A failure in any stage cancels downstream stages, so the first failure reported is the one to fix. After fixing, push again and re-check.
 
+### Adding a Clojure test namespace
+
+`clj -M:dev test` does **not** discover test files. `run-tests` in `dev/tasks.clj`
+requires `tech.jgood.gleanmo.test` and then runs whatever is already loaded, so
+a new namespace runs only if `test/tech/jgood/gleanmo/test.clj` requires it.
+Add it there in the same change.
+
+Miss that and the file passes when you name it explicitly
+(`clj -M:dev test <namespace>`) while `just validate` and CI never run it —
+green, and covering nothing. Same failure mode as the `test:workout` incident
+below, with no error message at all.
+
 ### Adding an e2e test
 
 CI runs **every** `e2e/scripts/test-*.ts` — the workflow discovers them rather

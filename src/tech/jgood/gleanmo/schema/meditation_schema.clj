@@ -34,6 +34,9 @@
         :location/id]
        [:meditation-log/beginning  :instant]
        [:meditation-log/end {:optional true} :instant]
+       ;; Sparse open-interval flag derived in db/mutations.clj — see
+       ;; :exercise-session/running.
+       [:meditation-log/running {:optional true :hide true} :boolean]
        [:meditation-log/position
         [:enum :sitting :lying :walking :standing :moving]]
        [:meditation-log/guided :boolean]

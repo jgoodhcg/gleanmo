@@ -17,7 +17,8 @@
    [tech.jgood.gleanmo.test.db.mutations-test]
    [tech.jgood.gleanmo.test.db.queries-test]
    [tech.jgood.gleanmo.test.middleware-test]
-   [tech.jgood.gleanmo.test.timer.routes-test]))
+   [tech.jgood.gleanmo.test.timer.routes-test]
+   [tech.jgood.gleanmo.test.worker-test]))
 
 (deftest example-test
   (is (= 2 (+ 1 1))))

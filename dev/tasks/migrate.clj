@@ -15,6 +15,7 @@
    [tasks.migrations.m004-airtable-import-bouldering :as m004]
    [tasks.migrations.m005-airtable-import-exercise :as m005]
    [tasks.migrations.m006-airtable-import-mood :as m006]
+   [tasks.migrations.m007-timer-running-flag :as m007]
    [tasks.util :as u]
    [tech.jgood.gleanmo :as main]))
 
@@ -70,7 +71,8 @@
    "m003-airtable-import-pain"        m003/run
    "m004-airtable-import-bouldering"  m004/run
    "m005-airtable-import-exercise"    m005/run
-   "m006-airtable-import-mood"        m006/run})
+   "m006-airtable-import-mood"        m006/run
+   "m007-timer-running-flag"          m007/run})
 
 ;; =============================================================================
 ;; Entry Point

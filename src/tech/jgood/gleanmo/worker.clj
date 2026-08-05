@@ -1,17 +1,69 @@
 (ns tech.jgood.gleanmo.worker
   (:require [clojure.tools.logging :as log]
             [com.biffweb :as biff]
+            [tech.jgood.gleanmo.db.mutations :as mutations]
             [tech.jgood.gleanmo.db.queries :as queries]
-            [xtdb.api :as xt]))
+            [tech.jgood.gleanmo.schema.utils :as schema-utils]
+            [xtdb.api :as xt])
+  (:import
+   [java.time ZonedDateTime ZoneOffset]
+   [java.util Date]))
 
 (defn every-n-minutes [n]
   (iterate #(biff/add-seconds % (* 60 n)) (java.util.Date.)))
+
+(defn daily-at-utc
+  "Chime schedule firing once a day at `hour` UTC, starting from the next
+   occurrence.
+
+   `(every-n-minutes (* 60 24))` would do the arithmetic but restart its clock
+   from `now` on every boot, so on a day with a few deploys a once-a-day task
+   can quietly never run. Anchoring to a wall-clock hour survives restarts."
+  [hour]
+  (let [now   (ZonedDateTime/now ZoneOffset/UTC)
+        today (-> now
+                  (.withHour hour)
+                  (.withMinute 0)
+                  (.withSecond 0)
+                  (.withNano 0))
+        start (if (.isAfter today now) today (.plusDays today 1))]
+    (iterate #(biff/add-seconds % (* 60 60 24))
+             (Date/from (.toInstant start)))))
 
 (defn print-usage [{:keys [biff/db]}]
   ;; For a real app, you can have this run once per day and send you the output
   ;; in an email.
   (let [n-users (queries/count-users db)]
     (log/info "There are" n-users "users.")))
+
+(defn reconcile-timer-flags
+  "Re-derive every timer's `running` flag from its interval and repair any
+   disagreement, once a day.
+
+   The read path self-heals the flagged-but-ended direction by filtering, but
+   it cannot see the opposite — an open interval carrying no flag is invisible
+   to a query that filters on the flag. That is what this sweep is for. It runs
+   the full set difference the flag replaced, which is the right tool once a
+   day and the wrong one several times per page load.
+
+   A quiet log is the signal that the write-time derivation is holding. If this
+   starts printing, some path is writing timer documents without going through
+   `db/mutations.clj`."
+  [{:keys [biff.xtdb/node] :as ctx}]
+  (doseq [[entity-key {:keys [beginning-key end-key running-key]}]
+          @schema-utils/running-flag-entities]
+    ;; A snapshot per type rather than one for the whole sweep: the repairs
+    ;; below write, and a snapshot taken before them does not advance.
+    (let [{:keys [missing phantom]} (queries/running-flag-audit
+                                     (xt/db node)
+                                     beginning-key end-key running-key)]
+      (doseq [[ids value direction] [[missing true :missing]
+                                     [phantom :db/dissoc :phantom]]
+              id                    ids]
+        (log/warn "Reconciling" running-key direction "on" entity-key id)
+        (mutations/update-entity! ctx {:entity-key entity-key,
+                                       :entity-id  id,
+                                       :data       {running-key value}})))))
 
 (defn alert-new-user [{:keys [biff.xtdb/node]} tx]
   (doseq [_ [nil]
@@ -31,7 +83,9 @@
 
 (def module
   {:tasks [{:task #'print-usage
-            :schedule #(every-n-minutes 5)}]
+            :schedule #(every-n-minutes 5)}
+           {:task #'reconcile-timer-flags
+            :schedule #(daily-at-utc 9)}]
    :on-tx alert-new-user
    :queues [{:id :echo
              :consumer #'echo-consumer}]})

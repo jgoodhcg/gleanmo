@@ -1,6 +1,8 @@
 (ns tech.jgood.gleanmo.test.db.queries-test
   (:require
+   [clojure.string :as str]
    [clojure.test :refer [deftest is testing]]
+   [clojure.tools.logging :as log]
    [com.biffweb :as biff
     :refer [test-xtdb-node]]
    [spy.core :as spy]
@@ -1096,3 +1098,172 @@
         (testing "an empty window returns nothing, leaving the fallback to the caller"
           (is (= [] (queries/recent-activity-across-types
                      (xt/db node) user-id (assoc opts :since (ahead 1))))))))))
+
+;; ---------------------------------------------------------------------------
+;; Running-timer flag read path
+;; ---------------------------------------------------------------------------
+
+(defn- old-active-timer-ids
+  "The set-difference implementation `active-timers-for-user` replaced, kept as
+   the oracle: 'has a beginning' minus 'has an end', then the same
+   deleted/sensitive/archived filtering on the pulled documents."
+  [db user-id beginning-key end-key parent-key]
+  (let [ended    (into #{}
+                       (map first)
+                       (biff/q db {:find '[?e] :where [['?e end-key]]}))
+        excluded (into #{}
+                       (map first)
+                       (biff/q db
+                               '{:find  [?p]
+                                 :where [[?p :user/id user-id]
+                                         (or [?p :project/sensitive true]
+                                             [?p :project/archived true])]
+                                 :in    [user-id]}
+                               user-id))]
+    (->> (biff/q db
+                 {:find  '[?e]
+                  :where [['?e :user/id 'user-id]
+                          ['?e beginning-key]]
+                  :in    '[user-id]}
+                 user-id)
+         (map first)
+         (remove ended)
+         (map #(xt/entity db %))
+         (remove #(get % :tech.jgood.gleanmo.schema.meta/deleted-at))
+         (remove #(excluded (get % parent-key)))
+         (map :xt/id)
+         set)))
+
+(defn- project-log-fixture
+  "Running, stopped, deleted, sensitive-parent, archived-parent and
+   other-user timers — one of each."
+  [ctx user-id]
+  (let [project    (fn [label & kvs]
+                     (mutations/create-entity!
+                      ctx {:entity-key :project
+                           :data (into {:user/id       user-id
+                                        :project/label label}
+                                       (apply hash-map kvs))}))
+        plain      (project "Plain")
+        sensitive  (project "Sensitive" :project/sensitive true)
+        archived   (project "Archived" :project/archived true)
+        log        (fn [project-id & {:keys [end owner]}]
+                     (mutations/create-entity!
+                      ctx {:entity-key :project-log
+                           :data (cond-> {:user/id (or owner user-id)
+                                          :project-log/project-id project-id
+                                          :project-log/beginning  (t/now)
+                                          :project-log/time-zone  "UTC"}
+                                   end (assoc :project-log/end (t/now)))}))
+        running    (log plain)
+        deleted    (log plain)]
+    (mutations/soft-delete-entity! ctx {:entity-key :project-log
+                                        :entity-id  deleted})
+    {:running   running
+     :stopped   (log plain :end true)
+     :deleted   deleted
+     :sensitive (log sensitive)
+     :archived  (log archived)
+     :theirs    (log plain :owner (UUID/randomUUID))}))
+
+(deftest active-timers-for-user-flag-parity-test
+  (testing "the flag lookup returns what the set difference returned"
+    (with-open [node (test-xtdb-node [])]
+      (let [ctx     (get-context node)
+            user-id (UUID/randomUUID)
+            ids     (project-log-fixture ctx user-id)
+            db      (xt/db node)
+            actual  (set (map :xt/id
+                              (queries/active-timers-for-user
+                               db user-id :project-log
+                               :project-log/beginning :project-log/end)))]
+        (is (= #{(:running ids)} actual))
+        (is (= (old-active-timer-ids db user-id
+                                     :project-log/beginning :project-log/end
+                                     :project-log/project-id)
+               actual))))))
+
+(deftest active-timers-for-user-stale-flag-test
+  (testing "a flagged document carrying an end is filtered out, logged, and
+            triggers no write — the read path takes db, not ctx"
+    (with-open [node (test-xtdb-node [])]
+      (let [ctx     (get-context node)
+            user-id (UUID/randomUUID)
+            good    (mutations/create-entity!
+                     ctx {:entity-key :exercise-session
+                          :data {:user/id user-id
+                                 :exercise-session/beginning (t/now)}})
+            phantom (UUID/randomUUID)]
+        ;; Planted past the derivation, the way a stray write path would.
+        (biff/submit-tx ctx
+                        [{:db/doc-type    :exercise-session
+                          :xt/id          phantom
+                          :tech.jgood.gleanmo.schema.meta/type :exercise-session
+                          :tech.jgood.gleanmo.schema.meta/created-at (t/now)
+                          :user/id        user-id
+                          :exercise-session/beginning (t/now)
+                          :exercise-session/end       (t/now)
+                          :exercise-session/running   true}])
+        (let [before (::xt/tx-id (xt/latest-completed-tx node))
+              logged (atom [])
+              result (with-redefs [log/log*
+                                   (fn [_ level _ message]
+                                     (swap! logged conj [level message]))]
+                       (queries/active-timers-for-user
+                        (xt/db node) user-id :exercise-session
+                        :exercise-session/beginning :exercise-session/end))]
+          (is (= [good] (mapv :xt/id result)))
+          (is (some (fn [[level message]]
+                      (and (= :warn level)
+                           (str/includes? (str message) (str phantom))))
+                    @logged))
+          (is (= before (::xt/tx-id (xt/latest-completed-tx node)))
+              "the read must not repair; the daily sweep does that")
+          (is (= true (:exercise-session/running
+                       (xt/entity (xt/db node) phantom)))))))))
+
+(deftest running-flag-audit-test
+  (testing "both directions of disagreement are reported, unfiltered by the
+            display flags that govern what a user is shown"
+    (with-open [node (test-xtdb-node [])]
+      (let [ctx     (get-context node)
+            user-id (UUID/randomUUID)
+            open    (mutations/create-entity!
+                     ctx {:entity-key :exercise-session
+                          :data {:user/id user-id
+                                 :exercise-session/beginning (t/now)}})
+            stopped (mutations/create-entity!
+                     ctx {:entity-key :exercise-session
+                          :data {:user/id user-id
+                                 :exercise-session/beginning (t/now)
+                                 :exercise-session/end (t/now)}})
+            missing-id (UUID/randomUUID)
+            phantom-id (UUID/randomUUID)]
+        (biff/submit-tx
+         ctx
+         [{:db/doc-type :exercise-session
+           :xt/id       missing-id
+           :tech.jgood.gleanmo.schema.meta/type :exercise-session
+           :tech.jgood.gleanmo.schema.meta/created-at (t/now)
+           :user/id     user-id
+           :exercise-session/beginning (t/now)}
+          {:db/doc-type :exercise-session
+           :xt/id       phantom-id
+           :tech.jgood.gleanmo.schema.meta/type :exercise-session
+           :tech.jgood.gleanmo.schema.meta/created-at (t/now)
+           :user/id     user-id
+           :exercise-session/beginning (t/now)
+           :exercise-session/end       (t/now)
+           :exercise-session/running   true}])
+        (let [{:keys [missing phantom]}
+              (-> (queries/running-flag-audit (xt/db node)
+                                              :exercise-session/beginning
+                                              :exercise-session/end
+                                              :exercise-session/running)
+                  (update :missing set)
+                  (update :phantom set))]
+          (is (= #{missing-id} missing))
+          (is (= #{phantom-id} phantom))
+          ;; Agreeing documents are not reported, in either direction.
+          (is (not (contains? missing open)))
+          (is (not (contains? phantom stopped))))))))

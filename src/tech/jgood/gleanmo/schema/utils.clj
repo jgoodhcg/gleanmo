@@ -238,6 +238,38 @@
     {:beginning-field beginning-field,
      :end-field       end-field}))
 
+(defn running-flag-fields
+  "Interval and flag field keys for an entity that opts into write-time
+   `running` derivation, or nil if it doesn't.
+
+   Opting in *is* declaring `<entity>/running` beside `<entity>/beginning` and
+   `<entity>/end`. There is deliberately no list of timer types in the db
+   layer to keep in sync: adding the attribute to a schema is what turns the
+   derivation on. See `db/mutations.clj`."
+  [ent-schema entity-key]
+  (let [entity-str    (name entity-key)
+        beginning-key (entity-field-key entity-str "beginning")
+        end-key       (entity-field-key entity-str "end")
+        running-key   (entity-field-key entity-str "running")]
+    (when (every? #(schema-field ent-schema %)
+                  [beginning-key end-key running-key])
+      {:beginning-key beginning-key,
+       :end-key       end-key,
+       :running-key   running-key})))
+
+(def running-flag-entities
+  "{entity-key {:beginning-key _ :end-key _ :running-key _}} for every
+   registered schema that opts in. A delay so it is built after every schema
+   namespace has loaded, the way `app.timers/timer-entity-configs` is."
+  (delay
+    (into {}
+          (keep (fn [[entity-key ent-schema]]
+                  (when (and (vector? ent-schema)
+                             (= :map (first ent-schema)))
+                    (some->> (running-flag-fields ent-schema entity-key)
+                             (vector entity-key)))))
+          schema-registry/schema)))
+
 (defn primary-rel-field
   "Read :timer/primary-rel off the schema, without yet applying fallbacks."
   [ent-schema]
