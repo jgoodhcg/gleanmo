@@ -350,7 +350,7 @@ Any entity that participates in an Airtable migration must carry metadata for tr
 [:airtable/original-location {:optional true} :string] ; raw Airtable value before mapping
 ```
 
-All `airtable/*` fields are optional and must not affect entities created through the app UI. See `roadmap/airtable-metadata-consistency.md` for known inconsistencies in already-deployed schemas.
+All `airtable/*` fields are optional and must not affect entities created through the app UI. See `roadmap/archived/airtable-metadata-consistency.md` for known inconsistencies in already-deployed schemas.
 
 New entity checklist — when adding a new entity, complete ALL of these steps:
 1. Define schema in `src/tech/jgood/gleanmo/schema/` with standard field ordering

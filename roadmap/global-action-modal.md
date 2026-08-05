@@ -38,7 +38,7 @@ Escape. Confirm-and-act flows stop being a per-page layout problem.
 
 A single container rendered once per authenticated page, in
 `app/layout.clj`'s `page-shell` (so every page that uses the shared shell
-gets it for free — this is the reason `navigation-redesign.md` consolidated
+gets it for free — this is the reason `archived/navigation-redesign.md` consolidated
 onto `page-shell` in the first place):
 
 ```clojure

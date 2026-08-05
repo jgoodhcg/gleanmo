@@ -60,7 +60,6 @@ unfinished QOL batch items 3-5 are no longer competing with a migration.
 
 - [timer-running-flag.md](./timer-running-flag.md) - Replace the two-full-scan set difference behind active timers with an indexed flag derived at write time, reconciled daily
 - [query-shape-audit.md](./query-shape-audit.md) - Find clauses that cost without narrowing, and ranges that never prune, across db/queries.clj
-- [screenshot-series-heartbeat.md](./screenshot-series-heartbeat.md) - Capture the visual timeline in CI against a fixed fixture, published to an orphan branch
 - [qol-quick-actions.md](./qol-quick-actions.md) - Navigation & logging QOL: sidebar reorder, stop-in-place timers, boulder problem discoverability, home quick actions
 - [inline-entity-creation.md](./inline-entity-creation.md) - Create related entities mid-form without losing context (executed as item 3 of qol-quick-actions.md)
 - [heatmap-performance.md](./heatmap-performance.md) - Heatmap viz page perf via year-bounded projection scans, shared rel-cache, parallel lazy-loaded year cards
@@ -69,6 +68,7 @@ unfinished QOL batch items 3-5 are no longer competing with a migration.
 
 ### Draft
 
+- [screenshot-series-heartbeat.md](./screenshot-series-heartbeat.md) - Capture the visual timeline in CI against a fixed fixture, published to an orphan branch
 - [mood.md](./mood.md) - Structured mood logging with Airtable backfill
 - [bouldering.md](./bouldering.md) - Climbing sessions and problem attempts with Airtable backfill
 - [local-dev-db-locking.md](./local-dev-db-locking.md) - RocksDB file lock prevents running REPL and CLI migrations concurrently
@@ -114,12 +114,12 @@ unfinished QOL batch items 3-5 are no longer competing with a migration.
 
 ### Done
 
-- [labeled-rating-scales.md](./labeled-rating-scales.md) - Store ratings as numbers, pick them by label (`:crud/scale`); shipped 2026-07-31 ahead of the m003/m006 prod imports
-- [navigation-redesign.md](./navigation-redesign.md) - Layered navigation, shared page shell across every page, and the mobile tab bar (absorbed mobile-tab-bar.md)
-- [mobile-tab-bar.md](./mobile-tab-bar.md) - Absorbed into navigation-redesign.md
-- [airtable-metadata-consistency.md](./airtable-metadata-consistency.md) - Settled: the four deployed entities need no action
-- [auth-expired-home-layout.md](./auth-expired-home-layout.md) - Fix home page showing login form inside authenticated layout when session expires
-- [timer-stale-start-time.md](./timer-stale-start-time.md) - Fix timer starting with old timestamp when PWA has been idle on timers page
+- [labeled-rating-scales.md](./archived/labeled-rating-scales.md) - Store ratings as numbers, pick them by label (`:crud/scale`); shipped 2026-07-31 ahead of the m003/m006 prod imports
+- [navigation-redesign.md](./archived/navigation-redesign.md) - Layered navigation, shared page shell across every page, and the mobile tab bar (absorbed mobile-tab-bar.md)
+- [mobile-tab-bar.md](./archived/mobile-tab-bar.md) - Absorbed into navigation-redesign.md
+- [airtable-metadata-consistency.md](./archived/airtable-metadata-consistency.md) - Settled: the four deployed entities need no action
+- [auth-expired-home-layout.md](./archived/auth-expired-home-layout.md) - Fix home page showing login form inside authenticated layout when session expires
+- [timer-stale-start-time.md](./archived/timer-stale-start-time.md) - Fix timer starting with old timestamp when PWA has been idle on timers page
 
 ### Archived
 

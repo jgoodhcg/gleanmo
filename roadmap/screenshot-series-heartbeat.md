@@ -1,9 +1,9 @@
 ---
 title: "Screenshot Series in CI"
-status: ready
+status: draft
 description: "Capture the visual timeline in CI against a fixed fixture, on push to main, published to an orphan branch"
 created: 2026-08-03
-updated: 2026-08-03
+updated: 2026-08-04
 tags: [tooling, e2e, screenshots, ci]
 priority: low
 ---

@@ -118,7 +118,7 @@ new queries, no dashboard-performance regression.
 - Usage-weighted/adaptive quick-action ordering — `workflow-optimization.md`.
   This work unit ships a static order from a known 28-day sample.
 - "Repeat last" one-tap logging — `workflow-optimization.md`.
-- Mobile bottom tab bar — `mobile-tab-bar.md`.
+- Mobile bottom tab bar — `archived/mobile-tab-bar.md`.
 - Command palette — `backlog.md` (Generic Components).
 - True inline-create on the timer dashboard picker —
   `timer-dashboard-inline-create.md`.
