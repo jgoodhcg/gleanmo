@@ -1,5 +1,5 @@
 ---
-version: "2026-08-06"
+version: "2026-08-06.1"
 ---
 
 # Agent Blueprint
@@ -27,6 +27,7 @@ Use these IDs in alignment reports for deterministic, machine-checkable outcomes
 - `BP-CORE-07` Keep policy lean; prefer references over duplicated rules. A rule that restates blueprint or `AGENTS.md` text verbatim is a FAIL in alignment reports. See `[BP-INSTR]`.
 - `BP-CORE-08` Capture AI commit identity once per repo in `AGENTS.md` to avoid repeated prompts.
 - `BP-CORE-10` Capture user interaction profile in `AGENTS.md` on project init or alignment.
+- `BP-CORE-13` When a repository provides reusable skills, keep their canonical instructions in `skills/` and list their triggers and paths in `AGENTS.md`. See `[BP-SKILLS]`.
 
 ---
 
@@ -68,6 +69,20 @@ How to author `AGENTS.md` and work units so agents actually follow them. Instruc
 - `BP-INSTR-10` Write requirements with `must`, `can`, or `will`. In a rule body, "should" reads as optional and "may/might/could" read as speculative. Write `must` for a requirement, `can` for a permission, or delete the rule. `SHOULD` stays valid as the normative label in `Core Invariants`. (removes hedge ambiguity)
 
 Source for `BP-INSTR-09` and `BP-INSTR-10`: ASD-STE100 Simplified Technical English (Issue 9, 2025), adapted for agent instructions via [SimpleEnglish](https://github.com/AminBlg/SimpleEnglish) — AminBlg, MIT. `BP-INSTR-03` and `BP-INSTR-06` restate that standard's "one instruction per sentence" and "condition before command" rules, derived here independently. ASD-STE100 is a registered trademark of ASD; no specification or dictionary text is reproduced. Full bibliography: `references/sources.md` (`[18]`, `[19]`).
+
+---
+
+## Agent-Agnostic Skills [BP-SKILLS]
+
+Use `skills/<skill-name>/SKILL.md` as the canonical location for reusable skill instructions.
+
+- `BP-SKILLS-01` Write canonical skill instructions without model-provider or agent-client assumptions.
+- `BP-SKILLS-02` List each shared skill's trigger and canonical path in `AGENTS.md`. This makes the skill available to agents that do not implement native skill discovery.
+- `BP-SKILLS-03` Keep client-specific discovery paths, manifests, and UI metadata as adapters. They can point to or describe the canonical skill, but must not duplicate its workflow.
+- `BP-SKILLS-04` When a task matches a listed trigger, read the canonical `SKILL.md` completely before acting. Read referenced resources only when the skill routes the task to them.
+- `BP-SKILLS-05` Keep a skill self-contained. Put detailed tool mechanics in `references/`, deterministic automation in `scripts/`, and output templates or reusable media in `assets/`.
+
+Use the shared skill by relative path when projects live in one workspace. Copy the skill into the consuming repository's `skills/` directory when the repository must remain portable outside that workspace.
 
 ---
 
@@ -350,6 +365,11 @@ AI-Model: [AI_MODEL]
 
 - [constraints, data sensitivity, architectural boundaries]
 - [`BP-WRITE-04` exemptions: files or sections that carry persuasive voice, or "none"]
+
+## Skills (optional)
+
+- When [trigger], read and follow `[path]/SKILL.md` before acting.
+- Treat `[path]/SKILL.md` as canonical; client-specific skill metadata is only a discovery adapter.
 
 ## Decision Artifacts
 
