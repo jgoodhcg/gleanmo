@@ -1,5 +1,5 @@
 ---
-version: "2026-08-04.1"
+version: "2026-08-06"
 ---
 
 # Agent Blueprint
@@ -140,6 +140,19 @@ Always print the chosen port so the user (and agent) knows where to connect. Doc
 ---
 
 ## Workflow [BP-WF]
+
+### Herdr Tab Naming [BP-WF-HERDR]
+
+- `BP-WF-HERDR-01` After the first user prompt, when `HERDR_ENV=1` and `HERDR_TAB_ID` is set, rename the current tab before other task work.
+- `BP-WF-HERDR-02` Prefix the label with one relevant emoji. Use the fewest words that identify the primary task, with a maximum of five words excluding the emoji.
+- `BP-WF-HERDR-03` Run `herdr tab rename "$HERDR_TAB_ID" "<label>"` once per session.
+- `BP-WF-HERDR-04` When Herdr is unavailable or the rename fails, continue without comment or another attempt.
+
+Example:
+
+```sh
+herdr tab rename "$HERDR_TAB_ID" "🧭 Audit Payment Flow"
+```
 
 ### Operating Model [BP-WF-OPS]
 
