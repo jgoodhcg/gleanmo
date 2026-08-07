@@ -1,5 +1,5 @@
 ---
-version: "2026-08-06.1"
+version: "2026-08-07"
 ---
 
 # Agent Blueprint
@@ -22,6 +22,7 @@ Use these IDs in alignment reports for deterministic, machine-checkable outcomes
 - `BP-CORE-09` `AGENTS.md` stores a commit trailer template (placeholders), not concrete co-author/provider/model values.
 - `BP-CORE-11` On conflicting instructions, apply the precedence order in `[BP-PRECEDENCE]`.
 - `BP-CORE-12` Completion reports name the checks that ran and the checks that did not (`[BP-VERIFY]`).
+- `BP-CORE-14` `AGENTS.md` surfaces each blueprint rule that must run at session start or before other task work. See `BP-INSTR-11`.
 
 **SHOULD**
 - `BP-CORE-07` Keep policy lean; prefer references over duplicated rules. A rule that restates blueprint or `AGENTS.md` text verbatim is a FAIL in alignment reports. See `[BP-INSTR]`.
@@ -67,6 +68,7 @@ How to author `AGENTS.md` and work units so agents actually follow them. Instruc
 - `BP-INSTR-08` Keep rationale out of the instruction stream. Justification aimed at humans (history, comparisons, persuasion) belongs in a README or companion doc; keep at most one line of "why" per rule. (density)
 - `BP-INSTR-09` One word, one meaning. Use one term per concept across this blueprint, `AGENTS.md`, and work units. Three terms are fixed here: **validate** = run the project validation commands; **confirm** = get user approval; **check** = evaluate a stated condition. An agent reads three verbs as three operations. (vocabulary discipline)
 - `BP-INSTR-10` Write requirements with `must`, `can`, or `will`. In a rule body, "should" reads as optional and "may/might/could" read as speculative. Write `must` for a requirement, `can` for a permission, or delete the rule. `SHOULD` stays valid as the normative label in `Core Invariants`. (removes hedge ambiguity)
+- `BP-INSTR-11` Surface do-first triggers in `AGENTS.md`. When a blueprint rule must run at session start or before other task work, `AGENTS.md` must state the trigger and reference the canonical rule. This minimal trigger bridge is required and is not a restatement under `BP-INSTR-05`. (availability at point of use)
 
 Source for `BP-INSTR-09` and `BP-INSTR-10`: ASD-STE100 Simplified Technical English (Issue 9, 2025), adapted for agent instructions via [SimpleEnglish](https://github.com/AminBlg/SimpleEnglish) — AminBlg, MIT. `BP-INSTR-03` and `BP-INSTR-06` restate that standard's "one instruction per sentence" and "condition before command" rules, derived here independently. ASD-STE100 is a registered trademark of ASD; no specification or dictionary text is reproduced. Full bibliography: `references/sources.md` (`[18]`, `[19]`).
 
@@ -263,11 +265,12 @@ Date versions are honest, monotonically increasing, and require zero decision ov
 - `roadmap/` is the canonical place for scoped work units and execution prompts.
 - A `ready` work unit is executable without additional clarification.
 - Keep policy lean: prefer references over duplicated instructions.
+- A blueprint reference alone does not satisfy `BP-INSTR-11`; `AGENTS.md` must surface each do-first trigger.
 
 ### Align Project With This Blueprint
 
 When asked to align a project:
-1. Compare `AGENTS.md` and `roadmap/` against this blueprint.
+1. Compare `AGENTS.md` and `roadmap/` against this blueprint, including each `BP-INSTR-11` do-first trigger bridge.
 2. Report gaps and propose a minimal patch plan.
 3. Apply focused edits and run project validation commands.
 4. Return with completed changes plus any remaining questions.
@@ -309,6 +312,10 @@ Use this format exactly:
 # AGENTS
 
 Follows `AGENT_BLUEPRINT.md` (version: [BLUEPRINT_VERSION])
+
+## Session Start
+
+- When `HERDR_ENV=1` and `HERDR_TAB_ID` is set, apply `AGENT_BLUEPRINT.md` `[BP-WF-HERDR]` before other task work.
 
 ## Project Overview
 

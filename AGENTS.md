@@ -1,6 +1,10 @@
 # AGENTS
 
-Follows `AGENT_BLUEPRINT.md` (version: 2026-08-06.1)
+Follows `AGENT_BLUEPRINT.md` (version: 2026-08-07)
+
+## Session Start
+
+- When `HERDR_ENV=1` and `HERDR_TAB_ID` is set, apply `AGENT_BLUEPRINT.md` `[BP-WF-HERDR]` before other task work.
 
 ## Project Overview
 
