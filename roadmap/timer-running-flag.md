@@ -241,39 +241,33 @@ This survives across sessions — tick boxes as steps complete, and leave a date
 note under any step that surprises you. Steps 0 and 1 are ordered before the
 deploy for reasons that are not obvious; read their notes before reordering.
 
-- [ ] **0a. Restore the prod values in `config.env`.** This gates step 2, not
-      just 0c and 3 — see the deploy-overwrites-config note below. The local
-      file has been stripped to dev shape: `XTDB_JDBC_URL` is a 2-character
-      placeholder (so `--target prod` dies with an NPE at `migrate.clj:52`),
-      and `MAILERSEND_API_KEY`, `RECAPTCHA_SITE_KEY`, `RECAPTCHA_SECRET_KEY`
-      are all empty. `PROD_XTDB_TOPOLOGY` is still populated, which is why this
-      reads as a partial scrub rather than a fresh config — suspected fallout
-      from the in-flight Neon → DigitalOcean move
-      ([infrastructure.md](./infrastructure.md)); the populated `POSTGRES_*`
-      vars are local (`POSTGRES_HOST=localhost`), not prod.
-
-      `COOKIE_SECRET` and `JWT_SECRET` are populated but are almost certainly
-      the *local* pair. They must match what prod is running or every existing
-      session is invalidated on restart and outstanding magic-link emails stop
-      verifying. Copy prod's `/home/app/config.env` down and diff before
-      trusting the local one.
+- [ ] **0a. Put the prod `XTDB_JDBC_URL` in the local `config.env`.** It is a
+      2-character placeholder right now, so `--target prod` dies with an NPE at
+      `migrate.clj:52`. Copy the real value from the App Platform environment
+      variables — that dashboard, not this file, is where prod's config lives.
+      This blocks 0c and 3 only; it has no bearing on the deploy, which carries
+      no `config.env` at all.
 - [ ] **0b. Capture the baseline.** Hit `/app/timers` (heaviest — it fans
       `fetch-active-timers` across every config), `/app`,
       `/app/exercise/session`, `/app/boulder/session`, and a
       `/app/timer/<type>` page 5-10x each, then **persist the snapshot** from
       `/app/monitoring/performance`. Tufte's accumulator is in-memory per
-      instance and `biff deploy` restarts the process, so an unpersisted
+      instance and the deploy replaces the container, so an unpersisted
       baseline is destroyed by the very step it exists to measure.
 - [ ] **0c. Size the migration.**
       `clj -M:dev migrate m007-timer-running-flag --target prod --dry-run`
       — per-entity counts, no writes. Dev reported 66 (18 reading-log,
       30 project-log, 18 exercise-session, 0 boulder/meditation).
 - [ ] **1. Stop every running timer in prod.**
-- [ ] **2. `biff deploy`** — never `soft-deploy`; see below. Two preconditions:
-      `git status` clean (rsync ships the working tree, not a branch) **and**
-      0a done (deploy overwrites prod's `config.env` with the local one).
-- [ ] **3. `clj -M:dev migrate m007-timer-running-flag --target prod`**
-- [ ] **4. `biff logs`** — `reconcile-timer-flags` should be silent.
+- [ ] **2. Merge `dev` → `main` and push.** That is the deploy: App Platform
+      builds the container on the push. Clean fast-forward as of 2026-08-07 —
+      `main` holds nothing `dev` doesn't. Wait for the build to go live before
+      step 3; the migration writes documents the new code has to be running to
+      read correctly.
+- [ ] **3. `clj -M:dev migrate m007-timer-running-flag --target prod`** — runs
+      from your machine against the prod database, so it needs 0a.
+- [ ] **4. `doctl apps logs <app-id> --type run --follow`** (or the dashboard) —
+      `reconcile-timer-flags` should be silent.
 - [ ] **5. `/app/monitoring/performance`** — compare against the 0b baseline.
       This is the last unchecked box in Validation above.
 
@@ -291,39 +285,25 @@ new read filters on a flag no existing document carries, so any timer that
 the view, but stopping timers first is what makes that window empty rather than
 alarming.
 
-**`deploy`, never `soft-deploy`.** Two independent reasons, both silent
-failures rather than errors:
+**Deploying is a push to `main`, not a Biff task.** App Platform builds the
+container from the commit; `biff deploy` and `biff soft-deploy` belong to a
+hosting model this project does not use. See the Deployment section of
+`AGENTS.md`. Two earlier drafts of this runbook said `biff deploy` and reasoned
+at length about which files it would rsync — all of that was answering a
+question about someone else's server.
 
-- `use-chime` schedules tasks only at system start. Without a restart
-  `reconcile-timer-flags` is never scheduled, and nothing says so.
-- `malli-opts` is a `def` in `gleanmo.clj` that snapshots the schema registry
-  at load. `on-soft-deploy` runs `eval-files!` over *changed* files, and
-  `gleanmo.clj` is not one of them — so the registry would still lack
-  `<entity>/running` and every write of it would fail `:closed true`
-  validation.
+**This change needs a full restart, and gets one for free.** Both requirements
+are silent failures rather than errors, which is why they were worth writing
+down when a hot-reload path looked possible:
 
-**`deploy` overwrites prod's `config.env` with the local one.** This is the trap
-that reordered the checklist, and `git status` is blind to it — `config.env` is
-gitignored, so a clean tree says nothing about whether the file is deploy-safe.
+- `use-chime` schedules tasks only at system start, so without a restart
+  `reconcile-timer-flags` is never scheduled and nothing says so.
+- `malli-opts` is a `def` in `gleanmo.clj` that snapshots the schema registry at
+  load, so a registry without `<entity>/running` fails every write of it against
+  `:closed true` validation.
 
-`:biff.tasks/deploy-untracked-files` in `config.edn` lists `config.env`
-precisely so that gitignored config *does* ship; `push-files-rsync` concatenates
-it onto the `git ls-files` list and syncs to `app@$DOMAIN:`. The
-`--filter=:- .gitignore` argument does not save you — verified with a local
-`rsync --dry-run` using biff's exact argument list, `config.env` appears in the
-transfer set.
-
-So deploying the current local file would, on restart, hand prod: no database
-(placeholder `XTDB_JDBC_URL`), no outbound email (empty `MAILERSEND_API_KEY` —
-which is how sign-in works), no reCAPTCHA keys, and a cookie/JWT secret pair
-that probably differs from the running one. That is a broken site, not a broken
-migration, and it happens whether or not m007 ever runs. Hence 0a gates step 2.
-
-**`deploy` rsyncs the working tree, not a branch.** `push-files` prefers rsync
-when it exists locally, syncing the files `git ls-files` reports *as they are on
-disk*. `:biff.tasks/deploy-cmd ["git" "push" "prod" "main:master"]` in
-`config.edn` is only the fallback for machines without rsync. So uncommitted
-edits ship too — check `git status` is clean before running it.
+A fresh container satisfies both by construction. Keep the reasoning anyway: it
+is exactly what a future in-place-reload shortcut would break.
 
 **Dev has the same gap.** Any timer left running in dev before this change
 carries no flag and won't show on `/app/timers` until m007 runs there too:

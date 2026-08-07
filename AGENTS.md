@@ -15,7 +15,7 @@ Gleanmo is a personal quantified-self web app built in Clojure 1.11.1 with Biff,
 - Clojure 1.11.1
 - Biff + Rum + HTMX + Tailwind + ECharts
 - XTDB (RocksDB locally; PostgreSQL-backed in production)
-- Self-hosted web app
+- Deployed as a container on DigitalOcean App Platform — see [Deployment](#deployment)
 
 ## Environment
 
@@ -23,6 +23,70 @@ Gleanmo is a personal quantified-self web app built in Clojure 1.11.1 with Biff,
 - Version file: `deps.edn`
 - Lockfile: none; dependencies are pinned in `deps.edn`
 - Setup: `clj -P`
+
+## Deployment
+
+**Production deploys are triggered by pushing to `main`.** DigitalOcean App
+Platform watches the GitHub repo (`origin`, the only remote) and builds on every
+commit to `main`. Work happens on `dev`; shipping means merging `dev` → `main`
+and pushing. There is no deploy command to run.
+
+The user performs production actions personally — the merge/push that deploys,
+and any `--target prod` migration. Agents prepare and verify; they do not ship.
+
+### Do not use `biff deploy` or `biff soft-deploy`
+
+They are Biff-starter defaults for the rsync/ssh hosting model this project does
+not use, and `resources/config.edn` still carries their inert config
+(`:biff.tasks/deploy-cmd` points at a `prod` git remote that does not exist,
+`:biff.tasks/deploy-untracked-files` lists `config.env`). Running `biff deploy`
+would attempt to rsync the working tree — including the local `config.env` — to
+`app@gleanmo.com`. Treat that config as dead weight, not as documentation of how
+this app ships.
+
+### How prod gets its configuration
+
+From App Platform environment variables, **not** from `config.env`. The
+`Dockerfile` copies only `src`, `dev`, `resources` and `deps.edn`; `config.env`
+never enters the image. Aero's `#biff/env` / `#biff/secret` read real
+environment variables first and fall back to `config.env` only when running
+locally.
+
+Consequences worth remembering:
+
+- Editing local `config.env` cannot affect production, and cannot break it.
+- A new config key needs to be added in the App Platform dashboard as well as
+  in `config.env`, or prod gets `nil` while local works.
+- `--target prod` migrations run **from the developer's machine over the
+  network**, so they need the prod `XTDB_JDBC_URL` copied from the App Platform
+  dashboard into the local `config.env` first.
+
+### Build and runtime
+
+Multi-stage `Dockerfile`: `clojure:temurin-25-tools-deps-alpine` builds the
+uberjar via `clj -M:dev uberjar`, then the jar is copied into
+`eclipse-temurin:25-alpine`. The runtime image sets `BIFF_PROFILE=prod`,
+`HOST=0.0.0.0`, and exposes 8080.
+
+Every deploy is a fresh container, so a full process restart is guaranteed. That
+matters more than it looks: `use-chime` schedules scheduled tasks only at system
+start, and `malli-opts` in `gleanmo.clj` snapshots the schema registry at load.
+Both are satisfied for free here — but they are exactly what a hot-reload
+shortcut would silently break.
+
+### CI is not a deploy gate
+
+`.github/workflows/validate.yml` runs lint → format → test → e2e on pushes to
+**every** branch. App Platform's autodeploy reacts to the push, not to the
+Actions result, so a red build can still deploy. Run `just validate` and
+`just e2e-test-all` locally *before* merging to `main` rather than relying on CI
+to catch it in time.
+
+### Logs and app state
+
+`biff logs` ssh's to a server that does not exist here. Use the App Platform
+dashboard, or `doctl` (installed locally): `doctl apps list`, then
+`doctl apps logs <app-id> --type run --follow`.
 
 ## Commit Trailer Template
 
@@ -195,6 +259,9 @@ commands for the user to run, prefer the `biff` shorthand (e.g., `biff notebook`
 - `clj -M:dev notebook` / `biff notebook` — Clerk notebook server (user must run)
 - `clj -M:repl` — REPL (user must run)
 - `lein repl` — REPL (user must run)
+- `biff deploy` / `biff soft-deploy` — wrong hosting model entirely, and would
+  rsync local `config.env` to a stale host; see [Deployment](#deployment)
+- Any push or merge to `main` — that is what deploys to production (user must run)
 
 ## Project-Specific Rules
 
