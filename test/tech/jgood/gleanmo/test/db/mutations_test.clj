@@ -241,7 +241,7 @@
     ;; would buy nothing and add a fourth schema to keep in sync.
     (is (nil? (schema-utils/running-flag-fields
                (schema-utils/entity-schema :exercise-set) :exercise-set)))
-    (is (not (contains? @schema-utils/running-flag-entities :exercise-set)))
+    (is (not (contains? schema-utils/running-flag-entities :exercise-set)))
     (with-open [node (test-xtdb-node [])]
       (let [ctx        (get-context node)
             user-id    (UUID/randomUUID)
@@ -267,8 +267,8 @@
   (testing "every entity reached through active-timers-for-user opts in"
     (is (= #{:exercise-session :boulder-session
              :project-log :meditation-log :reading-log}
-           (set (keys @schema-utils/running-flag-entities))))
+           (set (keys schema-utils/running-flag-entities))))
     (is (= {:beginning-key :project-log/beginning,
             :end-key       :project-log/end,
             :running-key   :project-log/running}
-           (get @schema-utils/running-flag-entities :project-log)))))
+           (get schema-utils/running-flag-entities :project-log)))))

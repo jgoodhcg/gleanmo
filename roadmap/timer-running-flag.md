@@ -235,13 +235,44 @@ Note: `worker.clj` currently has one task (`print-usage`, every 5 minutes), and
 Everything above is committed (`4038577` on `dev`). What remains is operational.
 §4 has the reasoning; this is the runbook.
 
-```
-1. Stop every running timer in prod
-2. biff deploy
-3. clj -M:dev migrate m007-timer-running-flag --target prod
-4. biff logs                       # reconcile-timer-flags should be silent
-5. /app/monitoring/performance     # confirm the mean drops
-```
+### Live checklist
+
+This survives across sessions — tick boxes as steps complete, and leave a dated
+note under any step that surprises you. Steps 0 and 1 are ordered before the
+deploy for reasons that are not obvious; read their notes before reordering.
+
+- [ ] **0a. Restore prod DB access.** `XTDB_JDBC_URL` in `config.env` is
+      currently a 2-character placeholder, so `--target prod` dies with an NPE
+      at `migrate.clj:52`. Both step 0c and step 3 need it. Suspected fallout
+      from the in-flight Neon → DigitalOcean move
+      ([infrastructure.md](./infrastructure.md)); the populated `POSTGRES_*`
+      vars look local, not prod.
+- [ ] **0b. Capture the baseline.** Hit `/app/timers` (heaviest — it fans
+      `fetch-active-timers` across every config), `/app`,
+      `/app/exercise/session`, `/app/boulder/session`, and a
+      `/app/timer/<type>` page 5-10x each, then **persist the snapshot** from
+      `/app/monitoring/performance`. Tufte's accumulator is in-memory per
+      instance and `biff deploy` restarts the process, so an unpersisted
+      baseline is destroyed by the very step it exists to measure.
+- [ ] **0c. Size the migration.**
+      `clj -M:dev migrate m007-timer-running-flag --target prod --dry-run`
+      — per-entity counts, no writes. Dev reported 66 (18 reading-log,
+      30 project-log, 18 exercise-session, 0 boulder/meditation).
+- [ ] **1. Stop every running timer in prod.**
+- [ ] **2. `biff deploy`** — never `soft-deploy`; see below. Confirm
+      `git status` is clean first: rsync ships the working tree, not a branch.
+- [ ] **3. `clj -M:dev migrate m007-timer-running-flag --target prod`**
+- [ ] **4. `biff logs`** — `reconcile-timer-flags` should be silent.
+- [ ] **5. `/app/monitoring/performance`** — compare against the 0b baseline.
+      This is the last unchecked box in Validation above.
+
+**If step 3 stays blocked,** the deploy is still safe to do. The 09:00 UTC
+`reconcile-timer-flags` sweep repairs the same `:missing` direction m007 does,
+so the backfill happens within a day either way. The cost is a window where
+pre-existing open intervals are invisible on `/app/timers` — which step 1 makes
+empty for anything you actually care about. That scenario is also the one where
+the sweep's new tufte instrumentation earns its keep: an m007-less first run
+does all the repair work, and it is the run worth measuring.
 
 **Step 1 is not optional housekeeping.** Between the deploy and the backfill the
 new read filters on a flag no existing document carries, so any timer that

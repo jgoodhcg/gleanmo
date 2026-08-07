@@ -19,6 +19,17 @@
             [tech.jgood.gleanmo.schema.task-schema :as ts]))
 
 ;; all glenamo/type attributes are the schema key
+;;
+;; Timer entities: declaring `<entity>/running` beside `<entity>/beginning` and
+;; `<entity>/end` is what opts an entity into the write-time running-flag
+;; derivation in `db/mutations.clj` — there is no list of timer types in the db
+;; or app layer to keep in sync, and this registry is what
+;; `schema.utils/running-flag-entities` reads to find them. Omit the attribute
+;; on a new timer entity and nothing breaks loudly: its timers keep working,
+;; but finding them reverts to scanning the entity's whole history. Five
+;; entities carry it today (exercise-session, boulder-session, meditation-log,
+;; project-log, reading-log); see :exercise-session/running for the rationale
+;; and roadmap/timer-running-flag.md for the measurements.
 (def schema
   {:instant             [:fn t/instant?]
    :local-date          [:fn t/date?]

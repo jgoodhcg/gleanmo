@@ -27,7 +27,7 @@
         (into
          {}
          (for [[entity-key {:keys [beginning-key end-key running-key]}]
-               @schema-utils/running-flag-entities]
+               schema-utils/running-flag-entities]
            (let [{:keys [missing phantom]} (queries/running-flag-audit
                                             db beginning-key end-key
                                             running-key)]

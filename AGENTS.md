@@ -373,7 +373,29 @@ New entity checklist — when adding a new entity, complete ALL of these steps:
 6. Add to entities dashboard in `src/tech/jgood/gleanmo/app/dashboards.clj` (or activity logs dashboard for log entities)
 7. Add sidebar Quick Add link in `src/tech/jgood/gleanmo/app/shared.clj` (for log entities)
 8. Add to timers dashboard in `src/tech/jgood/gleanmo/app/timers.clj` (if timer-enabled)
-9. Add to smoke test in `e2e/scripts/test-smoke.ts`
+9. Declare `[:<entity>/running {:optional true :hide true} :boolean]` beside
+   `beginning`/`end` (if timer-enabled) — see below
+10. Add to smoke test in `e2e/scripts/test-smoke.ts`
+
+### Timer entities must declare a `running` flag
+
+Step 9 is the one with no error message. `db/mutations.clj` derives
+`<entity>/running` at write time for exactly those entities whose schema
+declares it — declaring the attribute *is* the opt-in, which is why there is no
+list of timer types in the db or app layer to keep in sync.
+
+Omit it and nothing fails: the timer starts, stops, and displays correctly.
+What you lose is the index. `active-timers-for-user` falls back to computing
+"has a beginning, no end" as a set difference over the entity's entire history,
+which is the ~315ms-vs-0.18ms regression `roadmap/timer-running-flag.md` exists
+to remove — and it degrades as the user logs more, so it looks fine on a new
+entity and rots.
+
+The flag is `:hide true` because it is derived state, not a field; an un-hidden
+one renders as a user-editable checkbox in the generic CRUD form. And it is
+**dissoc'd, never set `false`**, when the interval closes — sparseness is what
+keeps the lookup proportional to the number of running timers rather than to
+history.
 
 ## Decision Artifacts
 

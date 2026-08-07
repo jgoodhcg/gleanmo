@@ -259,16 +259,21 @@
 
 (def running-flag-entities
   "{entity-key {:beginning-key _ :end-key _ :running-key _}} for every
-   registered schema that opts in. A delay so it is built after every schema
-   namespace has loaded, the way `app.timers/timer-entity-configs` is."
-  (delay
-    (into {}
-          (keep (fn [[entity-key ent-schema]]
-                  (when (and (vector? ent-schema)
-                             (= :map (first ent-schema)))
-                    (some->> (running-flag-fields ent-schema entity-key)
-                             (vector entity-key)))))
-          schema-registry/schema)))
+   registered schema that opts in.
+
+   A plain value, not a delay: this namespace requires the registry, and the
+   registry requires every individual schema namespace, so by the time this
+   form evaluates `schema-registry/schema` is fully populated. The require
+   graph already guarantees the ordering a delay would be buying. (Schema
+   namespaces require only `schema.meta`, so there is no cycle to work
+   around — check that before adding one here.)"
+  (into {}
+        (keep (fn [[entity-key ent-schema]]
+                (when (and (vector? ent-schema)
+                           (= :map (first ent-schema)))
+                  (some->> (running-flag-fields ent-schema entity-key)
+                           (vector entity-key)))))
+        schema-registry/schema))
 
 (defn primary-rel-field
   "Read :timer/primary-rel off the schema, without yet applying fallbacks."

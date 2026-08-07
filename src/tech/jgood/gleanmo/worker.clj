@@ -3,6 +3,7 @@
             [com.biffweb :as biff]
             [tech.jgood.gleanmo.db.mutations :as mutations]
             [tech.jgood.gleanmo.db.queries :as queries]
+            [tech.jgood.gleanmo.observability :as obs]
             [tech.jgood.gleanmo.schema.utils :as schema-utils]
             [xtdb.api :as xt])
   (:import
@@ -48,22 +49,36 @@
 
    A quiet log is the signal that the write-time derivation is holding. If this
    starts printing, some path is writing timer documents without going through
-   `db/mutations.clj`."
+   `db/mutations.clj`.
+
+   Profiled: this deliberately runs the expensive set difference the flag
+   replaced, so it is the one place that cost still lives. `wrap-request-profiling`
+   only covers HTTP handlers, so without an explicit block the sweep would be
+   the single unmeasured thing in the system — and the one most likely to grow
+   with history. Timings land in the same accumulator as request profiles and
+   surface on /app/monitoring/performance."
   [{:keys [biff.xtdb/node] :as ctx}]
-  (doseq [[entity-key {:keys [beginning-key end-key running-key]}]
-          @schema-utils/running-flag-entities]
-    ;; A snapshot per type rather than one for the whole sweep: the repairs
-    ;; below write, and a snapshot taken before them does not advance.
-    (let [{:keys [missing phantom]} (queries/running-flag-audit
-                                     (xt/db node)
-                                     beginning-key end-key running-key)]
-      (doseq [[ids value direction] [[missing true :missing]
-                                     [phantom :db/dissoc :phantom]]
-              id                    ids]
-        (log/warn "Reconciling" running-key direction "on" entity-key id)
-        (mutations/update-entity! ctx {:entity-key entity-key,
-                                       :entity-id  id,
-                                       :data       {running-key value}})))))
+  (obs/profile-block
+   ::reconcile-timer-flags
+   (doseq [[entity-key {:keys [beginning-key end-key running-key]}]
+           schema-utils/running-flag-entities]
+     ;; A snapshot per type rather than one for the whole sweep: the repairs
+     ;; below write, and a snapshot taken before them does not advance.
+     (let [{:keys [missing phantom]} (queries/running-flag-audit
+                                      (xt/db node)
+                                      beginning-key end-key running-key)]
+       ;; `:db/dissoc`, never `false`. The flag is sparse by design — XTDB
+       ;; indexes presence, so a stopped timer must carry no attribute at all.
+       ;; Writing `false` here would keep every test green (the read filters on
+       ;; `true`) while growing the index back toward the full scan this whole
+       ;; change exists to remove. See :exercise-session/running in the schema.
+       (doseq [[ids value direction] [[missing true :missing]
+                                      [phantom :db/dissoc :phantom]]
+               id                    ids]
+         (log/warn "Reconciling" running-key direction "on" entity-key id)
+         (mutations/update-entity! ctx {:entity-key entity-key,
+                                        :entity-id  id,
+                                        :data       {running-key value}}))))))
 
 (defn alert-new-user [{:keys [biff.xtdb/node]} tx]
   (doseq [_ [nil]

@@ -27,7 +27,7 @@
 
 (defn- running-config
   [entity-key]
-  (get @schema-utils/running-flag-entities entity-key))
+  (get schema-utils/running-flag-entities entity-key))
 
 (defn- running?
   [beginning end]
@@ -63,6 +63,12 @@
             (contains? data end-key))
       (let [stored (xt/entity (if node (xt/db node) db) entity-id)]
         (assoc data
+               ;; `:db/dissoc`, never `false`. The flag is sparse by design —
+               ;; XTDB indexes presence, not absence, so a stopped timer must
+               ;; carry no attribute at all for the lookup to stay proportional
+               ;; to the number of running timers rather than to history.
+               ;; Writing `false` would leave every test green (the read
+               ;; filters on `true`) while silently restoring the full scan.
                running-key (if (running? (merged-value stored data beginning-key)
                                          (merged-value stored data end-key))
                              true
