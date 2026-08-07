@@ -241,12 +241,22 @@ This survives across sessions — tick boxes as steps complete, and leave a date
 note under any step that surprises you. Steps 0 and 1 are ordered before the
 deploy for reasons that are not obvious; read their notes before reordering.
 
-- [ ] **0a. Restore prod DB access.** `XTDB_JDBC_URL` in `config.env` is
-      currently a 2-character placeholder, so `--target prod` dies with an NPE
-      at `migrate.clj:52`. Both step 0c and step 3 need it. Suspected fallout
+- [ ] **0a. Restore the prod values in `config.env`.** This gates step 2, not
+      just 0c and 3 — see the deploy-overwrites-config note below. The local
+      file has been stripped to dev shape: `XTDB_JDBC_URL` is a 2-character
+      placeholder (so `--target prod` dies with an NPE at `migrate.clj:52`),
+      and `MAILERSEND_API_KEY`, `RECAPTCHA_SITE_KEY`, `RECAPTCHA_SECRET_KEY`
+      are all empty. `PROD_XTDB_TOPOLOGY` is still populated, which is why this
+      reads as a partial scrub rather than a fresh config — suspected fallout
       from the in-flight Neon → DigitalOcean move
       ([infrastructure.md](./infrastructure.md)); the populated `POSTGRES_*`
-      vars look local, not prod.
+      vars are local (`POSTGRES_HOST=localhost`), not prod.
+
+      `COOKIE_SECRET` and `JWT_SECRET` are populated but are almost certainly
+      the *local* pair. They must match what prod is running or every existing
+      session is invalidated on restart and outstanding magic-link emails stop
+      verifying. Copy prod's `/home/app/config.env` down and diff before
+      trusting the local one.
 - [ ] **0b. Capture the baseline.** Hit `/app/timers` (heaviest — it fans
       `fetch-active-timers` across every config), `/app`,
       `/app/exercise/session`, `/app/boulder/session`, and a
@@ -259,8 +269,9 @@ deploy for reasons that are not obvious; read their notes before reordering.
       — per-entity counts, no writes. Dev reported 66 (18 reading-log,
       30 project-log, 18 exercise-session, 0 boulder/meditation).
 - [ ] **1. Stop every running timer in prod.**
-- [ ] **2. `biff deploy`** — never `soft-deploy`; see below. Confirm
-      `git status` is clean first: rsync ships the working tree, not a branch.
+- [ ] **2. `biff deploy`** — never `soft-deploy`; see below. Two preconditions:
+      `git status` clean (rsync ships the working tree, not a branch) **and**
+      0a done (deploy overwrites prod's `config.env` with the local one).
 - [ ] **3. `clj -M:dev migrate m007-timer-running-flag --target prod`**
 - [ ] **4. `biff logs`** — `reconcile-timer-flags` should be silent.
 - [ ] **5. `/app/monitoring/performance`** — compare against the 0b baseline.
@@ -290,6 +301,23 @@ failures rather than errors:
   `gleanmo.clj` is not one of them — so the registry would still lack
   `<entity>/running` and every write of it would fail `:closed true`
   validation.
+
+**`deploy` overwrites prod's `config.env` with the local one.** This is the trap
+that reordered the checklist, and `git status` is blind to it — `config.env` is
+gitignored, so a clean tree says nothing about whether the file is deploy-safe.
+
+`:biff.tasks/deploy-untracked-files` in `config.edn` lists `config.env`
+precisely so that gitignored config *does* ship; `push-files-rsync` concatenates
+it onto the `git ls-files` list and syncs to `app@$DOMAIN:`. The
+`--filter=:- .gitignore` argument does not save you — verified with a local
+`rsync --dry-run` using biff's exact argument list, `config.env` appears in the
+transfer set.
+
+So deploying the current local file would, on restart, hand prod: no database
+(placeholder `XTDB_JDBC_URL`), no outbound email (empty `MAILERSEND_API_KEY` —
+which is how sign-in works), no reCAPTCHA keys, and a cookie/JWT secret pair
+that probably differs from the running one. That is a broken site, not a broken
+migration, and it happens whether or not m007 ever runs. Hence 0a gates step 2.
 
 **`deploy` rsyncs the working tree, not a branch.** `push-files` prefers rsync
 when it exists locally, syncing the files `git ls-files` reports *as they are on
