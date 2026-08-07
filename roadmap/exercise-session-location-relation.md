@@ -3,7 +3,7 @@ title: "Exercise session location as a relation"
 status: draft
 description: "Replace the free-text location string on exercise-session with a proper location relation, matching every other log entity"
 created: 2026-08-04
-updated: 2026-08-04
+updated: 2026-08-06
 tags: [schema, exercise, location, data-modeling]
 priority: medium
 ---
@@ -57,7 +57,8 @@ production), so the existing string field has real documents behind it.
 ## Scope
 
 - Not included: migrating the historical string values into `location`
-  entities. Whether and how to backfill is an open question below.
+  entities — settled 2026-08-06, there is nothing to migrate. See
+  "Resolved questions" below.
 - Not included: changing `symptom-log/location` (a `body-location-enum`, which
   is anatomy, not a place) or the `user/current-location-id` setting (already a
   relation).
@@ -79,23 +80,31 @@ production), so the existing string field has real documents behind it.
   already has data — add, don't rewrite".
 - Parent work unit: [exercise.md](./exercise.md).
 
-## Open Questions
+## Resolved questions
 
-- **Backfill or leave the strings alone?** Existing sessions carry strings like
-  "gym", "home", "Living room". Options: (a) leave them — readers ignore the
-  deprecated field and old sessions simply show no location until re-edited;
-  (b) one-off script that creates/ matches `location` entities per distinct
-  string and writes `:exercise-session/location-id` on the historical docs.
-  (a) is cheaper and reversible; (b) makes history queryable by place from day
-  one. Resolve before moving to `ready`.
-- **Keep the string field visible on the form as a fallback during a
-  transition, or hide it immediately?** The `reading-log` precedent hid the old
-  field entirely. Lean toward hiding, but confirm the historical-string
-  question above first — if we backfill, hiding is obviously right; if we
-  don't, hiding means old sessions lose their displayed location until edited.
-- **Naming for the deprecated field.** Leave it as
-  `:exercise-session/location` (matches the `bm-log` / `habit` pattern of
-  keeping the old name) or rename-on-add? Default: keep the name, just hide.
+All three settled 2026-08-06. The unit is unblocked for `ready`.
+
+- **Backfill: no — there is nothing to back-fill.** The premise of the question
+  was wrong. Measured against the dev database, which carries the full
+  production dataset: 2,626 exercise-sessions, 2,563 of them imported from
+  Airtable, and **20 in total carrying any `:exercise-session/location` string
+  at all** — 17 of which are e2e fixtures (`E2E Gym <timestamp>`). The real
+  values are `Office`, `home-gym`, and one repeat. m005 never imported the
+  field, so no historical session has ever displayed a location.
+
+  This also dissolves the consequence the question was weighing. "Old sessions
+  show no location until re-edited" is not a regression when they show no
+  location today.
+
+- **Hide the deprecated string immediately: yes.** This followed the backfill
+  answer, and with nothing behind the field there is no transition to stage.
+  Matches the `reading-log` precedent.
+
+- **Naming: keep `:exercise-session/location`, just hide it.** The stated
+  default, and nothing above disturbs it. Consistent with `bm-log` / `habit`.
+
+The three live values are not worth a migration. If they ever matter, editing
+three sessions by hand beats a script.
 
 ## Notes
 
