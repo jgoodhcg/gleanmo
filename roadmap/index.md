@@ -11,6 +11,7 @@ goal: "Get off Neon/Hikari pain and Airtable dependency while keeping Gleanmo fa
 - [data-migration-status.md](./data-migration-status.md) - Tracker for Airtable backfills and remaining imports (Airtable exit complete; retirement housekeeping left)
 - [qol-quick-actions.md](./qol-quick-actions.md) - Navigation & logging QOL (analytics-backed; items 3-5 remain)
 - [local-dev-db-locking.md](./local-dev-db-locking.md) - RocksDB file lock prevents running REPL and CLI migrations concurrently
+- [exercise-export.md](./exercise-export.md) - Quick copy-paste export of exercise data over a time window for the health-coach agent (next after the timer-running-flag deploy; interim to ai-assistance.md)
 
 ## Prioritization Lens
 
@@ -59,6 +60,7 @@ unfinished QOL batch items 3-5 are no longer competing with a migration.
 
 ### Ready
 
+- [exercise-export.md](./exercise-export.md) - Quick copy-paste export of exercise data over a time window for ingestion by the health-coach agent; interim to the full ai-assistance API/CLI/MCP
 - [query-shape-audit.md](./query-shape-audit.md) - Find clauses that cost without narrowing, and ranges that never prune, across db/queries.clj
 - [qol-quick-actions.md](./qol-quick-actions.md) - Navigation & logging QOL: sidebar reorder, stop-in-place timers, boulder problem discoverability, home quick actions
 - [inline-entity-creation.md](./inline-entity-creation.md) - Create related entities mid-form without losing context (executed as item 3 of qol-quick-actions.md)
