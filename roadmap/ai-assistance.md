@@ -1,9 +1,9 @@
 ---
 title: "AI Assistance Integration"
 status: draft
-description: "Expose Gleanmo data to external agentic tools (CLI agents, open-web-ui) via MCP and/or a scoped API for read/write with strict sensitivity controls"
+description: "Expose Gleanmo data to external agentic tools (CLI agents, open-web-ui) via MCP and/or a scoped API for read/write with strict sensitivity controls, token-based auth, and a companion CLI utility"
 created: 2026-07-11
-updated: 2026-07-11
+updated: 2026-08-07
 tags: [integration, ai, mcp, api, security, llm-context]
 priority: medium
 ---
@@ -20,6 +20,20 @@ The motivating use cases:
 2. **Exercise analysis**: ask an agent to review recent exercise logs and surface patterns, soreness risk, or progression suggestions.
 
 The hard constraint is **sensitivity**. Gleanmo holds medical, mood, and other private data. The integration must default to denying sensitive entities and never exfiltrate fields the user has marked sensitive, even when an agent requests them.
+
+### Companion CLI Utility
+
+A lightweight TypeScript CLI (`gleanmo-agent`) distributed alongside the API — discoverable via a `GET /.well-known/agent-cli` endpoint that returns installation instructions or a download URL (raw script from the repo). The CLI wraps the authenticated API for curl/script-friendly use:
+
+```sh
+# After generating a token in the web app:
+gleanmo-agent config set-token gmn_xxxx
+gleanmo-agent tasks list --today
+gleanmo-agent tasks complete <id>
+gleanmo-agent exercise recent --days 7
+```
+
+The CLI is optional — agents can curl the API directly. It exists to reduce friction for ad-hoc scripting and to serve as a reference client that documents the API contract in executable form.
 
 ## Specification
 
@@ -54,8 +68,14 @@ Either path must route all data access through `db/queries.clj` and all writes t
 ### Auth
 
 - Token-based auth for API/MCP clients, scoped to a single user, revocable.
-- Tokens stored as hashed values (never plaintext), created/managed in-app.
-- No session reuse with the web app — separate credential surface.
+- Tokens stored as hashed values (never plaintext) — only the prefix/suffix shown to the user for recognition (like `gmn_xxxx...yyyy`).
+- Each token carries **granular permissions**, configurable at creation time:
+  - Per entity type (tasks, exercise, habits, mood, etc.)
+  - Read vs. write per entity type
+  - Sensitivity override: `default-exclude` (treat as sensitive), `include` (allow sensitive entities), `require-escalation` (ask on each request)
+  - Archived entity visibility: `exclude` (default), `include`
+- Tokens created/managed in-app via a dedicated settings page (or a modal in the existing settings area).
+- No session reuse with the web app — separate credential surface, scoped to only what the token permits.
 
 ## Validation
 
@@ -71,7 +91,10 @@ Either path must route all data access through `db/queries.clj` and all writes t
 ### In scope
 - A read/write integration surface (MCP and/or API) for a curated set of entity types
 - Sensitivity-aware read filtering using existing `sensitive` flags and `resolve-user-settings`
-- Token auth for external clients
+- Token auth for external clients with granular entity-type-level permissions (read/write per type, sensitivity visibility, archive visibility)
+- In-app token management UI (create, list, revoke)
+- Companion CLI utility in TypeScript wrapping the HTTP API
+- Discovery endpoint at `/.well-known/agent-cli` serving CLI download/install instructions
 - Task state mutations (the day-planning use case)
 - Exercise read access (the analysis use case)
 
@@ -102,6 +125,9 @@ Either path must route all data access through `db/queries.clj` and all writes t
 - [ ] For local CLI use, is a loopback-only transport acceptable to loosen sensitivity defaults, or keep one policy everywhere?
 - [ ] Rate limiting / abuse protection — needed for a personal app, or defer?
 - [ ] Should agent writes be auditable (a log of what an agent changed)?
+- [ ] Companion CLI — standalone npm package? In-repo script? Distributed via the discovery endpoint as a single-file download?
+- [ ] Token permission UI — what does the permission matrix look like in the form? A checkbox grid (entity types × read/write) with sensitivity/archive toggles?
+- [ ] Token format — `gmn_` prefix with what payload? Random bearer string with server-side permission lookup, or a self-contained signed JWT? Recommending opaque random with server-side lookup for revocability without a blacklist.
 
 ## Notes
 
