@@ -5,7 +5,7 @@ description: "Minor improvements without full work-unit docs"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-07-26
+updated: 2026-08-11
 ---
 
 # Backlog
@@ -183,3 +183,8 @@ Timer page stats do not account for currently active timers (project-logs with n
 - **Fix**: When calculating stats, include active timers by using `now` as the effective end time for logs missing `:project-log/end-at`.
 - **Scope**: Day-level summary and per-project breakdowns should both reflect active time.
 - **Validation**: Manual check—start a timer, verify stats update before stopping it.
+
+### Medication History Injection Site Hidden on Mobile
+The medication history page hides the injection site column (and notes) on mobile via `hidden.md:table-cell` — `medication_history.clj:159-160,167-170`.
+- **Issue**: Injection site is one of the most relevant fields on a medication log entry, but it's invisible on mobile viewports (<768px). The dosage timeline chart gets mobile-specific rendering while the table data is truncated with no mobile-aware fallback.
+- **Suggestion**: Render injection site inline with the dosage column on mobile (e.g. `"5 mg — Left Thigh"` or a separate row within the same card), or promote it to always-visible and hide a less critical column instead.
