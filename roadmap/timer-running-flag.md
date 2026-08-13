@@ -3,7 +3,7 @@ title: "Timer Running Flag"
 status: active
 description: "Replace the two-full-scan set difference behind active timers with an indexed flag derived at write time, reconciled daily"
 created: 2026-08-03
-updated: 2026-08-05
+updated: 2026-08-13
 tags: [performance, xtdb, timers, schema]
 priority: medium
 ---
@@ -227,8 +227,10 @@ Note: `worker.clj` currently has one task (`print-usage`, every 5 minutes), and
       `timer-double-submit` / `timers-workspace` / `workout` all pass —
       and beyond the named six, `just e2e-test-all` is green end to end:
       all 20 scripts CI runs, in one pass
-- [ ] Prod: `active-timers-for-user` mean drops from the ~300-900ms range;
-      confirm on `/app/monitoring/performance` against the baseline below
+- [x] Prod: `active-timers-for-user` mean drops from the ~300-900ms range —
+      confirmed 2026-08-13 on `4a5ce86`. **39 calls, 9.0s → 597ms.** Warm-path
+      min fell from 15.13ms to 1.00ms on `/app/timers` and from 141.61ms to
+      816µs on `/app/exercise/session` (173x). See the after-table below.
 
 ### Prod baseline, 2026-08-13
 
@@ -260,6 +262,54 @@ Note that prod has no open intervals, so every one of these calls ran the full
 set difference and returned nothing. The after-measurement compares the same
 empty result computed two ways, which is as clean as this comparison gets.
 
+### Prod result, 2026-08-13
+
+Instance `1ae7e72c`, git sha `4a5ce86`, measured after a warmup round was
+persisted away. Same 39 `active-timers-for-user` calls as the baseline, by
+coincidence.
+
+| Route | `active-timers` mean | min | was (mean / min) |
+|---|---|---|---|
+| `/app/exercise/session` | 947.66µs | 816.45µs | 575.33ms / 141.61ms |
+| `/app/timers` | 2.55ms | 1.00ms | 105.70ms / 15.13ms |
+| `/app/timer/meditation-log` | 1.33ms | — | 16.16ms |
+| `/app/timer/reading-log` | 1.61ms | — | 21.84ms |
+| `/app/boulder/session` | 2.09ms | 1.41ms | 53.70ms / 7.90ms |
+| `/app/timer/project-log` | 10.70ms | — | 347.29ms |
+| `/app` overview | 44.05ms | 1.01ms | 347.08ms / 32.51ms |
+
+**Total across all routes: 8,997ms → 597ms.** The overview's 44.05ms mean is
+one 457.38ms outlier against a 1.01ms min; the other eleven calls average
+6.5ms. The 0.18ms measured on RocksDB became ~1ms against network-attached
+Postgres, which is the expected order of magnitude.
+
+Handler-level, comparing **mins** (the warm-path cost, and the only number
+stable enough to compare across 3-6 samples):
+
+| Route | handler min | was |
+|---|---|---|
+| `/app` overview | 539.71ms | 1.43s |
+| `/app/exercise/session` | 1.71s | 2.68s |
+| `/app/timer/reading-log` | 279.55ms | 760.31ms |
+| `/app/timers` | 111.03ms | 222.13ms |
+| `/app/timer/meditation-log` | 218.41ms | 343.54ms |
+| `/app/boulder/session` | 18.38ms | 22.24ms |
+
+Boulder session barely moved because its warm baseline was already 22ms — the
+244.87ms baseline *mean* was cold-start contamination, and its `active-timers`
+min was only 7.90ms. There was nothing there to win. This is the clearest
+argument in the file for comparing mins.
+
+**The 68% prediction for the overview was wrong, and the error is instructive.**
+Predicted 1.53s → ~490ms; actual mean 1.53s → 1.17s, min 1.43s → 539.71ms. The
+prediction subtracted `active-timers`' full 1.04s per request from the handler,
+which assumes serial composition — but the baseline analysis in this same file
+had already observed that the overview fans out concurrently (`windowed-scan`
+totalled 7.56s against a 6.10s handler total). Removing one concurrent branch
+only shortens the wall clock if that branch was on the critical path. It was
+partly overlapped, so roughly half the saving showed up. Predict additively only
+where spans are known to be serial.
+
 ### What this change does not fix
 
 Worth recording so the after-numbers don't read as a disappointment. On the two
@@ -273,8 +323,23 @@ slowest pages, `active-timers-for-user` is not the main cost:
   than the handler total, so those run concurrently), and 596
   `get-entity-by-id` calls across 4 requests: **149 per page load**, a plain N+1.
 
-The overview is still where this change pays off most (68%), but the exercise
-session page and that N+1 are the next two work units, not this one.
+The overview is still where this change pays off most, but the exercise session
+page and that N+1 are the next two work units, not this one.
+
+**Post-deploy, with the flag's cost removed, the ranking is unambiguous**
+(2026-08-13 numbers):
+
+1. **`/app/exercise/session`, 2.15s** — `lines-for-sets` (854.89ms) plus
+   `sets-for-sessions` (793.88ms) are now **77%** of the page. The worst screen
+   in the app, and nothing is masking it any more.
+2. **`/app` overview, 1.17s** — 580 `get-entity-by-id` calls across 4 requests,
+   **145 per page load**, totalling 1.61s. The per-call mean went *up* (1.55ms →
+   2.78ms, one call at 494.33ms), so this N+1 is now the dominant cost.
+   `recent-activity-across-types` is 574.18ms behind it.
+3. **`/app/timers`, 524ms** — `recent-completed-timer-logs` is unchanged at
+   114.00ms mean but, at 3 calls per request, has gone from 47% of the page to
+   **65%**. It is the same shape of problem this unit just solved: a per-timer-type
+   fan-out running an expensive history scan. Worth solving the same way.
 
 ## Deploy procedure
 
@@ -316,22 +381,27 @@ open timers going invisible between deploy and backfill — does not exist.
       the UI — the table above is the record to compare against.
 - [x] **0c. Size the migration.** 2026-08-12: zero across all five entities.
       See the note above.
-- [ ] **1. Close out every timer on `/app/timers`.** Cheap, and it re-confirms
+- [x] **1. Close out every timer on `/app/timers`.** Done 2026-08-13. Cheap, and it re-confirms
       0c at the moment it actually matters — 0c was a point-in-time snapshot,
       and a timer started between then and the merge would be open at deploy.
-- [ ] **2. Merge `dev` → `main` and push.** That is the deploy: App Platform
+- [x] **2. Merge `dev` → `main` and push.** Done 2026-08-13 at `4a5ce86`.
+      That is the deploy: App Platform
       builds the container on the push. Clean fast-forward as of 2026-08-07 —
       `main` holds nothing `dev` doesn't.
-- [ ] **3. Wait for the build to go live**, then **start a timer, confirm it
-      appears on `/app/timers`, and stop it.** This is the step that actually
+- [x] **3. Wait for the build to go live**, then **start a timer, confirm it
+      appears on `/app/timers`, and stop it.** Done 2026-08-13 — this is what
+      proves the prod schema registry accepts the flag write. This is the step that actually
       validates the change, and nothing before it does: prod has no open
       intervals, so a passing deploy proves only that the empty case reads
       empty. Writing the flag is the part that depends on the prod schema
       registry carrying `<entity>/running`, and a registry that lacked it would
       fail `:closed true` validation on the write.
-- [ ] **4. Compare `/app/monitoring/performance`** against the 0b baseline,
-      after hitting the same pages the same number of times — the accumulator
-      started empty in the new container. Last unchecked box in Validation.
+- [x] **4. Compare `/app/monitoring/performance`** against the 0b baseline —
+      done 2026-08-13, see "Prod result" above. Method that made it readable,
+      worth repeating: warm the new container, **persist that round away**, and
+      only then measure. A fresh container has a cold JDBC pool and unwarmed
+      index caches, and boulder-session shows what that does to a baseline —
+      its 244.87ms "before" mean was cold-start noise around a 22ms warm cost.
 - [ ] **5. Next morning, check the 09:00 UTC sweep** —
       `doctl apps logs <app-id> --type run` (or the dashboard).
       `reconcile-timer-flags` should be silent.
