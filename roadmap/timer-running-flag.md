@@ -238,15 +238,25 @@ Everything above is committed (`4038577` on `dev`). What remains is operational.
 ### Live checklist
 
 This survives across sessions — tick boxes as steps complete, and leave a dated
-note under any step that surprises you. Steps 0 and 1 are ordered before the
-deploy for reasons that are not obvious; read their notes before reordering.
+note under any step that surprises you.
 
-- [ ] **0a. Put the prod `XTDB_JDBC_URL` in the local `config.env`.** It is a
-      2-character placeholder right now, so `--target prod` dies with an NPE at
-      `migrate.clj:52`. Copy the real value from the App Platform environment
-      variables — that dashboard, not this file, is where prod's config lives.
-      This blocks 0c and 3 only; it has no bearing on the deploy, which carries
-      no `config.env` at all.
+**2026-08-12: the prod dry-run came back empty, which removed most of this.**
+All five entities reported `0 to flag, 0 to clear` against prod at tx-id 51482.
+`running-flag-audit` applies no user, type, or deleted filtering, so that is the
+unqualified statement that every timer document in prod has a closed interval.
+The expected ~66 was a bad prediction on my part: dev's 66 open intervals
+(18 reading-log, 30 project-log, 18 exercise-session, and zero for the two types
+nobody test-drives) were e2e fixtures and hand-testing residue, not inherited
+production history. The user closes timers out on `/app/timers` as a matter of
+habit.
+
+Consequences: **there is nothing to backfill, so m007 never needs to run against
+prod**, and the one genuinely risky window in the original plan — pre-existing
+open timers going invisible between deploy and backfill — does not exist.
+
+- [x] **0a. Put the prod `XTDB_JDBC_URL` in the local `config.env`.** Done
+      2026-08-12; the real value lives in the App Platform environment
+      variables, not in any file here. Only ever gated 0c and the migration.
 - [ ] **0b. Capture the baseline.** Hit `/app/timers` (heaviest — it fans
       `fetch-active-timers` across every config), `/app`,
       `/app/exercise/session`, `/app/boulder/session`, and a
@@ -254,36 +264,50 @@ deploy for reasons that are not obvious; read their notes before reordering.
       `/app/monitoring/performance`. Tufte's accumulator is in-memory per
       instance and the deploy replaces the container, so an unpersisted
       baseline is destroyed by the very step it exists to measure.
-- [ ] **0c. Size the migration.**
-      `clj -M:dev migrate m007-timer-running-flag --target prod --dry-run`
-      — per-entity counts, no writes. Dev reported 66 (18 reading-log,
-      30 project-log, 18 exercise-session, 0 boulder/meditation).
-- [ ] **1. Stop every running timer in prod.**
+- [x] **0c. Size the migration.** 2026-08-12: zero across all five entities.
+      See the note above.
+- [ ] **1. Close out every timer on `/app/timers`.** Cheap, and it re-confirms
+      0c at the moment it actually matters — 0c was a point-in-time snapshot,
+      and a timer started between then and the merge would be open at deploy.
 - [ ] **2. Merge `dev` → `main` and push.** That is the deploy: App Platform
       builds the container on the push. Clean fast-forward as of 2026-08-07 —
-      `main` holds nothing `dev` doesn't. Wait for the build to go live before
-      step 3; the migration writes documents the new code has to be running to
-      read correctly.
-- [ ] **3. `clj -M:dev migrate m007-timer-running-flag --target prod`** — runs
-      from your machine against the prod database, so it needs 0a.
-- [ ] **4. `doctl apps logs <app-id> --type run --follow`** (or the dashboard) —
+      `main` holds nothing `dev` doesn't.
+- [ ] **3. Wait for the build to go live**, then **start a timer, confirm it
+      appears on `/app/timers`, and stop it.** This is the step that actually
+      validates the change, and nothing before it does: prod has no open
+      intervals, so a passing deploy proves only that the empty case reads
+      empty. Writing the flag is the part that depends on the prod schema
+      registry carrying `<entity>/running`, and a registry that lacked it would
+      fail `:closed true` validation on the write.
+- [ ] **4. Compare `/app/monitoring/performance`** against the 0b baseline,
+      after hitting the same pages the same number of times — the accumulator
+      started empty in the new container. Last unchecked box in Validation.
+- [ ] **5. Next morning, check the 09:00 UTC sweep** —
+      `doctl apps logs <app-id> --type run` (or the dashboard).
       `reconcile-timer-flags` should be silent.
-- [ ] **5. `/app/monitoring/performance`** — compare against the 0b baseline.
-      This is the last unchecked box in Validation above.
 
-**If step 3 stays blocked,** the deploy is still safe to do. The 09:00 UTC
-`reconcile-timer-flags` sweep repairs the same `:missing` direction m007 does,
-so the backfill happens within a day either way. The cost is a window where
-pre-existing open intervals are invisible on `/app/timers` — which step 1 makes
-empty for anything you actually care about. That scenario is also the one where
-the sweep's new tufte instrumentation earns its keep: an m007-less first run
-does all the repair work, and it is the run worth measuring.
+**The migration is skipped, not deferred.** m007 stays in the registry because
+it is the repair tool if the flag and the intervals ever disagree, and running
+it against prod is harmless at any time — it is idempotent and currently a
+no-op. It is simply not part of this deploy.
 
-**Step 1 is not optional housekeeping.** Between the deploy and the backfill the
-new read filters on a flag no existing document carries, so any timer that
-*was* running is invisible in the UI. The data is untouched and step 3 restores
-the view, but stopping timers first is what makes that window empty rather than
-alarming.
+**Rolling back means stopping timers first.** The entity schemas are
+`[:map {:closed true} ...]` and Biff validates the *merged* document after a
+transaction (`impl/xtdb.clj:299`, "Doc wouldn't be a valid ... after
+transaction"). So under rolled-back code whose registry lacks
+`<entity>/running`, any document still carrying the flag cannot be updated at
+all — including to stop it. The flag exists only while a timer is open, so
+"close out every timer" is the safety action in *both* directions: it makes the
+deploy window empty, and it makes a rollback clean. Reverting the merge commit
+on `main` and pushing is otherwise sufficient; the flag is additive and the old
+read path never consults it.
+
+**Why step 1 mattered when the counts looked nonzero**, kept because it is the
+reasoning that applies again the moment they aren't: the new read filters on a
+flag no existing document carries, so between deploy and backfill any timer that
+*was* running is invisible in the UI. The data is untouched and the backfill
+restores the view, but closing timers first is what makes that window empty
+rather than alarming.
 
 **Deploying is a push to `main`, not a Biff task.** App Platform builds the
 container from the commit; `biff deploy` and `biff soft-deploy` belong to a
