@@ -5,7 +5,7 @@ description: "Performance monitoring and profiling dashboard"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-02
+updated: 2026-08-13
 ---
 
 # Performance Monitoring Requirements
@@ -44,4 +44,5 @@ updated: 2026-02-02
   steady state. To compare a deploy: press persist right after it comes up,
   then again once it has been exercised.
 - **Super-user dashboard** now lives at `/app/monitoring/performance`, offering rolling windows, snapshot counts, and human-readable summaries for each profiled route.
-- **Planned follow-ups**: Cross-instance aggregation and chart visualizations of the history are still future enhancements—current UI is textual but the storage model is in place.
+- **Planned follow-ups**: Chart visualizations of the history are still a future enhancement—current UI is textual but the storage model is in place.
+- **Cross-instance aggregation is now its own work unit**: [performance-regression-tracking.md](./performance-regression-tracking.md), which also covers the scheduled flush this document once claimed had shipped, grouping by git SHA rather than by instance, and a synthetic benchmark so a quiet week still produces comparable data.
