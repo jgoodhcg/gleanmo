@@ -71,6 +71,7 @@ unfinished QOL batch items 3-5 are no longer competing with a migration.
 ### Draft
 
 - [performance-regression-tracking.md](./performance-regression-tracking.md) - Make performance comparable across deploys — scheduled snapshots, cross-instance aggregation, per-SHA grouping, and a synthetic benchmark so low traffic still yields data
+- [scheduled-work-multi-instance.md](./scheduled-work-multi-instance.md) - Scheduled tasks, tx listeners and queues all run per-container with no singleton guarantee — make them safe before the app ever scales past one instance
 - [screenshot-series-heartbeat.md](./screenshot-series-heartbeat.md) - Capture the visual timeline in CI against a fixed fixture, published to an orphan branch
 - [mood.md](./mood.md) - Structured mood logging with Airtable backfill
 - [bouldering.md](./bouldering.md) - Climbing sessions and problem attempts with Airtable backfill

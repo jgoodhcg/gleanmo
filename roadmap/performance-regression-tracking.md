@@ -35,7 +35,10 @@ Four structural reasons, all of them independent:
 3. **Multiple instances split the picture.** App Platform can run more than one
    container. Each accumulates independently, and the dashboard shows whichever
    one served your request. Even "how fast is the app right now" is a partial
-   answer, and which part you get is arbitrary.
+   answer, and which part you get is arbitrary. (The `gleanmo` component is
+   pinned at 1 container today. The same per-container assumption affects
+   scheduled work, tracked in
+   [scheduled-work-multi-instance.md](./scheduled-work-multi-instance.md).)
 
 4. **The sample is whatever you happened to browse.** Route coverage, call
    counts and cache warmth all vary per session, so two snapshots are rarely
