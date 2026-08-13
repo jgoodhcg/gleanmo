@@ -228,7 +228,53 @@ Note: `worker.clj` currently has one task (`print-usage`, every 5 minutes), and
       and beyond the named six, `just e2e-test-all` is green end to end:
       all 20 scripts CI runs, in one pass
 - [ ] Prod: `active-timers-for-user` mean drops from the ~300-900ms range;
-      confirm on `/app/monitoring/performance`
+      confirm on `/app/monitoring/performance` against the baseline below
+
+### Prod baseline, 2026-08-13
+
+Instance `59c59e13`, git sha `eb5c428` (pre-change), captured over ~2 minutes of
+browsing. **39 `active-timers-for-user` calls totalling ~9.0s, mean 231ms.**
+
+| Route | calls/req | `active-timers` mean | min | max | handler mean | share |
+|---|---|---|---|---|---|---|
+| `/app` overview | 3 | 347.08ms | 32.51ms | 721.21ms | 1.53s | **68%** |
+| `/app/timers` | 3 | 105.70ms | 15.13ms | 619.27ms | 707.85ms | 45% |
+| `/app/timer/project-log` | 1 | 347.29ms | 39.56ms | 655.02ms | 1.09s | 32% |
+| `/app/boulder/session` | 1 | 53.70ms | 7.90ms | 182.96ms | 244.87ms | 22% |
+| `/app/exercise/session` | 1 | 575.33ms | 141.61ms | 738.44ms | 3.07s | 19% |
+| `/app/timer/reading-log` | 1 | 21.84ms | — | — | 760.31ms | 3% |
+| `/app/timer/meditation-log` | 1 | 16.16ms | — | — | 343.54ms | 5% |
+
+The three-calls-per-request rows are the timer-type fan-out; the flag removes
+all three. Predicted after, at the measured 0.18ms per lookup: overview
+1.53s → ~490ms, `/app/timers` 708ms → ~390ms, project-log timer 1.09s → ~745ms,
+exercise session 3.07s → ~2.5s.
+
+**Compare mins, not just means.** The spread is up to 41× within a single span
+(15.13ms to 619.27ms on `/app/timers`), so a 4-5 sample mean is dominated by
+whichever call paid for a cold JDBC connection or an unwarmed index. The min is
+the warm-path cost and should fall below 1ms; a mean that merely halves may just
+be a different draw from the same noisy distribution.
+
+Note that prod has no open intervals, so every one of these calls ran the full
+set difference and returned nothing. The after-measurement compares the same
+empty result computed two ways, which is as clean as this comparison gets.
+
+### What this change does not fix
+
+Worth recording so the after-numbers don't read as a disappointment. On the two
+slowest pages, `active-timers-for-user` is not the main cost:
+
+- **`/app/exercise/session`, 3.07s** — `lines-for-sets` (1.08s mean) and
+  `sets-for-sessions` (959ms) are 66% of it between them. This change takes 19%.
+  The worst page in the app stays the worst page.
+- **`/app` overview, 1.53s** — behind the fan-out sit `recent-activity-across-types`
+  (1.11s mean), `task` (1.07s), `windowed-scan` (52 calls, 7.56s total — greater
+  than the handler total, so those run concurrently), and 596
+  `get-entity-by-id` calls across 4 requests: **149 per page load**, a plain N+1.
+
+The overview is still where this change pays off most (68%), but the exercise
+session page and that N+1 are the next two work units, not this one.
 
 ## Deploy procedure
 
@@ -257,13 +303,17 @@ open timers going invisible between deploy and backfill — does not exist.
 - [x] **0a. Put the prod `XTDB_JDBC_URL` in the local `config.env`.** Done
       2026-08-12; the real value lives in the App Platform environment
       variables, not in any file here. Only ever gated 0c and the migration.
-- [ ] **0b. Capture the baseline.** Hit `/app/timers` (heaviest — it fans
-      `fetch-active-timers` across every config), `/app`,
-      `/app/exercise/session`, `/app/boulder/session`, and a
-      `/app/timer/<type>` page 5-10x each, then **persist the snapshot** from
-      `/app/monitoring/performance`. Tufte's accumulator is in-memory per
-      instance and the deploy replaces the container, so an unpersisted
-      baseline is destroyed by the very step it exists to measure.
+- [x] **0b. Capture the baseline.** Done 2026-08-13 — see the table above.
+      Persisting matters: `persist-instance-snapshot!` writes a new version of
+      one document per instance (`:performance-report/<instance-id>`), and the
+      dashboard reads it back through `entity-history-desc`, so persists
+      accumulate as history rather than overwriting. Unpersisted live metrics
+      die with the container.
+
+      The doc id being per-instance also means **the deploy's new container
+      gets a different document**, and the dashboard only ever renders "This
+      Instance". The after-numbers will not appear beside the before-numbers in
+      the UI — the table above is the record to compare against.
 - [x] **0c. Size the migration.** 2026-08-12: zero across all five entities.
       See the note above.
 - [ ] **1. Close out every timer on `/app/timers`.** Cheap, and it re-confirms
