@@ -11,7 +11,8 @@ goal: "Get off Neon/Hikari pain and Airtable dependency while keeping Gleanmo fa
 - [data-migration-status.md](./data-migration-status.md) - Tracker for Airtable backfills and remaining imports (Airtable exit complete; retirement housekeeping left)
 - [qol-quick-actions.md](./qol-quick-actions.md) - Navigation & logging QOL (analytics-backed; items 3-5 remain)
 - [local-dev-db-locking.md](./local-dev-db-locking.md) - RocksDB file lock prevents running REPL and CLI migrations concurrently
-- [exercise-export.md](./exercise-export.md) - Quick copy-paste export of exercise data over a time window for the health-coach agent (next after the timer-running-flag deploy; interim to ai-assistance.md)
+- [data-export.md](./data-export.md) - One `/app/export` page: generic per-entity exports plus named composite exports, feeding the health-coach agent by copy-paste (interim to ai-assistance.md)
+- [exercise-export.md](./exercise-export.md) - The exercise composite (session → set → line) registered in the data-export page
 
 ## Prioritization Lens
 
@@ -60,7 +61,8 @@ unfinished QOL batch items 3-5 are no longer competing with a migration.
 
 ### Ready
 
-- [exercise-export.md](./exercise-export.md) - Quick copy-paste export of exercise data over a time window for ingestion by the health-coach agent; interim to the full ai-assistance API/CLI/MCP
+- [data-export.md](./data-export.md) - Export page, generic per-entity exporter, and the composite registry, in Markdown/CSV/JSON; interim to the full ai-assistance API/CLI/MCP
+- [exercise-export.md](./exercise-export.md) - The exercise composite export (session → set → line as nested Markdown or JSON, denormalized to CSV); depends on data-export.md
 - [query-shape-audit.md](./query-shape-audit.md) - Find clauses that cost without narrowing, and ranges that never prune, across db/queries.clj
 - [qol-quick-actions.md](./qol-quick-actions.md) - Navigation & logging QOL: sidebar reorder, stop-in-place timers, boulder problem discoverability, home quick actions
 - [inline-entity-creation.md](./inline-entity-creation.md) - Create related entities mid-form without losing context (executed as item 3 of qol-quick-actions.md)
@@ -113,7 +115,7 @@ unfinished QOL batch items 3-5 are no longer competing with a migration.
 - [today-mobile-redesign.md](./today-mobile-redesign.md) - Redesign the today task page for better mobile ergonomics and responsiveness
 - [today-ux-polish.md](./today-ux-polish.md) - Improve task completion feedback and add project selection to quick-add
 - [exercise-insights.md](./exercise-insights.md) - Visual daily exercise summary with muscle heatmap and session stats
-- [cronometer-integration.md](./cronometer-integration.md) - Pull nutrition and biometric data from Cronometer into Gleanmo for LLM context and unified health tracking
+- [cronometer-integration.md](./cronometer-integration.md) - Pull nutrition and body composition from Cronometer: reverse-engineered mobile API for recent days, CSV import for the backfill (phase 0 session-safety check gates the API path)
 - [ai-assistance.md](./ai-assistance.md) - Expose Gleanmo to external agentic tools (CLI/open-web-ui) via MCP/API for read/write with strict sensitivity controls
 
 ### Done

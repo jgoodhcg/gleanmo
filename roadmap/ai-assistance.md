@@ -3,7 +3,7 @@ title: "AI Assistance Integration"
 status: draft
 description: "Expose Gleanmo data to external agentic tools (CLI agents, open-web-ui) via MCP and/or a scoped API for read/write with strict sensitivity controls, token-based auth, and a companion CLI utility"
 created: 2026-07-11
-updated: 2026-08-07
+updated: 2026-08-18
 tags: [integration, ai, mcp, api, security, llm-context]
 priority: medium
 ---
@@ -113,6 +113,7 @@ Either path must route all data access through `db/queries.clj` and all writes t
 - Task schema and states: `src/tech/jgood/gleanmo/schema/task_schema.clj`.
 - CRUD patterns (for mirroring write validation): `src/tech/jgood/gleanmo/crud/forms/converters.clj`, `src/tech/jgood/gleanmo/crud/forms/inputs.clj`.
 - Related: `cronometer-integration.md` (LLM-context data layer), `roam-integration.md` (external read integration precedent), `daily-focus.md` (today planning ritual this would augment).
+- Interim path: [data-export.md](./data-export.md) and its exercise composite ([exercise-export.md](./exercise-export.md)) feed the health-coach project by copy-paste until this ships. The composite `assemble` functions defined there are the natural bodies for this unit's aggregate read endpoints — reuse them rather than writing a second assembly layer.
 
 ## Open Questions
 
