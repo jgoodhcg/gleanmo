@@ -1,5 +1,5 @@
 ---
-version: "2026-08-07"
+version: "2026-08-28"
 ---
 
 # Agent Blueprint
@@ -23,6 +23,7 @@ Use these IDs in alignment reports for deterministic, machine-checkable outcomes
 - `BP-CORE-11` On conflicting instructions, apply the precedence order in `[BP-PRECEDENCE]`.
 - `BP-CORE-12` Completion reports name the checks that ran and the checks that did not (`[BP-VERIFY]`).
 - `BP-CORE-14` `AGENTS.md` surfaces each blueprint rule that must run at session start or before other task work. See `BP-INSTR-11`.
+- `BP-CORE-15` Repositories apply the public-by-default and sensitive-content controls in `[BP-PUBLIC]`; `AGENTS.md` surfaces the pre-stage trigger.
 
 **SHOULD**
 - `BP-CORE-07` Keep policy lean; prefer references over duplicated rules. A rule that restates blueprint or `AGENTS.md` text verbatim is a FAIL in alignment reports. See `[BP-INSTR]`.
@@ -42,7 +43,7 @@ When instructions conflict, resolve in this order (highest wins):
 4. `AGENT_BLUEPRINT.md` defaults.
 5. Persistent memory and stored user profiles — background context only; they inform tone and defaults but never override the levels above.
 
-Safety `[BP-SAFE]` is a gate, not a rank: destructive, irreversible, or out-of-repo actions still require confirmation even when a higher-precedence source requests them.
+Safety `[BP-SAFE]` is a gate, not a rank: destructive, irreversible, out-of-repo, or sensitive-publication actions still require confirmation even when a higher-precedence source requests them.
 
 State precedence explicitly because unresolved instruction conflicts measurably reduce instruction-following ([IFScale], arXiv:2507.11538).
 
@@ -50,7 +51,72 @@ State precedence explicitly because unresolved instruction conflicts measurably 
 
 ## Safety [BP-SAFE]
 
-Confirm before running destructive commands, installing dependencies, or taking actions outside the repo.
+Confirm before running destructive commands, installing dependencies, taking actions outside the repo, or including sensitive content in repository history.
+
+---
+
+## Communication Standard [BP-COMM-STE]
+
+Use an STE-based register for all agent-authored communication by default. This register applies to user replies, status updates, plans, recommendations, documentation, code comments, commit messages, PR descriptions, warnings, and errors.
+
+- `BP-COMM-STE-01` Use a maximum of 20 words per instruction and 25 words per descriptive sentence.
+- `BP-COMM-STE-02` Write one action per instruction and one topic per descriptive sentence.
+- `BP-COMM-STE-03` Put each condition before its instruction.
+- `BP-COMM-STE-04` Use one term for each concept.
+- `BP-COMM-STE-05` Use `must` for requirements, `can` for permission or capability, and `will` for declared future actions.
+- `BP-COMM-STE-06` State uncertainty as a fact about knowledge, evidence, or confidence. Do not use speculative modal verbs as substitutes for clear uncertainty.
+- `BP-COMM-STE-07` Remove filler, idioms, rhetorical fragments, and unnecessary emphasis.
+- `BP-COMM-STE-08` Preserve exact code, commands, identifiers, paths, quotations, product names, legal text, and external titles.
+- `BP-COMM-STE-09` Use another register only when live user direction or a recorded project exemption requires it.
+
+Examples of direct uncertainty:
+
+- `The cause is not confirmed.`
+- `The available evidence is incomplete.`
+- `Confidence is low because the test did not reproduce the failure.`
+
+This is an STE-based house register. Do not claim full ASD-STE100 compliance without validation against the complete standard and controlled dictionary.
+
+Source: `references/sources.md` (`[18]`, `[19]`).
+
+---
+
+## Public Repository Safety [BP-PUBLIC]
+
+Treat every repository as public unless `AGENTS.md` explicitly declares another visibility. Private visibility does not make credentials safe to commit.
+
+### Default Ignore Policy [BP-PUBLIC-IGNORE]
+
+At project initialization and alignment, ensure `.gitignore` covers these untracked local artifacts when relevant:
+
+- `.env` and `.env.*`, with explicit exceptions for sanitized example files.
+- Private keys, credential files, and local secret directories.
+- `.agent-profile.md` and local agent memory or session transcripts that are not project documentation.
+- `.private/` as the standard path for personal, unpublished, embargoed, or confidential content.
+- Local exports, database copies, logs, backups, and generated files that can contain real user or production data.
+
+Use project-specific paths when a broad wildcard can hide source artifacts. Do not ignore every draft path. Keep publishable drafts tracked, and place private drafts under `.private/`.
+
+`.gitignore` does not protect files already tracked by Git. During alignment, flag tracked files that match these categories; do not remove or rewrite them without confirmation.
+
+### Sensitive Content Check [BP-PUBLIC-CHECK]
+
+Before staging or committing:
+
+1. Inspect every candidate path and diff for secrets, personal data, unpublished or embargoed drafts, private correspondence, confidential business information, and real user or production data.
+2. If live authentication material appears, stop and exclude it. Never commit or reproduce passwords, tokens, private keys, session cookies, or recovery codes. If the value can already exist in Git history, tell the user to revoke or rotate it.
+3. For any other sensitive candidate, name the path, state the concern without quoting the sensitive content, and make exclusion the default.
+4. Confirm inclusion of the named sensitive candidates separately from general commit approval.
+5. Stage only reviewed paths. Do not use bulk staging while unreviewed files are present.
+
+Use this confirmation format:
+
+```text
+Sensitive-content check:
+- content/resume-draft.md — contains personal contact details and unpublished material.
+Default: exclude this file.
+Confirm inclusion of this file in a repository treated as public.
+```
 
 ---
 
@@ -92,10 +158,10 @@ Use the shared skill by relative path when projects live in one workspace. Copy 
 
 Prose that an agent writes into the repository. `[BP-INSTR]` governs instruction files. `[BP-WF-PROFILE]` governs replies to the user. This section governs everything else.
 
-- `BP-WRITE-01` Write documentation, code comments, commit messages, PR descriptions, and error text in the factual register defined in `[BP-WF-PROFILE]`.
+- `BP-WRITE-01` Write documentation, code comments, commit messages, PR descriptions, and error text in the STE-based register defined in `[BP-COMM-STE]`.
 - `BP-WRITE-02` Commit messages take an imperative subject line and a body in simple past. State what changed and why. Do not state intent ("this commit aims to").
 - `BP-WRITE-03` Leave code, identifiers, file paths, and quoted error text exact. They are names, not prose.
-- `BP-WRITE-04` Exempt human-facing persuasive text: launch posts, brand writing, and any marketing section of a `README`. The factual register deletes persuasion by design. Record a project's exemptions in `AGENTS.md`.
+- `BP-WRITE-04` Exempt human-facing persuasive text: launch posts, brand writing, and any marketing section of a `README`. The STE-based register removes persuasion by design. Record a project's exemptions in `AGENTS.md`.
 
 Source: `references/sources.md` (`[18]`, `[19]`).
 
@@ -197,10 +263,39 @@ Work through the validation hierarchy. Escalate only when lower levels pass.
 - Keep changes minimal and focused; avoid unrelated improvements.
 - For critical logic changes, review `git diff` before declaring completion.
 
+### Learning Log [BP-WF-LEARN]
+
+Projects can keep a `MISTAKES.md` evidence log for failures that can improve future work.
+
+- `BP-WF-LEARN-01` After scoping a task, when `MISTAKES.md` exists, search it for entries relevant to the affected paths, systems, or operations before implementation.
+- `BP-WF-LEARN-02` When an agent action causes an incorrect outcome, or the user corrects the agent, add a newest-first entry. Do not log expected exploration, rejected options, or failures outside the agent's control.
+- `BP-WF-LEARN-03` Record the context, observed failure, consequence, root cause, prevention, related entries, and status. Mark an unverified root cause as `unknown`; do not convert a guess into policy.
+- `BP-WF-LEARN-04` When multiple entries support the same verified prevention, promote it into the narrowest applicable canonical instruction. If policy changes are outside the current scope, report the promotion candidate instead.
+- `BP-WF-LEARN-05` After promotion, mark the evidence entries `promoted` and link to the canonical instruction. Do not duplicate the promoted rule in the log.
+
+This workflow is optional. When a project adopts it, surface the pre-implementation trigger in `AGENTS.md` under `Learning Log` per `BP-INSTR-11`.
+
+Suggested `MISTAKES.md` entry:
+
+```markdown
+## YYYY-MM-DD — Short failure label
+
+- Context: [task and affected area]
+- Failure: [observable incorrect action or outcome]
+- Consequence: [impact]
+- Root cause: verified | unknown — [cause or missing evidence]
+- Prevention: [specific action that would prevent recurrence]
+- Related: [entry links or "none"]
+- Status: active | promoted to `[canonical instruction]`
+```
+
+Source: `references/sources.md` (`[26]`).
+
 ### Commits [BP-WF-COMMIT]
 
 - Commit only after user approval.
-- Before committing, present: proposed commit message, files included, and validation results.
+- Before staging or committing, apply `[BP-PUBLIC-CHECK]`.
+- Before committing, present: proposed commit message, files included, sensitive-content check result, and validation results.
 - Write the message per `[BP-WRITE]`: imperative subject, body in simple past.
 - Read the commit trailer template from `AGENTS.md`; if missing, ask once before the first commit in a repo.
 - Never persist runtime values (`Co-authored-by`, `AI-Provider`, `AI-Product`, `AI-Model`) in `AGENTS.md`; fill them at commit time from session metadata.
@@ -210,9 +305,11 @@ Work through the validation hierarchy. Escalate only when lower levels pass.
 
 Calibrate agent interactions based on user context. Store in a git-ignored file (e.g., `.agent-profile.md`) referenced from `AGENTS.md`.
 
-**Response calibration (default):** Lead with the conclusion, support after. Match response length to the task — proportionate over exhaustive. Treat the user's message as a premise to build from, not a statement to evaluate, rate, or reflect back — so no sycophantic amplification ("that's the most important point…"), no restating the user's message, no pleasantries, hype, or apologies. Disagree openly when warranted; don't hedge or amplify to be agreeable. Store per-user specifics (length contract, mode triggers, explanation depth, domains) in the profile file, not here.
+**Response calibration (default):** Use the concise STE-based register in `[BP-COMM-STE]` for all responses. Expand only when the user asks or the requested artifact requires detail. Lead with the conclusion, support after. Treat the user's message as a premise to build from, not a statement to evaluate, rate, or reflect back. Disagree openly when warranted; do not hedge or amplify to be agreeable. Store per-user specifics (length contract, mode triggers, explanation depth, domains) in the profile file, not here.
 
-**Register (default):** Length and register are independent axes. Length follows the task. Register follows the content. Write factual passages — code explanations, results, steps, findings, errors — in the style `[BP-INSTR]` requires: short sentences, one instruction each, condition before command, `must`/`can`/`will`. Write deliberative passages — judgment, tradeoffs, disagreement, uncertainty — in plain prose, and keep `may`/`might`/`could` there, because those words carry the calibration. A reply can contain both. Strip filler from both.
+**Response style (default):** Start with substance. Do not praise the user's framing before engaging, restate it with inflated importance, or mirror emotion performatively. Use direct prose. Avoid canned transitions, rhetorical fragments, contrastive reframes ("not X, but Y"), manufactured emphasis, decorative three-part lists, and excessive em dashes. Use headings only when they improve navigation. Do not repeat the conclusion or end with a summary or offer unless requested. Never open with "You're absolutely right," "Great question," "Let's unpack this," "Here's the thing," or "It's worth noting." Skip pleasantries, hype, and apologies except when correcting an error.
+
+**Register (default):** Length and register are independent axes. An expansion request changes length, not register. Apply `[BP-COMM-STE]` to factual and deliberative passages. State uncertainty as a fact about knowledge, evidence, or confidence. Use another register only when live user direction or a recorded project exemption requires it.
 
 Precedence for response calibration: this default < `.agent-profile.md` < live conversation. (See `[BP-PRECEDENCE]` for the full ladder.)
 
@@ -231,7 +328,9 @@ Profile dimensions, interview questions, and calibration guidance live in `refer
 2. Copy the `references/` directory alongside it (commit attribution, user profile guidance, work unit example, sources).
 3. Create `AGENTS.md` using the template below.
 4. Create `roadmap/index.md`.
-5. Optionally create agent-specific wrappers (`CLAUDE.md`, `GEMINI.md`, etc.) using the wrapper template.
+5. Create or update `.gitignore` using `[BP-PUBLIC-IGNORE]`.
+6. Optionally create `MISTAKES.md` using `[BP-WF-LEARN]` and add its trigger bridge to `AGENTS.md`.
+7. Optionally create agent-specific wrappers (`CLAUDE.md`, `GEMINI.md`, etc.) using the wrapper template.
 
 Agent-specific files (`CLAUDE.md`, `GEMINI.md`, etc.) are optional. When you create one, keep it a thin pointer to `AGENTS.md`.
 
@@ -321,6 +420,11 @@ Follows `AGENT_BLUEPRINT.md` (version: [BLUEPRINT_VERSION])
 
 [One paragraph: what this is, language/framework, key domains.]
 
+## Repository Visibility
+
+- Visibility: public | private (defaults to public when unspecified)
+- Before staging or committing, apply `AGENT_BLUEPRINT.md` `[BP-PUBLIC]`.
+
 ## Stack
 
 - [Language + version]
@@ -378,6 +482,10 @@ AI-Model: [AI_MODEL]
 - When [trigger], read and follow `[path]/SKILL.md` before acting.
 - Treat `[path]/SKILL.md` as canonical; client-specific skill metadata is only a discovery adapter.
 
+## Learning Log (optional)
+
+- When `MISTAKES.md` exists, after scoping a task, search it for relevant prior failures before implementation. Apply `AGENT_BLUEPRINT.md` `[BP-WF-LEARN]`.
+
 ## Decision Artifacts
 
 - For high-impact or irreversible decisions, record a decision matrix in `.decisions/[name].json`.
@@ -398,6 +506,10 @@ AI-Model: [AI_MODEL]
 ## User Profile (optional)
 
 See `.agent-profile.md` (git-ignored) for interaction preferences. Create on project init or alignment.
+
+## Response Style
+
+Before every user reply, apply `AGENT_BLUEPRINT.md` `[BP-WF-PROFILE]`.
 ````
 
 ---
@@ -677,8 +789,9 @@ The `roam-thread-summary` skill (`.claude/skills/roam-thread-summary/`) is the c
 1. **Thread marker** — `[[ai-thread]]`
 2. **Model** — `[[<model-id>]]`, the exact model of the current session
 3. **Project** — `[[<project>]]`, the project's declared Roam tag or repository name
+4. **Tool** — `[[<tool>]]`, the agentic harness the session runs in (`[[opencode]]`, `[[claude-code]]`, `[[gemini-cli]]`, `[[codex-cli]]`)
 
-Add optional refs only when the user asks: **tool** (`[[claude-code]]`, `[[opencode]]`, `[[gemini-cli]]`, `[[codex-cli]]`) or topic pages.
+Add optional topic-page refs only when the user asks.
 
 ### Roam Research Example
 
@@ -690,15 +803,15 @@ Store in `AGENTS.md`:
 Tool: Roam Research
 
 When asked to generate a Roam summary or thread, use the `roam-thread-summary` skill:
-- Required parent block: `- [[ai-thread]] [[<model-id>]] [[<project-name>]]`
-- Optional refs (only if instructed): tool (`opencode` | `claude-code` | `gemini-cli` | `codex-cli`), topic pages
+- Required parent block: `- [[ai-thread]] [[<model-id>]] [[<project-name>]] [[<tool>]]`
+- Optional refs (only if instructed): topic pages
 - Sections: ask user what they want (chronological, functional, Q&A)
 ```
 
 Output structure:
 
 ```
-- [[ai-thread]] [[glm-5]] [[agent-blueprint]]
+- [[ai-thread]] [[glm-5]] [[agent-blueprint]] [[opencode]]
     - Summary
         - Investigated stale cache issue in `src/cache.ts:142`
     - Files Changed

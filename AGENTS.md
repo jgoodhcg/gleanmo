@@ -1,6 +1,6 @@
 # AGENTS
 
-Follows `AGENT_BLUEPRINT.md` (version: 2026-08-07)
+Follows `AGENT_BLUEPRINT.md` (version: 2026-08-28)
 
 ## Session Start
 
@@ -9,6 +9,11 @@ Follows `AGENT_BLUEPRINT.md` (version: 2026-08-07)
 ## Project Overview
 
 Gleanmo is a personal quantified-self web app built in Clojure 1.11.1 with Biff, XTDB (RocksDB for local development and PostgreSQL-backed in production), Rum + HTMX + Tailwind for UI, and ECharts for charting. It uses email-based auth with reCAPTCHA and tick/cheshire for time/JSON.
+
+## Repository Visibility
+
+- Visibility: public
+- Before staging or committing, apply `AGENT_BLUEPRINT.md` `[BP-PUBLIC]`.
 
 ## Stack
 
@@ -501,3 +506,7 @@ See `.agent-profile.md` (git-ignored) for interaction preferences. Create on pro
 - `src/tech/jgood/gleanmo/crud/forms/inputs.clj` — CRUD input rendering
 - `src/tech/jgood/gleanmo/crud/forms/converters.clj` — form value conversion
 - `src/tech/jgood/gleanmo/crud/views/formatting.clj` — list formatting
+
+## Response Style
+
+Before every user reply, apply `AGENT_BLUEPRINT.md` `[BP-WF-PROFILE]`.

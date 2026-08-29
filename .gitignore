@@ -41,3 +41,10 @@ test-results/
 
 .clj-kondo/*
 !.clj-kondo/config.edn
+
+# Blueprint private-data safeguards
+.private/
+.env
+.env.*
+!.env.example
+!.env.*.example

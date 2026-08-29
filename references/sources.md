@@ -85,3 +85,11 @@ Human cognition parallels:
 - `[25]` Piechowski, Ally. "The Git Commands I Run Before Reading Any Code."
   piechowski.io/post/git-commands-before-reading-code/. Source of the
   reconnaissance commands in the `AGENTS.md` template.
+
+## Learning logs
+
+- `[26]` thabxi. "I make Claude Code keep a MISTAKES.md file. Here's what
+  actually happened." Reddit, r/ClaudeCode, 2026.
+  https://www.reddit.com/r/ClaudeCode/comments/1vn6d5r/i_make_claude_code_keep_a_mistakesmd_file_heres/
+  Practitioner report that proposed recording failures, root causes, and
+  prevention, then promoting repeated lessons into durable instructions.
