@@ -48,8 +48,11 @@
                                        [:script {:src (js-path)}]
                                        [:script {:src "https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js" :defer true}]
                                        [:script {:src "https://unpkg.com/htmx.org@1.9.0"}]
-                                       [:script {:src "https://unpkg.com/htmx.org/dist/ext/ws.js"}]
-                                       [:script {:src "https://unpkg.com/hyperscript.org@0.9.8"}]
+                                       ;; Unused as of 2026-08-29 (zero call sites) and render-blocking on every
+                                       ;; page. To bring either back, gate it on a ctx key the way ::echarts and
+                                       ;; ::recaptcha are gated below. See roadmap/htmx-navigation-consistency.md.
+                                       ;; [:script {:src "https://unpkg.com/htmx.org/dist/ext/ws.js"}]
+                                       ;; [:script {:src "https://unpkg.com/hyperscript.org@0.9.8"}]
                                        [:script {:src "https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"}]
                                        [:script {:defer true :data-domain "gleanmo.com" :src "https://plausible.io/js/script.js"}]])
                               (true? recaptcha)

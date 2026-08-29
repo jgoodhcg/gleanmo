@@ -69,6 +69,7 @@ unfinished QOL batch items 3-5 are no longer competing with a migration.
 - [heatmap-performance.md](./heatmap-performance.md) - Heatmap viz page perf via year-bounded projection scans, shared rel-cache, parallel lazy-loaded year cards
 - [screenshot-runner.md](./screenshot-runner.md) - Manifest-driven series capture for the visual timeline (manifest + runner + agent policy shipped; Biff-task glue + CI archive pending)
 - [crud-relation-select-scale.md](./crud-relation-select-scale.md) - Relationship selects render every related entity; ~10k options froze the exercise-line edit form on mobile
+- [htmx-navigation-consistency.md](./htmx-navigation-consistency.md) - One navigation model: boost all 42 native form POSTs through htmx, delete the hand-rolled double-submit guard in favor of hx-sync, drop the two unused vendor scripts
 
 ### Draft
 
