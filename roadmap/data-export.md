@@ -1,9 +1,9 @@
 ---
 title: "Data Export"
-status: ready
+status: draft
 description: "One export page: a generic per-entity exporter that works for any CRUD entity, plus named composite exports that keep multi-level shapes intact"
 created: 2026-08-18
-updated: 2026-08-18
+updated: 2026-09-01
 tags: [export, crud, integration, llm-context]
 priority: high
 ---

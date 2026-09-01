@@ -61,7 +61,6 @@ unfinished QOL batch items 3-5 are no longer competing with a migration.
 
 ### Ready
 
-- [data-export.md](./data-export.md) - Export page, generic per-entity exporter, and the composite registry, in Markdown/CSV/JSON; interim to the full ai-assistance API/CLI/MCP
 - [exercise-export.md](./exercise-export.md) - The exercise composite export (session → set → line as nested Markdown or JSON, denormalized to CSV); depends on data-export.md
 - [query-shape-audit.md](./query-shape-audit.md) - Find clauses that cost without narrowing, and ranges that never prune, across db/queries.clj
 - [qol-quick-actions.md](./qol-quick-actions.md) - Navigation & logging QOL: sidebar reorder, stop-in-place timers, boulder problem discoverability, home quick actions
@@ -73,6 +72,7 @@ unfinished QOL batch items 3-5 are no longer competing with a migration.
 
 ### Draft
 
+- [data-export.md](./data-export.md) - Export page, generic per-entity exporter, and the composite registry, in Markdown/CSV/JSON; interim to the full ai-assistance API/CLI/MCP
 - [performance-regression-tracking.md](./performance-regression-tracking.md) - Make performance comparable across deploys — scheduled snapshots, cross-instance aggregation, per-SHA grouping, and a synthetic benchmark so low traffic still yields data
 - [scheduled-work-multi-instance.md](./scheduled-work-multi-instance.md) - Scheduled tasks, tx listeners and queues all run per-container with no singleton guarantee — make them safe before the app ever scales past one instance
 - [screenshot-series-heartbeat.md](./screenshot-series-heartbeat.md) - Capture the visual timeline in CI against a fixed fixture, published to an orphan branch

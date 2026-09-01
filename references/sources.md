@@ -49,6 +49,9 @@ Human cognition parallels:
 - `[19]` AminBlg. *SimpleEnglish.* github.com/AminBlg/SimpleEnglish, MIT. Adapts
   ASD-STE100 for software documentation and agent instructions. Source of the
   adaptation in `BP-INSTR-09` and `BP-INSTR-10`.
+- `[27]` Mattt. "Semantic Line Breaks." sembr.org, CC BY 4.0.
+  Conventions for adding line breaks at semantic boundaries in soft-join markup.
+  Source of `BP-WRITE-06`.
 
 ## Cognitive surrender and overreliance
 

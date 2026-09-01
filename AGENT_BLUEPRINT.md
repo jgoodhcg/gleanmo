@@ -1,5 +1,5 @@
 ---
-version: "2026-08-28"
+version: "2026-09-01.2"
 ---
 
 # Agent Blueprint
@@ -162,8 +162,13 @@ Prose that an agent writes into the repository. `[BP-INSTR]` governs instruction
 - `BP-WRITE-02` Commit messages take an imperative subject line and a body in simple past. State what changed and why. Do not state intent ("this commit aims to").
 - `BP-WRITE-03` Leave code, identifiers, file paths, and quoted error text exact. They are names, not prose.
 - `BP-WRITE-04` Exempt human-facing persuasive text: launch posts, brand writing, and any marketing section of a `README`. The STE-based register removes persuasion by design. Record a project's exemptions in `AGENTS.md`.
+- `BP-WRITE-05` Limit a commit subject to 50 characters. Limit a commit body to 3 sentences. Omit the body when the subject states the change completely.
+- `BP-WRITE-06` Use semantic line breaks (`sembr.org`) in Markdown documentation.
+  Apply to new and revised text only;
+  do not reformat untouched paragraphs.
+  Exempt commit messages and paste targets with block semantics, such as Roam.
 
-Source: `references/sources.md` (`[18]`, `[19]`).
+Source: `references/sources.md` (`[18]`, `[19]`, `[27]`).
 
 ---
 
@@ -291,6 +296,24 @@ Suggested `MISTAKES.md` entry:
 
 Source: `references/sources.md` (`[26]`).
 
+### Visual Timeline [BP-WF-VISUAL]
+
+Optional. Projects with visual UI and a screenshot or e2e harness can capture screenshot progressions during UI work. Keep two practices separate:
+
+- **Series ticks** — one capture of every manifest route, building an ongoing progression timeline.
+- **Before/after pairs** — per-change evidence for changelogs, reviews, and posts.
+
+- `BP-WF-VISUAL-01` Before UI edits, capture a baseline series tick. A prior tick from the current source state counts. The user can waive the baseline.
+- `BP-WF-VISUAL-02` When the working tree is dirty at baseline time, ask whether existing changes belong in the baseline.
+- `BP-WF-VISUAL-03` Before committing UI changes, capture another series tick. Capture it even when no visible change is expected.
+- `BP-WF-VISUAL-04` When capture needs a server the agent must not start, ask the user to run it. Wait for the result.
+- `BP-WF-VISUAL-05` Keep ticks comparable: one canonical route manifest, fixed viewports, fixed wait conditions. Update the manifest in the same change as navigation changes.
+- `BP-WF-VISUAL-06` Store each tick in one timestamped directory with a metadata sidecar: source revision, branch, dirty state, per-route capture status.
+- `BP-WF-VISUAL-07` Prefix pair filenames with the phase (`before`/`after`) via environment variable or flag. Omit the prefix for CI captures.
+- `BP-WF-VISUAL-08` Define the harness, output paths, and capture commit policy in `AGENTS.md`. The blueprint defines the contract; the project implements the mechanism.
+
+When a project adopts this workflow, surface the baseline trigger in `AGENTS.md` per `BP-INSTR-11`. Skip for non-visual projects.
+
 ### Commits [BP-WF-COMMIT]
 
 - Commit only after user approval.
@@ -330,7 +353,8 @@ Profile dimensions, interview questions, and calibration guidance live in `refer
 4. Create `roadmap/index.md`.
 5. Create or update `.gitignore` using `[BP-PUBLIC-IGNORE]`.
 6. Optionally create `MISTAKES.md` using `[BP-WF-LEARN]` and add its trigger bridge to `AGENTS.md`.
-7. Optionally create agent-specific wrappers (`CLAUDE.md`, `GEMINI.md`, etc.) using the wrapper template.
+7. For visual UI projects, optionally adopt `[BP-WF-VISUAL]` and add its trigger bridge to `AGENTS.md`.
+8. Optionally create agent-specific wrappers (`CLAUDE.md`, `GEMINI.md`, etc.) using the wrapper template.
 
 Agent-specific files (`CLAUDE.md`, `GEMINI.md`, etc.) are optional. When you create one, keep it a thin pointer to `AGENTS.md`.
 
@@ -450,6 +474,8 @@ AI-Product: [AI_PRODUCT_LINE]
 AI-Model: [AI_MODEL]
 ```
 
+Write the trailer lines consecutively. A blank line between trailers stops `git interpret-trailers` from parsing the lines above it.
+
 ## Validation Commands
 
 | Level | Command | When |
@@ -485,6 +511,10 @@ AI-Model: [AI_MODEL]
 ## Learning Log (optional)
 
 - When `MISTAKES.md` exists, after scoping a task, search it for relevant prior failures before implementation. Apply `AGENT_BLUEPRINT.md` `[BP-WF-LEARN]`.
+
+## Visual Timeline (optional)
+
+- When work touches UI, before edits, capture a baseline series tick. Apply `AGENT_BLUEPRINT.md` `[BP-WF-VISUAL]`.
 
 ## Decision Artifacts
 
@@ -527,9 +557,12 @@ See `AGENTS.md` for project policies and operating rules.
 
 - [Instruction specific to this agent, if any]
 - [e.g., tool preferences, model-specific behavior, constraints]
+- [Override of a conflicting built-in harness instruction, if any]
 ```
 
 Keep minimal. Defer to `AGENTS.md` for all shared policy.
+
+A wrapper can override a built-in instruction in its host agent harness. Use this only when the built-in instruction conflicts with `AGENTS.md`. Name the conflicting instruction and state the required behavior. A pointer to `AGENTS.md` does not by itself displace a harness default.
 
 ---
 

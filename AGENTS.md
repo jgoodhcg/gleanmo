@@ -1,6 +1,6 @@
 # AGENTS
 
-Follows `AGENT_BLUEPRINT.md` (version: 2026-08-28)
+Follows `AGENT_BLUEPRINT.md` (version: 2026-09-01.2)
 
 ## Session Start
 
@@ -339,6 +339,7 @@ Code style
 - Prefer data-driven validation over `try/catch`.
 
 Testing philosophy
+- When work touches UI, apply `AGENT_BLUEPRINT.md` `[BP-WF-VISUAL]` before edits.
 - Unit tests for logic and compilation verification; avoid brittle tests.
 - E2E for user-facing flows and UI changes.
 - Before/after screenshots for UI changes: run the relevant `just e2e-test-*`
