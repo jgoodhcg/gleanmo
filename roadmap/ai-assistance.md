@@ -3,7 +3,7 @@ title: "AI Assistance Integration"
 status: draft
 description: "Expose Gleanmo data to external agentic tools (CLI agents, open-web-ui) via MCP and/or a scoped API for read/write with strict sensitivity controls, token-based auth, and a companion CLI utility"
 created: 2026-07-11
-updated: 2026-08-18
+updated: 2026-09-06
 tags: [integration, ai, mcp, api, security, llm-context]
 priority: medium
 ---
@@ -18,6 +18,16 @@ The motivating use cases:
 
 1. **Day planning**: ask an agent "what of my todo list is worth doing today?" — the agent reads tasks, reasons about priority/energy/context, and writes back state changes (move a task into the today section, mark one done, defer another).
 2. **Exercise analysis**: ask an agent to review recent exercise logs and surface patterns, soreness risk, or progression suggestions.
+
+Current use favors external reminders because manual backlog review and
+organization cost more than the task system currently returns. Keep Gleanmo
+tasks available, but defer standalone task-interface polish until agent access
+tests whether conversational backlog management makes them useful again.
+
+The first delivery slice must let an agent read the actionable backlog, discuss
+its organization, preview a batch update, and apply only the approved changes.
+Renewed task use validates this product hypothesis; API functionality alone does
+not.
 
 The hard constraint is **sensitivity**. Gleanmo holds medical, mood, and other private data. The integration must default to denying sensitive entities and never exfiltrate fields the user has marked sensitive, even when an agent requests them.
 
@@ -58,6 +68,14 @@ Either path must route all data access through `db/queries.clj` and all writes t
 - Create/update non-sensitive logs where it makes sense (e.g. log a quick note).
 - Writes must respect the same validation/malli schemas as the web UI.
 
+### First Vertical Slice: Agent-Assisted Task Backlog
+
+- Return the complete actionable backlog with the task fields needed for planning.
+- Support discussion and proposed reorganization before any write occurs.
+- Preview every proposed task change as a reviewable batch.
+- Apply only the approved batch through allow-listed task mutations.
+- Preserve unrelated fields and reject stale or invalid changes.
+
 ### Sensitivity Model
 
 - Default: **sensitive entities are excluded** from all reads, regardless of request. The integration uses `resolve-user-settings` with `show-sensitive` forced to `false` unless an explicit, deliberate escalation flow is invoked.
@@ -84,6 +102,7 @@ Either path must route all data access through `db/queries.clj` and all writes t
 - [ ] Write tools reject fields outside the allow-list and validate against malli schemas
 - [ ] Auth rejects unauthenticated requests and authorizes only the token's user
 - [ ] E2E flow: an MCP/CLI client can list today's tasks and mark one complete
+- [ ] An agent can read the actionable backlog, discuss its organization, preview a batch update, and apply the approved changes
 - [ ] E2E flow: an MCP/CLI client can fetch recent exercise logs without leaking sensitive sibling entities
 
 ## Scope
@@ -126,6 +145,7 @@ Either path must route all data access through `db/queries.clj` and all writes t
 - [ ] For local CLI use, is a loopback-only transport acceptable to loosen sensitivity defaults, or keep one policy everywhere?
 - [ ] Rate limiting / abuse protection — needed for a personal app, or defer?
 - [ ] Should agent writes be auditable (a log of what an agent changed)?
+- [ ] How should an approved batch reject stale tasks: expected values, entity versions, or another optimistic-locking contract?
 - [ ] Companion CLI — standalone npm package? In-repo script? Distributed via the discovery endpoint as a single-file download?
 - [ ] Token permission UI — what does the permission matrix look like in the form? A checkbox grid (entity types × read/write) with sensitivity/archive toggles?
 - [ ] Token format — `gmn_` prefix with what payload? Random bearer string with server-side permission lookup, or a self-contained signed JWT? Recommending opaque random with server-side lookup for revocability without a blacklist.
