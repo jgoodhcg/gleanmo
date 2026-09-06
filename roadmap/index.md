@@ -118,6 +118,7 @@ unfinished QOL batch items 3-5 are no longer competing with a migration.
 - [exercise-insights.md](./exercise-insights.md) - Visual daily exercise summary with muscle heatmap and session stats
 - [cronometer-integration.md](./cronometer-integration.md) - Pull nutrition and body composition from Cronometer: reverse-engineered mobile API for recent days, CSV import for the backfill (phase 0 session-safety check gates the API path)
 - [ai-assistance.md](./ai-assistance.md) - Expose Gleanmo to external agentic tools (CLI/open-web-ui) via MCP/API for read/write with strict sensitivity controls
+- [relation-defaults.md](./relation-defaults.md) - Curated per-relation defaults that prefill log fields from the related entity (meditation position first; medication dose, book format, exercise unit to follow)
 
 ### Done
 
