@@ -3,7 +3,7 @@ title: "Unified Timer Workspace"
 status: active
 description: "One timer page: all running timers across types, search-to-start any parent, one-tap start/stop without CRUD form bounces"
 created: 2026-07-27
-updated: 2026-07-28
+updated: 2026-09-06
 tags: [ux, timers, search, htmx]
 priority: high
 ---
@@ -287,5 +287,19 @@ the next page load.
 
 The user also asked for a global modal component for prompts like the
 relocate confirmation — written up as `global-action-modal.md` and left at
-draft on purpose, since the reworded inline prompt may resolve enough of
-the "easy to miss" problem to change what that component needs to be.
+draft on purpose, since the reworded inline prompt may resolve enough of the
+"easy to miss" problem to change what that component needs to be.
+
+Future iteration (user-requested 2026-09-06): make the timers search-to-start
+input consistent with the relational-input search — Choices.js
+(`data-enhance "choices"`), the house searchable-select component. The
+shipped design deliberately used the `data-filter-list` substring input
+instead (see *Search primitive* above: "no Choices.js here — this filters
+visible rows, it is not a form select"); this reopens that decision for
+interaction consistency. Open questions before implementing: a Choices.js
+match *selects* rather than filters, so choosing a parent must either start
+it immediately or preselect its Start row; the resting-height cap
+(`data-filter-empty-limit` and its "+N more — type to filter" affordance)
+has no Choices.js equivalent; and the input's placement outside the start
+form (to keep Enter from implicitly submitting a start) needs an equivalent
+guard if it becomes a widget inside the form.
