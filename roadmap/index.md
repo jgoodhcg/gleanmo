@@ -36,11 +36,27 @@ unfinished QOL batch items 3-5 are no longer competing with a migration.
 
 ## Secondary Focus
 
+- [ai-assistance.md](./ai-assistance.md) - First task priority: conversational backlog cleanup and approved updates, followed by a one-week adoption check
 - [performance.md](./performance.md) - Performance monitoring and profiling dashboard
 - [dashboard-performance.md](./dashboard-performance.md) - Home page dashboard performance improvements
-- [daily-focus.md](./daily-focus.md) - Daily planning ritual with progress stats and carry-forward
+- [daily-focus.md](./daily-focus.md) - Existing daily task workflow; evaluate a manageable chosen list after conversational cleanup
 - [calendar.md](./calendar.md) - Year-at-a-glance calendar with event interactions and external sync
 - [backlog.md](./backlog.md) - Minor improvements without full work-unit docs
+
+## Task Product Sequence (2026-09-07)
+
+Task use stopped after the backlog became overwhelming.
+Within task work, prioritize renewed use before expanding organization features.
+This sequence does not reorder the infrastructure priorities above.
+
+1. Deliver scoped agent access for conversational cleanup, next-action selection, and approved batch updates in [ai-assistance.md](./ai-assistance.md).
+2. Evaluate one week of normal use for voluntary return, useful task choices, and reduced review effort.
+3. Address observed daily friction through [daily-focus.md](./daily-focus.md), including a proposed review of automatic carry-forward.
+4. Add [offline task capture](./pwa-experience.md#offline-task-capture-proposed-follow-up) once the workflow proves useful.
+
+Defer Things-style tags, project headings, recurrence, and additional statistics until use establishes their value.
+Existing task polish drafts remain candidates; they do not precede the adoption check unless a defect blocks that trial.
+PWA notification scaffolding does not establish working reminder delivery.
 
 ## Work Units
 
@@ -51,7 +67,7 @@ unfinished QOL batch items 3-5 are no longer competing with a migration.
 - [exercise.md](./exercise.md) - Exercise tracking with superset support and Airtable backfill
 - [performance.md](./performance.md) - Performance monitoring and profiling dashboard
 - [dashboard-performance.md](./dashboard-performance.md) - Home page dashboard performance improvements
-- [daily-focus.md](./daily-focus.md) - Daily planning ritual with progress stats and carry-forward
+- [daily-focus.md](./daily-focus.md) - Existing daily task workflow; further changes depend on the AI-assisted adoption check
 - [calendar.md](./calendar.md) - Year-at-a-glance calendar with event interactions and external sync
 - [backlog.md](./backlog.md) - Minor improvements without full work-unit docs
 - [reading-tracker.md](./reading-tracker.md) - Lightweight Goodreads replacement with timer-backed sessions
@@ -101,7 +117,7 @@ unfinished QOL batch items 3-5 are no longer competing with a migration.
 - [reading-airtable-spec.md](./reading-airtable-spec.md) - Airtable schema reference for reading migration
 - [roam-integration.md](./roam-integration.md) - Project timers shipped; Roam metrics integration pending
 - [today-reorder-performance.md](./today-reorder-performance.md) - Fix slow response when reordering items on the today page
-- [pwa-experience.md](./pwa-experience.md) - Improve progressive web app experience for native-like feel on iOS and Android
+- [pwa-experience.md](./pwa-experience.md) - Verify PWA scaffolding; offline task capture follows the task adoption check
 - [timer-dashboard-inline-create.md](./timer-dashboard-inline-create.md) - True inline parent creation on timer dashboards (follow-up to inline-entity-creation.md)
 - [ui-juice.md](./ui-juice.md) - Micro-interactions, animations, and haptic feedback for delight
 - [global-action-modal.md](./global-action-modal.md) - One shared HTMX modal shell for confirm-and-act prompts, replacing per-page overlays and inline prompt slots
@@ -117,7 +133,7 @@ unfinished QOL batch items 3-5 are no longer competing with a migration.
 - [today-ux-polish.md](./today-ux-polish.md) - Improve task completion feedback and add project selection to quick-add
 - [exercise-insights.md](./exercise-insights.md) - Visual daily exercise summary with muscle heatmap and session stats
 - [cronometer-integration.md](./cronometer-integration.md) - Pull nutrition and body composition from Cronometer: reverse-engineered mobile API for recent days, CSV import for the backfill (phase 0 session-safety check gates the API path)
-- [ai-assistance.md](./ai-assistance.md) - Expose Gleanmo to external agentic tools (CLI/open-web-ui) via MCP/API for read/write with strict sensitivity controls
+- [ai-assistance.md](./ai-assistance.md) - Restore task use through conversational cleanup, scoped agent access, and approved batch changes
 - [relation-defaults.md](./relation-defaults.md) - Curated per-relation defaults that prefill log fields from the related entity (meditation position first; medication dose, book format, exercise unit to follow)
 
 ### Done

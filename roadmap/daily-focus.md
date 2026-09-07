@@ -1,11 +1,11 @@
 ---
 title: "Daily Focus"
 status: active
-description: "Daily planning ritual with progress stats and carry-forward"
+description: "Existing daily task workflow; evaluate a manageable chosen list after conversational backlog cleanup"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-02
+updated: 2026-09-07
 ---
 
 # Daily Focus
@@ -16,22 +16,41 @@ updated: 2026-02-02
 - Implemented approach: Added `focus-date` to tasks. Dedicated "Today" page with progress stats, ordered list, and satisfying completion feedback. Unfinished tasks carry forward automatically with a visual indicator.
 - Current State: V1 (Core Loop) and V2 (Polish/Drag-and-Drop) are complete.
 
-## Feedback / Next Fixes
+## Next Direction (2026-09-07)
 
-- Today toggle on the Focus page does not seem to turn off once enabled.
-- Today feature attributes are not visible in CRUD forms; need to confirm whether they were intentionally hidden or never added.
-- Add quick task entry on the Today screen.
-- Add a Focus filter to include/exclude Today items.
+Prioritize [agent-assisted backlog cleanup](./ai-assistance.md#task-adoption-sequence-2026-09-07) before standalone task-interface expansion.
+Quick entry, focus fields in CRUD forms, Today toggles, and include/exclude filters already exist in source.
+The earlier feedback list is not a list of unimplemented features.
+
+Test whether a short chosen list helps the user return without reviewing the entire backlog.
+Carry-forward currently includes older unfinished selections in Today.
+That behavior can accumulate commitments after a period of disuse.
+
+Proposed experiment: keep today's chosen tasks prominent and make older selections available in a separate review section.
+Keep hard deadlines visible and distinct from voluntary daily selections.
+Preserve tasks and their history when they leave the chosen list.
+Choose the carry-forward behavior with the user before changing the UI or query semantics.
+This proposal does not change the implemented behavior documented below.
+
+Evaluate the result during the AI integration's one-week adoption review.
+Defer richer statistics, streaks, and completion goals until the user identifies a practical need.
+
+### Open Questions
+
+- Should older selections remain in Today, move to a separate review section, or return only after explicit selection?
+- Does the chosen list need a suggested size, or is conversational selection sufficient?
+- Which existing completion or deferral interactions still obstruct use after cleanup?
 
 ## Design Philosophy
 
-The daily ritual has three phases:
+The original implementation used three phases:
 
 1. **Gather** (morning): Browse backlog with filters, quick-add tasks to today
 2. **Execute** (during day): See only today's tasks in planned order, check off with visual reward
 3. **Flow** (end of day): Unfinished tasks slide to tomorrow automatically
 
-The "goal" is zero tasks — backlog size is the countdown. Completing tasks reduces what's left.
+The revised goal is a useful daily choice with low review effort.
+An empty backlog and a rising completion count are not required measures of success.
 
 ## Implemented Schema
 
@@ -101,13 +120,13 @@ Behavior:
 - [x] Empty state for "all done today"
 - [x] Navigation: Added "Today" link to sidebar
 
-### V3: Richer Stats (Future)
+### V3: Richer Stats (Deferred pending adoption)
 - Calendar heat map (GitHub-style, tasks completed per day)
 - Backlog trend (is it growing or shrinking?)
 - Rate sparkline (tasks/day over past 30 days)
 - Streak counter ("5 days in a row completing 3+ tasks")
 
-### V4: Segments & Goals (Future)
+### V4: Segments & Goals (Deferred pending adoption)
 - Stats filtered by project, domain, etc.
 - Optional goals ("complete 50 this month") with countdown
 - Weekly/monthly review summaries

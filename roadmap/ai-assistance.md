@@ -1,9 +1,9 @@
 ---
 title: "AI Assistance Integration"
 status: draft
-description: "Expose Gleanmo data to external agentic tools (CLI agents, open-web-ui) via MCP and/or a scoped API for read/write with strict sensitivity controls, token-based auth, and a companion CLI utility"
+description: "Restore task use through conversational backlog cleanup and daily planning, starting with scoped agent access and approved batch changes"
 created: 2026-07-11
-updated: 2026-09-06
+updated: 2026-09-07
 tags: [integration, ai, mcp, api, security, llm-context]
 priority: medium
 ---
@@ -64,17 +64,56 @@ Either path must route all data access through `db/queries.clj` and all writes t
 - Aggregate/summary endpoints tuned for agent context (e.g. "today's plan" bundle: tasks due, today tasks, recent sleep/exercise).
 
 **Writes** (narrow, allow-listed):
-- Update task state (todo/doing/done, today-section membership, defer).
+- Update task state (`inbox`/`now`/`later`/`waiting`/`done`/`canceled`), daily selection, and deferral.
 - Create/update non-sensitive logs where it makes sense (e.g. log a quick note).
 - Writes must respect the same validation/malli schemas as the web UI.
 
 ### First Vertical Slice: Agent-Assisted Task Backlog
 
-- Return the complete actionable backlog with the task fields needed for planning.
+- Make the complete permitted actionable backlog accessible through bounded pages, without silently truncating the agent's review.
 - Support discussion and proposed reorganization before any write occurs.
 - Preview every proposed task change as a reviewable batch.
 - Apply only the approved batch through allow-listed task mutations.
 - Preserve unrelated fields and reject stale or invalid changes.
+
+### Task Adoption Sequence (2026-09-07)
+
+The task backlog was populated, then abandoned because it felt overwhelming.
+The first task milestone must reduce review effort and support renewed use.
+
+1. **Reset:** Identify possible duplicates, obsolete commitments, and unclear tasks through conversation.
+2. **Choose:** Suggest one useful task or a short daily list using the user's available time, energy, and stated commitments.
+3. **Adjust:** Reconsider selections when plans change, without requiring a full backlog review.
+4. **Apply:** Preview the proposed changes, then apply the approved batch.
+
+Present ambiguous commitments in small groups.
+Do not treat age, snooze counts, or state churn as proof of importance or obsolescence.
+Do not require classification of the whole backlog before daily planning can begin.
+Keep deferred tasks discoverable without placing the full backlog in each response.
+
+Use existing task states: `inbox`, `now`, `later`, `waiting`, `done`, and `canceled`.
+Use `:task/focus-date` and `:task/focus-order` for daily selection.
+Keep snoozing and hard due dates separate from daily selection.
+Candidate cleanup actions include clarifying labels, assigning existing projects, deferring tasks, and canceling confirmed obsolete commitments.
+Confirm the initial field allow-list before implementation.
+Duplicate detection produces suggestions; record merging and deletion are outside this first slice.
+
+Deliver task reads and approved updates before broader exercise access or optional CLI packaging.
+Select one initial integration surface; a second transport is not required to test task adoption.
+Keep token authorization and sensitivity controls in the first delivery.
+
+### Adoption Check
+
+After the initial cleanup, evaluate one week of normal use with the user.
+Record whether the user returns voluntarily, chooses useful tasks, and reports less review effort.
+Ask whether AI conversations themselves create another review burden.
+Use a brief user review; no new analytics system is required.
+If use stops again, identify the remaining friction before expanding task features.
+
+Defer Things-style tags, project headings, recurrence, and additional statistics until use demonstrates a need.
+Prioritize fast capture, easy deferral, and a manageable daily list within the existing model.
+Evaluate carry-forward through [daily-focus.md](./daily-focus.md).
+Consider [offline capture](./pwa-experience.md#offline-task-capture-proposed-follow-up) after the daily workflow proves useful.
 
 ### Sensitivity Model
 
@@ -103,6 +142,9 @@ Either path must route all data access through `db/queries.clj` and all writes t
 - [ ] Auth rejects unauthenticated requests and authorizes only the token's user
 - [ ] E2E flow: an MCP/CLI client can list today's tasks and mark one complete
 - [ ] An agent can read the actionable backlog, discuss its organization, preview a batch update, and apply the approved changes
+- [ ] An unapproved proposal leaves task data unchanged; an approved batch preserves unrelated fields and rejects stale changes
+- [ ] A planning conversation can produce a useful next action without classifying the entire backlog
+- [ ] The one-week adoption review records whether task use resumed and which friction remains
 - [ ] E2E flow: an MCP/CLI client can fetch recent exercise logs without leaking sensitive sibling entities
 
 ## Scope
@@ -139,7 +181,7 @@ Either path must route all data access through `db/queries.clj` and all writes t
 - [ ] MCP server vs. HTTP/CLI API first? Build both, or pick one? Recommend MCP-first for client compatibility, with a thin HTTP fallback.
 - [ ] Which entity types are on the read allow-list by default? (tasks, projects, exercise, habits, calendar — yes; mood, medication, bm-log, symptom — likely no by default.)
 - [ ] Which entity types are writable from agents? Tasks almost certainly; logs maybe; anything else?
-- [ ] How is "today section" membership represented for task writes — is there an existing field/flag, or does it need one?
+- [ ] Which cleanup fields join state, focus-date, focus-order, and snoozing in the first write allow-list?
 - [ ] Token management UX — where in the app does the user create/revoke tokens?
 - [ ] Should the MCP server run as a separate process (long-lived) or be spawned on demand by clients?
 - [ ] For local CLI use, is a loopback-only transport acceptable to loosen sensitivity defaults, or keep one policy everywhere?
@@ -154,6 +196,9 @@ Either path must route all data access through `db/queries.clj` and all writes t
 
 ### Use case sketches (2026-07-11)
 
-**Day planning.** User asks an agent: "What of my todo list is worth doing today?" The agent calls a `list-tasks` tool (filtered to `todo`/`doing` states), reasons about priority and energy, then calls `update-task` to move chosen tasks into the today section and optionally marks one as `doing`. Sensitivity: tasks may carry sensitive notes; by default the integration should exclude sensitive tasks unless escalated.
+**Day planning.** The user asks, "What is worth doing today?"
+The agent reads permitted active tasks and discusses available time, energy, and commitments.
+It previews changes to existing task states and daily selection fields, then applies the approved batch.
+Sensitive tasks remain excluded by default.
 
 **Exercise analysis.** User asks: "Look at my recent exercises and tell me if I'm overtraining." The agent calls `list-exercise-sessions` (last N days), reads associated sets, and produces a summary. Mood and medication data — which would help the analysis — are sensitive and excluded by default; the user can opt in per-session if desired.
