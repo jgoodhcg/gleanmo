@@ -1,5 +1,5 @@
 ---
-version: "2026-09-01.2"
+version: "2026-09-06.1"
 ---
 
 # Agent Blueprint
@@ -22,7 +22,7 @@ Use these IDs in alignment reports for deterministic, machine-checkable outcomes
 - `BP-CORE-09` `AGENTS.md` stores a commit trailer template (placeholders), not concrete co-author/provider/model values.
 - `BP-CORE-11` On conflicting instructions, apply the precedence order in `[BP-PRECEDENCE]`.
 - `BP-CORE-12` Completion reports name the checks that ran and the checks that did not (`[BP-VERIFY]`).
-- `BP-CORE-14` `AGENTS.md` surfaces each blueprint rule that must run at session start or before other task work. See `BP-INSTR-11`.
+- `BP-CORE-14` `AGENTS.md` surfaces each blueprint rule that must run at session start or before other task work as an executable line: rule identifier plus exact command. See `BP-INSTR-11`.
 - `BP-CORE-15` Repositories apply the public-by-default and sensitive-content controls in `[BP-PUBLIC]`; `AGENTS.md` surfaces the pre-stage trigger.
 
 **SHOULD**
@@ -134,7 +134,7 @@ How to author `AGENTS.md` and work units so agents actually follow them. Instruc
 - `BP-INSTR-08` Keep rationale out of the instruction stream. Justification aimed at humans (history, comparisons, persuasion) belongs in a README or companion doc; keep at most one line of "why" per rule. (density)
 - `BP-INSTR-09` One word, one meaning. Use one term per concept across this blueprint, `AGENTS.md`, and work units. Three terms are fixed here: **validate** = run the project validation commands; **confirm** = get user approval; **check** = evaluate a stated condition. An agent reads three verbs as three operations. (vocabulary discipline)
 - `BP-INSTR-10` Write requirements with `must`, `can`, or `will`. In a rule body, "should" reads as optional and "may/might/could" read as speculative. Write `must` for a requirement, `can` for a permission, or delete the rule. `SHOULD` stays valid as the normative label in `Core Invariants`. (removes hedge ambiguity)
-- `BP-INSTR-11` Surface do-first triggers in `AGENTS.md`. When a blueprint rule must run at session start or before other task work, `AGENTS.md` must state the trigger and reference the canonical rule. This minimal trigger bridge is required and is not a restatement under `BP-INSTR-05`. (availability at point of use)
+- `BP-INSTR-11` Surface do-first triggers in `AGENTS.md` as executable lines. When a blueprint rule must run at session start or before other task work, `AGENTS.md` must state the trigger, carry the exact command inline, and include the rule identifier. Verification requires the identifier and the command to both be present; this trigger bridge is not a restatement under `BP-INSTR-05`. (availability at point of use)
 
 Source for `BP-INSTR-09` and `BP-INSTR-10`: ASD-STE100 Simplified Technical English (Issue 9, 2025), adapted for agent instructions via [SimpleEnglish](https://github.com/AminBlg/SimpleEnglish) — AminBlg, MIT. `BP-INSTR-03` and `BP-INSTR-06` restate that standard's "one instruction per sentence" and "condition before command" rules, derived here independently. ASD-STE100 is a registered trademark of ASD; no specification or dictionary text is reproduced. Full bibliography: `references/sources.md` (`[18]`, `[19]`).
 
@@ -438,7 +438,7 @@ Follows `AGENT_BLUEPRINT.md` (version: [BLUEPRINT_VERSION])
 
 ## Session Start
 
-- When `HERDR_ENV=1` and `HERDR_TAB_ID` is set, apply `AGENT_BLUEPRINT.md` `[BP-WF-HERDR]` before other task work.
+- Herdr tab naming `[BP-WF-HERDR]`: before other task work, when `HERDR_TAB_ID` is set, run once `herdr tab rename "$HERDR_TAB_ID" "<label>"` (`<label>` = one relevant emoji + at most five words naming the primary task); on failure, continue silently without retry.
 
 ## Project Overview
 
