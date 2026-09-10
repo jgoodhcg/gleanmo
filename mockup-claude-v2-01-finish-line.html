@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Finish Line — Gleanmo motivation v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@6.0.0/dist/echarts.min.js"></script>
+<style>
+/* Gleanmo v2 mockups — Gleanmo tokens; Space Mono for numbers & headings,
+   system sans for prose (long mono paragraphs read slowly). */
+:root{
+  --bg:#0d1117; --surface:#161b22; --s2:#0b0e13; --border:#30363d;
+  --text:#c9d1d9; --dim:#8b949e; --faint:#484f58; --white:#f0f6fc;
+  --gold:#ffd400; --azure:#3b82f6; --violet:#8b5cf6; --cyan:#06b6d4;
+  --amber:#f59e0b; --pink:#ec4899; --lime:#32cd32; --green:#22c55e;
+  --red:#ef4444; --orange:#f97316;
+  --mono:'Space Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 var(--sans);
+  padding:0 16px 56px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1160px;margin:0 auto}
+.narrow{max-width:580px;margin:0 auto}
+a{color:var(--cyan);text-underline-offset:3px}
+h1,h2,h3,.mono,.n,.big{font-family:var(--mono)}
+h1{font-size:clamp(26px,4.4vw,42px);line-height:1.12;letter-spacing:-.02em;margin:10px 0 12px;color:var(--white)}
+h2{font-size:clamp(18px,2.6vw,22px);line-height:1.25;margin:0 0 10px;color:var(--white)}
+h3{font-size:15px;margin:0 0 6px;color:var(--white)}
+p{margin:6px 0 12px}
+.n{font-variant-numeric:tabular-nums}
+.big{font-size:clamp(46px,8vw,80px);line-height:1;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.mid{font-family:var(--mono);font-size:clamp(22px,3.4vw,30px);font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums}
+.kicker{font:700 11px/1.4 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.lede{font-size:17px;color:var(--dim);max-width:66ch;margin-bottom:24px}
+.muted{color:var(--dim)} .faint{color:var(--faint)} .white{color:var(--white)}
+.pos{color:var(--green)} .neg{color:var(--red)} .warn{color:var(--amber)}
+small,.small{font-size:13px;color:var(--dim)}
+
+/* top nav */
+nav.top{display:flex;flex-wrap:wrap;align-items:center;gap:6px 20px;border-bottom:1px solid var(--border);
+  padding-block:16px;margin-bottom:28px}
+nav.top .brand{font:700 15px var(--mono);color:var(--white);margin-right:auto;text-decoration:none}
+nav.top .brand span{color:var(--cyan)}
+nav.top a{font:12px var(--mono);color:var(--dim);text-decoration:none;padding:6px 0}
+nav.top a:hover,nav.top a[aria-current]{color:var(--cyan)}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:22px;min-width:0}
+.card.hero{border-color:var(--hc,var(--cyan))}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:1.55fr 1fr}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:860px){.g2,.g3,.g4{grid-template-columns:1fr}}
+.sec{margin-top:36px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.rule{border-top:1px solid var(--border);margin-top:18px;padding-top:18px}
+
+.pill{display:inline-flex;align-items:center;gap:6px;font:11px/1.4 var(--mono);border:1px solid var(--border);
+  border-radius:999px;padding:4px 10px;color:var(--dim);white-space:nowrap}
+.pill.proposed{border-style:dashed;border-color:var(--amber);color:var(--amber)}
+.pill.gap{border-color:rgba(239,68,68,.6);color:var(--red)}
+.pill.exists{border-color:rgba(34,197,94,.5);color:var(--green)}
+
+.bar{position:relative;height:8px;background:var(--s2);border:1px solid var(--border);border-radius:4px;overflow:hidden;margin:12px 0 8px}
+.bar>i{position:absolute;inset:0 auto 0 0;display:block;background:var(--bc,var(--cyan))}
+.bar>u{position:absolute;top:-1px;bottom:-1px;width:2px;background:var(--white);opacity:.55}
+
+button,.btn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:8px 14px;
+  background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:6px;
+  font:12px var(--mono);cursor:pointer;text-decoration:none;
+  transition:border-color 150ms ease-out,background 150ms ease-out,transform 100ms ease-out}
+button:hover,.btn:hover{border-color:var(--cyan)}
+button:active{transform:scale(.98)}
+button[aria-pressed="true"]{background:var(--cyan);border-color:var(--cyan);color:#06121a;font-weight:700}
+:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+input[type=range]{width:100%;accent-color:var(--cyan);margin:14px 0 6px;min-height:28px}
+
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{font:700 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--dim);text-align:left;
+  padding:0 10px 8px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:11px 10px;border-bottom:1px solid rgba(48,54,61,.7);vertical-align:top}
+td.r,th.r{text-align:right}
+.scroll{overflow-x:auto}
+.callout{border-left:3px solid var(--cc,var(--cyan));background:var(--s2);padding:14px 16px;border-radius:0 6px 6px 0;margin:16px 0;font-size:14px}
+details{border-top:1px solid var(--border);margin-top:32px;padding-top:12px}
+summary{cursor:pointer;min-height:40px;color:var(--dim);font:13px var(--mono);display:flex;align-items:center}
+details p,details li{font-size:14px;color:var(--dim);max-width:78ch}
+footer{margin-top:48px;border-top:1px solid var(--border);padding-top:16px;font:11px var(--mono);color:var(--faint);text-align:center}
+.chart{width:100%}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+.tabs{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:16px;scrollbar-width:thin}
+.tab{flex:0 0 auto;text-align:left;display:block;min-width:132px;padding:10px 12px;background:var(--surface)}
+.tab[aria-pressed="true"]{background:var(--surface);color:var(--text);border-color:var(--tc);box-shadow:inset 0 0 0 1px var(--tc)}
+.tab b{display:block;font-size:12px;color:var(--white)}
+.tab span{font-size:11px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid var(--border);border-radius:6px;background:var(--s2);margin-top:18px}
+.stats>div{padding:14px 16px;border-right:1px solid var(--border)}
+.stats>div:last-child{border-right:0}
+@media(max-width:700px){.stats{grid-template-columns:1fr 1fr}.stats>div:nth-child(2){border-right:0}.stats>div:nth-child(-n+2){border-bottom:1px solid var(--border)}}
+.stats .k{font:700 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.stats .v{font:700 22px/1.2 var(--mono);margin-top:6px;font-variant-numeric:tabular-nums;color:var(--white)}
+.stats .u{font-size:12px;color:var(--dim)}
+.sim-out .big{color:var(--cyan)}
+.crossed{border:1px solid var(--gold);color:var(--gold);border-radius:6px;padding:10px 12px;font:700 13px var(--mono);margin-top:10px}
+.covwarn{border:1px dashed rgba(239,68,68,.6);border-radius:6px;padding:12px 14px;margin-top:14px;font-size:13px;color:var(--text);background:rgba(239,68,68,.05)}
+.covwarn b{color:var(--red)}
+</style></head>
+<body><div class="wrap">
+<nav class="top" aria-label="v2 mockups">
+  <a class="brand" href="mockup-claude-v2-00-index.html">gleanmo <span>/ motivation v2</span></a>
+  <a href="mockup-claude-v2-00-index.html">Pitches</a>
+  <a href="mockup-claude-v2-01-finish-line.html" aria-current="page">01 Finish line</a>
+  <a href="mockup-claude-v2-02-tonight.html">02 Tonight</a>
+  <a href="mockup-claude-v2-03-studio.html">03 Studio</a>
+</nav>
+
+
+<div class="kicker">01 · Finish line</div>
+<h1>What tonight does to the rest of the year.</h1>
+<p class="lede">Your spreadsheet's four numbers, for every goal that has a finish line — plus the one it
+never had: a slider that shows how today's work changes tomorrow's required pace.</p>
+
+<div class="tabs" id="tabs" role="group" aria-label="Goals"></div>
+
+<div class="grid g2">
+  <section class="card hero" id="hero">
+    <div class="row">
+      <h2 id="g-title"></h2>
+      <span class="pill" id="g-window"></span>
+    </div>
+    <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-top:10px">
+      <span class="big" id="g-done"></span>
+      <span class="mono muted" id="g-of" style="font-size:15px"></span>
+    </div>
+    <div class="bar" id="g-bar"><i></i><u title="where an even pace would put you today"></u></div>
+    <div class="row"><small id="g-pct"></small><small id="g-src" class="mono" style="font-size:11px"></small></div>
+    <div id="g-cov"></div>
+    <div class="stats">
+      <div><div class="k">Done</div><div class="v" id="s-done"></div><div class="u" id="s-done-u"></div></div>
+      <div><div class="k">Your rate</div><div class="v" id="s-rate"></div><div class="u" id="s-rate-u"></div></div>
+      <div><div class="k">Needed from tomorrow</div><div class="v" id="s-need"></div><div class="u" id="s-need-u"></div></div>
+      <div><div class="k">Vs. even pace</div><div class="v" id="s-delta"></div><div class="u" id="s-delta-u"></div></div>
+    </div>
+    <div class="chart" id="burn" style="height:320px;margin-top:18px"></div>
+    <div class="row" style="justify-content:flex-start;gap:16px;font-size:12px" id="legend"></div>
+  </section>
+
+  <aside class="card">
+    <div class="kicker" style="color:var(--cyan)">Try tonight on for size</div>
+    <h2 id="t-head" style="margin-top:14px;font-size:24px"></h2>
+    <p class="muted" id="t-sub"></p>
+    <label for="sim" class="small">If you add tonight: <b class="white mono" id="sim-v">0</b></label>
+    <input type="range" id="sim" min="0" max="100" step="5" value="0">
+    <div class="actions" id="t-btns"></div>
+    <div class="sim-out rule" aria-live="polite">
+      <small>Needed per <span id="t-per"></span> from tomorrow</small>
+      <div class="big" id="t-need" style="margin-top:6px"></div>
+      <p class="muted" id="t-change"></p>
+      <div id="t-crossed"></div>
+    </div>
+    <div class="rule">
+      <h3>Why "per training day"</h3>
+      <p class="small" id="t-opp"></p>
+    </div>
+  </aside>
+</div>
+
+<div class="grid g2 sec">
+  <section class="card">
+    <div class="kicker">Required pace, day by day</div>
+    <div class="chart" id="hist" style="height:220px;margin-top:10px"></div>
+  </section>
+  <section class="card">
+    <div class="kicker">Read it like this</div>
+    <p style="margin-top:12px">The line is what the "needed" number <em>was</em> on each past day. It is the
+      one stat that moves when you do nothing — a rising line means you have been spending buffer.</p>
+    <p class="white" id="hist-read"></p>
+    <p class="small">The dashed line is your actual rate. Where the two cross is where the goal
+      stopped being comfortable.</p>
+  </section>
+</div>
+
+<section class="card sec">
+  <div class="row"><h2>Every finish line</h2><small>Click a row to open it above</small></div>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Goal</th><th>Window</th><th class="r">Done</th><th style="min-width:120px">Progress</th>
+      <th class="r">Your rate</th><th class="r">Needed</th><th class="r">Gear</th><th class="r">Vs. even pace</th><th>Data</th></tr></thead>
+    <tbody id="tbl"></tbody>
+  </table>
+  </div>
+  <p class="small" style="margin-top:12px"><b class="white">Gear</b> = needed ÷ your rate, both per eligible
+    opportunity. 1.00× means keep doing exactly this. It is the one number that compares reps, minutes,
+    books and nights directly — so it's the sort key.</p>
+</section>
+
+<details>
+  <summary>The arithmetic, and the rules that keep it honest</summary>
+  <ul>
+    <li>Opportunities = eligible days in the goal window. Pull-ups and workout sessions count
+      Mon · Tue · Thu · Sat; writing counts Mon–Sat; everything else counts every day.</li>
+    <li>Your rate = done ÷ opportunities elapsed (today included). Needed = remaining ÷ opportunities
+      after today, so the slider reads "what tomorrow asks of you".</li>
+    <li>Vs. even pace is expressed in opportunities, not units: "2 training days behind" is a thing
+      you can picture fixing; "−98 reps" isn't.</li>
+    <li>Past the target, needed shows 0 and the excess is kept and shown. Never divide by zero on
+      the last day; show met or the gap.</li>
+    <li>A goal starts where capture is trustworthy. The pull-up goal starts Mar 2 on purpose.
+      Workout sessions start Jan 1 to show the other option — a visibly marked floor.</li>
+  </ul>
+</details>
+
+<footer>Claude · v2 mockup · fictional data, internally consistent · now = Thu Sep 10 2026</footer>
+</div>
+<script>/* ==========================================================================
+   G2 — mock data core for the v2 Gleanmo motivation dashboards.
+   Deterministic and self-consistent. "Now" is Thu 2026-09-10, 9:52pm.
+   Differences from a naive generator, each one deliberate:
+     • workouts before Mar 2 live in the unported exercise spreadsheet, so the
+       app has nothing for Jan 1 – Mar 1 (coverage gap, shown, never faked)
+     • project sessions carry an activity only from Aug 17, when
+       project-log/activity-id "ships"; earlier sessions are backfilled only
+       when their project has exactly one activity, else stay unclassified
+     • winddown is three habits, so a night can be partial
+     • goals count eligible opportunities (training days), not calendar days
+   ========================================================================== */
+const G2 = (function () {
+  const T = {
+    bg:'#0d1117', surface:'#161b22', s2:'#0b0e13', border:'#30363d',
+    text:'#c9d1d9', dim:'#8b949e', faint:'#484f58',
+    gold:'#ffd400', azure:'#3b82f6', violet:'#8b5cf6', cyan:'#06b6d4',
+    amber:'#f59e0b', pink:'#ec4899', lime:'#32cd32', green:'#22c55e',
+    red:'#ef4444', orange:'#f97316', teal:'#2dd4bf'
+  };
+  function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+  const R = rng(20260910);
+  const r = (lo,hi)=>lo+Math.round(R()*(hi-lo));
+
+  /* ---- calendar ---------------------------------------------------------- */
+  const TI = 252;                       // index of today (Sep 10) — Thursday
+  const N = TI + 1;                     // days with data, today included
+  const YEAR_END = 364;
+  const CAPTURE = 60;                   // Mar 2: in-app workout capture begins
+  const ACTIVITY_SHIPPED = 228;         // Aug 17: project-log/activity-id exists
+  const WEEK_START = 249;               // Mon Sep 7
+  const NOW_H = 21 + 52/60;
+  const dateOf = i => new Date(2026,0,1+i);
+  const dow = i => dateOf(i).getDay();
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const DN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const dl = d => MON[d.getMonth()]+' '+d.getDate();
+  const dli = i => dl(dateOf(i));
+  const shape = i => i<12?.5 : (i>=187&&i<=204)?.2 : (i>=205&&i<=215)?.7 : i>=231?1.12 : 1;
+  const sum = a => a.reduce((x,y)=>x+y,0);
+  const cum = a => {let c=0;return a.map(v=>c+=v)};
+
+  /* ---- raw daily data ----------------------------------------------------- */
+  const TRAIN = [1,2,4,6];              // Mon Tue Thu Sat
+  const workout = [], reps = [];
+  for (let i=0;i<N;i++){
+    const p = (TRAIN.includes(dow(i))?.82:.08)*shape(i);
+    const did = i>=CAPTURE && R()<p ? 1 : 0;
+    workout.push(did);
+    reps.push(did ? r(28,52)+Math.round(i/14) : 0);      // slow progression
+  }
+  const meditate = [], read = [], wd = [];
+  for (let i=0;i<N;i++){
+    meditate.push(R()<.9*Math.min(1.05,shape(i)+.08) ? (R()<.1?r(35,50):r(10,28)) : 0);
+    read.push(R()<.72*shape(i) ? r(15,55) : 0);
+    const s=shape(i), b=R()<.97, f=R()<.8*s+.05, k=R()<.74*s+.05;
+    wd.push([b?1:0,f?1:0,k?1:0]);
+  }
+
+  /* ---- projects & activities --------------------------------------------- */
+  const ACT = {
+    writing:{label:'Writing', color:T.amber},
+    drawing:{label:'Drawing', color:T.pink},
+    music:{label:'Music', color:T.violet},
+    software:{label:'Software', color:T.azure},
+    editing:{label:'Editing', color:T.gold}
+  };
+  const PROJ = [
+    {id:'lowtide', label:'Low Tide', kind:'Novel', acts:{writing:1}, p:[.2,.55,.45,.55,.5,.4,.3], m:[30,95]},
+    {id:'garage',  label:'Garage Build', kind:'Video', acts:{editing:.6,writing:.2,music:.2}, p:[.05,.12,.1,.1,.12,.35,.3], m:[40,150]},
+    {id:'moth',    label:'Moth Lantern', kind:'Game', acts:{software:.6,drawing:.25,music:.15}, p:[.05,.1,.12,.1,.14,.4,.35], m:[35,140]},
+    {id:'gleanmo', label:'Gleanmo', kind:'Software', acts:{software:1}, p:[.25,.7,.72,.7,.72,.35,.2], m:[45,190]},
+    {id:'sketch',  label:'Sketchbook', kind:'Practice', acts:{drawing:1}, p:[.35,.42,.36,.4,.36,.5,.45], m:[8,45]},
+    {id:'guitar',  label:'Guitar', kind:'Practice', acts:{music:1}, p:[.2,.24,.28,.2,.24,.36,.3], m:[15,60]}
+  ];
+  const pick = w => { let x=R(),a=0; for (const k in w){a+=w[k]; if(x<a) return k;} return Object.keys(w)[0]; };
+  const sessions = [];
+  for (let i=0;i<N;i++) for (const pr of PROJ){
+    if (R() < pr.p[dow(i)]*shape(i)) {
+      const act = pick(pr.acts);
+      const single = Object.keys(pr.acts).length===1;
+      sessions.push({i, proj:pr.id, min:r(pr.m[0],pr.m[1]),
+        act: (i>=ACTIVITY_SHIPPED || single) ? act : null, trueAct:act,
+        backfilled: i<ACTIVITY_SHIPPED && single});
+    }
+  }
+
+  /* ---- force this week into a clean, specific story ---------------------- */
+  // Mon Sep 7 .. Thu Sep 10 (today, 9:52pm)
+  const setDay = (i, o) => {
+    if ('workout' in o){ workout[i]=o.workout; reps[i]=o.reps||0; }
+    if ('meditate' in o) meditate[i]=o.meditate;
+    if ('read' in o) read[i]=o.read;
+    if ('wd' in o) wd[i]=o.wd;
+  };
+  setDay(249,{workout:1,reps:58,meditate:20,read:30,wd:[1,1,1]});
+  setDay(250,{workout:1,reps:51,meditate:15,read:0, wd:[1,1,1]});
+  setDay(251,{workout:0,meditate:22,read:40,wd:[1,0,1]});
+  setDay(252,{workout:0,meditate:15,read:0, wd:[1,1,0]});   // tonight: skincare open
+  for (let i=229;i<249;i++){ if(!meditate[i]) meditate[i]=r(10,20); }   // a real streak
+  for (let i=244;i<N;i++){ // clear project sessions this week and rebuild by hand
+    for (let k=sessions.length-1;k>=0;k--) if (sessions[k].i===i) sessions.splice(k,1);
+  }
+  const S=(i,proj,act,min)=>sessions.push({i,proj,act,trueAct:act,min,backfilled:false});
+  // last week's tail (Sep 3–6), music deliberately absent since Sep 2
+  S(244,'gleanmo','software',120); S(244,'sketch','drawing',20);
+  S(245,'lowtide','writing',70);  S(245,'gleanmo','software',95);
+  S(246,'moth','software',110);   S(246,'sketch','drawing',30); S(246,'garage','editing',80);
+  S(247,'garage','editing',95);   S(247,'moth','drawing',40); S(247,'lowtide','writing',55);
+  S(248,'sketch','drawing',25);   S(248,'moth','software',60);
+  // this week
+  S(249,'lowtide','writing',60);  S(249,'sketch','drawing',25); S(249,'gleanmo','software',150);
+  S(250,'sketch','drawing',10);   S(250,'gleanmo','software',135);            // 10 min: not a qualifying day
+  S(251,'lowtide','writing',45);  S(251,'moth','drawing',18);  S(251,'gleanmo','software',120);
+  S(252,'lowtide','writing',50);  S(252,'gleanmo','software',95);
+  sessions.sort((a,b)=>a.i-b.i);
+
+  /* ---- books (reading-log/finished? exists today) ------------------------ */
+  const BOOKS = ['The Dispossessed','Piranesi','Stoner','The Remains of the Day','Klara and the Sun',
+    'A Psalm for the Wild-Built','Station Eleven','The Left Hand of Darkness','Tomorrow, and Tomorrow, and Tomorrow',
+    'Pachinko','Circe','The Overstory','Babel','Project Hail Mary','Sea of Tranquility','The Name of the Wind'];
+  const bookDays = [14,31,47,62,76,93,104,121,139,152,168,181,214,226,238,247];
+  const booksDaily = Array(N).fill(0); bookDays.forEach(d=>booksDaily[d]=1);
+  const currentBook = {title:'The Buried Giant', pages:317, position:233, sessionsPerPage:null};
+
+  /* ---- per-day activity minutes ------------------------------------------ */
+  const actDaily = {}; Object.keys(ACT).forEach(a=>actDaily[a]=Array(N).fill(0));
+  const unclassDaily = Array(N).fill(0);
+  sessions.forEach(s=>{ if (s.act) actDaily[s.act][s.i]+=s.min; else unclassDaily[s.i]+=s.min; });
+  const projDaily = {}; PROJ.forEach(p=>projDaily[p.id]=Array(N).fill(0));
+  sessions.forEach(s=>projDaily[s.proj][s.i]+=s.min);
+  const wdComplete = wd.map(n=>n[0]&&n[1]&&n[2]?1:0);
+
+  /* ---- goals: finish lines ------------------------------------------------ */
+  const opps = (from,to,elig) => { let c=0; for(let i=from;i<=to;i++) if(!elig||elig.includes(dow(i))) c++; return c; };
+  function goal(g){
+    const s = g.series, from = g.start||0;
+    const done = sum(s.slice(from, N));
+    const todaySoFar = s[TI];
+    const eligToday = !g.elig || g.elig.includes(dow(TI));
+    const oppsLeftInclToday = opps(TI, YEAR_END, g.elig);
+    const oppsLeftAfterToday = opps(TI+1, YEAR_END, g.elig);
+    const oppsElapsed = opps(from, TI, g.elig);
+    const oppsTotal = opps(from, YEAR_END, g.elig);
+    const remaining = Math.max(0, g.target-done);
+    const perOpp = done/oppsElapsed;
+    const needPerOpp = remaining/oppsLeftAfterToday;           // from tomorrow, given today so far
+    const expected = g.target*oppsElapsed/oppsTotal;
+    const delta = done-expected;
+    const deltaOpps = delta/(g.target/oppsTotal);
+    const gear = needPerOpp/perOpp;
+    const next = (Math.floor(done/g.step)+1)*g.step;
+    const projected = done + perOpp*oppsLeftAfterToday;
+    const cumS = cum(s.slice(from,N));
+    // required-per-opportunity at each past day
+    const reqHist = [];
+    for (let i=from+21;i<N;i++){
+      const d = cumS[i-from], left = opps(i+1,YEAR_END,g.elig);
+      reqHist.push([i, (g.target-d)/left]);
+    }
+    return Object.assign({}, g, {done,todaySoFar,eligToday,oppsLeftInclToday,oppsLeftAfterToday,
+      oppsElapsed,oppsTotal,remaining,perOpp,needPerOpp,expected,delta,deltaOpps,gear,next,
+      toNext:next-done,projected,cumS,reqHist});
+  }
+  const GOALS_RAW = [
+    {key:'pullups', label:'Pull-ups', icon:'🏋️', color:T.red, unit:'reps', per:'training day',
+     series:reps, start:CAPTURE, elig:TRAIN, step:250, stance:1.02,
+     source:'exercise-line reps, scoped to the pull-up exercise ids',
+     window:'Mar 2 → Dec 31', note:'Starts Mar 2 on purpose: that is where complete in-app capture begins.'},
+    {key:'meditate', label:'Meditation', icon:'🧘', color:T.green, unit:'minutes', per:'day',
+     series:meditate, start:0, elig:null, step:600, stance:.97,
+     source:'meditation-log intervals', window:'Jan 1 → Dec 31'},
+    {key:'books', label:'Books finished', icon:'📖', color:T.orange, unit:'books', per:'day',
+     series:booksDaily, start:0, elig:null, step:1, target:24,
+     source:'reading-log/finished? — exists today', window:'Jan 1 → Dec 31'},
+    {key:'writing', label:'Writing', icon:'✍️', color:T.amber, unit:'minutes', per:'writing day',
+     series:actDaily.writing, start:0, elig:[1,2,3,4,5,6], step:600, stance:1.1,
+     source:'project-log minutes where activity = writing', window:'Jan 1 → Dec 31',
+     note:'Counts Low Tide (backfilled — single-activity project) plus classified writing on Garage Build.'},
+    {key:'winddown', label:'Complete winddowns', icon:'🌙', color:T.cyan, unit:'nights', per:'night',
+     series:wdComplete, start:0, elig:null, step:25, stance:1.05,
+     source:'routine over 3 habit-logs, night ends 4:00am', window:'Jan 1 → Dec 31'},
+    {key:'sessions', label:'Workout sessions', icon:'💪', color:T.pink, unit:'sessions', per:'training day',
+     series:workout, start:0, elig:TRAIN, step:10, target:150,
+     source:'exercise-session', window:'Jan 1 → Dec 31', coverageGap:[0,CAPTURE-1],
+     note:'Jan 1 – Mar 1 is still in the exercise spreadsheet. Every number here is a floor until that import lands.'}
+  ];
+  GOALS_RAW.forEach(g=>{
+    if (!g.target){
+      const done = sum(g.series.slice(g.start||0,N));
+      const oE = opps(g.start||0,TI,g.elig), oT = opps(g.start||0,YEAR_END,g.elig);
+      g.target = Math.round(done/oE*oT*g.stance/g.step)*g.step;
+    }
+  });
+  const GOALS = GOALS_RAW.map(goal);
+  const G = Object.fromEntries(GOALS.map(g=>[g.key,g]));
+
+  /* ---- weekly intentions -------------------------------------------------- */
+  function weekly(w){
+    const vals = w.daily.slice(WEEK_START, N);
+    const qual = vals.map(v=>w.minPerDay? (v>=w.minPerDay?1:0) : (v>0?1:0));
+    const got = w.kind==='days' ? sum(qual) : sum(vals);
+    // weekly history: completed weeks Mon–Sun before this week
+    const hist = [];
+    for (let s=WEEK_START-7*16; s<WEEK_START; s+=7){
+      const v = w.daily.slice(s,s+7);
+      const g2 = w.kind==='days' ? v.filter(x=>w.minPerDay? x>=w.minPerDay : x>0).length : sum(v);
+      hist.push({start:s, got:g2, met:g2>=w.target});
+    }
+    let streak=0; for (let k=hist.length-1;k>=0;k--){ if(hist[k].met) streak++; else break; }
+    const daysLeft = 6 - (TI-WEEK_START);    // after today, through Sunday
+    return Object.assign({}, w, {vals, qual, got, left:Math.max(0,w.target-got), hist, streak,
+      met12: hist.slice(-12).filter(h=>h.met).length, daysLeft});
+  }
+  const WEEKLY = [
+    weekly({key:'workoutdays', label:'Workout days', icon:'🏋️', color:T.red, kind:'days', target:3, daily:workout, unitTxt:'days'}),
+    weekly({key:'meddays', label:'Meditation days', icon:'🧘', color:T.green, kind:'days', target:5, daily:meditate, unitTxt:'days'}),
+    weekly({key:'drawdays', label:'Drawing days', icon:'🎨', color:T.pink, kind:'days', target:4, minPerDay:15, daily:actDaily.drawing, unitTxt:'days ≥15 min'}),
+    weekly({key:'musicdays', label:'Music days', icon:'🎸', color:T.violet, kind:'days', target:2, minPerDay:20, daily:actDaily.music, unitTxt:'days ≥20 min'}),
+    weekly({key:'writemin', label:'Writing', icon:'✍️', color:T.amber, kind:'minutes', target:180, daily:actDaily.writing, unitTxt:'min'}),
+    weekly({key:'softmin', label:'Software', icon:'💻', color:T.azure, kind:'minutes', target:480, daily:actDaily.software, unitTxt:'min'}),
+    weekly({key:'editmin', label:'Editing', icon:'🎬', color:T.gold, kind:'minutes', target:120, daily:actDaily.editing, unitTxt:'min'})
+  ];
+  const W = Object.fromEntries(WEEKLY.map(w=>[w.key,w]));
+
+  /* ---- streaks ---------------------------------------------------------- */
+  function streak(a){ let cur=0,best=0,run=0; a.forEach(v=>{ if(v>0){run++;best=Math.max(best,run)} else run=0; }); return {cur:run,best}; }
+  const lastActive = a => { for(let i=N-1;i>=0;i--) if(a[i]>0) return TI-i; return 999; };
+
+  /* ---- formatting --------------------------------------------------------- */
+  const num = v => Math.abs(v)>=100||Number.isInteger(v) ? Math.round(v).toLocaleString() : v.toFixed(1);
+  function fmt(v,g){
+    if (g.unit==='minutes') return v>=600 ? (v/60>=100?Math.round(v/60):(v/60).toFixed(1))+' h' : Math.round(v)+' min';
+    return num(v)+' '+(Math.round(v)===1&&g.unit.endsWith('s')?g.unit.slice(0,-1):g.unit);
+  }
+  const hm = m => m>=60 ? Math.floor(m/60)+'h '+String(Math.round(m%60)).padStart(2,'0')+'m' : Math.round(m)+'m';
+  const axis = extra => Object.assign({axisLine:{lineStyle:{color:T.border}},axisTick:{show:false},
+    axisLabel:{color:T.dim,fontFamily:'Space Mono, monospace',fontSize:10},
+    splitLine:{lineStyle:{color:'rgba(48,54,61,.55)'}}}, extra||{});
+  const tip = {backgroundColor:'#0b0e13',borderColor:T.border,borderWidth:1,
+    textStyle:{color:T.text,fontFamily:'Space Mono, monospace',fontSize:11}};
+
+  return {T,rng,TI,N,YEAR_END,CAPTURE,ACTIVITY_SHIPPED,WEEK_START,NOW_H,TRAIN,dateOf,dow,MON,DN,dl,dli,sum,cum,opps,
+    workout,reps,meditate,read,wd,wdComplete,ACT,PROJ,sessions,actDaily,unclassDaily,projDaily,
+    BOOKS,bookDays,currentBook,GOALS,G,WEEKLY,W,streak,lastActive,num,fmt,hm,axis,tip};
+})();
+</script>
+<script>
+const T=G2.T, TI=G2.TI, END=G2.YEAR_END;
+const SIM={pullups:{max:120,step:5,noun:'reps'},meditate:{max:60,step:5,noun:'minutes'},
+  books:{max:1,step:1,noun:'finish The Buried Giant'},writing:{max:120,step:5,noun:'minutes'},
+  winddown:{max:1,step:1,noun:"complete tonight's routine"},sessions:{max:1,step:1,noun:'log a session'}};
+const OPP={pullups:'training day',meditate:'day',books:'day',writing:'writing day',winddown:'night',sessions:'training day'};
+const oppW=(g,n)=>Math.round(Math.abs(n))===1?OPP[g.key]:OPP[g.key]+'s';
+
+function rate(g,v){switch(g.key){
+  case 'pullups':return{v:G2.num(v),u:'reps / training day'};
+  case 'meditate':return{v:Math.round(v)+' min',u:'per day'};
+  case 'books':return{v:v>0?'1 / '+Math.round(1/v)+' d':'—',u:'a book every N days'};
+  case 'writing':return{v:Math.round(v)+' min',u:'per writing day'};
+  case 'winddown':return{v:(v*7).toFixed(1),u:'complete nights / week'};
+  case 'sessions':return{v:(v*4).toFixed(1),u:'sessions / week'};}}
+const plotK=g=>({books:30.44,winddown:7,sessions:4}[g.key]||1);
+const plotU=g=>({books:'books / month',winddown:'nights / week',sessions:'sessions / week',
+  pullups:'reps / training day',meditate:'min / day',writing:'min / writing day'}[g.key]);
+function amt(g,v){
+  if(g.unit==='minutes') return v>=120?(v/60).toFixed(1)+' h':Math.round(v)+' min';
+  const u=Math.round(v)===1&&g.unit.endsWith('s')?g.unit.slice(0,-1):g.unit;
+  return G2.num(v)+' '+u;
+}
+const bigNum=(g,v)=>g.unit==='minutes'?(v/60).toFixed(1):G2.num(v);
+const bigUnit=g=>g.unit==='minutes'?'hours':g.unit;
+
+let cur='pullups';
+const tabs=document.getElementById('tabs');
+G2.GOALS.forEach(g=>{
+  const b=document.createElement('button'); b.className='tab'; b.style.setProperty('--tc',g.color); b.dataset.k=g.key;
+  const d=g.deltaOpps;
+  b.innerHTML=`<b>${g.icon} ${g.label}</b><span style="color:${d>=0?T.green:d<-10?T.red:T.amber}">
+    ${d>=0?'+':'−'}${Math.abs(d).toFixed(0)} ${oppW(g,d)}</span>`;
+  b.onclick=()=>select(g.key); tabs.appendChild(b);
+});
+
+const burn=echarts.init(document.getElementById('burn'));
+const hist=echarts.init(document.getElementById('hist'));
+const monthFmt=v=>v>=360?'':G2.MON[Math.min(11,Math.round(v/30.42))];
+
+function yFmt(g){return v=>g.unit==='minutes'?Math.round(v/60)+'h':(v>=1000?(v/1000)+'k':v)}
+
+function select(k){
+  cur=k; const g=G2.G[k];
+  [...tabs.children].forEach(c=>c.setAttribute('aria-pressed',String(c.dataset.k===k)));
+  document.getElementById('hero').style.setProperty('--hc',g.color);
+  document.getElementById('g-title').textContent=g.icon+' '+g.label;
+  document.getElementById('g-window').textContent=g.window;
+  const done=document.getElementById('g-done'); done.textContent=bigNum(g,g.done); done.style.color=g.color;
+  document.getElementById('g-of').textContent=`/ ${bigNum(g,g.target)} ${bigUnit(g)}`;
+  const bar=document.getElementById('g-bar'); bar.style.setProperty('--bc',g.color);
+  bar.querySelector('i').style.width=Math.min(100,g.done/g.target*100)+'%';
+  bar.querySelector('u').style.left=(g.expected/g.target*100)+'%';
+  document.getElementById('g-pct').textContent=
+    `${Math.round(g.done/g.target*100)}% done · ${Math.round(g.oppsElapsed/g.oppsTotal*100)}% of ${OPP[g.key]}s used`;
+  document.getElementById('g-src').textContent=g.source;
+  document.getElementById('g-cov').innerHTML=g.coverageGap
+    ? `<div class="covwarn"><b>Import pending.</b> ${g.note} The chart hatches the missing stretch rather than
+       guessing it, and "needed" below is the worst case.</div>`
+    : (g.note?`<p class="small" style="margin-top:10px">${g.note}</p>`:'');
+
+  const r=rate(g,g.perOpp), n=rate(g,g.needPerOpp);
+  document.getElementById('s-done').textContent=amt(g,g.done);
+  document.getElementById('s-done-u').textContent=amt(g,g.remaining)+' to go';
+  document.getElementById('s-rate').textContent=r.v; document.getElementById('s-rate-u').textContent=r.u;
+  document.getElementById('s-need').textContent=n.v; document.getElementById('s-need-u').textContent=n.u;
+  document.getElementById('s-need').style.color=g.gear>1?T.amber:T.green;
+  const d=g.deltaOpps;
+  document.getElementById('s-delta').textContent=(d>=0?'+':'−')+Math.abs(d).toFixed(0);
+  document.getElementById('s-delta').style.color=d>=0?T.green:T.red;
+  document.getElementById('s-delta-u').textContent=oppW(g,d)+(d>=0?' ahead':' behind');
+
+  /* slider */
+  const s=SIM[k], sim=document.getElementById('sim');
+  sim.max=s.max; sim.step=s.step; sim.value=0;
+  document.getElementById('t-per').textContent=OPP[k];
+  document.getElementById('t-head').textContent=`${amt(g,g.toNext)} gets you to ${amt(g,g.next)}.`;
+  document.getElementById('t-sub').textContent = g.toNext<=s.max
+    ? 'Reachable tonight. A round number within reach is what made the spreadsheet pull.'
+    : `Not tonight — about ${Math.ceil(g.toNext/Math.max(g.perOpp,.001))} ${oppW(g,2)} out at your rate.`;
+  const btns=document.getElementById('t-btns'); btns.innerHTML='';
+  const add=(label,v)=>{const b=document.createElement('button');b.textContent=label;b.onclick=()=>{sim.value=v;simulate()};btns.appendChild(b)};
+  if(s.max>1){
+    if(g.toNext<=s.max) add('Reach '+amt(g,g.next),Math.ceil(g.toNext/s.step)*s.step);
+    add('Hold the line',Math.min(s.max,Math.ceil(g.needPerOpp/s.step)*s.step));
+  } else add(s.noun[0].toUpperCase()+s.noun.slice(1),1);
+  add('Reset',0);
+  const perCal=g.remaining/(END-TI);
+  document.getElementById('t-opp').innerHTML = g.elig
+    ? `${g.oppsLeftAfterToday} ${oppW(g,2)} (${g.elig.map(x=>G2.DN[x]).join(' · ')}) remain after today.
+       Spread over calendar days the same goal reads <b class="white">${G2.num(perCal)}</b> — a number you'd
+       never do on a rest day, so the calendar version quietly overstates how comfortable you are.`
+    : `This goal counts every ${OPP[k]}. ${g.oppsLeftAfterToday} remain after today.`;
+
+  /* burn-up */
+  const start=g.start||0, actual=g.cumS.map((v,i)=>[start+i,v]);
+  burn.setOption({
+    animationDuration:400,
+    grid:{left:48,right:18,top:24,bottom:26},
+    tooltip:Object.assign({trigger:'axis'},G2.tip,{formatter:ps=>{
+      const p=ps.find(x=>x.seriesId==='actual')||ps[0];
+      return `<b>${G2.dli(p.data[0])}</b><br>`+ps.map(x=>`<span style="color:${x.color}">■</span> ${x.seriesName}: ${amt(g,x.data[1])}`).join('<br>')}}),
+    xAxis:G2.axis({type:'value',min:0,max:END,interval:30.42,splitLine:{show:false},
+      axisLabel:{color:T.dim,fontFamily:'Space Mono',fontSize:10,formatter:monthFmt}}),
+    yAxis:G2.axis({type:'value',min:0,max:Math.ceil(Math.max(g.target,g.projected)*1.06),
+      axisLabel:{color:T.dim,fontFamily:'Space Mono',fontSize:10,formatter:yFmt(g),showMaxLabel:false}}),
+    series:[
+      {id:'even',name:'Even pace',type:'line',showSymbol:false,silent:true,data:[[start,0],[END,g.target]],
+        lineStyle:{color:T.faint,width:1,type:'dashed'}},
+      {id:'proj',name:'At your rate',type:'line',showSymbol:false,silent:true,data:[[TI,g.done],[END,g.projected]],
+        lineStyle:{color:T.faint,width:1,type:'dotted'}},
+      {id:'req',name:'Needed',type:'line',showSymbol:false,data:[[TI,g.done],[END,g.target]],
+        lineStyle:{color:g.gear>1?T.amber:T.green,width:2,type:[6,4]},z:3},
+      {id:'actual',name:'Done',type:'line',showSymbol:false,data:actual,z:4,
+        lineStyle:{color:g.color,width:2.5},
+        areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:g.color+'40'},{offset:1,color:g.color+'00'}])},
+        markArea:g.coverageGap?{silent:true,itemStyle:{color:'rgba(239,68,68,.07)',borderColor:'rgba(239,68,68,.5)',borderType:'dashed',borderWidth:1},
+          label:{color:T.red,fontSize:10,fontFamily:'Space Mono',position:'insideTop',formatter:'not yet\nimported'},
+          data:[[{xAxis:g.coverageGap[0]},{xAxis:g.coverageGap[1]}]]}:undefined,
+        markLine:{silent:true,symbol:'none',data:[
+          {yAxis:g.target,lineStyle:{color:T.border,type:'solid'},label:{formatter:'goal '+amt(g,g.target),color:T.dim,fontSize:10,fontFamily:'Space Mono',position:'insideStartTop'}},
+          {yAxis:g.next,lineStyle:{color:g.color+'77',type:'dashed'},label:{formatter:'next '+amt(g,g.next),color:g.color,fontSize:10,fontFamily:'Space Mono',position:'insideEndTop'}}]}},
+      {id:'sim',name:'Tonight',type:'scatter',data:[],symbolSize:10,itemStyle:{color:T.cyan,borderColor:'#fff',borderWidth:1},z:6}
+    ]},true);
+  document.getElementById('legend').innerHTML=
+    `<span style="color:${g.color}">━ done</span><span class="faint">┄ even pace</span>
+     <span style="color:${g.gear>1?T.amber:T.green}">┅ needed from tonight</span><span class="faint">··· at your rate</span>
+     <span style="color:${T.cyan}">● tonight (slider)</span>`;
+
+  /* history */
+  const K=plotK(g), rh=g.reqHist.map(([i,v])=>[i,+(v*K).toFixed(3)]);
+  const first=rh[0][1], last=rh[rh.length-1][1];
+  const cross=(()=>{for(let j=rh.length-1;j>0;j--){if((rh[j][1]>g.perOpp*K)!==(rh[j-1][1]>g.perOpp*K))return rh[j][0]}return null})();
+  document.getElementById('hist-read').textContent = (last>first
+    ? `Since ${G2.dli(rh[0][0])} this goal got ${Math.round((last/first-1)*100)}% harder.`
+    : `Since ${G2.dli(rh[0][0])} this goal got ${Math.round((1-last/first)*100)}% easier.`)
+    + (cross?` The lines last crossed ${G2.dli(cross)}.`:'');
+  hist.setOption({
+    grid:{left:44,right:12,top:14,bottom:24},
+    tooltip:Object.assign({trigger:'axis'},G2.tip,{formatter:ps=>`${G2.dli(ps[0].data[0])}<br>needed ${G2.num(ps[0].data[1])} ${plotU(g)}`}),
+    xAxis:G2.axis({type:'value',min:rh[0][0],max:TI,interval:30.42,splitLine:{show:false},
+      axisLabel:{color:T.dim,fontFamily:'Space Mono',fontSize:9,formatter:monthFmt}}),
+    yAxis:G2.axis({type:'value',scale:true,axisLabel:{color:T.dim,fontFamily:'Space Mono',fontSize:9,formatter:v=>G2.num(v)}}),
+    series:[{type:'line',data:rh,showSymbol:false,lineStyle:{color:last>first?T.amber:T.green,width:2},
+      areaStyle:{color:(last>first?T.amber:T.green)+'1c'},
+      markLine:{silent:true,symbol:'none',data:[{yAxis:+(g.perOpp*K).toFixed(3),lineStyle:{color:g.color,type:'dashed'},
+        label:{formatter:'your rate',color:g.color,fontSize:9,fontFamily:'Space Mono'}}]}}]
+  },true);
+  simulate();
+}
+
+function simulate(){
+  const g=G2.G[cur], v=+document.getElementById('sim').value, s=SIM[cur];
+  document.getElementById('sim-v').textContent = s.max>1 ? v+' '+s.noun : (v?'yes — '+s.noun:'nothing');
+  const nd=g.done+v, need=Math.max(0,g.target-nd)/g.oppsLeftAfterToday, rn=rate(g,need), r0=rate(g,g.needPerOpp);
+  document.getElementById('t-need').textContent=rn.v;
+  document.getElementById('t-change').textContent = v
+    ? `was ${r0.v} before tonight · ${rn.u}`
+    : `${rn.u} · ${g.oppsLeftAfterToday} ${oppW(g,2)} left`;
+  const crossedAt=Math.floor(nd/g.step)*g.step;
+  document.getElementById('t-crossed').innerHTML = (v && nd>=g.next)
+    ? `<div class="crossed">✦ ${amt(g,crossedAt)} crossed${nd>crossedAt?' — '+amt(g,nd-crossedAt)+' past it':''}. That stays done.</div>`
+    : (v?`<p class="small">${amt(g,g.next-nd)} short of ${amt(g,g.next)}.</p>`:'');
+  burn.setOption({series:[
+    {id:'req',data:[[TI,nd],[END,g.target]]},
+    {id:'sim',data:v?[[TI,nd]]:[]}]});
+}
+document.getElementById('sim').addEventListener('input',simulate);
+
+/* table */
+const tbl=document.getElementById('tbl');
+[...G2.GOALS].sort((a,b)=>b.gear-a.gear).forEach(g=>{
+  const tr=document.createElement('tr'); tr.style.cursor='pointer';
+  tr.onclick=()=>{select(g.key);scrollTo({top:0,behavior:'smooth'})};
+  const r=rate(g,g.perOpp), n=rate(g,g.needPerOpp), d=g.deltaOpps;
+  tr.innerHTML=`<td><b class="white">${g.icon} ${g.label}</b></td>
+    <td class="small mono" style="white-space:nowrap">${g.window}</td>
+    <td class="r n">${amt(g,g.done)}<div class="faint small">of ${amt(g,g.target)}</div></td>
+    <td><div class="bar" style="--bc:${g.color};margin:6px 0"><i style="width:${Math.min(100,g.done/g.target*100)}%"></i>
+      <u style="left:${g.expected/g.target*100}%"></u></div></td>
+    <td class="r n">${r.v}<div class="faint" style="font-size:11px">${r.u}</div></td>
+    <td class="r n" style="color:${g.gear>1?T.amber:T.green}">${n.v}</td>
+    <td class="r n" style="font-weight:700;color:${g.gear>1.2?T.red:g.gear>1.02?T.amber:T.green}">${g.gear.toFixed(2)}×</td>
+    <td class="r n" style="color:${d>=0?T.green:T.red}">${d>=0?'+':'−'}${Math.abs(d).toFixed(0)}<div class="faint" style="font-size:11px">${oppW(g,d)}</div></td>
+    <td>${g.coverageGap?'<span class="pill gap">floor · import pending</span>':'<span class="pill exists">complete</span>'}</td>`;
+  tbl.appendChild(tr);
+});
+
+select('pullups');
+addEventListener('resize',()=>{burn.resize();hist.resize()});
+</script>
+</body></html>

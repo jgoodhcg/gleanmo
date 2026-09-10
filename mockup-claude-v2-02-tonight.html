@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tonight — Gleanmo motivation v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@6.0.0/dist/echarts.min.js"></script>
+<style>
+/* Gleanmo v2 mockups — Gleanmo tokens; Space Mono for numbers & headings,
+   system sans for prose (long mono paragraphs read slowly). */
+:root{
+  --bg:#0d1117; --surface:#161b22; --s2:#0b0e13; --border:#30363d;
+  --text:#c9d1d9; --dim:#8b949e; --faint:#484f58; --white:#f0f6fc;
+  --gold:#ffd400; --azure:#3b82f6; --violet:#8b5cf6; --cyan:#06b6d4;
+  --amber:#f59e0b; --pink:#ec4899; --lime:#32cd32; --green:#22c55e;
+  --red:#ef4444; --orange:#f97316;
+  --mono:'Space Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 var(--sans);
+  padding:0 16px 56px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1160px;margin:0 auto}
+.narrow{max-width:580px;margin:0 auto}
+a{color:var(--cyan);text-underline-offset:3px}
+h1,h2,h3,.mono,.n,.big{font-family:var(--mono)}
+h1{font-size:clamp(26px,4.4vw,42px);line-height:1.12;letter-spacing:-.02em;margin:10px 0 12px;color:var(--white)}
+h2{font-size:clamp(18px,2.6vw,22px);line-height:1.25;margin:0 0 10px;color:var(--white)}
+h3{font-size:15px;margin:0 0 6px;color:var(--white)}
+p{margin:6px 0 12px}
+.n{font-variant-numeric:tabular-nums}
+.big{font-size:clamp(46px,8vw,80px);line-height:1;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.mid{font-family:var(--mono);font-size:clamp(22px,3.4vw,30px);font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums}
+.kicker{font:700 11px/1.4 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.lede{font-size:17px;color:var(--dim);max-width:66ch;margin-bottom:24px}
+.muted{color:var(--dim)} .faint{color:var(--faint)} .white{color:var(--white)}
+.pos{color:var(--green)} .neg{color:var(--red)} .warn{color:var(--amber)}
+small,.small{font-size:13px;color:var(--dim)}
+
+/* top nav */
+nav.top{display:flex;flex-wrap:wrap;align-items:center;gap:6px 20px;border-bottom:1px solid var(--border);
+  padding-block:16px;margin-bottom:28px}
+nav.top .brand{font:700 15px var(--mono);color:var(--white);margin-right:auto;text-decoration:none}
+nav.top .brand span{color:var(--cyan)}
+nav.top a{font:12px var(--mono);color:var(--dim);text-decoration:none;padding:6px 0}
+nav.top a:hover,nav.top a[aria-current]{color:var(--cyan)}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:22px;min-width:0}
+.card.hero{border-color:var(--hc,var(--cyan))}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:1.55fr 1fr}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:860px){.g2,.g3,.g4{grid-template-columns:1fr}}
+.sec{margin-top:36px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.rule{border-top:1px solid var(--border);margin-top:18px;padding-top:18px}
+
+.pill{display:inline-flex;align-items:center;gap:6px;font:11px/1.4 var(--mono);border:1px solid var(--border);
+  border-radius:999px;padding:4px 10px;color:var(--dim);white-space:nowrap}
+.pill.proposed{border-style:dashed;border-color:var(--amber);color:var(--amber)}
+.pill.gap{border-color:rgba(239,68,68,.6);color:var(--red)}
+.pill.exists{border-color:rgba(34,197,94,.5);color:var(--green)}
+
+.bar{position:relative;height:8px;background:var(--s2);border:1px solid var(--border);border-radius:4px;overflow:hidden;margin:12px 0 8px}
+.bar>i{position:absolute;inset:0 auto 0 0;display:block;background:var(--bc,var(--cyan))}
+.bar>u{position:absolute;top:-1px;bottom:-1px;width:2px;background:var(--white);opacity:.55}
+
+button,.btn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:8px 14px;
+  background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:6px;
+  font:12px var(--mono);cursor:pointer;text-decoration:none;
+  transition:border-color 150ms ease-out,background 150ms ease-out,transform 100ms ease-out}
+button:hover,.btn:hover{border-color:var(--cyan)}
+button:active{transform:scale(.98)}
+button[aria-pressed="true"]{background:var(--cyan);border-color:var(--cyan);color:#06121a;font-weight:700}
+:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+input[type=range]{width:100%;accent-color:var(--cyan);margin:14px 0 6px;min-height:28px}
+
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{font:700 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--dim);text-align:left;
+  padding:0 10px 8px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:11px 10px;border-bottom:1px solid rgba(48,54,61,.7);vertical-align:top}
+td.r,th.r{text-align:right}
+.scroll{overflow-x:auto}
+.callout{border-left:3px solid var(--cc,var(--cyan));background:var(--s2);padding:14px 16px;border-radius:0 6px 6px 0;margin:16px 0;font-size:14px}
+details{border-top:1px solid var(--border);margin-top:32px;padding-top:12px}
+summary{cursor:pointer;min-height:40px;color:var(--dim);font:13px var(--mono);display:flex;align-items:center}
+details p,details li{font-size:14px;color:var(--dim);max-width:78ch}
+footer{margin-top:48px;border-top:1px solid var(--border);padding-top:16px;font:11px var(--mono);color:var(--faint);text-align:center}
+.chart{width:100%}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+.budget{display:flex;gap:8px;flex-wrap:wrap}
+.budget button{min-height:44px;flex:1 1 0;min-width:70px}
+.inv{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--ic);border-radius:8px;
+  padding:18px;margin-bottom:12px;transition:transform 120ms ease-out}
+.inv:hover{transform:translateY(-1px)}
+.inv .top{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.inv h3{font-size:19px;line-height:1.3;margin:12px 0 6px}
+.inv h3 em{font-style:normal;color:var(--ic)}
+.inv p{font-size:14px;color:var(--dim);margin:0 0 10px}
+.inv p b{color:var(--text)}
+.inv .foot{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.inv .go{margin-left:auto;border-color:var(--ic);color:var(--ic);min-height:44px}
+.inv.urgent{border-left-color:var(--red)}
+.days{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:12px 0}
+.days span{height:30px;border-radius:4px;display:grid;place-items:center;font:10px var(--mono);border:1px solid var(--border);color:var(--dim)}
+.days .q{background:var(--ic);border-color:var(--ic);color:#0d1117;font-weight:700}
+.days .p{border-color:var(--ic);border-style:dashed;color:var(--ic)}
+.days .t{border-color:var(--white);color:var(--white)}
+.days .f{border-style:dotted;color:var(--faint)}
+.steps{display:grid;gap:8px;margin:14px 0}
+.steps button{justify-content:flex-start;min-height:46px;font-size:13px}
+.steps button[aria-pressed="true"]{background:rgba(6,182,212,.14);color:var(--cyan);border-color:var(--cyan)}
+.banked{display:flex;gap:10px;align-items:baseline;padding:10px 0;border-bottom:1px solid rgba(48,54,61,.7);font-size:14px}
+.banked .amt{margin-left:auto;text-align:right;font:12px var(--mono);color:var(--dim)}
+.enough{border:1px solid rgba(34,197,94,.45);background:rgba(34,197,94,.05)}
+.sech{display:flex;align-items:baseline;gap:10px;margin:32px 0 12px;flex-wrap:wrap}
+.sech h2{font-size:13px;letter-spacing:.14em;text-transform:uppercase;margin:0}
+.sech small{font-size:12px}
+</style></head>
+<body><div class="wrap">
+<nav class="top" aria-label="v2 mockups">
+  <a class="brand" href="mockup-claude-v2-00-index.html">gleanmo <span>/ motivation v2</span></a>
+  <a href="mockup-claude-v2-00-index.html">Pitches</a>
+  <a href="mockup-claude-v2-01-finish-line.html">01 Finish line</a>
+  <a href="mockup-claude-v2-02-tonight.html" aria-current="page">02 Tonight</a>
+  <a href="mockup-claude-v2-03-studio.html">03 Studio</a>
+</nav>
+
+<div class="narrow">
+
+<div class="kicker">02 · Tonight</div>
+<h1>Thursday, 9:52pm.</h1>
+<p class="lede" style="margin-bottom:18px">You have maybe an hour. Here is what fits in it, what finishes
+something, and what can honestly wait.</p>
+
+<div class="card">
+  <div class="kicker" style="margin-bottom:10px">How long have you got?</div>
+  <div class="budget" id="budget">
+    <button data-b="10">10 min</button><button data-b="20" aria-pressed="true">20 min</button>
+    <button data-b="45">45 min</button><button data-b="999">Any</button>
+  </div>
+  <p class="small" id="budget-note" style="margin:12px 0 0"></p>
+</div>
+
+<div class="sech"><h2>Finishes tonight</h2><small>always shown — it's six minutes</small></div>
+<section class="card hero" style="--hc:var(--cyan)">
+  <div class="row"><h2>🌙 Winddown</h2><span class="pill" id="wd-count"></span></div>
+  <p class="small">Three habits, one routine. The night runs until 4:00am, so a 12:30 floss still counts
+    as Thursday.</p>
+  <div class="steps" id="steps"></div>
+  <p id="wd-msg" class="white mono" style="font-size:14px;margin:0"></p>
+  <div class="rule">
+    <div class="row"><small>Complete nights, last 28</small><span class="mid" id="wd-28"></span></div>
+    <p class="small" id="wd-28-note" style="margin-top:6px"></p>
+  </div>
+</section>
+
+<div class="sech"><h2 id="fit-h">Fits in 20 minutes</h2><small>closest threshold first</small></div>
+<div id="fits"></div>
+<p class="small" id="hidden-note"></p>
+
+<div class="sech"><h2>Can honestly wait</h2><small>the other half of motivation</small></div>
+<div id="wait"></div>
+
+<div class="sech"><h2>Already banked today</h2><small>and what it moved</small></div>
+<div class="card" id="banked" style="padding-top:8px;padding-bottom:8px"></div>
+
+<div class="sech"><h2>When you actually do things</h2><small>so the budget isn't a guess</small></div>
+<div class="card">
+  <div class="chart" id="hours" style="height:120px"></div>
+  <p class="small" id="hours-read" style="margin:10px 0 0"></p>
+</div>
+
+<details>
+  <summary>Why this page looks like this</summary>
+  <p>It opens on a time budget rather than a ranking because "what's cheapest" is the wrong
+    question at 9:52pm — "what fits" is the right one, and only you know the answer. The default
+    comes from your own hour-of-day history.</p>
+  <p>Cards are capped and sorted by distance to a threshold, not by cost. Deep work is pinned
+    to tomorrow rather than competing with ten-minute wins it would always lose to.</p>
+  <p>The "can honestly wait" section exists because a screen that only ever asks for more
+    becomes a screen you stop opening. When a week's intention is met, the page says so and stops.</p>
+  <p>Data: pull-ups, drawing, writing, music and meditation work from existing logs plus a goal.
+    The book card needs <code>book/page-count</code> and <code>reading-log/page-position</code>
+    (marked <span class="pill proposed">proposed</span>). Winddown needs a routine definition.</p>
+</details>
+<footer>Claude · v2 mockup · fictional data, internally consistent · now = Thu Sep 10 2026, 9:52pm</footer>
+</div></div>
+<script>/* ==========================================================================
+   G2 — mock data core for the v2 Gleanmo motivation dashboards.
+   Deterministic and self-consistent. "Now" is Thu 2026-09-10, 9:52pm.
+   Differences from a naive generator, each one deliberate:
+     • workouts before Mar 2 live in the unported exercise spreadsheet, so the
+       app has nothing for Jan 1 – Mar 1 (coverage gap, shown, never faked)
+     • project sessions carry an activity only from Aug 17, when
+       project-log/activity-id "ships"; earlier sessions are backfilled only
+       when their project has exactly one activity, else stay unclassified
+     • winddown is three habits, so a night can be partial
+     • goals count eligible opportunities (training days), not calendar days
+   ========================================================================== */
+const G2 = (function () {
+  const T = {
+    bg:'#0d1117', surface:'#161b22', s2:'#0b0e13', border:'#30363d',
+    text:'#c9d1d9', dim:'#8b949e', faint:'#484f58',
+    gold:'#ffd400', azure:'#3b82f6', violet:'#8b5cf6', cyan:'#06b6d4',
+    amber:'#f59e0b', pink:'#ec4899', lime:'#32cd32', green:'#22c55e',
+    red:'#ef4444', orange:'#f97316', teal:'#2dd4bf'
+  };
+  function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+  const R = rng(20260910);
+  const r = (lo,hi)=>lo+Math.round(R()*(hi-lo));
+
+  /* ---- calendar ---------------------------------------------------------- */
+  const TI = 252;                       // index of today (Sep 10) — Thursday
+  const N = TI + 1;                     // days with data, today included
+  const YEAR_END = 364;
+  const CAPTURE = 60;                   // Mar 2: in-app workout capture begins
+  const ACTIVITY_SHIPPED = 228;         // Aug 17: project-log/activity-id exists
+  const WEEK_START = 249;               // Mon Sep 7
+  const NOW_H = 21 + 52/60;
+  const dateOf = i => new Date(2026,0,1+i);
+  const dow = i => dateOf(i).getDay();
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const DN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const dl = d => MON[d.getMonth()]+' '+d.getDate();
+  const dli = i => dl(dateOf(i));
+  const shape = i => i<12?.5 : (i>=187&&i<=204)?.2 : (i>=205&&i<=215)?.7 : i>=231?1.12 : 1;
+  const sum = a => a.reduce((x,y)=>x+y,0);
+  const cum = a => {let c=0;return a.map(v=>c+=v)};
+
+  /* ---- raw daily data ----------------------------------------------------- */
+  const TRAIN = [1,2,4,6];              // Mon Tue Thu Sat
+  const workout = [], reps = [];
+  for (let i=0;i<N;i++){
+    const p = (TRAIN.includes(dow(i))?.82:.08)*shape(i);
+    const did = i>=CAPTURE && R()<p ? 1 : 0;
+    workout.push(did);
+    reps.push(did ? r(28,52)+Math.round(i/14) : 0);      // slow progression
+  }
+  const meditate = [], read = [], wd = [];
+  for (let i=0;i<N;i++){
+    meditate.push(R()<.9*Math.min(1.05,shape(i)+.08) ? (R()<.1?r(35,50):r(10,28)) : 0);
+    read.push(R()<.72*shape(i) ? r(15,55) : 0);
+    const s=shape(i), b=R()<.97, f=R()<.8*s+.05, k=R()<.74*s+.05;
+    wd.push([b?1:0,f?1:0,k?1:0]);
+  }
+
+  /* ---- projects & activities --------------------------------------------- */
+  const ACT = {
+    writing:{label:'Writing', color:T.amber},
+    drawing:{label:'Drawing', color:T.pink},
+    music:{label:'Music', color:T.violet},
+    software:{label:'Software', color:T.azure},
+    editing:{label:'Editing', color:T.gold}
+  };
+  const PROJ = [
+    {id:'lowtide', label:'Low Tide', kind:'Novel', acts:{writing:1}, p:[.2,.55,.45,.55,.5,.4,.3], m:[30,95]},
+    {id:'garage',  label:'Garage Build', kind:'Video', acts:{editing:.6,writing:.2,music:.2}, p:[.05,.12,.1,.1,.12,.35,.3], m:[40,150]},
+    {id:'moth',    label:'Moth Lantern', kind:'Game', acts:{software:.6,drawing:.25,music:.15}, p:[.05,.1,.12,.1,.14,.4,.35], m:[35,140]},
+    {id:'gleanmo', label:'Gleanmo', kind:'Software', acts:{software:1}, p:[.25,.7,.72,.7,.72,.35,.2], m:[45,190]},
+    {id:'sketch',  label:'Sketchbook', kind:'Practice', acts:{drawing:1}, p:[.35,.42,.36,.4,.36,.5,.45], m:[8,45]},
+    {id:'guitar',  label:'Guitar', kind:'Practice', acts:{music:1}, p:[.2,.24,.28,.2,.24,.36,.3], m:[15,60]}
+  ];
+  const pick = w => { let x=R(),a=0; for (const k in w){a+=w[k]; if(x<a) return k;} return Object.keys(w)[0]; };
+  const sessions = [];
+  for (let i=0;i<N;i++) for (const pr of PROJ){
+    if (R() < pr.p[dow(i)]*shape(i)) {
+      const act = pick(pr.acts);
+      const single = Object.keys(pr.acts).length===1;
+      sessions.push({i, proj:pr.id, min:r(pr.m[0],pr.m[1]),
+        act: (i>=ACTIVITY_SHIPPED || single) ? act : null, trueAct:act,
+        backfilled: i<ACTIVITY_SHIPPED && single});
+    }
+  }
+
+  /* ---- force this week into a clean, specific story ---------------------- */
+  // Mon Sep 7 .. Thu Sep 10 (today, 9:52pm)
+  const setDay = (i, o) => {
+    if ('workout' in o){ workout[i]=o.workout; reps[i]=o.reps||0; }
+    if ('meditate' in o) meditate[i]=o.meditate;
+    if ('read' in o) read[i]=o.read;
+    if ('wd' in o) wd[i]=o.wd;
+  };
+  setDay(249,{workout:1,reps:58,meditate:20,read:30,wd:[1,1,1]});
+  setDay(250,{workout:1,reps:51,meditate:15,read:0, wd:[1,1,1]});
+  setDay(251,{workout:0,meditate:22,read:40,wd:[1,0,1]});
+  setDay(252,{workout:0,meditate:15,read:0, wd:[1,1,0]});   // tonight: skincare open
+  for (let i=229;i<249;i++){ if(!meditate[i]) meditate[i]=r(10,20); }   // a real streak
+  for (let i=244;i<N;i++){ // clear project sessions this week and rebuild by hand
+    for (let k=sessions.length-1;k>=0;k--) if (sessions[k].i===i) sessions.splice(k,1);
+  }
+  const S=(i,proj,act,min)=>sessions.push({i,proj,act,trueAct:act,min,backfilled:false});
+  // last week's tail (Sep 3–6), music deliberately absent since Sep 2
+  S(244,'gleanmo','software',120); S(244,'sketch','drawing',20);
+  S(245,'lowtide','writing',70);  S(245,'gleanmo','software',95);
+  S(246,'moth','software',110);   S(246,'sketch','drawing',30); S(246,'garage','editing',80);
+  S(247,'garage','editing',95);   S(247,'moth','drawing',40); S(247,'lowtide','writing',55);
+  S(248,'sketch','drawing',25);   S(248,'moth','software',60);
+  // this week
+  S(249,'lowtide','writing',60);  S(249,'sketch','drawing',25); S(249,'gleanmo','software',150);
+  S(250,'sketch','drawing',10);   S(250,'gleanmo','software',135);            // 10 min: not a qualifying day
+  S(251,'lowtide','writing',45);  S(251,'moth','drawing',18);  S(251,'gleanmo','software',120);
+  S(252,'lowtide','writing',50);  S(252,'gleanmo','software',95);
+  sessions.sort((a,b)=>a.i-b.i);
+
+  /* ---- books (reading-log/finished? exists today) ------------------------ */
+  const BOOKS = ['The Dispossessed','Piranesi','Stoner','The Remains of the Day','Klara and the Sun',
+    'A Psalm for the Wild-Built','Station Eleven','The Left Hand of Darkness','Tomorrow, and Tomorrow, and Tomorrow',
+    'Pachinko','Circe','The Overstory','Babel','Project Hail Mary','Sea of Tranquility','The Name of the Wind'];
+  const bookDays = [14,31,47,62,76,93,104,121,139,152,168,181,214,226,238,247];
+  const booksDaily = Array(N).fill(0); bookDays.forEach(d=>booksDaily[d]=1);
+  const currentBook = {title:'The Buried Giant', pages:317, position:233, sessionsPerPage:null};
+
+  /* ---- per-day activity minutes ------------------------------------------ */
+  const actDaily = {}; Object.keys(ACT).forEach(a=>actDaily[a]=Array(N).fill(0));
+  const unclassDaily = Array(N).fill(0);
+  sessions.forEach(s=>{ if (s.act) actDaily[s.act][s.i]+=s.min; else unclassDaily[s.i]+=s.min; });
+  const projDaily = {}; PROJ.forEach(p=>projDaily[p.id]=Array(N).fill(0));
+  sessions.forEach(s=>projDaily[s.proj][s.i]+=s.min);
+  const wdComplete = wd.map(n=>n[0]&&n[1]&&n[2]?1:0);
+
+  /* ---- goals: finish lines ------------------------------------------------ */
+  const opps = (from,to,elig) => { let c=0; for(let i=from;i<=to;i++) if(!elig||elig.includes(dow(i))) c++; return c; };
+  function goal(g){
+    const s = g.series, from = g.start||0;
+    const done = sum(s.slice(from, N));
+    const todaySoFar = s[TI];
+    const eligToday = !g.elig || g.elig.includes(dow(TI));
+    const oppsLeftInclToday = opps(TI, YEAR_END, g.elig);
+    const oppsLeftAfterToday = opps(TI+1, YEAR_END, g.elig);
+    const oppsElapsed = opps(from, TI, g.elig);
+    const oppsTotal = opps(from, YEAR_END, g.elig);
+    const remaining = Math.max(0, g.target-done);
+    const perOpp = done/oppsElapsed;
+    const needPerOpp = remaining/oppsLeftAfterToday;           // from tomorrow, given today so far
+    const expected = g.target*oppsElapsed/oppsTotal;
+    const delta = done-expected;
+    const deltaOpps = delta/(g.target/oppsTotal);
+    const gear = needPerOpp/perOpp;
+    const next = (Math.floor(done/g.step)+1)*g.step;
+    const projected = done + perOpp*oppsLeftAfterToday;
+    const cumS = cum(s.slice(from,N));
+    // required-per-opportunity at each past day
+    const reqHist = [];
+    for (let i=from+21;i<N;i++){
+      const d = cumS[i-from], left = opps(i+1,YEAR_END,g.elig);
+      reqHist.push([i, (g.target-d)/left]);
+    }
+    return Object.assign({}, g, {done,todaySoFar,eligToday,oppsLeftInclToday,oppsLeftAfterToday,
+      oppsElapsed,oppsTotal,remaining,perOpp,needPerOpp,expected,delta,deltaOpps,gear,next,
+      toNext:next-done,projected,cumS,reqHist});
+  }
+  const GOALS_RAW = [
+    {key:'pullups', label:'Pull-ups', icon:'🏋️', color:T.red, unit:'reps', per:'training day',
+     series:reps, start:CAPTURE, elig:TRAIN, step:250, stance:1.02,
+     source:'exercise-line reps, scoped to the pull-up exercise ids',
+     window:'Mar 2 → Dec 31', note:'Starts Mar 2 on purpose: that is where complete in-app capture begins.'},
+    {key:'meditate', label:'Meditation', icon:'🧘', color:T.green, unit:'minutes', per:'day',
+     series:meditate, start:0, elig:null, step:600, stance:.97,
+     source:'meditation-log intervals', window:'Jan 1 → Dec 31'},
+    {key:'books', label:'Books finished', icon:'📖', color:T.orange, unit:'books', per:'day',
+     series:booksDaily, start:0, elig:null, step:1, target:24,
+     source:'reading-log/finished? — exists today', window:'Jan 1 → Dec 31'},
+    {key:'writing', label:'Writing', icon:'✍️', color:T.amber, unit:'minutes', per:'writing day',
+     series:actDaily.writing, start:0, elig:[1,2,3,4,5,6], step:600, stance:1.1,
+     source:'project-log minutes where activity = writing', window:'Jan 1 → Dec 31',
+     note:'Counts Low Tide (backfilled — single-activity project) plus classified writing on Garage Build.'},
+    {key:'winddown', label:'Complete winddowns', icon:'🌙', color:T.cyan, unit:'nights', per:'night',
+     series:wdComplete, start:0, elig:null, step:25, stance:1.05,
+     source:'routine over 3 habit-logs, night ends 4:00am', window:'Jan 1 → Dec 31'},
+    {key:'sessions', label:'Workout sessions', icon:'💪', color:T.pink, unit:'sessions', per:'training day',
+     series:workout, start:0, elig:TRAIN, step:10, target:150,
+     source:'exercise-session', window:'Jan 1 → Dec 31', coverageGap:[0,CAPTURE-1],
+     note:'Jan 1 – Mar 1 is still in the exercise spreadsheet. Every number here is a floor until that import lands.'}
+  ];
+  GOALS_RAW.forEach(g=>{
+    if (!g.target){
+      const done = sum(g.series.slice(g.start||0,N));
+      const oE = opps(g.start||0,TI,g.elig), oT = opps(g.start||0,YEAR_END,g.elig);
+      g.target = Math.round(done/oE*oT*g.stance/g.step)*g.step;
+    }
+  });
+  const GOALS = GOALS_RAW.map(goal);
+  const G = Object.fromEntries(GOALS.map(g=>[g.key,g]));
+
+  /* ---- weekly intentions -------------------------------------------------- */
+  function weekly(w){
+    const vals = w.daily.slice(WEEK_START, N);
+    const qual = vals.map(v=>w.minPerDay? (v>=w.minPerDay?1:0) : (v>0?1:0));
+    const got = w.kind==='days' ? sum(qual) : sum(vals);
+    // weekly history: completed weeks Mon–Sun before this week
+    const hist = [];
+    for (let s=WEEK_START-7*16; s<WEEK_START; s+=7){
+      const v = w.daily.slice(s,s+7);
+      const g2 = w.kind==='days' ? v.filter(x=>w.minPerDay? x>=w.minPerDay : x>0).length : sum(v);
+      hist.push({start:s, got:g2, met:g2>=w.target});
+    }
+    let streak=0; for (let k=hist.length-1;k>=0;k--){ if(hist[k].met) streak++; else break; }
+    const daysLeft = 6 - (TI-WEEK_START);    // after today, through Sunday
+    return Object.assign({}, w, {vals, qual, got, left:Math.max(0,w.target-got), hist, streak,
+      met12: hist.slice(-12).filter(h=>h.met).length, daysLeft});
+  }
+  const WEEKLY = [
+    weekly({key:'workoutdays', label:'Workout days', icon:'🏋️', color:T.red, kind:'days', target:3, daily:workout, unitTxt:'days'}),
+    weekly({key:'meddays', label:'Meditation days', icon:'🧘', color:T.green, kind:'days', target:5, daily:meditate, unitTxt:'days'}),
+    weekly({key:'drawdays', label:'Drawing days', icon:'🎨', color:T.pink, kind:'days', target:4, minPerDay:15, daily:actDaily.drawing, unitTxt:'days ≥15 min'}),
+    weekly({key:'musicdays', label:'Music days', icon:'🎸', color:T.violet, kind:'days', target:2, minPerDay:20, daily:actDaily.music, unitTxt:'days ≥20 min'}),
+    weekly({key:'writemin', label:'Writing', icon:'✍️', color:T.amber, kind:'minutes', target:180, daily:actDaily.writing, unitTxt:'min'}),
+    weekly({key:'softmin', label:'Software', icon:'💻', color:T.azure, kind:'minutes', target:480, daily:actDaily.software, unitTxt:'min'}),
+    weekly({key:'editmin', label:'Editing', icon:'🎬', color:T.gold, kind:'minutes', target:120, daily:actDaily.editing, unitTxt:'min'})
+  ];
+  const W = Object.fromEntries(WEEKLY.map(w=>[w.key,w]));
+
+  /* ---- streaks ---------------------------------------------------------- */
+  function streak(a){ let cur=0,best=0,run=0; a.forEach(v=>{ if(v>0){run++;best=Math.max(best,run)} else run=0; }); return {cur:run,best}; }
+  const lastActive = a => { for(let i=N-1;i>=0;i--) if(a[i]>0) return TI-i; return 999; };
+
+  /* ---- formatting --------------------------------------------------------- */
+  const num = v => Math.abs(v)>=100||Number.isInteger(v) ? Math.round(v).toLocaleString() : v.toFixed(1);
+  function fmt(v,g){
+    if (g.unit==='minutes') return v>=600 ? (v/60>=100?Math.round(v/60):(v/60).toFixed(1))+' h' : Math.round(v)+' min';
+    return num(v)+' '+(Math.round(v)===1&&g.unit.endsWith('s')?g.unit.slice(0,-1):g.unit);
+  }
+  const hm = m => m>=60 ? Math.floor(m/60)+'h '+String(Math.round(m%60)).padStart(2,'0')+'m' : Math.round(m)+'m';
+  const axis = extra => Object.assign({axisLine:{lineStyle:{color:T.border}},axisTick:{show:false},
+    axisLabel:{color:T.dim,fontFamily:'Space Mono, monospace',fontSize:10},
+    splitLine:{lineStyle:{color:'rgba(48,54,61,.55)'}}}, extra||{});
+  const tip = {backgroundColor:'#0b0e13',borderColor:T.border,borderWidth:1,
+    textStyle:{color:T.text,fontFamily:'Space Mono, monospace',fontSize:11}};
+
+  return {T,rng,TI,N,YEAR_END,CAPTURE,ACTIVITY_SHIPPED,WEEK_START,NOW_H,TRAIN,dateOf,dow,MON,DN,dl,dli,sum,cum,opps,
+    workout,reps,meditate,read,wd,wdComplete,ACT,PROJ,sessions,actDaily,unclassDaily,projDaily,
+    BOOKS,bookDays,currentBook,GOALS,G,WEEKLY,W,streak,lastActive,num,fmt,hm,axis,tip};
+})();
+</script>
+<script>
+const T=G2.T, TI=G2.TI;
+const pu=G2.G.pullups, wdd=G2.W.workoutdays, draw=G2.W.drawdays, wr=G2.W.writemin, mus=G2.W.musicdays,
+      soft=G2.W.softmin, bk=G2.G.books, med=G2.G.meditate;
+const cb=G2.currentBook, pagesLeft=cb.pages-cb.position;
+const musicCold=G2.lastActive(G2.actDaily.music);
+const dayCells=(w,thr)=>{
+  const labels=['M','T','W','T','F','S','S'];
+  return `<div class="days" style="--ic:${w.color}">`+labels.map((l,k)=>{
+    const i=G2.WEEK_START+k;
+    if(i>TI) return `<span class="f">${l}</span>`;
+    const v=w.daily[i]; const q=thr? v>=thr : v>0;
+    if(i===TI && !q) return `<span class="t">${l}</span>`;
+    return q?`<span class="q">${l}</span>`:(v>0?`<span class="p">${v}m</span>`:`<span>${l}</span>`);
+  }).join('')+'</div>';
+};
+
+/* ---- invitations: est = minutes needed; score = how close the threshold is (0..1) ---- */
+const INV=[
+  {k:'pullups', ic:pu.color, est:10, score:1-pu.toNext/250,
+   pill:'Pull-ups · training day', data:'<span class="pill exists">existing data</span>',
+   h:`<em>${pu.toNext} reps</em> gets you to ${pu.next.toLocaleString()}.`,
+   p:`Thursday is a training day and nothing is logged yet. A 10-minute ladder covers it and makes
+      this <b>${wdd.got+1} of ${wdd.target} workout days</b> — the week closes tonight and Saturday becomes a bonus.`},
+  {k:'write', ic:G2.ACT.writing.color, est:wr.left, score:1-wr.left/wr.target,
+   pill:'Writing · across projects', data:'<span class="pill exists">activity-id</span>',
+   h:`<em>${wr.left} minutes</em> finishes this week's 3 hours.`,
+   p:`${wr.got} of ${wr.target} minutes logged, all on <b>Low Tide</b>. Any writing counts —
+      Garage Build's script would too, because the session carries the activity, not the project.`},
+  {k:'draw', ic:draw.color, est:15, score:.7,
+   pill:'Drawing · 15-minute days', data:'<span class="pill exists">activity-id</span>',
+   h:`One of the <em>${draw.left} drawing days</em> still owed.`,
+   p:`Tuesday's 10 minutes didn't qualify (the bar is 15), so this week sits at <b>${draw.got} of ${draw.target}</b>
+      with ${draw.daysLeft} days left after tonight. Tonight makes the rest of the week one day, not two.`,
+   extra:dayCells(draw,15)},
+  {k:'music', ic:mus.color, est:20, score:.9, urgent:true,
+   pill:'Music · '+musicCold+' days cold', data:'<span class="pill exists">activity-id</span>',
+   h:`<em>${musicCold} days</em> since you played. Twenty minutes resets it.`,
+   p:`The week wants ${mus.target} music days and has ${mus.got}. Waiting means both have to land on
+      Saturday and Sunday — tonight turns that into one.`},
+  {k:'read', ic:T.orange, est:30, score:1-pagesLeft/cb.pages,
+   pill:'Reading · '+cb.title, data:'<span class="pill proposed">needs page fields</span>',
+   h:`<em>${pagesLeft} pages</em> to the end of <i>${cb.title}</i>.`,
+   p:`30 minutes tonight at your usual 0.8 pages a minute leaves ~60 — a Saturday finish. That's
+      <b>book ${bk.done+1} of ${bk.target}</b>, and it puts the year back on pace (that part works today,
+      from <code>reading-log/finished?</code>).`},
+];
+function render(budget){
+  const fits=INV.filter(c=>c.est<=budget).sort((a,b)=>(b.urgent?1:0)-(a.urgent?1:0)||b.score-a.score).slice(0,4);
+  const hidden=INV.filter(c=>c.est>budget);
+  document.getElementById('fit-h').textContent = budget>=999?'Fits tonight':`Fits in ${budget} minutes`;
+  document.getElementById('fits').innerHTML = fits.map(c=>`
+    <article class="inv${c.urgent?' urgent':''}" style="--ic:${c.ic}">
+      <div class="top"><span class="pill">${c.pill}</span>${c.data}</div>
+      <h3>${c.h}</h3><p>${c.p}</p>${c.extra||''}
+      <div class="foot"><span class="pill" style="color:${c.ic};border-color:${c.ic}">~${c.est} min</span>
+        <button class="go">Start timer</button></div>
+    </article>`).join('') || '<p class="muted">Nothing on the list fits in that. Winddown above does.</p>';
+  document.getElementById('hidden-note').textContent = hidden.length
+    ? `${hidden.length} more need${hidden.length===1?'s':''} longer than you have: ${hidden.map(c=>c.pill.split(' · ')[0].toLowerCase()).join(', ')}.`
+    : '';
+  document.getElementById('budget-note').textContent = budget>=999
+    ? 'Showing everything, capped at four so quick wins can\'t bury the list.'
+    : `Defaulted to 20: after 10pm you usually log short things. ${fits.length} fit.`;
+}
+document.querySelectorAll('#budget button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#budget button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
+  render(+b.dataset.b);
+});
+render(20);
+
+/* ---- winddown routine ---- */
+(function(){
+  const names=['Brush','Floss','Skincare'], tonight=G2.wd[TI].slice(), mins=[2,2,6];
+  const last28=G2.wdComplete.slice(TI-28,TI), c28=G2.sum(last28);
+  const partial=G2.wd.slice(TI-28,TI).filter(n=>G2.sum(n)>0&&G2.sum(n)<3).length;
+  document.getElementById('wd-28').textContent=c28+' / 28';
+  document.getElementById('wd-28-note').textContent=
+    `${partial} partial nights stay partial — they neither count as complete nor get erased. Skincare is the step that goes missing.`;
+  const el=document.getElementById('steps');
+  function draw(){
+    el.innerHTML=names.map((n,k)=>`<button data-k="${k}" aria-pressed="${!!tonight[k]}">${tonight[k]?'✓':'○'}&nbsp; ${n}${tonight[k]?'':' · ~'+mins[k]+' min'}</button>`).join('');
+    el.querySelectorAll('button').forEach(b=>b.onclick=()=>{tonight[+b.dataset.k]^=1;draw()});
+    const left=names.filter((_,k)=>!tonight[k]);
+    document.getElementById('wd-count').textContent=(3-left.length)+' / 3';
+    document.getElementById('wd-msg').textContent = left.length
+      ? `${left.join(' + ')} completes tonight. (preview only — nothing is logged)`
+      : `Complete. ${G2.G.winddown.toNext-1>0?G2.G.winddown.toNext-1+' more complete nights reaches '+G2.G.winddown.next+'.':'That is '+G2.G.winddown.next+' this year.'}`;
+  }
+  draw();
+})();
+
+/* ---- can wait ---- */
+document.getElementById('wait').innerHTML=`
+  <div class="card enough" style="margin-bottom:12px">
+    <div class="row"><h3>💻 Software — week already met</h3><span class="pill exists">${G2.hm(soft.got)} / ${G2.hm(soft.target)}</span></div>
+    <p class="small" style="margin:6px 0 0">This week's intention is done. Gleanmo does not get tonight.
+      Let that be enough.</p>
+  </div>
+  <div class="card" style="margin-bottom:12px">
+    <div class="row"><h3>📌 Pinned for tomorrow morning</h3><span class="pill">~90 min</span></div>
+    <p class="small" style="margin:6px 0 0"><b class="white">Low Tide — draft chapter 7.</b> Deep work
+      never competes with ten-minute cards; it would lose every time. It sits here until it's the
+      right time of day.</p>
+  </div>
+  <div class="card">
+    <div class="row"><h3>🧘 Meditation</h3><span class="pill exists">done today</span></div>
+    <p class="small" style="margin:6px 0 0">${G2.streak(G2.meditate).cur}-day streak is safe
+      (record ${G2.streak(G2.meditate).best}). ${G2.fmt(med.toNext,med)} to ${G2.fmt(med.next,med)} — that's a weekend thing.</p>
+  </div>`;
+
+/* ---- banked ---- */
+const today=[
+  {i:'🧘',t:'Meditation — 15 min',m:`+0.8 days of pace · streak ${G2.streak(G2.meditate).cur}`},
+  {i:'✍️',t:'Writing — 50 min, Low Tide',m:`${wr.got} / ${wr.target} min this week`},
+  {i:'💻',t:'Software — 1h 35m, Gleanmo',m:'closed the week\'s 8 hours'},
+  {i:'🌙',t:'Brush + floss',m:'2 of 3 steps'}];
+document.getElementById('banked').innerHTML=today.map(b=>
+  `<div class="banked"><span>${b.i}</span><span>${b.t}</span><span class="amt">${b.m}</span></div>`).join('');
+
+/* ---- hour-of-day ---- */
+(function(){
+  const R=G2.rng(77), hrs=[...Array(24)].map((_,h)=>{
+    const b=h<6?.01:h<8?.25:h<12?.55:h<14?.3:h<17?.5:h<20?.8:h<22?.6:h<23?.18:.05;
+    return Math.round(b*100*(.8+R()*.4));});
+  const after=hrs.slice(22).reduce((a,b)=>a+b,0), tot=hrs.reduce((a,b)=>a+b,0);
+  document.getElementById('hours-read').innerHTML=
+    `<b class="white">${Math.round(after/tot*100)}% of your logged activity happens after 10pm</b>, and
+     almost none of it runs longer than 25 minutes. That's where the 20-minute default comes from.`;
+  echarts.init(document.getElementById('hours')).setOption({
+    grid:{left:6,right:6,top:10,bottom:22},
+    tooltip:Object.assign({trigger:'axis'},G2.tip,{formatter:ps=>`${ps[0].name}:00 · active on ${ps[0].value}% of days`}),
+    xAxis:G2.axis({type:'category',data:[...Array(24)].map((_,h)=>h),splitLine:{show:false},
+      axisLabel:{color:T.dim,fontSize:9,fontFamily:'Space Mono',formatter:v=>({0:'12a',6:'6a',12:'12p',18:'6p'})[v]||''}}),
+    yAxis:{type:'value',show:false},
+    series:[{type:'bar',barCategoryGap:'22%',data:hrs.map((v,h)=>({value:v,itemStyle:{borderRadius:[2,2,0,0],
+      color:h<21?'rgba(139,148,158,.28)':h<22?'rgba(6,182,212,.45)':T.cyan}})),
+      markLine:{silent:true,symbol:'none',data:[{xAxis:22,lineStyle:{color:T.gold},
+        label:{formatter:'now',color:T.gold,fontSize:9,fontFamily:'Space Mono'}}]}}]
+  });
+})();
+</script>
+</body></html>

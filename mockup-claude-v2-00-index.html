@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Motivation v2 — Gleanmo pitches</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* Gleanmo v2 mockups — Gleanmo tokens; Space Mono for numbers & headings,
+   system sans for prose (long mono paragraphs read slowly). */
+:root{
+  --bg:#0d1117; --surface:#161b22; --s2:#0b0e13; --border:#30363d;
+  --text:#c9d1d9; --dim:#8b949e; --faint:#484f58; --white:#f0f6fc;
+  --gold:#ffd400; --azure:#3b82f6; --violet:#8b5cf6; --cyan:#06b6d4;
+  --amber:#f59e0b; --pink:#ec4899; --lime:#32cd32; --green:#22c55e;
+  --red:#ef4444; --orange:#f97316;
+  --mono:'Space Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 var(--sans);
+  padding:0 16px 56px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1160px;margin:0 auto}
+.narrow{max-width:580px;margin:0 auto}
+a{color:var(--cyan);text-underline-offset:3px}
+h1,h2,h3,.mono,.n,.big{font-family:var(--mono)}
+h1{font-size:clamp(26px,4.4vw,42px);line-height:1.12;letter-spacing:-.02em;margin:10px 0 12px;color:var(--white)}
+h2{font-size:clamp(18px,2.6vw,22px);line-height:1.25;margin:0 0 10px;color:var(--white)}
+h3{font-size:15px;margin:0 0 6px;color:var(--white)}
+p{margin:6px 0 12px}
+.n{font-variant-numeric:tabular-nums}
+.big{font-size:clamp(46px,8vw,80px);line-height:1;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.mid{font-family:var(--mono);font-size:clamp(22px,3.4vw,30px);font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums}
+.kicker{font:700 11px/1.4 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.lede{font-size:17px;color:var(--dim);max-width:66ch;margin-bottom:24px}
+.muted{color:var(--dim)} .faint{color:var(--faint)} .white{color:var(--white)}
+.pos{color:var(--green)} .neg{color:var(--red)} .warn{color:var(--amber)}
+small,.small{font-size:13px;color:var(--dim)}
+
+/* top nav */
+nav.top{display:flex;flex-wrap:wrap;align-items:center;gap:6px 20px;border-bottom:1px solid var(--border);
+  padding-block:16px;margin-bottom:28px}
+nav.top .brand{font:700 15px var(--mono);color:var(--white);margin-right:auto;text-decoration:none}
+nav.top .brand span{color:var(--cyan)}
+nav.top a{font:12px var(--mono);color:var(--dim);text-decoration:none;padding:6px 0}
+nav.top a:hover,nav.top a[aria-current]{color:var(--cyan)}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:22px;min-width:0}
+.card.hero{border-color:var(--hc,var(--cyan))}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:1.55fr 1fr}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:860px){.g2,.g3,.g4{grid-template-columns:1fr}}
+.sec{margin-top:36px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.rule{border-top:1px solid var(--border);margin-top:18px;padding-top:18px}
+
+.pill{display:inline-flex;align-items:center;gap:6px;font:11px/1.4 var(--mono);border:1px solid var(--border);
+  border-radius:999px;padding:4px 10px;color:var(--dim);white-space:nowrap}
+.pill.proposed{border-style:dashed;border-color:var(--amber);color:var(--amber)}
+.pill.gap{border-color:rgba(239,68,68,.6);color:var(--red)}
+.pill.exists{border-color:rgba(34,197,94,.5);color:var(--green)}
+
+.bar{position:relative;height:8px;background:var(--s2);border:1px solid var(--border);border-radius:4px;overflow:hidden;margin:12px 0 8px}
+.bar>i{position:absolute;inset:0 auto 0 0;display:block;background:var(--bc,var(--cyan))}
+.bar>u{position:absolute;top:-1px;bottom:-1px;width:2px;background:var(--white);opacity:.55}
+
+button,.btn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:8px 14px;
+  background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:6px;
+  font:12px var(--mono);cursor:pointer;text-decoration:none;
+  transition:border-color 150ms ease-out,background 150ms ease-out,transform 100ms ease-out}
+button:hover,.btn:hover{border-color:var(--cyan)}
+button:active{transform:scale(.98)}
+button[aria-pressed="true"]{background:var(--cyan);border-color:var(--cyan);color:#06121a;font-weight:700}
+:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+input[type=range]{width:100%;accent-color:var(--cyan);margin:14px 0 6px;min-height:28px}
+
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{font:700 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--dim);text-align:left;
+  padding:0 10px 8px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:11px 10px;border-bottom:1px solid rgba(48,54,61,.7);vertical-align:top}
+td.r,th.r{text-align:right}
+.scroll{overflow-x:auto}
+.callout{border-left:3px solid var(--cc,var(--cyan));background:var(--s2);padding:14px 16px;border-radius:0 6px 6px 0;margin:16px 0;font-size:14px}
+details{border-top:1px solid var(--border);margin-top:32px;padding-top:12px}
+summary{cursor:pointer;min-height:40px;color:var(--dim);font:13px var(--mono);display:flex;align-items:center}
+details p,details li{font-size:14px;color:var(--dim);max-width:78ch}
+footer{margin-top:48px;border-top:1px solid var(--border);padding-top:16px;font:11px var(--mono);color:var(--faint);text-align:center}
+.chart{width:100%}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+.wrap{max-width:940px}
+.prose p,.prose li{max-width:72ch}
+.prose h2{margin-top:52px}
+.pitch{display:block;text-decoration:none;color:inherit;border-left:3px solid var(--pc)}
+.pitch:hover{border-color:var(--pc);transform:translateY(-2px)}
+.pitch{transition:transform 150ms ease-out}
+.pitch .no{font:700 11px var(--mono);letter-spacing:.14em;color:var(--pc)}
+.pitch h2{margin:10px 0 4px;font-size:22px}
+.pitch .quote{font:700 15px/1.4 var(--mono);color:var(--white);margin:10px 0}
+.pitch dl{display:grid;grid-template-columns:130px 1fr;gap:6px 16px;font-size:14px;margin:14px 0 0}
+@media(max-width:600px){.pitch dl{grid-template-columns:1fr;gap:2px}.pitch dt{margin-top:8px}}
+.pitch dt{font:700 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--dim);padding-top:3px}
+.pitch dd{margin:0}
+.pitch .open{display:inline-block;margin-top:14px;font:700 12px var(--mono);color:var(--pc)}
+pre{background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:14px 16px;overflow-x:auto;
+  font:12px/1.65 var(--mono);color:var(--text)}
+.c{color:var(--faint)} .k{color:var(--cyan)}
+code{font:12.5px var(--mono);color:var(--text)}
+.who{font:700 10px var(--mono);border-radius:3px;padding:2px 6px;white-space:nowrap}
+.who.cl{background:rgba(6,182,212,.15);color:var(--cyan)}
+.who.cx{background:rgba(198,243,107,.14);color:#c6f36b}
+.who.both{background:rgba(139,148,158,.18);color:var(--text)}
+.struck{text-decoration:line-through;color:var(--faint)}
+.verdict{border:1px solid var(--lime);border-radius:8px;padding:24px;background:linear-gradient(180deg,rgba(50,205,50,.07),transparent)}
+ol li{margin-bottom:8px}
+</style></head>
+<body><div class="wrap prose">
+<nav class="top" aria-label="v2 mockups">
+  <a class="brand" href="mockup-claude-v2-00-index.html" aria-current="page">gleanmo <span>/ motivation v2</span></a>
+  <a href="mockup-claude-v2-00-index.html" aria-current="page">Pitches</a>
+  <a href="mockup-claude-v2-01-finish-line.html">01 Finish line</a>
+  <a href="mockup-claude-v2-02-tonight.html">02 Tonight</a>
+  <a href="mockup-claude-v2-03-studio.html">03 Studio</a>
+</nav>
+
+
+<div class="kicker">Claude · motivation v2</div>
+<h1>Three dashboards, rebuilt after reading the other agent's four.</h1>
+<p class="lede">v1 had five directions and a lot of data. Codex had four with sharper semantics:
+opportunities instead of calendar days, a "try today" control, partial routines, activities separate from
+projects, and deliverables as tasks. This version keeps what survived that comparison and drops what didn't.
+It stands alone — no links back to v1.</p>
+
+<div class="callout" style="--cc:var(--lime)"><b class="white">Build first: Finish Line, on one goal with
+complete data — meditation minutes.</b> Pull-ups follow the day the exercise spreadsheet import lands.
+Reasoning is at the bottom.</div>
+
+<h2>The three pitches</h2>
+
+<a class="card pitch" style="--pc:var(--cyan);margin-bottom:14px" href="mockup-claude-v2-01-finish-line.html">
+  <div class="no">01 · FINISH LINE</div>
+  <h2>What tonight does to the rest of the year</h2>
+  <p class="quote">"27 reps gets you to 5,000 — and drops tomorrow's number from 47.3 to 46.9 per training day."</p>
+  <dl>
+    <dt>Hero</dt><dd>Your spreadsheet's four numbers (done, your rate, needed from tomorrow, vs. even pace)
+      for six finish-line goals, and a slider that moves the <em>chart</em>, not just the text. Drag it and
+      the needed ray swings, the next-threshold line gets crossed, and a gold "that stays done" appears.</dd>
+    <dt>Key change</dt><dd>Everything counts <b>eligible opportunities</b>. Pull-ups count Mon/Tue/Thu/Sat, so
+      "needed" is per training day. The calendar version reads 27.0 — well under your 44.8, so it says
+      you're comfortable when you're 2 training days behind.</dd>
+    <dt>Honesty</dt><dd>Workout sessions start Jan 1 but the app has nothing before Mar 2 — the spreadsheet
+      isn't ported. The chart hatches that stretch and labels the total a floor. The pull-up goal shows the
+      other answer: it starts Mar 2, where capture is complete.</dd>
+    <dt>Kept from v1</dt><dd>Required pace, day by day — the chart of what "needed" <em>was</em> on each past
+      day — and gear (needed ÷ rate) as the sort key across units.</dd>
+  </dl>
+  <span class="open">Open 01 →</span>
+</a>
+
+<a class="card pitch" style="--pc:var(--pink);margin-bottom:14px" href="mockup-claude-v2-02-tonight.html">
+  <div class="no">02 · TONIGHT</div>
+  <h2>Thursday, 9:52pm: what fits, what finishes, what can wait</h2>
+  <p class="quote">"Skincare completes tonight." · "One of the 2 drawing days still owed." · "Software — week already met."</p>
+  <dl>
+    <dt>Hero</dt><dd>A time budget, not a ranking. Pick 10 / 20 / 45 / any, and at most four invitations
+      that fit appear, closest threshold first. The default is 20 because your own hour-of-day data says
+      that's what you do after 10pm.</dd>
+    <dt>Key change</dt><dd>A section called <b>Can honestly wait</b>. When a week's intention is met the page
+      says so and stops asking. Deep work is pinned to tomorrow morning instead of losing to ten-minute cards
+      every night.</dd>
+    <dt>Details that matter</dt><dd>Winddown is a three-step routine with a 4am night boundary; partial nights
+      stay partial. Tuesday's 10-minute drawing session shows as logged but not qualifying.
+      The book card says "84 pages to the end" and is labelled as needing proposed fields, while its
+      "book 17 of 24" line works today from <code>reading-log/finished?</code>.</dd>
+  </dl>
+  <span class="open">Open 02 →</span>
+</a>
+
+<a class="card pitch" style="--pc:var(--amber);margin-bottom:14px" href="mockup-claude-v2-03-studio.html">
+  <div class="no">03 · STUDIO</div>
+  <h2>Where the creative hours actually go</h2>
+  <p class="quote">"Garage Build: mostly editing, some writing and music. Three milestones done. Next: colour pass."</p>
+  <dl>
+    <dt>Hero</dt><dd>Weekly intentions by <b>activity</b> across projects, 12 weeks of attention as a stacked
+      ECharts bar you can flip between by-activity and by-project (the total never changes), and each creative
+      project's dated milestones with the next one named.</dd>
+    <dt>Key change</dt><dd>Two separate promises: <b>attention</b> is minutes, <b>progress</b> is finished
+      milestone tasks. No percent-complete anywhere.</dd>
+    <dt>Honesty</dt><dd>A grey "unclassified" band for sessions logged before <code>activity-id</code> existed on
+      multi-activity projects, with the backfill rule spelled out. Plus v1's shared-axis grid, now with
+      qualifying-day outlines and step-filled winddown cells.</dd>
+  </dl>
+  <span class="open">Open 03 →</span>
+</a>
+
+<h2>What changed from v1, and where each idea came from</h2>
+<div class="scroll"><table>
+<thead><tr><th>Idea</th><th>v2 does</th><th>From</th></tr></thead>
+<tbody>
+<tr><td>Pace per eligible opportunity</td><td>Every goal carries its eligible weekdays; "needed" is per training day, writing day, night.</td><td><span class="who cx">Codex</span></td></tr>
+<tr><td>Try-today simulation</td><td>Kept, but wired into the live ECharts burn-up so the chart moves too.</td><td><span class="who cx">Codex</span> <span class="who cl">improved</span></td></tr>
+<tr><td>Activity ≠ project</td><td>Session-level activity with project default. Replaces my <span class="struck">project/category</span>.</td><td><span class="who cx">Codex</span></td></tr>
+<tr><td>Routine with partial nights</td><td>Three habits, 4am boundary, partial stays partial. Replaces my <span class="struck">"log winddown as one habit"</span>.</td><td><span class="who cx">Codex</span></td></tr>
+<tr><td>Deliverables as tasks</td><td>Milestone tasks with done dates on each project card and a year timeline.</td><td><span class="who cx">Codex</span></td></tr>
+<tr><td>Qualifying days</td><td>"4 drawing days" means days ≥15 min; below-bar sessions show dashed.</td><td><span class="who cx">Codex</span></td></tr>
+<tr><td>Time-budget entry</td><td>Replaces "ranked by cost". Default derived from your own hour-of-day data.</td><td><span class="who cx">Codex</span> <span class="who cl">+ derived default</span></td></tr>
+<tr><td>Import coverage</td><td>Hatched gap, "floor" label, a goal that starts where capture begins.</td><td><span class="who cx">Codex flagged it</span></td></tr>
+<tr><td>Required-pace history, gear</td><td>Kept.</td><td><span class="who cl">Claude v1</span></td></tr>
+<tr><td>Shared-axis practice grid</td><td>Kept on Studio, with qualifying and partial states.</td><td><span class="who cl">Claude v1</span></td></tr>
+<tr><td>"Let it be enough"</td><td>A whole section on Tonight, not just copy.</td><td><span class="who cx">Codex</span> <span class="who cl">expanded</span></td></tr>
+<tr><td>Deep work pinned</td><td>Guards against quick wins crowding out the hard thing.</td><td><span class="who cx">Codex named the risk</span></td></tr>
+<tr><td>Books from <code>finished?</code></td><td>A goal that works today, before any page field exists.</td><td><span class="who cl">Claude v2</span></td></tr>
+<tr><td>Dropped: Ghost, Ledger</td><td>Both depend on complete history; workouts aren't there yet. Worth revisiting after the import.</td><td><span class="who cl">Claude v2</span></td></tr>
+</tbody></table></div>
+
+<h2>Schema, re-ranked</h2>
+
+<h3>1 · <code>goal</code></h3>
+<pre>[<span class="k">:goal/label</span>        <span class="k">:string</span>]
+[<span class="k">:goal/source-type</span>  [<span class="k">:enum</span> <span class="k">:exercise-line :exercise-session :meditation-log
+                     :reading-log :project-log :habit-log</span>]]
+[<span class="k">:goal/metric</span>       [<span class="k">:enum</span> <span class="k">:reps :minutes :occurrences :active-days
+                     :complete-routines :books-finished</span>]]
+<span class="c">;; typed, optional scopes — validated against the metric</span>
+[<span class="k">:goal/exercise-ids</span> {<span class="k">:optional</span> true} [<span class="k">:set</span> <span class="k">:exercise/id</span>]]
+[<span class="k">:goal/activity-id</span>  {<span class="k">:optional</span> true} <span class="k">:activity/id</span>]
+[<span class="k">:goal/routine-id</span>   {<span class="k">:optional</span> true} <span class="k">:routine/id</span>]
+[<span class="k">:goal/target</span>       <span class="k">:number</span>]
+[<span class="k">:goal/period</span>       [<span class="k">:enum</span> <span class="k">:fixed :week</span>]]     <span class="c">; fixed = start/end window</span>
+[<span class="k">:goal/starts-on</span>    <span class="k">:local-date</span>]
+[<span class="k">:goal/ends-on</span>      {<span class="k">:optional</span> true} <span class="k">:local-date</span>]
+[<span class="k">:goal/weekdays</span>     {<span class="k">:optional</span> true} [<span class="k">:set</span> [<span class="k">:enum</span> <span class="k">:mon :tue :wed :thu :fri :sat :sun</span>]]]
+[<span class="k">:goal/min-per-day</span>  {<span class="k">:optional</span> true} <span class="k">:number</span>]    <span class="c">; what makes a day "qualify"</span>
+[<span class="k">:goal/time-zone</span>    <span class="k">:string</span>]</pre>
+<p>One point neither v1 nor Codex made: <b>goal revisions are already free.</b> Codex rightly says "preserve
+revisions; don't rewrite old expectations silently" — and XTDB keeps every version of a document. When you
+lower a target in October, <code>entity-history</code> (inside <code>db/queries.clj</code>, per the project
+rules) can still draw the old line. No <code>goal/supersedes-id</code> needed.</p>
+
+<h3>2 · <code>activity</code> + <code>project-log/activity-id</code> + <code>project/activity-id</code></h3>
+<p>The session says what you did; the project says what it served. The project's activity is only a
+default copied at capture. One conservative backfill at launch — single-activity projects only — then never
+again. This is the change that makes writing, drawing and music first-class without a new log type each.</p>
+
+<h3>3 · <code>routine</code></h3>
+<pre>[<span class="k">:routine/label</span> <span class="k">:string</span>] [<span class="k">:routine/habit-ids</span> [<span class="k">:set</span> <span class="k">:habit/id</span>]]
+[<span class="k">:routine/day-start-hour</span> <span class="k">:int</span>] [<span class="k">:routine/time-zone</span> <span class="k">:string</span>]</pre>
+<p>Same bitemporal note: evaluate each night against the routine <em>as of that night</em>, and adding
+skincare in October doesn't make every September night incomplete.</p>
+
+<h3>4 · <code>book/page-count</code> + <code>reading-log/page-position</code></h3>
+<p>I'm conceding Codex's version over mine. Store where you stopped, not pages read, and never derive
+pages read from adjacent logs — skipped logs and rereads make that wrong. Page-count on the book is what
+unlocks "84 pages to the end", the only naturally bounded target in your data.</p>
+
+<h3>5 · <code>exercise/movement-pattern</code> + <code>exercise/primary-region</code></h3>
+<p>Still my best cost-to-payoff pick and still missing from Codex. It goes on the entity, so a few dozen
+rows classify every set ever logged. Unlocks <code>046</code>'s muscle map and "you haven't trained a
+hinge in 19 days".</p>
+
+<h3>6 · <code>task/milestone</code></h3>
+<p>One optional boolean. <code>task/project-id</code>, <code>task/state</code> and <code>task/done-at</code>
+already do the rest.</p>
+
+<h3>Not now</h3>
+<ul>
+  <li><span class="struck">project/category</span> — retracted; activity on the session does it properly.</li>
+  <li><code>project-log/output-count</code> — later, and only for an explicit goal like "10,000 new words".</li>
+  <li>Satisfaction ratings, stored streaks or totals, per-practice log entities — still no, for v1's reasons.</li>
+  <li>Import coverage needs no schema: a per-source "complete since" date can live in code until there's a
+    second source that needs it.</li>
+</ul>
+
+<h2>Rules the engine has to keep</h2>
+<ul>
+  <li>Count opportunities, not calendar days, wherever the goal names weekdays.</li>
+  <li>A day qualifies once, no matter how many sessions; below the floor it's logged but doesn't count.</li>
+  <li>Crossed stays crossed. Past the target, needed is 0 and the excess is shown, not hidden.</li>
+  <li>Partial stays partial. Unclassified stays unclassified. Missing imports are marked, never estimated.</li>
+  <li>No life score. Nothing adds reps to minutes.</li>
+  <li>Reads follow <code>db/queries.clj</code> scan-then-pull: index-only tuple scan bounded by the goal window,
+    daily fold in Clojure. Parent-scoped reads (one goal's exercise ids) are equality-bound.</li>
+</ul>
+
+<h2>Charting</h2>
+<p>ECharts for the burn-up (with live slider updates via <code>setOption</code> merges by series id), the
+required-pace history, the stacked attention bars, the milestone timeline and the hour-of-day band.
+Hand-rolled SVG for the 12-week grid, because rows must share one axis and cells need three visual states
+ECharts' calendar can't express. HTML for routine steps, day cells and big numbers — they're controls and
+text, not charts.</p>
+
+<h2>What I'd build first</h2>
+<div class="verdict">
+  <p class="white" style="font-size:17px;margin-top:0"><b>Finish Line, one goal, meditation minutes.</b></p>
+  <ol>
+    <li><b>Goal entity + the series engine</b> (window, weekdays, min-per-day, opportunities). Meditation needs
+      nothing else: the log exists and the history is complete, so the loop can be judged on true numbers.</li>
+    <li><b>Finish Line for that one goal</b>, slider included. If a week of it doesn't pull you the way the
+      spreadsheet did, stop and rethink before building anything else.</li>
+    <li><b>Pull-ups</b> the day the exercise import lands — it's the goal closest to your original, and the
+      reason the start-date and coverage rules exist.</li>
+    <li><b>Activity on project-log</b>, then Studio's weekly intentions. That's when writing, drawing and
+      music join the system.</li>
+    <li><b>Tonight</b> last: it's the page you'd open most, but it ranks and filters using every other piece,
+      so it's only as good as the goals under it.</li>
+  </ol>
+</div>
+
+<footer>Claude · motivation v2 · standalone HTML · fictional data · Sep 10 2026</footer>
+</div></body></html>

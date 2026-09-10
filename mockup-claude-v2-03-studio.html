@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Studio — Gleanmo motivation v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@6.0.0/dist/echarts.min.js"></script>
+<style>
+/* Gleanmo v2 mockups — Gleanmo tokens; Space Mono for numbers & headings,
+   system sans for prose (long mono paragraphs read slowly). */
+:root{
+  --bg:#0d1117; --surface:#161b22; --s2:#0b0e13; --border:#30363d;
+  --text:#c9d1d9; --dim:#8b949e; --faint:#484f58; --white:#f0f6fc;
+  --gold:#ffd400; --azure:#3b82f6; --violet:#8b5cf6; --cyan:#06b6d4;
+  --amber:#f59e0b; --pink:#ec4899; --lime:#32cd32; --green:#22c55e;
+  --red:#ef4444; --orange:#f97316;
+  --mono:'Space Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 var(--sans);
+  padding:0 16px 56px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1160px;margin:0 auto}
+.narrow{max-width:580px;margin:0 auto}
+a{color:var(--cyan);text-underline-offset:3px}
+h1,h2,h3,.mono,.n,.big{font-family:var(--mono)}
+h1{font-size:clamp(26px,4.4vw,42px);line-height:1.12;letter-spacing:-.02em;margin:10px 0 12px;color:var(--white)}
+h2{font-size:clamp(18px,2.6vw,22px);line-height:1.25;margin:0 0 10px;color:var(--white)}
+h3{font-size:15px;margin:0 0 6px;color:var(--white)}
+p{margin:6px 0 12px}
+.n{font-variant-numeric:tabular-nums}
+.big{font-size:clamp(46px,8vw,80px);line-height:1;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.mid{font-family:var(--mono);font-size:clamp(22px,3.4vw,30px);font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums}
+.kicker{font:700 11px/1.4 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.lede{font-size:17px;color:var(--dim);max-width:66ch;margin-bottom:24px}
+.muted{color:var(--dim)} .faint{color:var(--faint)} .white{color:var(--white)}
+.pos{color:var(--green)} .neg{color:var(--red)} .warn{color:var(--amber)}
+small,.small{font-size:13px;color:var(--dim)}
+
+/* top nav */
+nav.top{display:flex;flex-wrap:wrap;align-items:center;gap:6px 20px;border-bottom:1px solid var(--border);
+  padding-block:16px;margin-bottom:28px}
+nav.top .brand{font:700 15px var(--mono);color:var(--white);margin-right:auto;text-decoration:none}
+nav.top .brand span{color:var(--cyan)}
+nav.top a{font:12px var(--mono);color:var(--dim);text-decoration:none;padding:6px 0}
+nav.top a:hover,nav.top a[aria-current]{color:var(--cyan)}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:22px;min-width:0}
+.card.hero{border-color:var(--hc,var(--cyan))}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:1.55fr 1fr}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:860px){.g2,.g3,.g4{grid-template-columns:1fr}}
+.sec{margin-top:36px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.rule{border-top:1px solid var(--border);margin-top:18px;padding-top:18px}
+
+.pill{display:inline-flex;align-items:center;gap:6px;font:11px/1.4 var(--mono);border:1px solid var(--border);
+  border-radius:999px;padding:4px 10px;color:var(--dim);white-space:nowrap}
+.pill.proposed{border-style:dashed;border-color:var(--amber);color:var(--amber)}
+.pill.gap{border-color:rgba(239,68,68,.6);color:var(--red)}
+.pill.exists{border-color:rgba(34,197,94,.5);color:var(--green)}
+
+.bar{position:relative;height:8px;background:var(--s2);border:1px solid var(--border);border-radius:4px;overflow:hidden;margin:12px 0 8px}
+.bar>i{position:absolute;inset:0 auto 0 0;display:block;background:var(--bc,var(--cyan))}
+.bar>u{position:absolute;top:-1px;bottom:-1px;width:2px;background:var(--white);opacity:.55}
+
+button,.btn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:8px 14px;
+  background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:6px;
+  font:12px var(--mono);cursor:pointer;text-decoration:none;
+  transition:border-color 150ms ease-out,background 150ms ease-out,transform 100ms ease-out}
+button:hover,.btn:hover{border-color:var(--cyan)}
+button:active{transform:scale(.98)}
+button[aria-pressed="true"]{background:var(--cyan);border-color:var(--cyan);color:#06121a;font-weight:700}
+:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+input[type=range]{width:100%;accent-color:var(--cyan);margin:14px 0 6px;min-height:28px}
+
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{font:700 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--dim);text-align:left;
+  padding:0 10px 8px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:11px 10px;border-bottom:1px solid rgba(48,54,61,.7);vertical-align:top}
+td.r,th.r{text-align:right}
+.scroll{overflow-x:auto}
+.callout{border-left:3px solid var(--cc,var(--cyan));background:var(--s2);padding:14px 16px;border-radius:0 6px 6px 0;margin:16px 0;font-size:14px}
+details{border-top:1px solid var(--border);margin-top:32px;padding-top:12px}
+summary{cursor:pointer;min-height:40px;color:var(--dim);font:13px var(--mono);display:flex;align-items:center}
+details p,details li{font-size:14px;color:var(--dim);max-width:78ch}
+footer{margin-top:48px;border-top:1px solid var(--border);padding-top:16px;font:11px var(--mono);color:var(--faint);text-align:center}
+.chart{width:100%}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+.int{border-top:3px solid var(--ic)}
+.int .mid{color:var(--ic)}
+.int .met{color:var(--green);font:700 11px var(--mono)}
+.days{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:10px}
+.days span{height:18px;border-radius:3px;border:1px solid var(--border)}
+.days .q{background:var(--ic);border-color:var(--ic)}
+.days .p{border:1px dashed var(--ic)}
+.days .f{border-style:dotted;opacity:.5}
+.proj .kind{font:700 10px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--pc)}
+.stack{display:flex;height:10px;border-radius:3px;overflow:hidden;margin:10px 0 6px;background:var(--s2)}
+.stack i{display:block;height:100%}
+.ms{display:flex;gap:10px;font-size:13px;padding:6px 0;border-bottom:1px dotted rgba(48,54,61,.8)}
+.ms .d{font:11px var(--mono);color:var(--faint);width:52px;flex:0 0 auto}
+.ms.next .d{color:var(--pc)}
+.ms.next{color:var(--white)}
+.gw{border:1px solid var(--border);border-radius:8px;background:var(--surface);padding:18px 0 14px}
+.gw .cols{display:grid;grid-template-columns:auto minmax(0,1fr)}
+.gw .labs{padding:0 12px 0 18px}
+.gw .lab{height:22px;display:flex;align-items:center;gap:8px;font:11px var(--mono);white-space:nowrap}
+.gw .sc{overflow-x:auto;padding-right:18px}
+#tip{position:fixed;pointer-events:none;background:#0b0e13;border:1px solid var(--border);border-radius:4px;
+  padding:6px 9px;font:11px var(--mono);z-index:9;display:none}
+</style></head>
+<body><div class="wrap">
+<nav class="top" aria-label="v2 mockups">
+  <a class="brand" href="mockup-claude-v2-00-index.html">gleanmo <span>/ motivation v2</span></a>
+  <a href="mockup-claude-v2-00-index.html">Pitches</a>
+  <a href="mockup-claude-v2-01-finish-line.html">01 Finish line</a>
+  <a href="mockup-claude-v2-02-tonight.html">02 Tonight</a>
+  <a href="mockup-claude-v2-03-studio.html" aria-current="page">03 Studio</a>
+</nav>
+
+
+<div class="kicker">03 · Studio</div>
+<h1>Where the creative hours actually go.</h1>
+<p class="lede">Five of your nine things are projects. This page counts them two ways that must not be
+confused: <b class="white">attention</b> (minutes, by the activity you did) and <b class="white">progress</b>
+(deliverables you finished, from tasks). Neither stands in for the other.</p>
+
+<div class="kicker" style="margin-bottom:12px">This week — Mon Sep 7 to today</div>
+<div class="grid" id="ints" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))"></div>
+
+<section class="card sec">
+  <div class="row">
+    <div><h2>Attention, last 12 weeks</h2><small id="att-sub"></small></div>
+    <div class="actions" style="margin:0">
+      <button data-v="act" aria-pressed="true">By activity</button><button data-v="proj">By project</button>
+    </div>
+  </div>
+  <div class="chart" id="att" style="height:300px;margin-top:8px"></div>
+  <div class="callout" style="--cc:var(--faint)" id="unclass"></div>
+</section>
+
+<div class="row sec"><h2>Progress — the next thing you can finish</h2><small>milestone tasks, dated by task/done-at</small></div>
+<div class="grid g4" id="projs"></div>
+
+<section class="card sec">
+  <div class="row"><h2>Deliverables finished in 2026</h2><small>each diamond is a milestone task marked done</small></div>
+  <div class="chart" id="receipts" style="height:210px;margin-top:6px"></div>
+  <p class="small">Sparse on purpose. A month with one diamond and forty hours isn't a failure — it's
+    what the middle of a novel looks like — but the diamonds are what you'll remember in December.</p>
+</section>
+
+<div class="row sec"><h2>Twelve weeks, one axis</h2><small>every practice, a column per day</small></div>
+<div class="gw">
+  <div class="cols"><div class="labs" id="labs"></div><div class="sc" id="sc"></div></div>
+  <p class="small" style="padding:10px 18px 0;margin:0">Solid = a qualifying day. Dashed outline = something
+    logged below the bar (drawing under 15 min, music under 20). Winddown fills by steps completed,
+    so partial nights are visible instead of vanishing.</p>
+</div>
+
+<details>
+  <summary>The model behind this page</summary>
+  <p><b>Activity on the session, default from the project.</b> <code>project-log/activity-id</code> says what
+    you did; <code>project-log/project-id</code> says what it served. A new session copies
+    <code>project/activity-id</code> as its default. Garage Build is editing most days and writing some.</p>
+  <p><b>Backfill once, conservatively.</b> Sessions before the field existed were backfilled only when their
+    project has a single activity (Low Tide → writing, Sketchbook → drawing). Multi-activity projects stay
+    unclassified and show grey. Changing a project's default later never rewrites history.</p>
+  <p><b>Deliverables are tasks.</b> <code>task/project-id</code>, <code>task/state</code> and
+    <code>task/done-at</code> already exist; the only addition is an optional
+    <code>task/milestone</code> to separate "draft chapter 7" from "buy printer ink". No percent-complete,
+    ever: three of four milestones is a count, not 75% of a book.</p>
+  <p><b>Qualifying days.</b> An intention like "4 drawing days" needs a floor, stored on the goal
+    (<code>goal/min-per-day</code>). Two 10-minute sessions on one day still make one day, and it still
+    doesn't qualify.</p>
+</details>
+<footer>Claude · v2 mockup · fictional data, internally consistent · now = Thu Sep 10 2026</footer>
+</div>
+<div id="tip"></div>
+<script>/* ==========================================================================
+   G2 — mock data core for the v2 Gleanmo motivation dashboards.
+   Deterministic and self-consistent. "Now" is Thu 2026-09-10, 9:52pm.
+   Differences from a naive generator, each one deliberate:
+     • workouts before Mar 2 live in the unported exercise spreadsheet, so the
+       app has nothing for Jan 1 – Mar 1 (coverage gap, shown, never faked)
+     • project sessions carry an activity only from Aug 17, when
+       project-log/activity-id "ships"; earlier sessions are backfilled only
+       when their project has exactly one activity, else stay unclassified
+     • winddown is three habits, so a night can be partial
+     • goals count eligible opportunities (training days), not calendar days
+   ========================================================================== */
+const G2 = (function () {
+  const T = {
+    bg:'#0d1117', surface:'#161b22', s2:'#0b0e13', border:'#30363d',
+    text:'#c9d1d9', dim:'#8b949e', faint:'#484f58',
+    gold:'#ffd400', azure:'#3b82f6', violet:'#8b5cf6', cyan:'#06b6d4',
+    amber:'#f59e0b', pink:'#ec4899', lime:'#32cd32', green:'#22c55e',
+    red:'#ef4444', orange:'#f97316', teal:'#2dd4bf'
+  };
+  function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+  const R = rng(20260910);
+  const r = (lo,hi)=>lo+Math.round(R()*(hi-lo));
+
+  /* ---- calendar ---------------------------------------------------------- */
+  const TI = 252;                       // index of today (Sep 10) — Thursday
+  const N = TI + 1;                     // days with data, today included
+  const YEAR_END = 364;
+  const CAPTURE = 60;                   // Mar 2: in-app workout capture begins
+  const ACTIVITY_SHIPPED = 228;         // Aug 17: project-log/activity-id exists
+  const WEEK_START = 249;               // Mon Sep 7
+  const NOW_H = 21 + 52/60;
+  const dateOf = i => new Date(2026,0,1+i);
+  const dow = i => dateOf(i).getDay();
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const DN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const dl = d => MON[d.getMonth()]+' '+d.getDate();
+  const dli = i => dl(dateOf(i));
+  const shape = i => i<12?.5 : (i>=187&&i<=204)?.2 : (i>=205&&i<=215)?.7 : i>=231?1.12 : 1;
+  const sum = a => a.reduce((x,y)=>x+y,0);
+  const cum = a => {let c=0;return a.map(v=>c+=v)};
+
+  /* ---- raw daily data ----------------------------------------------------- */
+  const TRAIN = [1,2,4,6];              // Mon Tue Thu Sat
+  const workout = [], reps = [];
+  for (let i=0;i<N;i++){
+    const p = (TRAIN.includes(dow(i))?.82:.08)*shape(i);
+    const did = i>=CAPTURE && R()<p ? 1 : 0;
+    workout.push(did);
+    reps.push(did ? r(28,52)+Math.round(i/14) : 0);      // slow progression
+  }
+  const meditate = [], read = [], wd = [];
+  for (let i=0;i<N;i++){
+    meditate.push(R()<.9*Math.min(1.05,shape(i)+.08) ? (R()<.1?r(35,50):r(10,28)) : 0);
+    read.push(R()<.72*shape(i) ? r(15,55) : 0);
+    const s=shape(i), b=R()<.97, f=R()<.8*s+.05, k=R()<.74*s+.05;
+    wd.push([b?1:0,f?1:0,k?1:0]);
+  }
+
+  /* ---- projects & activities --------------------------------------------- */
+  const ACT = {
+    writing:{label:'Writing', color:T.amber},
+    drawing:{label:'Drawing', color:T.pink},
+    music:{label:'Music', color:T.violet},
+    software:{label:'Software', color:T.azure},
+    editing:{label:'Editing', color:T.gold}
+  };
+  const PROJ = [
+    {id:'lowtide', label:'Low Tide', kind:'Novel', acts:{writing:1}, p:[.2,.55,.45,.55,.5,.4,.3], m:[30,95]},
+    {id:'garage',  label:'Garage Build', kind:'Video', acts:{editing:.6,writing:.2,music:.2}, p:[.05,.12,.1,.1,.12,.35,.3], m:[40,150]},
+    {id:'moth',    label:'Moth Lantern', kind:'Game', acts:{software:.6,drawing:.25,music:.15}, p:[.05,.1,.12,.1,.14,.4,.35], m:[35,140]},
+    {id:'gleanmo', label:'Gleanmo', kind:'Software', acts:{software:1}, p:[.25,.7,.72,.7,.72,.35,.2], m:[45,190]},
+    {id:'sketch',  label:'Sketchbook', kind:'Practice', acts:{drawing:1}, p:[.35,.42,.36,.4,.36,.5,.45], m:[8,45]},
+    {id:'guitar',  label:'Guitar', kind:'Practice', acts:{music:1}, p:[.2,.24,.28,.2,.24,.36,.3], m:[15,60]}
+  ];
+  const pick = w => { let x=R(),a=0; for (const k in w){a+=w[k]; if(x<a) return k;} return Object.keys(w)[0]; };
+  const sessions = [];
+  for (let i=0;i<N;i++) for (const pr of PROJ){
+    if (R() < pr.p[dow(i)]*shape(i)) {
+      const act = pick(pr.acts);
+      const single = Object.keys(pr.acts).length===1;
+      sessions.push({i, proj:pr.id, min:r(pr.m[0],pr.m[1]),
+        act: (i>=ACTIVITY_SHIPPED || single) ? act : null, trueAct:act,
+        backfilled: i<ACTIVITY_SHIPPED && single});
+    }
+  }
+
+  /* ---- force this week into a clean, specific story ---------------------- */
+  // Mon Sep 7 .. Thu Sep 10 (today, 9:52pm)
+  const setDay = (i, o) => {
+    if ('workout' in o){ workout[i]=o.workout; reps[i]=o.reps||0; }
+    if ('meditate' in o) meditate[i]=o.meditate;
+    if ('read' in o) read[i]=o.read;
+    if ('wd' in o) wd[i]=o.wd;
+  };
+  setDay(249,{workout:1,reps:58,meditate:20,read:30,wd:[1,1,1]});
+  setDay(250,{workout:1,reps:51,meditate:15,read:0, wd:[1,1,1]});
+  setDay(251,{workout:0,meditate:22,read:40,wd:[1,0,1]});
+  setDay(252,{workout:0,meditate:15,read:0, wd:[1,1,0]});   // tonight: skincare open
+  for (let i=229;i<249;i++){ if(!meditate[i]) meditate[i]=r(10,20); }   // a real streak
+  for (let i=244;i<N;i++){ // clear project sessions this week and rebuild by hand
+    for (let k=sessions.length-1;k>=0;k--) if (sessions[k].i===i) sessions.splice(k,1);
+  }
+  const S=(i,proj,act,min)=>sessions.push({i,proj,act,trueAct:act,min,backfilled:false});
+  // last week's tail (Sep 3–6), music deliberately absent since Sep 2
+  S(244,'gleanmo','software',120); S(244,'sketch','drawing',20);
+  S(245,'lowtide','writing',70);  S(245,'gleanmo','software',95);
+  S(246,'moth','software',110);   S(246,'sketch','drawing',30); S(246,'garage','editing',80);
+  S(247,'garage','editing',95);   S(247,'moth','drawing',40); S(247,'lowtide','writing',55);
+  S(248,'sketch','drawing',25);   S(248,'moth','software',60);
+  // this week
+  S(249,'lowtide','writing',60);  S(249,'sketch','drawing',25); S(249,'gleanmo','software',150);
+  S(250,'sketch','drawing',10);   S(250,'gleanmo','software',135);            // 10 min: not a qualifying day
+  S(251,'lowtide','writing',45);  S(251,'moth','drawing',18);  S(251,'gleanmo','software',120);
+  S(252,'lowtide','writing',50);  S(252,'gleanmo','software',95);
+  sessions.sort((a,b)=>a.i-b.i);
+
+  /* ---- books (reading-log/finished? exists today) ------------------------ */
+  const BOOKS = ['The Dispossessed','Piranesi','Stoner','The Remains of the Day','Klara and the Sun',
+    'A Psalm for the Wild-Built','Station Eleven','The Left Hand of Darkness','Tomorrow, and Tomorrow, and Tomorrow',
+    'Pachinko','Circe','The Overstory','Babel','Project Hail Mary','Sea of Tranquility','The Name of the Wind'];
+  const bookDays = [14,31,47,62,76,93,104,121,139,152,168,181,214,226,238,247];
+  const booksDaily = Array(N).fill(0); bookDays.forEach(d=>booksDaily[d]=1);
+  const currentBook = {title:'The Buried Giant', pages:317, position:233, sessionsPerPage:null};
+
+  /* ---- per-day activity minutes ------------------------------------------ */
+  const actDaily = {}; Object.keys(ACT).forEach(a=>actDaily[a]=Array(N).fill(0));
+  const unclassDaily = Array(N).fill(0);
+  sessions.forEach(s=>{ if (s.act) actDaily[s.act][s.i]+=s.min; else unclassDaily[s.i]+=s.min; });
+  const projDaily = {}; PROJ.forEach(p=>projDaily[p.id]=Array(N).fill(0));
+  sessions.forEach(s=>projDaily[s.proj][s.i]+=s.min);
+  const wdComplete = wd.map(n=>n[0]&&n[1]&&n[2]?1:0);
+
+  /* ---- goals: finish lines ------------------------------------------------ */
+  const opps = (from,to,elig) => { let c=0; for(let i=from;i<=to;i++) if(!elig||elig.includes(dow(i))) c++; return c; };
+  function goal(g){
+    const s = g.series, from = g.start||0;
+    const done = sum(s.slice(from, N));
+    const todaySoFar = s[TI];
+    const eligToday = !g.elig || g.elig.includes(dow(TI));
+    const oppsLeftInclToday = opps(TI, YEAR_END, g.elig);
+    const oppsLeftAfterToday = opps(TI+1, YEAR_END, g.elig);
+    const oppsElapsed = opps(from, TI, g.elig);
+    const oppsTotal = opps(from, YEAR_END, g.elig);
+    const remaining = Math.max(0, g.target-done);
+    const perOpp = done/oppsElapsed;
+    const needPerOpp = remaining/oppsLeftAfterToday;           // from tomorrow, given today so far
+    const expected = g.target*oppsElapsed/oppsTotal;
+    const delta = done-expected;
+    const deltaOpps = delta/(g.target/oppsTotal);
+    const gear = needPerOpp/perOpp;
+    const next = (Math.floor(done/g.step)+1)*g.step;
+    const projected = done + perOpp*oppsLeftAfterToday;
+    const cumS = cum(s.slice(from,N));
+    // required-per-opportunity at each past day
+    const reqHist = [];
+    for (let i=from+21;i<N;i++){
+      const d = cumS[i-from], left = opps(i+1,YEAR_END,g.elig);
+      reqHist.push([i, (g.target-d)/left]);
+    }
+    return Object.assign({}, g, {done,todaySoFar,eligToday,oppsLeftInclToday,oppsLeftAfterToday,
+      oppsElapsed,oppsTotal,remaining,perOpp,needPerOpp,expected,delta,deltaOpps,gear,next,
+      toNext:next-done,projected,cumS,reqHist});
+  }
+  const GOALS_RAW = [
+    {key:'pullups', label:'Pull-ups', icon:'🏋️', color:T.red, unit:'reps', per:'training day',
+     series:reps, start:CAPTURE, elig:TRAIN, step:250, stance:1.02,
+     source:'exercise-line reps, scoped to the pull-up exercise ids',
+     window:'Mar 2 → Dec 31', note:'Starts Mar 2 on purpose: that is where complete in-app capture begins.'},
+    {key:'meditate', label:'Meditation', icon:'🧘', color:T.green, unit:'minutes', per:'day',
+     series:meditate, start:0, elig:null, step:600, stance:.97,
+     source:'meditation-log intervals', window:'Jan 1 → Dec 31'},
+    {key:'books', label:'Books finished', icon:'📖', color:T.orange, unit:'books', per:'day',
+     series:booksDaily, start:0, elig:null, step:1, target:24,
+     source:'reading-log/finished? — exists today', window:'Jan 1 → Dec 31'},
+    {key:'writing', label:'Writing', icon:'✍️', color:T.amber, unit:'minutes', per:'writing day',
+     series:actDaily.writing, start:0, elig:[1,2,3,4,5,6], step:600, stance:1.1,
+     source:'project-log minutes where activity = writing', window:'Jan 1 → Dec 31',
+     note:'Counts Low Tide (backfilled — single-activity project) plus classified writing on Garage Build.'},
+    {key:'winddown', label:'Complete winddowns', icon:'🌙', color:T.cyan, unit:'nights', per:'night',
+     series:wdComplete, start:0, elig:null, step:25, stance:1.05,
+     source:'routine over 3 habit-logs, night ends 4:00am', window:'Jan 1 → Dec 31'},
+    {key:'sessions', label:'Workout sessions', icon:'💪', color:T.pink, unit:'sessions', per:'training day',
+     series:workout, start:0, elig:TRAIN, step:10, target:150,
+     source:'exercise-session', window:'Jan 1 → Dec 31', coverageGap:[0,CAPTURE-1],
+     note:'Jan 1 – Mar 1 is still in the exercise spreadsheet. Every number here is a floor until that import lands.'}
+  ];
+  GOALS_RAW.forEach(g=>{
+    if (!g.target){
+      const done = sum(g.series.slice(g.start||0,N));
+      const oE = opps(g.start||0,TI,g.elig), oT = opps(g.start||0,YEAR_END,g.elig);
+      g.target = Math.round(done/oE*oT*g.stance/g.step)*g.step;
+    }
+  });
+  const GOALS = GOALS_RAW.map(goal);
+  const G = Object.fromEntries(GOALS.map(g=>[g.key,g]));
+
+  /* ---- weekly intentions -------------------------------------------------- */
+  function weekly(w){
+    const vals = w.daily.slice(WEEK_START, N);
+    const qual = vals.map(v=>w.minPerDay? (v>=w.minPerDay?1:0) : (v>0?1:0));
+    const got = w.kind==='days' ? sum(qual) : sum(vals);
+    // weekly history: completed weeks Mon–Sun before this week
+    const hist = [];
+    for (let s=WEEK_START-7*16; s<WEEK_START; s+=7){
+      const v = w.daily.slice(s,s+7);
+      const g2 = w.kind==='days' ? v.filter(x=>w.minPerDay? x>=w.minPerDay : x>0).length : sum(v);
+      hist.push({start:s, got:g2, met:g2>=w.target});
+    }
+    let streak=0; for (let k=hist.length-1;k>=0;k--){ if(hist[k].met) streak++; else break; }
+    const daysLeft = 6 - (TI-WEEK_START);    // after today, through Sunday
+    return Object.assign({}, w, {vals, qual, got, left:Math.max(0,w.target-got), hist, streak,
+      met12: hist.slice(-12).filter(h=>h.met).length, daysLeft});
+  }
+  const WEEKLY = [
+    weekly({key:'workoutdays', label:'Workout days', icon:'🏋️', color:T.red, kind:'days', target:3, daily:workout, unitTxt:'days'}),
+    weekly({key:'meddays', label:'Meditation days', icon:'🧘', color:T.green, kind:'days', target:5, daily:meditate, unitTxt:'days'}),
+    weekly({key:'drawdays', label:'Drawing days', icon:'🎨', color:T.pink, kind:'days', target:4, minPerDay:15, daily:actDaily.drawing, unitTxt:'days ≥15 min'}),
+    weekly({key:'musicdays', label:'Music days', icon:'🎸', color:T.violet, kind:'days', target:2, minPerDay:20, daily:actDaily.music, unitTxt:'days ≥20 min'}),
+    weekly({key:'writemin', label:'Writing', icon:'✍️', color:T.amber, kind:'minutes', target:180, daily:actDaily.writing, unitTxt:'min'}),
+    weekly({key:'softmin', label:'Software', icon:'💻', color:T.azure, kind:'minutes', target:480, daily:actDaily.software, unitTxt:'min'}),
+    weekly({key:'editmin', label:'Editing', icon:'🎬', color:T.gold, kind:'minutes', target:120, daily:actDaily.editing, unitTxt:'min'})
+  ];
+  const W = Object.fromEntries(WEEKLY.map(w=>[w.key,w]));
+
+  /* ---- streaks ---------------------------------------------------------- */
+  function streak(a){ let cur=0,best=0,run=0; a.forEach(v=>{ if(v>0){run++;best=Math.max(best,run)} else run=0; }); return {cur:run,best}; }
+  const lastActive = a => { for(let i=N-1;i>=0;i--) if(a[i]>0) return TI-i; return 999; };
+
+  /* ---- formatting --------------------------------------------------------- */
+  const num = v => Math.abs(v)>=100||Number.isInteger(v) ? Math.round(v).toLocaleString() : v.toFixed(1);
+  function fmt(v,g){
+    if (g.unit==='minutes') return v>=600 ? (v/60>=100?Math.round(v/60):(v/60).toFixed(1))+' h' : Math.round(v)+' min';
+    return num(v)+' '+(Math.round(v)===1&&g.unit.endsWith('s')?g.unit.slice(0,-1):g.unit);
+  }
+  const hm = m => m>=60 ? Math.floor(m/60)+'h '+String(Math.round(m%60)).padStart(2,'0')+'m' : Math.round(m)+'m';
+  const axis = extra => Object.assign({axisLine:{lineStyle:{color:T.border}},axisTick:{show:false},
+    axisLabel:{color:T.dim,fontFamily:'Space Mono, monospace',fontSize:10},
+    splitLine:{lineStyle:{color:'rgba(48,54,61,.55)'}}}, extra||{});
+  const tip = {backgroundColor:'#0b0e13',borderColor:T.border,borderWidth:1,
+    textStyle:{color:T.text,fontFamily:'Space Mono, monospace',fontSize:11}};
+
+  return {T,rng,TI,N,YEAR_END,CAPTURE,ACTIVITY_SHIPPED,WEEK_START,NOW_H,TRAIN,dateOf,dow,MON,DN,dl,dli,sum,cum,opps,
+    workout,reps,meditate,read,wd,wdComplete,ACT,PROJ,sessions,actDaily,unclassDaily,projDaily,
+    BOOKS,bookDays,currentBook,GOALS,G,WEEKLY,W,streak,lastActive,num,fmt,hm,axis,tip};
+})();
+</script>
+<script>
+const T=G2.T, TI=G2.TI, WS=G2.WEEK_START;
+
+/* ---- intentions ---- */
+const ints=[G2.W.writemin,G2.W.drawdays,G2.W.musicdays,G2.W.softmin,G2.W.editmin];
+document.getElementById('ints').innerHTML=ints.map(w=>{
+  const days=w.kind==='days', met=w.got>=w.target;
+  const val=days?`${w.got} / ${w.target}`:`${G2.hm(w.got)}`;
+  const sub=days?w.unitTxt:`of ${G2.hm(w.target)}`;
+  const cells=days?`<div class="days">`+[0,1,2,3,4,5,6].map(k=>{
+    const i=WS+k; if(i>TI) return '<span class="f"></span>';
+    const v=w.daily[i]; return v>=(w.minPerDay||1)?'<span class="q"></span>':v>0?'<span class="p"></span>':'<span></span>';
+  }).join('')+'</div>':`<div class="bar" style="--bc:${w.color}"><i style="width:${Math.min(100,w.got/w.target*100)}%"></i></div>`;
+  const line = met ? `<span class="met">✓ met — let it be enough</span>`
+    : `<small>${days?w.left+' more · '+w.daysLeft+' days left':G2.hm(w.left)+' to go · '+w.daysLeft+' days left'}</small>`;
+  return `<div class="card int" style="--ic:${w.color}">
+    <div class="kicker">${w.icon} ${w.label}</div>
+    <div class="mid" style="margin-top:8px">${val}</div><small>${sub}</small>${cells}${line}
+    <div class="faint mono" style="font-size:10px;margin-top:8px">${w.met12} of last 12 weeks met</div></div>`;
+}).join('');
+
+/* ---- attention chart ---- */
+const weeks=[]; for(let s=WS-7*11;s<=WS;s+=7) weeks.push(s);
+const wsum=(a,s)=>G2.sum(a.slice(s,Math.min(s+7,G2.N)));
+const att=echarts.init(document.getElementById('att'));
+function attention(view){
+  let series;
+  if(view==='act'){
+    series=Object.entries(G2.ACT).map(([k,a])=>({name:a.label,type:'bar',stack:'t',barWidth:'58%',
+      itemStyle:{color:a.color},data:weeks.map(s=>+(wsum(G2.actDaily[k],s)/60).toFixed(1))}));
+    series.push({name:'Unclassified',type:'bar',stack:'t',itemStyle:{color:'rgba(139,148,158,.35)'},
+      data:weeks.map(s=>+(wsum(G2.unclassDaily,s)/60).toFixed(1))});
+  } else {
+    const pc=[T.amber,T.gold,T.teal||'#2dd4bf',T.azure,T.pink,T.violet];
+    series=G2.PROJ.map((p,j)=>({name:p.label,type:'bar',stack:'t',barWidth:'58%',itemStyle:{color:pc[j]},
+      data:weeks.map(s=>+(wsum(G2.projDaily[p.id],s)/60).toFixed(1))}));
+  }
+  series[series.length-1].markLine={silent:true,symbol:'none',data:[{xAxis:G2.dli(G2.ACTIVITY_SHIPPED-1-((G2.dow(G2.ACTIVITY_SHIPPED)+6)%7)+1)}],lineStyle:{color:T.cyan,type:'dashed'},
+    label:{formatter:'activity-id ships',color:T.cyan,fontSize:9,fontFamily:'Space Mono',position:'end'}};
+  att.setOption({
+    grid:{left:40,right:12,top:54,bottom:26},
+    legend:{top:0,left:0,textStyle:{color:T.dim,fontFamily:'Space Mono',fontSize:10},itemWidth:10,itemHeight:10,itemGap:14},
+    tooltip:Object.assign({trigger:'axis',axisPointer:{type:'shadow'}},G2.tip,{valueFormatter:v=>v+' h'}),
+    xAxis:G2.axis({type:'category',data:weeks.map(s=>G2.dli(s)),splitLine:{show:false}}),
+    yAxis:G2.axis({type:'value',axisLabel:{color:T.dim,fontFamily:'Space Mono',fontSize:10,formatter:'{value}h'}}),
+    series},true);
+}
+attention('act');
+document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('[data-v]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));attention(b.dataset.v)});
+const tot12=weeks.reduce((a,s)=>a+G2.PROJ.reduce((x,p)=>x+wsum(G2.projDaily[p.id],s),0),0);
+document.getElementById('att-sub').textContent=`${Math.round(tot12/60)} hours of closed project time. Switching views re-attributes it; the total never changes.`;
+const unc=G2.sessions.filter(s=>!s.act), bf=G2.sessions.filter(s=>s.backfilled);
+document.getElementById('unclass').innerHTML=`<b class="white">Grey is honest.</b> ${unc.length} sessions
+  (${Math.round(G2.sum(unc.map(s=>s.min))/60)}h) on Garage Build and Moth Lantern predate
+  <code>activity-id</code> and were split across several activities, so nobody guesses. ${bf.length} sessions
+  on single-activity projects were backfilled from the project default. From Aug 17 on, every
+  session is tagged at stop-timer.`;
+
+/* ---- projects & milestones ---- */
+const MS={
+  lowtide:{pc:T.amber,done:[[143,'Ch. 4 draft'],[213,'Ch. 5 draft'],[240,'Ch. 6 draft']],next:'Ch. 7 draft',state:''},
+  garage:{pc:T.gold,done:[[112,'Script lock'],[193,'Storyboard'],[235,'Rough cut v1']],next:'Colour pass',state:''},
+  moth:{pc:'#2dd4bf',done:[[154,'Movement prototype'],[220,'First room playable']],next:'Lantern mechanic',state:'Next session planned for Saturday. Quiet weeks are a plan, not a stall — no stale-project alarm.'},
+  gleanmo:{pc:T.azure,done:[[176,'Timer running flag'],[211,'Exercise export'],[231,'Relation defaults']],next:'Motivation dashboard',state:'No time quota — weekly software intention covers it'}
+};
+document.getElementById('projs').innerHTML=['lowtide','garage','moth','gleanmo'].map(id=>{
+  const p=G2.PROJ.find(x=>x.id===id), m=MS[id];
+  const wk=G2.sessions.filter(s=>s.proj===id&&s.i>=WS), wkMin=G2.sum(wk.map(s=>s.min));
+  const last30=G2.sessions.filter(s=>s.proj===id&&s.i>TI-30), by={};
+  last30.forEach(s=>{const k=s.act||'unclassified';by[k]=(by[k]||0)+s.min});
+  const tot=G2.sum(Object.values(by))||1;
+  const stack=Object.entries(by).map(([k,v])=>`<i title="${k}" style="width:${v/tot*100}%;background:${k==='unclassified'?'rgba(139,148,158,.35)':G2.ACT[k].color}"></i>`).join('');
+  const legend=Object.entries(by).map(([k,v])=>`${k==='unclassified'?'unclassified':G2.ACT[k].label.toLowerCase()} ${Math.round(v/tot*100)}%`).join(' · ');
+  return `<article class="card proj" style="--pc:${m.pc}">
+    <div class="kind">${p.kind} · ${p.label}</div>
+    <div class="mid" style="margin-top:10px">${wkMin?G2.hm(wkMin):'—'}</div><small>attention this week</small>
+    <div class="stack">${stack}</div><div class="faint mono" style="font-size:10px">${legend} · last 30 days</div>
+    <div class="rule" style="margin-top:12px;padding-top:6px">
+      ${m.done.map(([i,t])=>`<div class="ms"><span class="d">${G2.dli(i)}</span><span>✓ ${t}</span></div>`).join('')}
+      <div class="ms next"><span class="d">next</span><span>○ ${m.next}</span></div>
+    </div>
+    <div class="row" style="margin-top:10px"><span class="pill">${m.done.length} milestones done</span></div>
+    ${m.state?`<p class="small" style="margin:8px 0 0">${m.state}</p>`:''}
+  </article>`;
+}).join('');
+
+/* ---- receipts timeline ---- */
+(function(){
+  const names=['lowtide','garage','moth','gleanmo'];
+  echarts.init(document.getElementById('receipts')).setOption({
+    grid:{left:104,right:18,top:22,bottom:26},
+    tooltip:Object.assign({},G2.tip,{formatter:p=>`${G2.dli(p.value[0])}<br><b>${p.value[2]}</b>`}),
+    xAxis:G2.axis({type:'value',min:90,max:G2.YEAR_END,interval:30.42,splitLine:{show:false},
+      axisLabel:{color:T.dim,fontFamily:'Space Mono',fontSize:10,formatter:v=>G2.MON[Math.min(11,Math.round(v/30.42))]}}),
+    yAxis:G2.axis({type:'category',data:names.map(id=>G2.PROJ.find(p=>p.id===id).label).reverse(),
+      axisLabel:{color:T.dim,fontFamily:'Space Mono',fontSize:11}}),
+    series:names.map(id=>({type:'scatter',symbol:'diamond',symbolSize:13,
+      itemStyle:{color:MS[id].pc,borderColor:'#0d1117',borderWidth:1},
+      data:MS[id].done.map(([i,t])=>[i,G2.PROJ.find(p=>p.id===id).label,t]),
+      markLine:id==='gleanmo'?{silent:true,symbol:'none',data:[{xAxis:TI}],lineStyle:{color:T.gold},
+        label:{formatter:'today',color:T.gold,fontSize:9,fontFamily:'Space Mono'}}:undefined}))
+  });
+})();
+
+/* ---- 12-week grid ---- */
+(function(){
+  const from=WS-77, days=TI-from+1, CW=11, CH=22;
+  const rows=[
+    {l:'✍️ Writing',a:G2.actDaily.writing,c:G2.ACT.writing.color,q:1},
+    {l:'🎨 Drawing',a:G2.actDaily.drawing,c:G2.ACT.drawing.color,q:15},
+    {l:'🎸 Music',a:G2.actDaily.music,c:G2.ACT.music.color,q:20},
+    {l:'💻 Software',a:G2.actDaily.software,c:G2.ACT.software.color,q:1},
+    {l:'🎬 Editing',a:G2.actDaily.editing,c:G2.ACT.editing.color,q:1},
+    {l:'🏋️ Workout',a:G2.workout,c:T.red,q:1},
+    {l:'🧘 Meditate',a:G2.meditate,c:T.green,q:1},
+    {l:'📖 Read',a:G2.read,c:T.orange,q:1},
+    {l:'🌙 Winddown',a:G2.wd.map(n=>G2.sum(n)),c:T.cyan,q:3,steps:true}];
+  document.getElementById('labs').innerHTML=rows.map(r=>`<div class="lab">${r.l}</div>`).join('')+'<div style="height:16px"></div>';
+  const W=days*CW, H=rows.length*CH;
+  let s=`<svg width="${W}" height="${H+16}" viewBox="0 0 ${W} ${H+16}">`;
+  for(let d=0;d<days;d++) if(G2.dow(from+d)===1) s+=`<rect x="${d*CW-1}" y="0" width="1" height="${H}" fill="#30363d"/>
+    <text x="${d*CW+2}" y="${H+12}" fill="#484f58" font-size="9" font-family="Space Mono">${G2.dli(from+d)}</text>`;
+  rows.forEach((r,y)=>{for(let d=0;d<days;d++){
+    const i=from+d, v=r.a[i], x=d*CW, yy=y*CH+3, w=CW-2, h=CH-6;
+    let el;
+    if(r.steps){ el = v===0?`<rect x="${x}" y="${yy}" width="${w}" height="${h}" rx="2" fill="#0f141b" stroke="#21262d" stroke-width=".6"/>`
+        : `<rect x="${x}" y="${yy}" width="${w}" height="${h}" rx="2" fill="none" stroke="${r.c}" stroke-width=".8"/>
+           <rect x="${x}" y="${yy+h*(1-v/3)}" width="${w}" height="${h*v/3}" rx="1.5" fill="${r.c}"/>`; }
+    else if(v>=r.q && v>0) el=`<rect x="${x}" y="${yy}" width="${w}" height="${h}" rx="2" fill="${r.c}"/>`;
+    else if(v>0) el=`<rect x="${x+.5}" y="${yy+.5}" width="${w-1}" height="${h-1}" rx="2" fill="none" stroke="${r.c}" stroke-dasharray="2 1.5"/>`;
+    else el=`<rect x="${x}" y="${yy}" width="${w}" height="${h}" rx="2" fill="#0f141b" stroke="#21262d" stroke-width=".6"/>`;
+    s+=`<g data-r="${y}" data-i="${i}">${el}</g>`;
+  }});
+  s+=`<rect x="${(days-1)*CW-1}" y="0" width="${CW}" height="${H}" fill="none" stroke="#f0f6fc" stroke-opacity=".5"/></svg>`;
+  const sc=document.getElementById('sc'); sc.innerHTML=s; sc.scrollLeft=9999;
+  const tip=document.getElementById('tip');
+  sc.addEventListener('mousemove',e=>{
+    const g=e.target.closest('g[data-i]'); if(!g){tip.style.display='none';return}
+    const r=rows[+g.dataset.r], i=+g.dataset.i, v=r.a[i];
+    const txt=r.steps?`${v}/3 steps`:v?(r===rows[5]?'session':v+' min'+(v<r.q?' — below the '+r.q+'-min bar':'')):'nothing';
+    tip.innerHTML=`${r.l}<br>${G2.dli(i)} · ${txt}`; tip.style.display='block';
+    tip.style.left=(e.clientX+12)+'px'; tip.style.top=(e.clientY+12)+'px';
+  });
+  sc.addEventListener('mouseleave',()=>tip.style.display='none');
+})();
+addEventListener('resize',()=>att.resize());
+</script>
+</body></html>

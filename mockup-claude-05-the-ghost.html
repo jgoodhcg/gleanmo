@@ -1,0 +1,562 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Ghost — Gleanmo mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@6.0.0/dist/echarts.min.js"></script>
+<style>
+/* Gleanmo mockup base — mirrors resources/tailwind.css tokens */
+:root{
+  --bg:#0d1117; --surface:#161b22; --surface-2:#0b0e13; --border:#30363d;
+  --text:#c9d1d9; --dim:#8b949e; --faint:#484f58;
+  --gold:#ffd400; --azure:#3b82f6; --violet:#8b5cf6; --cyan:#06b6d4;
+  --amber:#f59e0b; --pink:#ec4899; --lime:#32cd32; --green:#22c55e;
+  --red:#ef4444; --orange:#f97316;
+  --r-sm:4px; --r-md:6px; --r-lg:8px;
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s6:24px; --s8:32px; --s12:48px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:'Space Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:14px; line-height:1.5; padding:0 var(--s4) var(--s12);
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1180px;margin:0 auto}
+.wrap-narrow{max-width:560px;margin:0 auto}
+a{color:var(--cyan);text-decoration:none}
+a:hover{text-decoration:underline}
+h1,h2,h3,h4{margin:0;font-weight:700;letter-spacing:-0.01em}
+.tnum{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+
+/* mockup chrome ---------------------------------------------------------- */
+.mk-bar{
+  display:flex;flex-wrap:wrap;gap:var(--s3);align-items:center;
+  border-bottom:1px solid var(--border); padding-block:var(--s4);
+  margin-bottom:var(--s6);
+}
+.mk-bar .tag{
+  font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--bg);
+  background:var(--cyan);padding:3px 8px;border-radius:var(--r-sm);font-weight:700;
+}
+.mk-bar h1{font-size:18px}
+.mk-bar .sub{color:var(--dim);font-size:12px}
+.mk-bar .spacer{flex:1}
+.back{font-size:12px;color:var(--dim)}
+
+.eyebrow{
+  font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);
+  margin:0 0 var(--s3);font-weight:700;
+}
+.card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-lg);padding:var(--s4);
+}
+.grid{display:grid;gap:var(--s4)}
+.muted{color:var(--dim)}
+.faint{color:var(--faint)}
+.pos{color:var(--green)} .neg{color:var(--red)} .warn{color:var(--amber)}
+.chart{width:100%}
+.note{
+  border-left:2px solid var(--border);padding-left:var(--s3);
+  color:var(--dim);font-size:12px;line-height:1.6;
+}
+.pill{
+  display:inline-flex;align-items:center;gap:6px;font-size:11px;
+  border:1px solid var(--border);border-radius:999px;padding:3px 10px;color:var(--dim);
+}
+@media (max-width:640px){ body{font-size:13px} }
+
+body{background:#08090c}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:var(--s4)}
+.chip2{
+  font-size:12px;border:1px solid var(--border);background:var(--surface);color:var(--dim);
+  border-radius:999px;padding:6px 12px;cursor:pointer;font-family:inherit;min-height:34px;
+  transition:all 150ms ease-out;
+}
+.chip2[aria-selected="true"]{border-color:var(--cc);color:var(--cc);box-shadow:0 0 0 1px var(--cc) inset}
+.chip2:hover{transform:translateY(-1px)}
+
+.score{display:flex;flex-wrap:wrap;gap:var(--s6);align-items:flex-end;margin:var(--s6) 0 var(--s4)}
+.score .side{min-width:150px}
+.score .who{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.score .val{font-size:clamp(30px,6vw,52px);font-weight:700;line-height:1;font-variant-numeric:tabular-nums;margin-top:6px}
+.score .vs{font-size:20px;color:var(--faint);align-self:center;padding-bottom:10px}
+.score .verdict{margin-left:auto;text-align:right;max-width:400px}
+.score .verdict .head{font-size:clamp(16px,2.4vw,22px);font-weight:700;line-height:1.2}
+.score .verdict p{margin:8px 0 0;font-size:12px;color:var(--dim);line-height:1.6}
+
+.stage{border:1px solid var(--border);border-radius:var(--r-lg);background:#0b0e13;padding:var(--s4);position:relative}
+.stage .ctl{position:absolute;right:var(--s4);top:var(--s4);z-index:2}
+.btn{
+  background:transparent;border:1px solid var(--border);color:var(--dim);border-radius:var(--r-md);
+  padding:7px 12px;font-family:inherit;font-size:11px;cursor:pointer;min-height:34px;
+  transition:all 150ms ease-out;
+}
+.btn:hover{border-color:var(--cyan);color:var(--cyan)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:var(--s4);margin-top:var(--s4)}
+@media(max-width:900px){.two{grid-template-columns:1fr}}
+.card{background:#0b0e13}
+.kpi{display:flex;gap:var(--s6);flex-wrap:wrap;margin-top:var(--s3)}
+.kpi div span{display:block;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.kpi div b{font-size:20px;font-variant-numeric:tabular-nums;display:block;margin-top:4px}
+</style></head>
+<body>
+<div class="wrap">
+
+<div class="mk-bar">
+  <span class="tag">Mockup 05</span>
+  <h1>The Ghost</h1>
+  <span class="sub">— race the only opponent you have</span>
+  <span class="spacer"></span>
+  <a class="back" href="mockup-claude-00-index.html">← index</a>
+</div>
+
+<p class="note" style="margin-bottom:var(--s6)">
+  A goal is a number someone picked. <b style="color:var(--text)">Last year is a number you actually
+  hit</b> — so falling behind it stings in a way that missing an aspirational target never does, and
+  passing it is unambiguous. Same math as the Pace Board, different opponent, and it needs no new
+  schema at all: you already have the history.
+</p>
+
+<div class="chips" id="chips"></div>
+
+<div class="score">
+  <div class="side"><div class="who">2026 · through Sep 10</div><div class="val" id="s-now"></div></div>
+  <div class="vs">vs</div>
+  <div class="side"><div class="who">2025 · same 253 days</div><div class="val" id="s-then" style="color:#8b949e"></div></div>
+  <div class="verdict"><div class="head" id="v-head"></div><p id="v-body"></p></div>
+</div>
+
+<div class="stage">
+  <div class="ctl"><button class="btn" id="replay">▶ replay the year</button></div>
+  <div class="chart" id="race" style="height:400px"></div>
+</div>
+
+<div class="two">
+  <div class="card">
+    <div class="eyebrow">The gap — how far ahead of last year, day by day</div>
+    <div class="chart" id="gap" style="height:230px"></div>
+    <p class="note" style="border:none;padding:0;margin:var(--s3) 0 0" id="gapread"></p>
+  </div>
+  <div class="card">
+    <div class="eyebrow">Rolling 90 days — is right now one of your good stretches?</div>
+    <div class="chart" id="roll" style="height:230px"></div>
+    <div class="kpi" id="rollkpi"></div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:var(--s4)">
+  <div class="eyebrow">Every practice vs. its own ghost</div>
+  <div class="chart" id="allghost" style="height:300px"></div>
+  <p class="note" style="border:none;padding:0;margin:var(--s3) 0 0">
+    Bars right of zero: ahead of where you were on this date last year. This is the whole dashboard
+    compressed into one screen, and it is the version worth putting on the home page.
+  </p>
+</div>
+
+</div>
+<script>/* ==========================================================================
+   GM — shared mock data core for the Gleanmo motivation dashboards.
+   Deterministic, seeded, self-consistent: every number in every mockup is
+   derived from this one generator, so the charts and the stat tiles agree.
+   "Today" is 2026-09-10.
+   ========================================================================== */
+const GM = (function () {
+
+  /* ---- theme tokens (mirrors resources/tailwind.css) --------------------- */
+  const T = {
+    bg: '#0d1117', surface: '#161b22', border: '#30363d',
+    text: '#c9d1d9', dim: '#8b949e', faint: '#484f58',
+    gold: '#ffd400', azure: '#3b82f6', violet: '#8b5cf6',
+    cyan: '#06b6d4', amber: '#f59e0b', pink: '#ec4899',
+    lime: '#32cd32', green: '#22c55e', red: '#ef4444', orange: '#f97316'
+  };
+
+  /* ---- rng --------------------------------------------------------------- */
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  /* ---- calendar ---------------------------------------------------------- */
+  const YEAR = 2026;
+  const TODAY = new Date(YEAR, 8, 10);           // 2026-09-10
+  const DOY = Math.round((TODAY - new Date(YEAR, 0, 1)) / 864e5) + 1; // 253
+  const DAYS_IN_YEAR = 365;
+  const DAYS_ELAPSED = DOY;
+  const DAYS_LEFT = DAYS_IN_YEAR - DOY;          // 112
+  const dateOf = (i) => new Date(YEAR, 0, 1 + i);
+  const iso = (d) => d.toISOString().slice(0, 10);
+  const MONTH = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  /* ---- practice definitions ----------------------------------------------
+     `stance` tunes the goal relative to the year-end projection:
+       < 1 = ahead of pace, > 1 = behind. This is what makes the mock data
+       tell a story instead of nine identical green bars.
+     `source` names the entity the metric would actually come from today.
+     ------------------------------------------------------------------------ */
+  const SPEC = [
+    { key:'workout',  label:'Workout',   icon:'🏋️', color:T.red,
+      unit:'sessions', one:'session', kind:'count', step:25, stance:1.02,
+      dow:[.35,.62,.55,.30,.62,.58,.42], amt:[1,1], weeklyMin:3, dur:[38,72],
+      source:'exercise-session', srcNote:'interval log, already exists' },
+    { key:'meditate', label:'Meditate',  icon:'🧘', color:T.green,
+      unit:'days', one:'day', kind:'binary', step:25, stance:0.97,
+      dow:[.965,.97,.97,.965,.97,.96,.95], amt:[1,1], weeklyMin:5, dur:[10,32],
+      source:'meditation-log', srcNote:'interval log, already exists' },
+    { key:'winddown', label:'Winddown',  icon:'🌙', color:T.cyan,
+      unit:'nights', one:'night', kind:'binary', step:25, stance:1.06,
+      dow:[.82,.90,.88,.88,.86,.72,.70], amt:[1,1], weeklyMin:5, dur:[6,12],
+      source:'habit-log', srcNote:'habit-log, already exists' },
+    { key:'read',     label:'Read',      icon:'📖', color:T.orange,
+      unit:'pages', one:'page', kind:'quantity', step:1000, stance:0.93,
+      dow:[.70,.66,.66,.66,.64,.70,.76], amt:[8,44], weeklyMin:4, dur:[18,55],
+      source:'reading-log', srcNote:'NEEDS end-page + book page-count' },
+    { key:'write',    label:'Write',     icon:'✍️', color:T.amber,
+      unit:'words', one:'word', kind:'quantity', step:5000, stance:1.14,
+      dow:[.30,.48,.40,.46,.40,.36,.30], amt:[180,880], weeklyMin:3, dur:[35,90],
+      source:'project-log', srcNote:'NEEDS output-count on project-log' },
+    { key:'draw',     label:'Draw',      icon:'🎨', color:T.pink,
+      unit:'minutes', one:'minute', kind:'quantity', step:600, stance:1.28,
+      dow:[.34,.44,.38,.42,.36,.52,.46], amt:[10,48], weeklyMin:4, dur:null,
+      source:'project-log', srcNote:'project-log, already exists' },
+    { key:'music',    label:'Music',     icon:'🎸', color:T.violet,
+      unit:'minutes', one:'minute', kind:'quantity', step:300, stance:1.35,
+      dow:[.18,.24,.30,.22,.26,.38,.32], amt:[18,72], weeklyMin:2, dur:null,
+      source:'project-log', srcNote:'project-log, already exists' },
+    { key:'software', label:'Software',  icon:'💻', color:T.azure,
+      unit:'minutes', one:'minute', kind:'quantity', step:3000, stance:0.90,
+      dow:[.30,.82,.84,.80,.82,.44,.26], amt:[45,205], weeklyMin:4, dur:null,
+      source:'project-log', srcNote:'project-log, already exists' },
+    { key:'creative', label:'Creative',  icon:'🎬', color:T.gold,
+      unit:'minutes', one:'minute', kind:'quantity', step:600, stance:1.18,
+      dow:[.16,.20,.24,.20,.26,.44,.40], amt:[55,190], weeklyMin:1, dur:null,
+      source:'project-log', srcNote:'project-log, already exists' }
+  ];
+
+  /* ---- series generation -------------------------------------------------- */
+  function shape(doy) {
+    if (doy < 12) return 0.5;            // slow January start
+    if (doy >= 188 && doy <= 205) return 0.22; // early-July slump (travel)
+    if (doy >= 206 && doy <= 216) return 0.7;  // clawing back
+    if (doy >= 232) return 1.16;         // recent surge
+    return 1;
+  }
+
+  function genSeries(p, seedOffset, nDays, seedBase) {
+    const rnd = mulberry32((seedBase || 0x9E37) + seedOffset * 7919);
+    const out = [];
+    for (let i = 0; i < nDays; i++) {
+      const dow = dateOf(i).getDay();
+      const prob = Math.min(0.97, p.dow[dow] * shape(i + 1));
+      let v = 0;
+      if (rnd() < prob) {
+        v = (p.kind === 'quantity')
+          ? p.amt[0] + Math.round(rnd() * (p.amt[1] - p.amt[0]))
+          : 1;
+      }
+      out.push(v);
+    }
+    return out;
+  }
+
+  const sum = (a) => a.reduce((x, y) => x + y, 0);
+
+  function cumulative(a) { let c = 0; return a.map(v => (c += v)); }
+
+  function streaks(series, activeFrom) {
+    let cur = 0, best = 0, run = 0;
+    for (let i = 0; i < series.length; i++) {
+      if (series[i] > 0) { run++; best = Math.max(best, run); }
+      else run = 0;
+    }
+    cur = run;
+    // longest-ever includes a hand-set historical best where the run is short
+    return { current: cur, longest: Math.max(best, activeFrom || 0) };
+  }
+
+  function weekStreak(series, weeklyMin) {
+    // consecutive completed weeks (Mon-Sun) meeting the weekly minimum
+    const weeks = [];
+    let w = [];
+    for (let i = 0; i < series.length; i++) {
+      w.push(series[i] > 0 ? 1 : 0);
+      if (dateOf(i).getDay() === 0) { weeks.push(sum(w)); w = []; }
+    }
+    const partial = sum(w);
+    let cur = 0;
+    for (let i = weeks.length - 1; i >= 0; i--) {
+      if (weeks[i] >= weeklyMin) cur++; else break;
+    }
+    let best = 0, run = 0;
+    weeks.forEach(v => { if (v >= weeklyMin) { run++; best = Math.max(best, run); } else run = 0; });
+    return { current: cur, longest: best, thisWeek: partial, weeks };
+  }
+
+  /* ---- build the practice objects ---------------------------------------- */
+  const P = SPEC.map((p, idx) => {
+    const series = genSeries(p, idx, DAYS_ELAPSED);
+    const total = sum(series);
+    const perDay = total / DAYS_ELAPSED;
+    const projected = perDay * DAYS_IN_YEAR;
+    // goal, snapped to the milestone step so it reads like a goal, not a stat
+    const goal = Math.max(p.step, Math.round(projected * p.stance / p.step) * p.step);
+    const remaining = Math.max(0, goal - total);
+    const needPerDay = remaining / DAYS_LEFT;
+    const onPaceTarget = goal * DAYS_ELAPSED / DAYS_IN_YEAR;
+    const delta = total - onPaceTarget;              // + ahead, - behind
+    const deltaDays = delta / (goal / DAYS_IN_YEAR); // ahead/behind in days
+    const pctGoal = total / goal;
+    const pctYear = DAYS_ELAPSED / DAYS_IN_YEAR;
+    const etaDays = perDay > 0 ? remaining / perDay : Infinity;
+    const eta = isFinite(etaDays) ? new Date(TODAY.getTime() + etaDays * 864e5) : null;
+    const nextMilestone = (Math.floor(total / p.step) + 1) * p.step;
+    const toMilestone = nextMilestone - total;
+    const last7 = sum(series.slice(-7));
+    const prev7 = sum(series.slice(-14, -7));
+    const last30 = sum(series.slice(-30));
+    const prev30 = sum(series.slice(-60, -30));
+    const ds = streaks(series);
+    const ws = weekStreak(series, p.weeklyMin);
+    const lastActive = (() => { for (let i = series.length - 1; i >= 0; i--) if (series[i] > 0) return DAYS_ELAPSED - 1 - i; return 999; })();
+    const bestDay = Math.max(...series);
+    const activeDays = series.filter(v => v > 0).length;
+    // prior year, for the ghost race
+    const prevSeries = genSeries(p, idx, DAYS_IN_YEAR, 0x51ED);
+    return Object.assign({}, p, {
+      series, cum: cumulative(series), total, perDay, projected, goal, remaining,
+      needPerDay, onPaceTarget, delta, deltaDays, pctGoal, pctYear, eta, etaDays,
+      nextMilestone, toMilestone, last7, prev7, last30, prev30,
+      streak: ds, weeks: ws, lastActive, bestDay, activeDays,
+      prevSeries, prevCum: cumulative(prevSeries),
+      onPace: delta >= 0
+    });
+  });
+
+  const byKey = Object.fromEntries(P.map(p => [p.key, p]));
+
+  /* ---- formatting --------------------------------------------------------- */
+  function fmt(v, p, opts) {
+    const o = opts || {};
+    if (p.unit === 'minutes') {
+      const h = v / 60;
+      if (o.forceMin || v < 60) return Math.round(v) + ' min';
+      return (h >= 100 ? Math.round(h) : h.toFixed(1)) + ' h';
+    }
+    if (v >= 10000) return Math.round(v).toLocaleString();
+    if (v >= 100) return Math.round(v).toLocaleString();
+    return (Math.abs(v) < 10 && !Number.isInteger(v)) ? v.toFixed(1) : Math.round(v).toLocaleString();
+  }
+  function num(v) {
+    return (Math.abs(v) >= 100 || Number.isInteger(v)) ? Math.round(v).toLocaleString() : v.toFixed(1);
+  }
+  function unitOf(p, v) {
+    if (p.unit === 'minutes') return (v < 60 ? 'min' : 'hours');
+    return p.unit;
+  }
+  const dateLabel = (d) => MONTH[d.getMonth()] + ' ' + d.getDate();
+
+  /* A rate of 0.48 sessions/day is true and useless. Counts read per week,
+     quantities read per day — same number, the unit the head already uses. */
+  const perWeek = (p) => p.kind !== 'quantity';
+  function rate(p, perDay) {
+    if (perWeek(p)) return { v: num(perDay * 7), per: 'per week' };
+    if (p.unit === 'minutes') return { v: perDay < 60 ? Math.round(perDay) + ' min' : (perDay / 60).toFixed(1) + ' h', per: 'per day' };
+    return { v: num(perDay), per: 'per day' };
+  }
+  const plural = (n, w) => Math.round(Math.abs(n)) === 1 ? w : w + 's';
+
+  /* ---- ECharts base theme -------------------------------------------------- */
+  function axisBase(extra) {
+    return Object.assign({
+      axisLine: { lineStyle: { color: T.border } },
+      axisTick: { show: false },
+      axisLabel: { color: T.dim, fontFamily: 'Space Mono, monospace', fontSize: 10 },
+      splitLine: { lineStyle: { color: 'rgba(48,54,61,0.55)' } }
+    }, extra || {});
+  }
+  const tooltipBase = {
+    backgroundColor: '#0b0e13', borderColor: T.border, borderWidth: 1,
+    textStyle: { color: T.text, fontFamily: 'Space Mono, monospace', fontSize: 11 },
+    axisPointer: { lineStyle: { color: T.faint } }
+  };
+
+  return { T, P, byKey, TODAY, DOY, DAYS_ELAPSED, DAYS_LEFT, DAYS_IN_YEAR,
+           dateOf, iso, MONTH, fmt, num, unitOf, dateLabel, sum, cumulative,
+           axisBase, tooltipBase, mulberry32, genSeries, rate, perWeek, plural };
+})();
+</script>
+<script>
+const T=GM.T,N=GM.DAYS_ELAPSED,D=GM.DAYS_IN_YEAR;
+/* last year, scaled so the comparison has a story */
+const GF={workout:.78,meditate:.62,winddown:1.12,read:.88,write:.71,draw:1.35,music:.95,software:.83,creative:.66};
+GM.P.forEach(p=>{
+  p.ghost=p.prevSeries.map(v=>v*GF[p.key]);
+  p.ghostCum=GM.cumulative(p.ghost);
+  p.ghostToDate=p.ghostCum[N-1];
+  p.ghostYear=p.ghostCum[D-1];
+});
+
+let cur='workout';
+const chips=document.getElementById('chips');
+GM.P.forEach(p=>{
+  const b=document.createElement('button');
+  b.className='chip2'; b.style.setProperty('--cc',p.color); b.dataset.k=p.key;
+  b.textContent=p.icon+' '+p.label;
+  b.onclick=()=>sel(p.key); chips.appendChild(b);
+});
+
+const race=echarts.init(document.getElementById('race'));
+const gap=echarts.init(document.getElementById('gap'));
+const roll=echarts.init(document.getElementById('roll'));
+const all=echarts.init(document.getElementById('allghost'));
+
+function raceOpt(p,upto){
+  const n=upto||N;
+  return {
+    animation:false,
+    grid:{left:60,right:110,top:30,bottom:28},
+    tooltip:Object.assign({trigger:'axis'},GM.tooltipBase,{
+      formatter:ps=>`<b>${GM.dateLabel(GM.dateOf(ps[0].dataIndex))}</b><br>`+
+        ps.map(s=>`<span style="color:${s.color}">■</span> ${s.seriesName}: ${GM.fmt(s.value,p)}`).join('<br>')}),
+    xAxis:GM.axisBase({type:'category',data:[...Array(D)].map((_,i)=>i),boundaryGap:false,splitLine:{show:false},
+      axisLabel:{color:T.dim,fontSize:10,fontFamily:'Space Mono',interval:30,
+        formatter:v=>GM.MONTH[GM.dateOf(+v).getMonth()]}}),
+    yAxis:GM.axisBase({type:'value',max:Math.max(p.goal,p.ghostYear,p.total)*1.06,
+      axisLabel:{color:T.dim,fontSize:10,fontFamily:'Space Mono',
+        formatter:v=>p.unit==='minutes'?Math.round(v/60)+'h':(v>=1000?(v/1000)+'k':v)}}),
+    series:[
+      {name:'2025 (ghost)',type:'line',data:p.ghostCum,showSymbol:false,
+       lineStyle:{color:'rgba(139,148,158,.55)',width:1.5,type:'dashed'},z:2,
+       endLabel:{show:true,color:T.dim,fontSize:11,fontFamily:'Space Mono',
+         formatter:'2025 finished\n'+GM.fmt(p.ghostYear,p)}},
+      {name:'2026 (you)',type:'line',data:p.ghostCum.map((_,i)=>i<n?p.cum[i]:null),showSymbol:false,
+       lineStyle:{color:p.color,width:3},z:4,
+       areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[
+         {offset:0,color:p.color+'3a'},{offset:1,color:p.color+'00'}])},
+       markPoint:{symbol:'circle',symbolSize:9,label:{show:false},itemStyle:{color:p.color,
+         shadowBlur:14,shadowColor:p.color},data:[{xAxis:n-1,yAxis:p.cum[n-1]}]},
+       markLine:{silent:true,symbol:'none',
+        data:[{yAxis:p.goal,lineStyle:{color:T.border,width:1},
+          label:{formatter:'2026 goal '+GM.fmt(p.goal,p),color:T.dim,fontSize:10,
+                 fontFamily:'Space Mono',position:'insideStartTop'}}]}}
+    ]};
+}
+
+function sel(k){
+  cur=k; const p=GM.byKey[k];
+  [...chips.children].forEach(c=>c.setAttribute('aria-selected',c.dataset.k===k));
+  document.getElementById('s-now').textContent=GM.fmt(p.total,p);
+  document.getElementById('s-now').style.color=p.color;
+  document.getElementById('s-then').textContent=GM.fmt(p.ghostToDate,p);
+
+  const diff=p.total-p.ghostToDate, ahead=diff>=0;
+  // how many days ago last year did it pass today's total?
+  let dayEq=p.ghostCum.findIndex(v=>v>=p.total); if(dayEq<0)dayEq=D;
+  const daysAhead=dayEq-N;
+  document.getElementById('v-head').innerHTML= ahead
+    ? `<span style="color:${T.green}">${daysAhead>0?daysAhead+' days ahead of ':'ahead of '}last year</span>`
+    : `<span style="color:${T.red}">${GM.fmt(Math.abs(diff),p)} behind last year</span>`;
+  document.getElementById('v-body').innerHTML= ahead
+    ? `Last year you didn't reach ${GM.fmt(p.total,p)} until ${dayEq>=D?'never — you finished the year lower':GM.dateLabel(GM.dateOf(dayEq))}.
+       You are running at <b style="color:${T.text}">${(p.total/p.ghostToDate).toFixed(2)}×</b> last year's rate.
+       Beating 2025's full year takes ${GM.fmt(Math.max(0,p.ghostYear-p.total),p)} more.`
+    : `2025-you is winning. You are at <b style="color:${T.text}">${(p.total/p.ghostToDate*100).toFixed(0)}%</b>
+       of last year's pace. Catching up by Dec 31 means ${GM.fmt((p.ghostYear-p.total)/GM.DAYS_LEFT,p,{forceMin:true})} a day
+       — last year you averaged ${GM.fmt(p.ghostYear/D,p,{forceMin:true})}.`;
+
+  race.setOption(raceOpt(p),true);
+
+  /* gap */
+  const g=p.cum.map((v,i)=>+(v-p.ghostCum[i]).toFixed(1));
+  const flips=[]; for(let i=1;i<N;i++) if((g[i-1]<0)!==(g[i]<0)) flips.push(i);
+  document.getElementById('gapread').innerHTML = flips.length
+    ? `You crossed last year's line ${flips.length===1?'once':flips.length+' times'}${flips.length?', most recently '+GM.dateLabel(GM.dateOf(flips[flips.length-1])):''}.
+       The steepest climb is the stretch worth copying deliberately.`
+    : `You have been ${g[N-1]>=0?'ahead':'behind'} the whole year — no crossing to point at.`;
+  gap.setOption({
+    grid:{left:52,right:14,top:14,bottom:24},
+    tooltip:Object.assign({trigger:'axis'},GM.tooltipBase,{
+      formatter:ps=>`${GM.dateLabel(GM.dateOf(ps[0].dataIndex))}<br>${ps[0].value>=0?'+':''}${GM.fmt(ps[0].value,p)} vs 2025`}),
+    xAxis:GM.axisBase({type:'category',data:[...Array(N)].map((_,i)=>i),boundaryGap:false,splitLine:{show:false},
+      axisLabel:{color:T.dim,fontSize:9,fontFamily:'Space Mono',interval:30,
+        formatter:v=>GM.MONTH[GM.dateOf(+v).getMonth()]}}),
+    yAxis:GM.axisBase({type:'value',axisLabel:{color:T.dim,fontSize:9,fontFamily:'Space Mono',
+      formatter:v=>p.unit==='minutes'?Math.round(v/60)+'h':(Math.abs(v)>=1000?(v/1000)+'k':v)}}),
+    series:[
+      {type:'line',data:g.map(v=>v>=0?v:null),showSymbol:false,connectNulls:false,
+       lineStyle:{color:T.green,width:2},areaStyle:{origin:0,color:'rgba(34,197,94,.20)'},
+       markLine:{silent:true,symbol:'none',data:[{yAxis:0,lineStyle:{color:T.faint,width:1}}]}},
+      {type:'line',data:g.map(v=>v<0?v:null),showSymbol:false,connectNulls:false,
+       lineStyle:{color:T.red,width:2},areaStyle:{origin:0,color:'rgba(239,68,68,.20)'}}]
+  },true);
+
+  /* rolling 90 across last year + this year */
+  const comb=p.ghost.concat(p.series), W=90, r=[];
+  for(let i=W;i<=comb.length;i++) r.push(+comb.slice(i-W,i).reduce((a,b)=>a+b,0).toFixed(1));
+  const best=Math.max(...r), bestIdx=r.indexOf(best), now=r[r.length-1];
+  const rank=r.filter(v=>v>now).length+1;
+  document.getElementById('rollkpi').innerHTML=`
+    <div><span>Current 90 days</span><b style="color:${p.color}">${GM.fmt(now,p)}</b></div>
+    <div><span>Your record</span><b>${GM.fmt(best,p)}</b></div>
+    <div><span>Rank of ${r.length} windows</span><b style="color:${rank<=r.length*0.1?T.gold:T.text}">#${rank}</b></div>
+    <div><span>To beat it</span><b style="color:${T.amber}">${GM.fmt(Math.max(0,best-now),p)}</b></div>`;
+  roll.setOption({
+    grid:{left:52,right:14,top:14,bottom:24},
+    tooltip:Object.assign({trigger:'axis'},GM.tooltipBase,{
+      formatter:ps=>`90 days ending ${GM.dateLabel(new Date(2025,0,1+ps[0].dataIndex+W))}<br>${GM.fmt(ps[0].value,p)}`}),
+    xAxis:GM.axisBase({type:'category',data:r.map((_,i)=>i),boundaryGap:false,splitLine:{show:false},
+      axisLabel:{color:T.dim,fontSize:9,fontFamily:'Space Mono',interval:90,
+        formatter:(v)=>{const d=new Date(2025,0,1+ +v+W);return GM.MONTH[d.getMonth()]+" '"+String(d.getFullYear()).slice(2)}}}),
+    yAxis:GM.axisBase({type:'value',scale:true,axisLabel:{color:T.dim,fontSize:9,fontFamily:'Space Mono',
+      formatter:v=>p.unit==='minutes'?Math.round(v/60)+'h':(v>=1000?(v/1000)+'k':v)}}),
+    series:[{type:'line',data:r,showSymbol:false,smooth:true,lineStyle:{color:p.color,width:2},
+      areaStyle:{color:p.color+'1e'},
+      markLine:{silent:true,symbol:'none',data:[
+        {yAxis:best,lineStyle:{color:T.gold,type:'dashed',width:1},
+         label:{formatter:'personal best',color:T.gold,fontSize:9,fontFamily:'Space Mono',position:'insideStartTop'}},
+        {xAxis:bestIdx,lineStyle:{color:'rgba(255,212,0,.35)',width:1},label:{show:false}}]}}]
+  },true);
+}
+
+/* all-practice ghost diverging bars */
+all.setOption({
+  grid:{left:110,right:60,top:12,bottom:28},
+  tooltip:Object.assign({trigger:'item'},GM.tooltipBase,{
+    formatter:pt=>{const p=GM.P[GM.P.length-1-pt.dataIndex];
+      return `${p.label}<br>2026: ${GM.fmt(p.total,p)}<br>2025 same date: ${GM.fmt(p.ghostToDate,p)}`}}),
+  xAxis:GM.axisBase({type:'value',axisLabel:{color:T.dim,fontSize:10,fontFamily:'Space Mono',formatter:v=>v+'%'},
+    splitLine:{lineStyle:{color:'rgba(48,54,61,.4)'}}}),
+  yAxis:GM.axisBase({type:'category',data:[...GM.P].reverse().map(p=>p.icon+' '+p.label),
+    axisLabel:{color:T.dim,fontSize:11,fontFamily:'Space Mono'},splitLine:{show:false}}),
+  series:[{type:'bar',barWidth:'55%',
+    data:[...GM.P].reverse().map(p=>{
+      const pct=(p.total/p.ghostToDate-1)*100;
+      return {value:+pct.toFixed(1),
+        itemStyle:{color:pct>=0?p.color:'rgba(239,68,68,.75)',borderRadius:pct>=0?[0,3,3,0]:[3,0,0,3]},
+        label:{show:true,position:pct>=0?'right':'left',color:T.dim,fontSize:10,fontFamily:'Space Mono',
+          formatter:(pct>=0?'+':'')+pct.toFixed(0)+'%'}};
+    }),
+    markLine:{silent:true,symbol:'none',data:[{xAxis:0,lineStyle:{color:T.dim,width:1}}]}}]
+});
+
+/* replay */
+document.getElementById('replay').onclick=()=>{
+  const p=GM.byKey[cur]; let n=1;
+  const step=()=>{ n=Math.min(N,n+Math.ceil(N/70));
+    race.setOption(raceOpt(p,n),true);
+    if(n<N) setTimeout(step,26); };
+  step();
+};
+
+sel('workout');
+addEventListener('resize',()=>[race,gap,roll,all].forEach(c=>c.resize()));
+</script>
+</body></html>
