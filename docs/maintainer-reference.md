@@ -51,6 +51,25 @@ Use this order when adding a new entity:
 8. Keep DB access in `src/tech/jgood/gleanmo/db/queries.clj` and `src/tech/jgood/gleanmo/db/mutations.clj`.
 9. Validate with `just check` and targeted tests.
 
+## Email & Authentication
+
+Sign-in is passwordless — Biff magic links and 6-digit codes — and delivery is
+**MailerSend**, over its REST API. reCAPTCHA guards the request endpoints.
+
+- Sender: `src/tech/jgood/gleanmo/email.clj`. `send-mailersend` POSTs to
+  `https://api.mailersend.com/v1/email` with an OAuth bearer token; `send-email`
+  picks it when `mailersend/api-key` is set, otherwise falls back to
+  `send-console`, which prints the message. Console output locally is expected
+  behavior, not a failure.
+- Templates: `:signin-link` and `:signin-code` (see `template` in `email.clj`).
+- Config (`resources/config.edn`): `MAILERSEND_API_KEY` (prod secret),
+  `MAILERSEND_FROM`, `MAILERSEND_REPLY_TO`, plus `RECAPTCHA_SECRET_KEY` /
+  `RECAPTCHA_SITE_KEY`. Prod values come from the App Platform dashboard, not
+  `config.env` — see `AGENTS.md`, Deployment.
+- History: **Postmark** was the provider until commit `669ebd1` ("Replace
+  postmark with mailersend", v1.8.10). The `:postmark/*` config keys no longer
+  exist.
+
 ## Conventions To Preserve
 
 - Namespace prefix: `tech.jgood.gleanmo.*`

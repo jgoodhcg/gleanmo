@@ -107,7 +107,6 @@ PWA notification scaffolding does not establish working reminder delivery.
 - [home-timeline-interval-times.md](./home-timeline-interval-times.md) - Render an interval's stop time alongside its start time in the home activity timeline, so a row shows its full span
 - [task-activity-logs.md](./task-activity-logs.md) - Spawn time logs from tasks and link habits/calendar events to tasks
 - [workflow-optimization.md](./workflow-optimization.md) - Dashboard quick reference, minimize clicks for logging, and motivating stats
-- [email-auth.md](./email-auth.md) - Restore email-based magic link authentication for user sign-in
 - [bm-log-bloating.md](./bm-log-bloating.md) - Add bloating tracking to bm-log schema with flexible modeling options
 - [reading-log-pages.md](./reading-log-pages.md) - Add page number tracking to reading-log schema
 - [config-cleanup.md](./config-cleanup.md) - Audit and consolidate configuration files to remove legacy artifacts
@@ -138,6 +137,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 
 ### Done
 
+- [051-email-auth.md](./archived/051-email-auth.md) - Passwordless email sign-in — magic links and 6-digit codes — through MailerSend under reCAPTCHA; shipped 2026-07-04
 - [labeled-rating-scales.md](./archived/labeled-rating-scales.md) - Store ratings as numbers, pick them by label (`:crud/scale`); shipped 2026-07-31 ahead of the m003/m006 prod imports
 - [navigation-redesign.md](./archived/navigation-redesign.md) - Layered navigation, shared page shell across every page, and the mobile tab bar (absorbed mobile-tab-bar.md)
 - [mobile-tab-bar.md](./archived/mobile-tab-bar.md) - Absorbed into navigation-redesign.md
