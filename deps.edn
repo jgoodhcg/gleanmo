@@ -20,7 +20,7 @@
          com.taoensso/tufte                  {:mvn/version "2.5.0"}}
  :aliases
  {;; Temporary JDK 25 compatibility flags for XTDB/Agrona Unsafe/native-access behavior.
-  ;; Track whether each flag is still needed in roadmap/biff-upgrade-v1-9.md.
+  ;; Track whether each flag is still needed in roadmap/037-biff-upgrade-v1-9.md.
   :dev  {:extra-deps  {com.biffweb/tasks {:git/url   "https://github.com/jacobobryant/biff"
                                           :git/tag   "v1.8.10", :git/sha "146f2b1"
                                           :deps/root "libs/tasks"}

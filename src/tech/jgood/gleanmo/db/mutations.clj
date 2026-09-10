@@ -12,7 +12,7 @@
 ;; `<entity>/running` is derived here, on every write, rather than set by the
 ;; timer handlers. XTDB indexes presence, not absence, so "has a beginning and
 ;; no end" is a set difference over the entity's whole history; the sparse flag
-;; turns it into one index lookup (see roadmap/timer-running-flag.md).
+;; turns it into one index lookup (see roadmap/071-timer-running-flag.md).
 ;;
 ;; Deriving it at the single mandatory write chokepoint is what keeps it
 ;; honest. Setting it in `start-timer`/`stop-timer` would turn a property that

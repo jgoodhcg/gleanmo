@@ -2,7 +2,7 @@
 // Verifies that a missing related entity can be created from inside the form
 // that needs it: no page bounce, no lost form state, new entity auto-selected.
 //
-// Covers roadmap/inline-entity-creation.md Phase 1 validation:
+// Covers roadmap/048-inline-entity-creation.md Phase 1 validation:
 //   - generic CRUD path (exercise-line -> exercise)
 //   - timer-entity path (project-log -> project)
 //   - validation failure re-renders the mini-form without creating

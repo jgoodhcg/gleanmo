@@ -9,11 +9,11 @@
     "problem": "Starting a timer from /app/timers is a plain form POST with no feedback: the browser posts, the server 303s, and the workspace re-renders every section. On 2026-08-02 the user tapped Start twice believing the first tap had not registered, and got two running timers on the same project. timer/routes.clj:509 calls create-entity! unconditionally — nothing checks whether that parent already has a running timer. Two distinct failures are tangled here: no feedback (why the second tap happened) and no idempotency (why the second tap cost anything).",
     "constraints": [
       "The user is explicitly wary of a data-model-level restriction ('no two running timers per project'), even though no legitimate use for one comes to mind. Stated preference: block the problematic action narrowly, do not restrict at a fundamental level.",
-      "Overlapping timers across DIFFERENT parents are intentional and load-bearing — see roadmap/timer-overlap-metrics.md. Any guard must not generalize to those.",
+      "Overlapping timers across DIFFERENT parents are intentional and load-bearing — see roadmap/036-timer-overlap-metrics.md. Any guard must not generalize to those.",
       "Precedent from this codebase argues against broad restrictions: the workout screen's original 'lines may only be written against the running set' rule looked obviously correct and was the root cause of the 2026-08-01 real-workout failure. Restrictions fail late, mid-task, and lose the moment; extra rows can always be deleted.",
       "Counter-precedent, same codebase: workout.clj:906 (start-session!) and workout.clj:934 (start-set!) already no-op when one is already open. The narrow guard pattern exists and is uncontroversial there because a set is inherently one-at-a-time within a session.",
       "The Start button carries its payload as name=\"parent-id\" value=<uuid> (timers.clj:112-132). Any client-side guard that sets button.disabled inside a submit handler strips that from the POST and breaks start entirely.",
-      "A DigitalOcean migration is planned (roadmap/infrastructure.md), so solutions assuming a single server instance carry future cost."
+      "A DigitalOcean migration is planned (roadmap/017-infrastructure.md), so solutions assuming a single server instance carry future cost."
     ]
   },
   "options": [
@@ -108,7 +108,7 @@
     "src/tech/jgood/gleanmo/app/timers.clj:374-382 — active-timers-fragment, already exists",
     "src/tech/jgood/gleanmo/app/workout.clj:906,934 — existing narrow-guard precedent",
     "resources/public/js/main.js — where the submit lock would live",
-    "roadmap/timer-overlap-metrics.md — why cross-parent overlap must stay legal",
-    "roadmap/exercise.md — the 2026-08-01 failure that argues against broad restrictions"
+    "roadmap/036-timer-overlap-metrics.md — why cross-parent overlap must stay legal",
+    "roadmap/015-exercise.md — the 2026-08-01 failure that argues against broad restrictions"
   ]
 }

@@ -1,6 +1,6 @@
 # AGENTS
 
-Follows `AGENT_BLUEPRINT.md` (version: 2026-09-07)
+Follows `AGENT_BLUEPRINT.md` (version: 2026-09-08.1)
 
 ## Session Start
 
@@ -286,7 +286,7 @@ UI/UX patterns
 Database layer
 - When reading or writing the database, call functions in `src/tech/jgood/gleanmo/db/queries.clj` / `db/mutations.clj`; never call `xt/q`, `biff/q`, `xt/entity`, or `xt/entity-history` outside those two files. (`xt/db` for snapshot refresh and `:xt/id` keywords are fine anywhere.)
 - When a needed query doesn't exist, add it to `db/queries.clj` rather than inlining it at the call site.
-- When adding a list/feed/count query, follow the scan-then-pull pattern: minimal index-only tuple scan (user + type + sort key only), then `fetch-entities-by-ids` for the page, post-filtering sparse flags (deleted/sensitive/archived) on pulled docs. XTDB 1.x runs each `(not ...)` clause as a per-row subquery — keep them out of hot-path scans. See `roadmap/dashboard-performance.md`.
+- When adding a list/feed/count query, follow the scan-then-pull pattern: minimal index-only tuple scan (user + type + sort key only), then `fetch-entities-by-ids` for the page, post-filtering sparse flags (deleted/sensitive/archived) on pulled docs. XTDB 1.x runs each `(not ...)` clause as a per-row subquery — keep them out of hot-path scans. See `roadmap/013-dashboard-performance.md`.
 - When reading user visibility settings, use `resolve-user-settings` (ctx-first), not `get-user-settings` directly.
 - Fetch-all-then-filter is a rule violation even when it goes through `db/queries.clj`: calling `all-for-user-query` (or similar) and filtering in the app namespace for a parent-scoped subset (e.g. one session's sets) or a recent-N slice counts as "a needed query doesn't exist" — add a targeted query instead. Parent-scoped reads get equality-bound where clauses (cost tracks the parent, not user history); recent-N reads get scan-then-pull with a limit. Examples: `sets-for-session`, `lines-for-sets`, `recent-lines-for-user`.
 - Why `:limit` doesn't rescue an inline pull: in XTDB 1.x, `(pull ?e [*])` in the `:find` runs for **every matching row before** `:order-by`/`:limit` are applied, so a "recent 5" query with an inline pull still fetches every document the where clauses match. The fix is scan-then-pull: an index-only query (`:find [?e ?sort]`, no pull), sort/truncate the tuples in Clojure, then `fetch-entities-by-ids` on the survivors. Inline pull is fine only when the where clauses already bound the match set to what you'll return (e.g. equality on a parent id).
@@ -301,7 +301,7 @@ XTDB orders join **variables** by estimated cardinality, then reads each clause 
 - **A range only prunes if its variable precedes `?e` in the join order.** Bound clauses lower `?e`'s estimated cardinality, which promotes `?e`, which demotes the range to a post-filter. Adding `[(>= ?t since)]` to a user+type scan bought 20%; letting the range drive the scan was 15x.
 - A type-specific attribute already implies the type, so `[?e ::sm/type :habit-log]` beside `[?e :habit-log/timestamp ?t]` is pure cost.
 
-Verify rather than assume: `-Dorg.slf4j.simpleLogger.log.xtdb.query=debug` prints `:triple-clause-var-order` and `:join-order :ave|:aev` per clause, and `xt/attribute-stats` gives per-attribute document counts. Method and a worked example: `roadmap/query-shape-audit.md`.
+Verify rather than assume: `-Dorg.slf4j.simpleLogger.log.xtdb.query=debug` prints `:triple-clause-var-order` and `:join-order :ave|:aev` per clause, and `xt/attribute-stats` gives per-attribute document counts. Method and a worked example: `roadmap/074-query-shape-audit.md`.
 
 **Absence is not indexable.** "Has no end value" costs a full scan; a sparse flag is one lookup. Materializing a state as a positive fact is the right fix *where the state is a real domain concept* (`<entity>/running`). It is not a licence to invent composite attributes that fake an index the engine lacks — that puts an engine workaround in the data model, the one layer a database swap cannot follow.
 
@@ -329,7 +329,7 @@ Biff's docs say `submit-tx` calls `xt/await-tx` "so you can read your writes." T
   (render ...))
 ```
 
-See `app/task.clj` and `crud/inline.clj` for that pattern. `xt/db` for snapshot refresh is explicitly allowed outside `db/queries.clj` (see the rule above). History: this bit the timer relocate action — `roadmap/unified-timer-page.md`.
+See `app/task.clj` and `crud/inline.clj` for that pattern. `xt/db` for snapshot refresh is explicitly allowed outside `db/queries.clj` (see the rule above). History: this bit the timer relocate action — `roadmap/066-unified-timer-page.md`.
 
 Code style
 - Namespaces use `tech.jgood.gleanmo.*`.
@@ -439,7 +439,7 @@ Any entity that participates in an Airtable migration must carry metadata for tr
 [:airtable/original-location {:optional true} :string] ; raw Airtable value before mapping
 ```
 
-All `airtable/*` fields are optional and must not affect entities created through the app UI. See `roadmap/archived/airtable-metadata-consistency.md` for known inconsistencies in already-deployed schemas.
+All `airtable/*` fields are optional and must not affect entities created through the app UI. See `roadmap/archived/053-airtable-metadata-consistency.md` for known inconsistencies in already-deployed schemas.
 
 New entity checklist — when adding a new entity, complete ALL of these steps:
 1. Define schema in `src/tech/jgood/gleanmo/schema/` with standard field ordering
@@ -464,7 +464,7 @@ list of timer types in the db or app layer to keep in sync.
 Omit it and nothing fails: the timer starts, stops, and displays correctly.
 What you lose is the index. `active-timers-for-user` falls back to computing
 "has a beginning, no end" as a set difference over the entity's entire history,
-which is the ~315ms-vs-0.18ms regression `roadmap/timer-running-flag.md` exists
+which is the ~315ms-vs-0.18ms regression `roadmap/071-timer-running-flag.md` exists
 to remove — and it degrades as the user logs more, so it looks fine on a new
 entity and rots.
 

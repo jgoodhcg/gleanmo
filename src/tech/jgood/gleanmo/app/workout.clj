@@ -397,7 +397,7 @@
    [:div {:class "text-[10px] font-semibold tracking-widest text-gray-500 mb-2"} "EXERCISE"]
    ;; Shared inline-create picker rather than a hand-rolled select, so
    ;; discovering a missing movement mid-workout follows the same flow as
-   ;; everywhere else (roadmap/inline-entity-creation.md Phase 2).
+   ;; everywhere else (roadmap/048-inline-entity-creation.md Phase 2).
    [:div.mb-5
     (inputs/inline-create-select
      {:field-name         field-name

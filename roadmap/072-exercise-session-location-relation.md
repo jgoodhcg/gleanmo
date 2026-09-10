@@ -1,0 +1,115 @@
+---
+title: "Exercise session location as a relation"
+status: draft
+description: "Replace the free-text location string on exercise-session with a proper location relation, matching every other log entity"
+created: 2026-08-04
+updated: 2026-08-06
+tags: [schema, exercise, location, data-modeling]
+priority: medium
+---
+
+# Exercise session location as a relation
+
+## Intent
+
+`exercise-session/location` is a free-text `:string`. Every other log entity
+that has a location (`meditation-log`, `reading-log`, `project-log`) points at
+the `location` entity by id, which gives inline create, the timer workspace
+location picker, archived/sensitive flags, and a single canonical list of
+places. Exercise sessions are the holdout, so a workout "at the gym" and a
+meditation "at the gym" are two unrelated strings instead of one shared
+reference. Bring exercise sessions in line with the rest of the app.
+
+## Specification
+
+This is an additive schema change, not an in-place type swap — exercise
+sessions were already imported from Airtable (m006, 84 sessions in
+production), so the existing string field has real documents behind it.
+
+- Add `[:exercise-session/location-id {:optional true, :crud/priority 1,
+  :crud/label "Location", :crud/inline-create true} :location/id]` to
+  `exercise-session`, positioned where the string field is today.
+- Mark the existing `:exercise-session/location` string field deprecated:
+  `{:optional true :hide true :crud/suggest-existing true}`. It stays in the
+  schema (these maps are `:closed true`) so old documents keep validating on
+  their next write, but the form stops rendering it and readers stop looking at
+  it.
+- Readers (session detail, summary, lists, any viz) read
+  `:exercise-session/location-id` and resolve through `location` — never
+  through the deprecated string. No fallback chain.
+- Follow the `reading-log` precedent exactly: it carries both
+  `:reading-log/location-id` (the relation) and `:airtable/original-location`
+  (the raw imported string preserved for lineage). Exercise sessions that
+  already have a string value keep it on disk untouched; the import-time
+  mapping, if any, lives in a one-off backfill rather than in the schema.
+
+## Validation
+
+- [ ] `just lint-fast` on the touched schema file.
+- [ ] Schema compiles via `just check`.
+- [ ] E2E: exercise-session create/edit form renders a Choices.js location
+      select (the standard `:location/id` renderer) with inline-create wired,
+      instead of the old free-text `:crud/suggest-existing` input.
+- [ ] Manual: open an existing session imported from Airtable; it still opens
+      and re-saves without validation failure (the deprecated string field is
+      still accepted by the closed map).
+
+## Scope
+
+- Not included: migrating the historical string values into `location`
+  entities — settled 2026-08-06, there is nothing to migrate. See
+  "Resolved questions" below.
+- Not included: changing `symptom-log/location` (a `body-location-enum`, which
+  is anatomy, not a place) or the `user/current-location-id` setting (already a
+  relation).
+- Does not depend on [069-crud-relation-select-scale.md](./069-crud-relation-select-scale.md):
+  `location` is low-cardinality for a single user, so the bounded-select
+  problem doesn't bite here.
+
+## Context
+
+- Current field: `src/tech/jgood/gleanmo/schema/exercise_schema.clj:33` —
+  `:exercise-session/location` as `:string` with `:crud/suggest-existing true`.
+- The relation to adopt: `src/tech/jgood/gleanmo/schema/location_schema.clj`
+  (`location` entity with `:location/label`, `:location/notes`,
+  `:location/archived`, `:location/sensitive`).
+- Peer precedents to copy from: `reading-log` (`reading_schema.clj:52`, carries
+  both the relation and `:airtable/original-location`), `meditation-log`
+  (`meditation_schema.clj:32`), `project-log` (`project_schema.clj:30`).
+- Rule governing "add, don't rewrite": `AGENTS.md` → "Changing a field that
+  already has data — add, don't rewrite".
+- Parent work unit: [015-exercise.md](./015-exercise.md).
+
+## Resolved questions
+
+All three settled 2026-08-06. The unit is unblocked for `ready`.
+
+- **Backfill: no — there is nothing to back-fill.** The premise of the question
+  was wrong. Measured against the dev database, which carries the full
+  production dataset: 2,626 exercise-sessions, 2,563 of them imported from
+  Airtable, and **20 in total carrying any `:exercise-session/location` string
+  at all** — 17 of which are e2e fixtures (`E2E Gym <timestamp>`). The real
+  values are `Office`, `home-gym`, and one repeat. m005 never imported the
+  field, so no historical session has ever displayed a location.
+
+  This also dissolves the consequence the question was weighing. "Old sessions
+  show no location until re-edited" is not a regression when they show no
+  location today.
+
+- **Hide the deprecated string immediately: yes.** This followed the backfill
+  answer, and with nothing behind the field there is no transition to stage.
+  Matches the `reading-log` precedent.
+
+- **Naming: keep `:exercise-session/location`, just hide it.** The stated
+  default, and nothing above disturbs it. Consistent with `bm-log` / `habit`.
+
+The three live values are not worth a migration. If they ever matter, editing
+three sessions by hand beats a script.
+
+## Notes
+
+- `:crud/suggest-existing` (what the string field uses today) and
+  `:crud/inline-create` (what the relation would use) are different affordances
+  — the former autocompletes from prior raw string values, the latter creates
+  real `location` entities. The win is the latter: one canonical "Living room"
+  instead of three typo variants.

@@ -6,7 +6,7 @@
    `tech.jgood.gleanmo.crud.routes/gen-routes`, so any relationship field that
    opts in with `:crud/inline-create true` gets the behavior for free.
 
-   See roadmap/inline-entity-creation.md."
+   See roadmap/048-inline-entity-creation.md."
   (:require
    [cheshire.core :as cheshire]
    [clojure.string :as str]

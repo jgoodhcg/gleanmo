@@ -26,7 +26,7 @@
     {
       "id": "C",
       "label": "Tactical bounce-link now, real inline later",
-      "description": "Two-line tactical fix: replace the bare text with a bounce-link to the parent new-form with redirect back (mirrors workout.clj:355-357). True inline-create on the dashboard tracked as follow-up work unit timer-dashboard-inline-create.md."
+      "description": "Two-line tactical fix: replace the bare text with a bounce-link to the parent new-form with redirect back (mirrors workout.clj:355-357). True inline-create on the dashboard tracked as follow-up work unit 064-timer-dashboard-inline-create.md."
     }
   ],
   "criteria": [
@@ -61,11 +61,11 @@
   ],
   "rationale": "Option C removes the dead-end immediately at trivial cost, mirrors an existing pattern (workout picker), and keeps the work unit bounded. The bounce-link will be removed when the follow-up work unit ships real inline-create on the dashboard surface. Option A leaves a known UX bug in production indefinitely. Option B is the right long-term answer but requires infrastructure (list-view inline-create) that does not exist yet and would unbalance this work unit.",
   "follow_ups": [
-    "roadmap/timer-dashboard-inline-create.md (to be created when prioritized)",
-    "Workout picker at app/workout.clj:352-358 will also be replaced by Phase 2 of inline-entity-creation.md; same shape of tactical-vs-real trade-off resolved the same way."
+    "roadmap/064-timer-dashboard-inline-create.md (to be created when prioritized)",
+    "Workout picker at app/workout.clj:352-358 will also be replaced by Phase 2 of 048-inline-entity-creation.md; same shape of tactical-vs-real trade-off resolved the same way."
   ],
   "references": [
-    "roadmap/inline-entity-creation.md",
+    "roadmap/048-inline-entity-creation.md",
     "src/tech/jgood/gleanmo/timer/routes.clj:336-344",
     "src/tech/jgood/gleanmo/app/workout.clj:352-358"
   ]

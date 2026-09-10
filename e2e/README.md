@@ -143,7 +143,7 @@ in the local development database; it is not a read-only capture command.
 The route list is `scripts/manifest.ts` — update it when navigation changes so
 every tick stays comparable. Env overrides: `BASE_URL`, `E2E_EMAIL`,
 `SCREENSHOT_SERIES_DIR`, `SCREENSHOT_LABEL`. Exits non-zero on any route
-failure. See `roadmap/screenshot-runner.md` for the full design.
+failure. See `roadmap/027-screenshot-runner.md` for the full design.
 
 ## File Layout
 

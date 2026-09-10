@@ -846,7 +846,7 @@
   "Map f over coll with at most n tasks in flight, preserving order and
    conveying dynamic bindings (so tufte spans record on worker threads).
    Unlike pmap, the bound doesn't depend on the JVM's core count, which
-   containers over-report — see roadmap/dashboard-performance.md."
+   containers over-report — see roadmap/013-dashboard-performance.md."
   [n f coll]
   (let [pool (java.util.concurrent.Executors/newFixedThreadPool n)]
     (try

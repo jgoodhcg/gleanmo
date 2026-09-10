@@ -29,7 +29,7 @@
 ;; but finding them reverts to scanning the entity's whole history. Five
 ;; entities carry it today (exercise-session, boulder-session, meditation-log,
 ;; project-log, reading-log); see :exercise-session/running for the rationale
-;; and roadmap/timer-running-flag.md for the measurements.
+;; and roadmap/071-timer-running-flag.md for the measurements.
 (def schema
   {:instant             [:fn t/instant?]
    :local-date          [:fn t/date?]

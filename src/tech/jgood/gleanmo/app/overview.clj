@@ -372,7 +372,7 @@
   [ctx]
   ;; Sequential on purpose: these overlap the dashboard cascade via a future,
   ;; and total in-flight queries are kept low to avoid thrashing the small
-  ;; prod box (see roadmap/dashboard-performance.md).
+  ;; prod box (see roadmap/013-dashboard-performance.md).
   (->> @timers-app/timer-entity-configs
        (map
         (fn [{:keys [entity-str display-name config]}]
@@ -865,7 +865,7 @@
     ;; never once pinned — `overflow-x: hidden` on html/body (an iOS Safari fix
     ;; in tailwind.css) makes body a scroll container, which disables
     ;; position:sticky app-wide. Rather than rework that fix, we decided a
-    ;; pinned day heading isn't wanted here. See roadmap/backlog.md.
+    ;; pinned day heading isn't wanted here. See roadmap/008-backlog.md.
     [:summary.flex.cursor-pointer.select-none.items-center.gap-3.py-3
      {:style {:list-style "none"}}
      [:span.flex.h-6.w-6.items-center.justify-center.rounded.bg-dark-surface.text-gray-500.transition-colors.hover:bg-dark-light.hover:text-white

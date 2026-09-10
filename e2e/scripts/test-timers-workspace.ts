@@ -1,7 +1,7 @@
 // E2E test for the unified timer workspace (/app/timers)
 // Usage: npm run test:timers-workspace
 //
-// Verifies the workspace flows from roadmap/unified-timer-page.md:
+// Verifies the workspace flows from roadmap/066-unified-timer-page.md:
 // 1. Search-to-start: the list is capped at rest and typing filters the full
 //    combined parent list
 // 2. One-tap start for project + reading (no CRUD form page)

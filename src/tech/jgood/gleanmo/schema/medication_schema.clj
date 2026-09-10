@@ -14,7 +14,7 @@
       (concat
        sm/legacy-meta
        ;; TODO: Missing airtable/id, airtable/created-time, airtable/ported-at
-       ;; See roadmap/airtable-metadata-consistency.md #1
+       ;; See roadmap/053-airtable-metadata-consistency.md #1
        )
       vec))
 

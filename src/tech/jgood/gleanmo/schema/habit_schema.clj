@@ -15,7 +15,7 @@
        [:habit/archived {:optional true} :boolean]
        [:airtable/id {:optional true} :string]
        ;; TODO: Missing airtable/created-time
-       ;; See roadmap/airtable-metadata-consistency.md #2
+       ;; See roadmap/053-airtable-metadata-consistency.md #2
        [:airtable/ported-at {:optional true} :instant]]
       (concat
        sm/legacy-meta
@@ -25,7 +25,7 @@
 
 (def habit-log
   ;; TODO: Missing airtable/id, airtable/created-time, airtable/ported-at
-  ;; See roadmap/airtable-metadata-consistency.md #3
+  ;; See roadmap/053-airtable-metadata-consistency.md #3
   (-> [:map {:closed true}
        [:xt/id :habit-log/id]
        [::sm/type [:enum :habit-log]]

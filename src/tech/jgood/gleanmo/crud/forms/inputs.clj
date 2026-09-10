@@ -347,7 +347,7 @@
    replacing the old bounce-link that lost form state. The mini-form is
    fetched into the mount div; on success the whole field container is
    re-rendered with the new entity selected. See
-   roadmap/inline-entity-creation.md."
+   roadmap/048-inline-entity-creation.md."
   [field]
   (let [{:keys [opts related-entity-str input-name]} field]
     (when (:crud/inline-create opts)

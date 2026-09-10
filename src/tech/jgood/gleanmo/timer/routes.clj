@@ -396,10 +396,10 @@
            (for [parent parent-entities]
              ^{:key (:xt/id parent)}
              (start-timer-card parent config))]
-          ;; Tactical fix per roadmap/inline-entity-creation.md: this used to
+          ;; Tactical fix per roadmap/048-inline-entity-creation.md: this used to
           ;; be bare text, so a user with zero parents landed here with no way
           ;; forward. True inline-create on this list surface is deferred to
-          ;; timer-dashboard-inline-create.md.
+          ;; 064-timer-dashboard-inline-create.md.
           [:div.space-y-2
            [:p.text-gray-400
             (str "No " parent-entity-str "s yet.")]

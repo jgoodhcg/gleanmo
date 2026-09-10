@@ -38,7 +38,7 @@
 
        ;; Airtable import keys - proper namespace
        ;; TODO: Missing airtable/ported-at; deprecated duplicates need cleanup
-       ;; See roadmap/airtable-metadata-consistency.md #4
+       ;; See roadmap/053-airtable-metadata-consistency.md #4
        [:airtable/id {:optional true} :string]
        [:airtable/created-time {:optional true} :instant]
 

@@ -9,7 +9,7 @@
    you get the right width, padding, and bottom clearance for the mobile tab
    bar without deciding anything.
 
-   See roadmap/navigation-redesign.md."
+   See roadmap/065-navigation-redesign.md."
   (:require
    [tech.jgood.gleanmo.app.shared :as shared]))
 
@@ -83,7 +83,7 @@
 
    Always offers a way forward: before this vocabulary existed, several empty
    states were bare text that left the user stuck (see the timer dashboard
-   note in roadmap/inline-entity-creation.md)."
+   note in roadmap/048-inline-entity-creation.md)."
   [{:keys [message action]}]
   [:div {:class (str "rounded-xl border border-dashed border-dark "
                      "p-6 text-center space-y-3")}

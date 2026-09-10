@@ -89,7 +89,7 @@
 
 (def quick-action-items
   "Logging destinations ordered by measured use (28-day Plausible sample — see
-   roadmap/qol-quick-actions.md item 1). Shared by the sidebar and the
+   roadmap/063-qol-quick-actions.md item 1). Shared by the sidebar and the
    /app/log hub so the two can never drift apart.
 
    `:lead?` marks the timer workspace, which the sidebar renders among the
@@ -225,7 +225,7 @@
       [:hr.border-dark]
 
       ;; Layer 2 — log something. Ordered by measured use (28-day Plausible
-      ;; sample, see roadmap/qol-quick-actions.md item 1); the order lives in
+      ;; sample, see roadmap/063-qol-quick-actions.md item 1); the order lives in
       ;; `quick-action-items`, shared with the home strip and the /app/log hub.
       [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Log Something"]
       (for [{:keys [label href]} (remove :lead? (visible-quick-actions

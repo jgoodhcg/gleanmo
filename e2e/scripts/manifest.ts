@@ -11,7 +11,7 @@
 // every CRUD entity — 25 near-identical list pages add noise, not signal.
 //
 // When navigation changes, update this file in the same PR (see
-// screenshot-runner.md "Maintenance"). Adding a route here is the trigger for
+// 027-screenshot-runner.md "Maintenance"). Adding a route here is the trigger for
 // "this surface is now part of the visual timeline."
 //
 // Route paths are all authenticated (/app/*). The capture script authenticates

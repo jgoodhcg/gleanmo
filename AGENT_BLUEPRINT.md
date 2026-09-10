@@ -1,5 +1,5 @@
 ---
-version: "2026-09-07"
+version: "2026-09-08.1"
 ---
 
 # Agent Blueprint
@@ -546,7 +546,32 @@ Before every user reply, apply `AGENT_BLUEPRINT.md` `[BP-WF-PROFILE]`.
 
 ## Agent-Specific Wrapper Template [BP-AGENT-WRAPPER]
 
-Optional. Create thin pointers for agent-specific entrypoints (`CLAUDE.md`, `GEMINI.md`, etc.):
+Optional. Create thin pointers for agent-specific entrypoints (`CLAUDE.md`, `GEMINI.md`, etc.).
+
+A wrapper MUST make the harness **load** `AGENTS.md`, not merely mention it. Prose
+like "See `AGENTS.md`" is a request the agent may never act on, and the harness
+reads only its own wrapper file. Use the harness's import mechanism where one
+exists; fall back to prose only where none does.
+
+`CLAUDE.md` — Claude Code expands `@path` imports at session start:
+
+```markdown
+@AGENTS.md
+
+## Agent-Specific Instructions
+
+- [Instruction specific to this agent, if any]
+- [e.g., tool preferences, model-specific behavior, constraints]
+- [Override of a conflicting built-in harness instruction, if any]
+```
+
+The `@AGENTS.md` line MUST be unquoted and outside any code fence. Claude Code
+skips import parsing inside code spans and fenced blocks, so `` `@AGENTS.md` ``
+is inert — it silently loads nothing. Omit the `# [Agent Name]` heading; the
+import must be the file's own content.
+
+Other harnesses: use the equivalent import if the harness documents one, and
+verify it loads before relying on it. Where none exists, keep the prose pointer:
 
 ```markdown
 # [Agent Name]
@@ -556,11 +581,14 @@ See `AGENTS.md` for project policies and operating rules.
 ## Agent-Specific Instructions
 
 - [Instruction specific to this agent, if any]
-- [e.g., tool preferences, model-specific behavior, constraints]
-- [Override of a conflicting built-in harness instruction, if any]
 ```
 
 Keep minimal. Defer to `AGENTS.md` for all shared policy.
+
+Verify after writing: start the agent and confirm the wrapper resolved (in Claude
+Code, `/context` lists `CLAUDE.md` under **Memory files**). An import is
+load-bearing and fails silently — if `AGENTS.md` is renamed or moved, the wrapper
+becomes empty and every session loses all project rules with no error.
 
 A wrapper can override a built-in instruction in its host agent harness. Use this only when the built-in instruction conflicts with `AGENTS.md`. Name the conflicting instruction and state the required behavior. A pointer to `AGENTS.md` does not by itself displace a harness default.
 
@@ -817,7 +845,7 @@ Add a `## Knowledge Base` section to `AGENTS.md` with tool-specific conventions.
 
 ### Thread Summary Format
 
-The `roam-thread-summary` skill (`.claude/skills/roam-thread-summary/`) is the canonical generator; it emits a paste-ready block. Its required parent attribution block is:
+The `roam-thread-summary` skill (`skills/roam-thread-summary/`) is the canonical generator; it emits a paste-ready block. Its required parent attribution block is:
 
 1. **Thread marker** — `[[ai-thread]]`
 2. **Model** — `[[<model-id>]]`, the exact model of the current session
