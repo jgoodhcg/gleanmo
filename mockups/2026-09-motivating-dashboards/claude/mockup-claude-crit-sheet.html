@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Crit sheet · Gleanmo motivating dashboards</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+<style>
+/* Crit sheet: every visualization from the 2026-09 exploration, each with a
+   stable ID for comments. Screenshots live in ./review-shots/. */
+:root{
+  --ground:#e7ebe8; --sheet:#f5f7f4; --ink:#1a211f; --ink-2:#4f5a55; --ink-3:#77817c;
+  --rule:#c5ccc7; --grease:#bf2f1a; --edge:#fbfcfa;
+  --shadow:0 1px 2px rgba(18,28,24,.14),0 14px 30px -18px rgba(18,28,24,.35);
+  --display:'Archivo','Arial Narrow',system-ui,sans-serif;
+  --serif:'Source Serif 4',Georgia,'Times New Roman',serif;
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --measure:64ch;
+}
+@media (prefers-color-scheme:dark){:root{
+  --ground:#121614; --sheet:#1a1f1d; --ink:#e3e8e5; --ink-2:#a3aea9; --ink-3:#76817c;
+  --rule:#313935; --grease:#ff7a5c; --edge:#2b312e;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 14px 30px -18px rgba(0,0,0,.7);
+}}
+*{box-sizing:border-box}
+html{scroll-padding-top:1.5rem}
+body{margin:0;background:var(--ground);color:var(--ink);font:17px/1.6 var(--serif);padding:0 clamp(16px,3vw,40px) 3rem;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1240px;margin:0 auto}
+a{color:inherit;text-decoration-color:var(--grease);text-underline-offset:3px}
+a:hover{color:var(--grease)}
+:focus-visible{outline:2px solid var(--grease);outline-offset:3px}
+h1,h2,h3{font-family:var(--display);font-stretch:72%;margin:0;text-wrap:balance}
+.label{font:500 11px/1.4 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+code{font:.85em var(--mono)}
+
+.intro{padding-block:clamp(2rem,6vw,4rem) 1rem;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:2rem 3.5rem;align-items:start}
+.intro h1{font-size:clamp(2.6rem,7vw,5rem);line-height:.92;font-weight:800;font-stretch:64%;text-transform:uppercase;margin-top:.6rem}
+.intro h1 span{color:var(--grease)}
+.lede{font-size:1.2rem;line-height:1.55;max-width:var(--measure);margin:1.25rem 0 0;color:var(--ink-2)}
+.howto{background:var(--sheet);border:1px solid var(--rule);border-radius:4px;padding:1.25rem 1.4rem;font-size:15.5px;line-height:1.5}
+.howto p{margin:.5rem 0}
+.howto pre{margin:.6rem 0;padding:.7rem .8rem;background:var(--ground);border:1px solid var(--rule);border-radius:3px;
+  font:13px/1.6 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere}
+.toc{display:flex;flex-wrap:wrap;gap:.5rem;margin:2rem 0 0;padding:0;list-style:none}
+.toc a{display:inline-flex;gap:.5rem;align-items:baseline;border:1px solid var(--rule);border-radius:999px;padding:.35rem .8rem;
+  font:13px var(--mono);text-decoration:none;color:var(--ink-2);background:var(--sheet)}
+.toc a b{font:700 14px var(--display);font-stretch:72%;color:var(--grease)}
+.toc a:hover{border-color:var(--grease);color:var(--ink)}
+.toc .n{color:var(--ink-3)}
+
+.family{padding-block:3rem 0}
+.fam-head{display:grid;grid-template-columns:auto minmax(0,1fr);gap:0 1.5rem;align-items:start;border-top:3px solid var(--ink);padding-top:1.25rem}
+.fam-letter{font:800 clamp(4rem,10vw,7rem)/.8 var(--display);font-stretch:62%;color:var(--grease)}
+.fam-head h2{font-size:clamp(1.9rem,4vw,2.8rem);line-height:1;font-weight:800;text-transform:uppercase}
+.fam-head p{max-width:var(--measure);margin:.8rem 0 0;color:var(--ink-2)}
+.split{margin:1rem 0 0;padding:0;list-style:none;display:grid;gap:.4rem;max-width:80ch;font-size:15.5px}
+.split li{display:grid;grid-template-columns:7.5rem minmax(0,1fr);gap:.75rem}
+.split li span:first-child{font:500 11px/1.9 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+
+.plate{display:grid;grid-template-columns:3rem minmax(0,1fr);gap:1.25rem;padding-block:2.75rem;border-bottom:1px solid var(--rule)}
+.plate:last-child{border-bottom:0}
+.edge{writing-mode:vertical-rl;transform:rotate(180deg);display:flex;align-items:center;justify-content:flex-end;gap:.75rem;
+  font:500 11px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);white-space:nowrap;align-self:start}
+.edge b{font:800 30px/1 var(--display);font-stretch:64%;letter-spacing:0;color:var(--grease)}
+.ph{display:flex;flex-wrap:wrap;align-items:baseline;gap:.5rem 1rem;margin-bottom:1.1rem}
+.ph h3{font-size:clamp(1.45rem,2.6vw,1.9rem);line-height:1.05;font-weight:700}
+.who{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--rule);border-radius:3px;padding:.2rem .45rem;color:var(--ink-2);white-space:nowrap}
+.layout{display:grid;gap:1.4rem 2.5rem}
+.layout.side{grid-template-columns:auto minmax(18rem,1fr);align-items:start}
+.print{margin:0;justify-self:start;max-width:100%}
+.print img{display:block;max-width:100%;height:auto;border:5px solid var(--edge);border-radius:2px;box-shadow:var(--shadow);background:#0d1117}
+.print figcaption{font:12px/1.5 var(--mono);color:var(--ink-3);margin-top:.6rem;max-width:70ch}
+.read{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1rem 2.5rem}
+.layout.side .read{grid-template-columns:1fr}
+.read p{margin:0;max-width:var(--measure)}
+.read dl{margin:0;display:grid;gap:.7rem;align-content:start}
+.read dt{font:500 11px/1.4 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.read dd{margin:.1rem 0 0;max-width:var(--measure);font-size:16px;line-height:1.55}
+.read dt.watch{color:var(--grease)}
+.src{grid-column:1/-1;font:12px var(--mono);color:var(--ink-3);overflow-wrap:anywhere}
+
+.closing{border-top:3px solid var(--ink);margin-top:3rem;padding-block:1.5rem 1rem}
+.closing h2{font-size:clamp(2rem,4.5vw,3rem);line-height:1;font-weight:800;text-transform:uppercase}
+.closing p{max-width:var(--measure)}
+.recs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem;margin:1.5rem 0}
+.recs div{border-top:1px solid var(--rule);padding-top:.7rem;font-size:15.5px;line-height:1.5}
+.recs .who{display:inline-block;margin-bottom:.4rem}
+.qs{margin:1rem 0 0;padding-left:1.25rem;display:grid;gap:.4rem;max-width:var(--measure)}
+footer{font:12px var(--mono);color:var(--ink-3);padding-top:2rem;text-align:center}
+
+@media (max-width:980px){
+  .intro{grid-template-columns:1fr}
+  .layout.side{grid-template-columns:1fr}
+  .read{grid-template-columns:1fr}
+  .recs{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:640px){
+  body{font-size:16px}
+  .plate{grid-template-columns:1fr;gap:.5rem;padding-block:2rem}
+  .edge{writing-mode:horizontal-tb;transform:none;justify-content:flex-start}
+  .edge b{font-size:24px}
+  .fam-head{grid-template-columns:1fr}
+  .fam-letter{font-size:4rem}
+  .split li{grid-template-columns:1fr;gap:0}
+  .recs{grid-template-columns:1fr}
+}
+</style></head>
+<body><main class="wrap">
+  <header class="intro">
+    <div>
+      <p class="label">2026-09 motivating dashboards · Claude v1, v2 · Codex v1, v2</p>
+      <h1>Every chart,<br>one <span>crit sheet</span></h1>
+      <p class="lede">Fifty-two visualizations from thirteen mockups, grouped by the idea they share rather than by who
+        drew them. Every one has an ID. Read top to bottom and write down your reactions against those IDs.</p>
+      <ul class="toc" id="toc"></ul>
+    </div>
+    <aside class="howto" aria-label="How to comment">
+      <div class="label">How to comment</div>
+      <p>Write your notes anywhere, in a message or a Markdown file, and start each line with the plate ID. Use the group
+        letter alone for a note about the whole group.</p>
+<pre>A3 — the slider moving the chart is the thing. Lose the hatching.
+A11 vs A13 — rank by gear, I want the worst on top.
+B — too many cards. One ask, not four.
+C2 — yes, but 12 weeks not the year.</pre>
+      <p>Each plate links to its source mockup, so an agent reading your notes can open the same file.</p>
+    </aside>
+  </header>
+
+  <div id="families"></div>
+
+  <section class="closing" id="closing">
+    <p class="label">After the wall</p>
+    <h2>What is the first real dashboard?</h2>
+    <p>All four rounds landed in the same place: one goal with a finish line, on data you know is complete, before
+      anything else. They disagree on which goal comes first and on how much generality to build underneath it.</p>
+    <div class="recs">
+      <div><span class="who">Claude v1</span><br>Pace Board, with the goal entity and the daily series engine under it. Next, the
+        ghost diverging bar on the overview.</div>
+      <div><span class="who">Claude v2</span><br>Finish Line on one goal, meditation minutes, slider included. If a week of it
+        doesn't pull, stop and rethink.</div>
+      <div><span class="who">Codex v1</span><br>Pace lab for one goal with complete capture: meditation minutes, or a pull-up goal
+        starting today.</div>
+      <div><span class="who">Codex v2</span><br>A saved practice collection plus a fixed-period goal with project and habit
+        adapters, then the pace board on top.</div>
+    </div>
+    <p>Worth answering at the end of your notes:</p>
+    <ol class="qs">
+      <li>Which goal comes first: which practice, what unit, over what window?</li>
+      <li>Which plates must be on screen one?</li>
+      <li>What's good but can wait until the basic loop works?</li>
+      <li>What should never show up?</li>
+      <li>Which schema additions are you willing to make: goal, activity-id, routine, page-count, milestone?</li>
+    </ol>
+  </section>
+  <footer>Screenshots taken from the mockup files on Sep 11, 2026. All data in them is fictional.</footer>
+</main>
+
+<script>
+const C1 = 'claude/mockup-claude-0', C2 = 'claude/mockup-claude-v2-0', CX = 'codex/mockup-codex-0';
+const F = [
+{ k:'A', name:'The finish line', intro:'A target with a date, and the one number that moves when you do nothing: what you need from here on. Every agent started here because it\'s the mechanic from your pull-up spreadsheet.',
+  split:[['Unit of pace','Calendar days (Claude v1, Codex v1) vs. eligible opportunities such as "per training day" (Claude v2).'],
+         ['Scope','Nine annual goals at once (Claude) vs. one goal (Codex v1) vs. user-defined practices over an 8-week window (Codex v2).'],
+         ['Ranking','Gear sorts the table (Claude) vs. showing the ratio without ranking your values (Codex v2).']],
+  plates:[
+  {s:'c1-numbers',w:1208,h:344,t:'Four numbers and nine goal tabs',who:'Claude v1',page:'Pace Board',src:C1+'1-pace-board.html',
+   shows:'Your spreadsheet\'s four columns (total done, running average, required from today, remaining) for one practice. Each tab shows how many days ahead or behind even pace that practice is.',
+   bet:'Required pace is the only number that changes when you skip a day, so skipping gets a visible price.',
+   needs:'A goal entity: target and window. Nothing else.'},
+  {s:'c1-burnup',w:906,h:422,t:'Burn-up with a required-pace ray',who:'Claude v1',page:'Pace Board',src:C1+'1-pace-board.html',
+   shows:'Cumulative actual against an even-pace diagonal, a dotted projection at your current pace, and a bright ray from today to the Dec 31 goal. The goal and the next milestone are horizontal rules.',
+   bet:'The gap between the even-pace line and the required ray is the feeling of falling behind, drawn.',
+   needs:'Goal entity. ECharts line + markLine.'},
+  {s:'c2-hero',w:1188,h:860,t:'Finish line: a burn-up the slider moves',who:'Claude v2',page:'Finish Line',src:C2+'1-finish-line.html',
+   cap:'Captured with "Reach 5,000 reps" pressed, so the slider\'s point and the swung needed-line are visible.',
+   shows:'The same four numbers, but rates count eligible opportunities: pull-ups only count Mon/Tue/Thu/Sat. Tonight\'s hypothetical reps show up as a cyan point on the chart. Stretches the app has no data for yet are hatched, and those totals are labelled as a floor.',
+   bet:'When the chart responds to tonight\'s reps, the trade feels real. Counting per training day keeps it honest: per calendar day the same goal reads 27.0, which says you\'re fine when you\'re 2 training days behind.',
+   needs:'goal with weekdays and min-per-day; a per-source "complete since" date for the hatching.'},
+  {s:'cx-pace-hero',w:736,h:805,t:'Pace lab: one goal, one route',who:'Codex v1',page:'Pace lab',src:CX+'1-pace-lab.html',
+   shows:'A single 10,000-pull-up goal: big total, progress bar, average / needed / ahead in reps, and an inline-SVG route: logged, original pace, required from today.',
+   bet:'Start with one goal on complete data, and reproduce the loop you already know works before generalizing.',
+   needs:'Goal config (dates, timezone, schedule). Exercise-line reps joined through set → session.'},
+  {s:'cx2-pace',w:1252,h:838,t:'Practice board: the reach-a-goal view',who:'Codex v2',page:'Practice board',src:CX+'5-practice-board-v2.html',
+   shows:'A left rail of saved "practices", each a selection of your logs, with mini progress. The selected one shows needed-per-day, a next-threshold ask, four stats, the route chart, and required-pace history, all over an 8-week window.',
+   bet:'The dashboard shouldn\'t need to know what "writing" means. Labels and scopes are data, so every new practice gets every view for free.',
+   needs:'A practice collection (source, scope ids, metric) with a goal attached to it.'},
+  {s:'c2-slider',w:477,h:779,t:'Try tonight on for size',who:'Claude v2',page:'Finish Line',src:C2+'1-finish-line.html',
+   shows:'"27 reps gets you to 5,000." A slider plus Reach and Hold-the-line buttons. The needed-per-training-day number updates live, and crossing a threshold shows a gold "that stays done" receipt.',
+   bet:'A round number within tonight\'s reach is the specific thing that made the spreadsheet pull.'},
+  {s:'cx-pace-slider',w:500,h:829,t:'Try today, the original',who:'Codex v1',page:'Pace lab',src:CX+'1-pace-lab.html',
+   cap:'Captured with "Try 30" pressed.',
+   shows:'The same mechanic in its first form: "60 gets you to 7,000", a reps slider, tomorrow\'s required pace, and the same goal restated per planned training day.',
+   compare:'Claude v2 adopted this and wired it into the chart. Here only the numbers move.'},
+  {s:'cx-pace-cards',w:1228,h:246,t:'Receipt, projection, next rung',who:'Codex v1',page:'Pace lab',src:CX+'1-pace-lab.html',
+   shows:'Three small cards: the last threshold you crossed and when, the projected year-end total at the last 28 days\' pace, and the rung after the next one.',
+   bet:'Keep a permanent receipt for work already done, and show the next rung only after this one is crossed.'},
+  {s:'c1-reqhist',w:328,h:422,t:'Required pace, day by day',who:'Claude v1',page:'Pace Board',src:C1+'1-pace-board.html',
+   shows:'What the "required" number was on every past day, with your actual pace as a dashed line. Rising means you\'ve been spending buffer.',
+   bet:'A slow slide shows up in week two instead of month four. None of your spreadsheet tabs had this.'},
+  {s:'c2-reqhist',w:1188,h:319,t:'Required pace, with a reading',who:'Claude v2',page:'Finish Line',src:C2+'1-finish-line.html',
+   shows:'The same history per training day, with a sentence spelling out how much harder the goal has become and when the needed line last crossed your rate.',
+   compare:'Codex v2 borrowed this too (A5, right-hand chart). All three later rounds kept it.'},
+  {s:'c1-ledger',w:1208,h:649,t:'All nine, ranked by how far off pace',who:'Claude v1',page:'Pace Board',src:C1+'1-pace-board.html',
+   shows:'Done, goal, a bullet-style progress bar with an even-pace tick, your rate, needed, gear (needed ÷ rate), days ahead/behind, and projected finish. Worst first. Click a row to open it above.',
+   bet:'Gear has no unit, so sessions, pages, and hours rank in one column.'},
+  {s:'c2-table',w:1188,h:665,t:'Every finish line',who:'Claude v2',page:'Finish Line',src:C2+'1-finish-line.html',
+   shows:'The same table, sorted by gear, with each goal\'s window and a data pill: "complete" vs. "floor · import pending".',
+   bet:'You can see at a glance which numbers to trust.'},
+  {s:'cx2-board',w:968,h:678,t:'All your finish lines',who:'Codex v2',page:'Practice board',src:CX+'5-practice-board-v2.html',
+   shows:'The same table again, calling the ratio "pace change", with a 50%-time tick on each bar and the distance to the next threshold.',
+   compare:'Codex deliberately doesn\'t rank by it: "a rate ratio is comparable, not a priority score." Twice your usual flossing may be impossible; twice your reading is not.'}
+  ]},
+{ k:'B', name:'Tonight', intro:'A screen for the evening that answers "what should I do right now?" There\'s no chart to interpret, just specific asks, each with a price and a payoff.',
+  split:[['Entry point','Ranked by cheapest cost (Claude v1) vs. start from how much time you have (Codex v1, Claude v2).'],
+         ['Tone','An Urgent block for real losses like a streak dying at midnight (Claude v1) vs. a "can honestly wait" section that stops asking (Claude v2).'],
+         ['Deep work','Codex flagged that 10-minute cards always beat deep work. Claude v2 pins deep work to the next morning.']],
+  plates:[
+  {s:'c1-closer-top',w:548,h:532,t:'Ring and the Urgent block',who:'Claude v1',page:'The Closer',src:C1+'2-the-closer.html',
+   shows:'A ring for 4 of 9 practices touched, time left in your usual active window, then red cards for things that get worse, not just later: a streak ending tonight, a weekly minimum at risk, a practice gone cold. Streaks already protected today sit in green.',
+   bet:'Negative framing belongs only where the loss is truly unrecoverable.',
+   needs:'Goals, plus a minimum dose per practice.'},
+  {s:'c1-wins',w:548,h:404,t:'Cheapest wins left today',who:'Claude v1',page:'The Closer',src:C1+'2-the-closer.html',
+   shows:'Every untouched practice as an ask priced in minutes, cheapest first, e.g. "you\'re 49 days behind; skipping tonight pushes tomorrow\'s number to 23.9/day." Chips show needed vs. doing and the distance to the next milestone.',
+   bet:'"3 more and I hit 7,000", done systematically, with the 10-minute win on top.',
+   watch:'Sorting by cost means quick wins always beat the hard thing.'},
+  {s:'c2-budget',w:608,h:1532,t:'How long have you got?',who:'Claude v2',page:'Tonight',src:C2+'2-tonight.html',
+   shows:'Choose 10 / 20 / 45 / any. Up to four invitations that fit, closest threshold first, each saying what it finishes: a workout that closes the week, one of 2 drawing days still owed (with a strip of qualifying days), music 5 days cold, 84 pages left in a book.',
+   bet:'At 9:52pm the question is "what fits", not "what\'s cheapest". The 20-minute default comes from your own hour-of-day data.',
+   needs:'Goals with min-per-day and activity-id. The book card needs book/page-count and reading-log/page-position (marked proposed).'},
+  {s:'cx-reach',w:1228,h:1019,t:'Within reach',who:'Codex v1',page:'Within reach',src:CX+'2-within-reach.html',
+   shows:'A time filter (any / 15 / 30) over four cards on a warm paper palette: 12 minutes to 100 hours of meditation, 18 pages to finish a book, one more drawing day makes four, your 50th visit to the draft.',
+   bet:'Show proximity with big type and progress bars instead of charts. Codex\'s pick for the eventual home screen.'},
+  {s:'c2-wait',w:608,h:412,t:'Can honestly wait',who:'Claude v2',page:'Tonight',src:C2+'2-tonight.html',
+   shows:'Software: the week\'s intention is met, so "let that be enough." Deep work pinned for tomorrow morning. Meditation done, streak safe.',
+   bet:'A screen that only ever asks for more turns into a screen you stop opening.'},
+  {s:'c1-banked',w:548,h:445,t:'Already banked, in days of pace',who:'Claude v1',page:'The Closer',src:C1+'2-the-closer.html',
+   shows:'Today\'s logs struck through, each restated in the page\'s own currency: "bought 2.1 days of pace", plus the distance to the next threshold.',
+   bet:'The visit ends on a credit, not a to-do list.'},
+  {s:'c2-banked',w:608,h:251,t:'Already banked, in what it moved',who:'Claude v2',page:'Tonight',src:C2+'2-tonight.html',
+   shows:'The same idea phrased per goal: week totals, streak length, "2 of 3 steps".',
+   compare:'Days of pace (B6) vs. the goal\'s own words.'},
+  {s:'c1-hours',w:548,h:270,t:'Your usual active window',who:'Claude v1',page:'The Closer',src:C1+'2-the-closer.html',
+   shows:'A 24-hour bar band with past hours greyed and a "now" line: "29% of a typical day\'s activity still happens after 7pm."',
+   bet:'"You still have time" is a claim. The page backs it up with your own logs.'},
+  {s:'c2-hours',w:608,h:277,t:'When you actually do things',who:'Claude v2',page:'Tonight',src:C2+'2-tonight.html',
+   shows:'The same band at 9:52pm, used to justify the 20-minute default: little of what you log after 10pm runs past 25 minutes.',
+   compare:'B8 uses it as reassurance. Here it sets the default.'},
+  {s:'c1-soon',w:548,h:281,t:'Coming up',who:'Claude v1',page:'The Closer',src:C1+'2-the-closer.html',
+   shows:'The next five thresholds across all practices, ordered by ETA at your current rate.',
+   bet:'Lets you see tomorrow\'s wins coming before they arrive.'}
+  ]},
+{ k:'C', name:'Coming back', intro:'Consistency, streaks, and rhythm: how often you return, not how much you pile up. This group has the most variety, and the most disagreement about what a streak should count.',
+  split:[['Streak unit','Daily chains (Claude v1) vs. completed weeks against an intention (Codex v1, Claude v2) vs. active days with no inferred obligation (Codex v2).'],
+         ['Partial credit','Winddown as three steps: partial nights stay partial and stay visible (Codex v1, Claude v2).'],
+         ['Qualifying','A day only counts above a floor, e.g. drawing ≥ 15 min. Below-bar sessions show dashed (Claude v2).']],
+  plates:[
+  {s:'c1-chain',w:1208,h:185,t:'The chain',who:'Claude v1',page:'The Grid',src:C1+'3-the-grid.html',
+   shows:'Your longest live streak drawn as links, with empty links out to your personal record at the same size: 16 filled, 43 empty, record 59.',
+   bet:'Beating your own number is the only honest competition the app can offer, so draw it literally.',
+   watch:'Claude v1\'s own schema notes say a daily streak is the wrong measure for anything you do 4×/week.'},
+  {s:'c1-grid',w:1208,h:299,t:'Nine practices, one date axis',who:'Claude v1',page:'The Grid',src:C1+'3-the-grid.html',
+   shows:'A hand-rolled SVG wall, 9 rows × 253 days, shaded by amount, with week ticks. July\'s slump shows up as a vertical band cutting across drawing, writing, and music.',
+   bet:'Aligned rows answer "what did a good fortnight look like?", which nine separate calendar heatmaps can\'t.'},
+  {s:'c2-grid',w:1188,h:371,t:'Twelve weeks, one axis',who:'Claude v2',page:'Studio',src:C2+'3-studio.html',
+   shows:'The same idea cut to 12 weeks, with three cell states: solid = qualifying day, dashed = logged below the bar, and winddown filled by steps completed.',
+   compare:'C2 shows a year at a glance. This one gives up range for more meaning per cell.'},
+  {s:'cx2-rhythm',w:968,h:1392,t:'Keep returning',who:'Codex v2',page:'Practice board',src:CX+'5-practice-board-v2.html',
+   cap:'The "Keep returning" tab of the practice board.',
+   shows:'Days you came back in the last 28 vs. the 28 before, a four-week row for every practice on shared dates, the current chain, and weekly active-day counts labelled "not a target".',
+   bet:'Useful with no goal at all: returning is enough.'},
+  {s:'cx-rhythm-hero',w:736,h:734,t:'One workout completes your week',who:'Codex v1',page:'Weekly rhythm',src:CX+'4-rhythm.html',
+   shows:'Mon–Sun lanes per practice with done / no log / today / future / partial (2/3) states, plus "6 weeks in a row" meeting 3 workout days.',
+   bet:'Weekly targets leave more than one path to success. Daily streaks demand a perfect calendar.'},
+  {s:'cx-rhythm-tiles',w:1228,h:343,t:'Ten weeks of making room',who:'Codex v1',page:'Weekly rhythm',src:CX+'4-rhythm.html',
+   shows:'Twelve completed-week tiles, filled where the weekly target was met: 10 of 12.',
+   bet:'"The two open squares stay honest. The other ten stay earned." A miss doesn\'t wipe out the record.'},
+  {s:'c2-intentions',w:1188,h:261,t:'This week\'s intentions',who:'Claude v2',page:'Studio',src:C2+'3-studio.html',
+   shows:'One card per activity: a minutes bar or day cells (qualifying / below-bar / future), "✓ met — let it be enough", and how many of the last 12 weeks were met.',
+   needs:'goal/min-per-day; activity-id on project-log.'},
+  {s:'c2-winddown',w:608,h:526,t:'Winddown as a routine',who:'Claude v2',page:'Tonight',src:C2+'2-tonight.html',
+   shows:'Three tappable steps (brush, floss, skincare) with a 4am night boundary, so a 12:30 floss still counts as Thursday. Complete nights over the last 28, with partial nights kept as partial.',
+   needs:'A routine definition (habit-ids, day-start-hour, time zone).'},
+  {s:'cx-rhythm-routine',w:500,h:734,t:'One small closing ritual',who:'Codex v1',page:'Weekly rhythm',src:CX+'4-rhythm.html',
+   shows:'The same routine concept: steps as toggles, 2 / 3, and "22 / 28 full routines. Six incomplete nights did not erase twenty-two complete ones."',
+   compare:'Codex proposed the routine model. Claude v2 adopted it and dropped its own "log winddown as one habit" idea.'},
+  {s:'c1-radar',w:610,h:475,t:'Is it atrophying?',who:'Claude v1',page:'The Grid',src:C1+'3-the-grid.html',
+   shows:'A radar of the share of days active for all nine practices, last 30 days vs. the 30 before. You want it round, and a dent flags a practice that\'s quietly fading.',
+   bet:'It catches a practice dying while its annual total still looks fine.'},
+  {s:'c1-dow',w:610,h:475,t:'Which day of the week you lose',who:'Claude v1',page:'The Grid',src:C1+'3-the-grid.html',
+   shows:'Practice × weekday cells, shaded by the share of that weekday you did it, e.g. "music on Sundays is 14%."',
+   bet:'It turns "I\'m bad at music" into a schedule problem you fix once, not a willpower problem you fight every week.'},
+  {s:'c1-fullday',w:1208,h:309,t:'Full days',who:'Claude v1',page:'The Grid',src:C1+'3-the-grid.html',
+   shows:'Daily bars of how many of the nine practices you touched, with a 14-day average line: bottomed in July, recovering now.',
+   watch:'Counting unlike practices into one number comes close to the "life score" both agents later ruled out.'}
+  ]},
+{ k:'D', name:'The studio', intro:'Five of your nine things are projects. This group separates attention (minutes, by what you did) from progress (deliverables you finished) and never lets one stand in for the other.',
+  split:[['Attribution','Both agents land on activity-on-the-session, with the project\'s activity as the default. It replaced Claude v1\'s project/category.'],
+         ['Progress','Milestone tasks with done dates. No percent-complete anywhere.'],
+         ['History','Sessions from before activity-id existed stay grey, labelled "unclassified", rather than guessed (Claude v2).']],
+  plates:[
+  {s:'c2-attention',w:1188,h:548,t:'Attention, last 12 weeks',who:'Claude v2',page:'Studio',src:C2+'3-studio.html',
+   shows:'Stacked weekly bars you can flip between by activity and by project. The total never changes. A grey "unclassified" band and an "activity-id ships" marker show where the data model changed.',
+   needs:'activity entity + project-log/activity-id + project/activity-id default.'},
+  {s:'cx-studio-alloc',w:1228,h:679,t:'Which work got your attention?',who:'Codex v1',page:'The studio',src:CX+'3-studio.html',
+   shows:'This week only, as HTML bars, with the same by-activity / by-project toggle: 10h 15m re-attributed, total unchanged.',
+   compare:'Same model as D1 at a smaller scale. One week, no trend.'},
+  {s:'cx-studio-hero',w:1228,h:701,t:'The project as the hero',who:'Codex v1',page:'The studio',src:CX+'3-studio.html',
+   shows:'A book project front and centre: 40 minutes left on the weekly writing commitment, 3 chapters completed, and a next concrete move you chose yourself. Beside it, practice intentions across projects.',
+   bet:'"Your hours measure attention. Your chapter milestones measure the draft."'},
+  {s:'c2-projects',w:1188,h:479,t:'The next thing you can finish',who:'Claude v2',page:'Studio',src:C2+'3-studio.html',
+   shows:'Four project cards: attention this week, a 30-day activity-mix strip, dated milestones done, and the next one named. A quiet project reads as "a plan, not a stall."',
+   needs:'One optional boolean, task/milestone. task/project-id, state, and done-at already exist.'},
+  {s:'cx-studio-next',w:1228,h:432,t:'A small portfolio, not a backlog',who:'Codex v1',page:'The studio',src:CX+'3-studio.html',
+   shows:'Three project cards with the next milestone, attention this week, "2 of 3 chosen milestones", and "intentional pause until Saturday: no stale-project alarm".',
+   compare:'Close to D4. Codex adds the explicit pause state; Claude adds the activity mix.'},
+  {s:'c2-receipts',w:1188,h:366,t:'Deliverables finished in 2026',who:'Claude v2',page:'Studio',src:C2+'3-studio.html',
+   shows:'A diamond timeline, one row per project, one diamond per milestone task marked done.',
+   bet:'Sparse on purpose. A month with one diamond and forty hours is what the middle of a novel looks like, and the diamonds are what you\'ll remember in December.'}
+  ]},
+{ k:'E', name:'What already added up', intro:'The other half of the spreadsheet feeling: having gone past a number. Pace pulls you forward, and these reassure you on the days you\'re behind on everything.',
+  split:[['Coverage','Claude v1 claims lifetime totals including the Airtable years. Codex v2 makes "no lifetime claim beyond known coverage." Claude v2 dropped this page until the imports are complete.'],
+         ['Form','Almost no charts: type, lists, and counters.']],
+  plates:[
+  {s:'c1-odometer',w:1208,h:543,t:'Lifetime odometers',who:'Claude v1',page:'The Ledger',src:C1+'4-the-ledger.html',
+   shows:'Nine counters that roll up like a mechanical odometer on load, each with the share of your lifetime total logged this year.',
+   bet:'"Pace pulls; evidence consoles." This is the page that still has something good to say on a bad day.',
+   watch:'Only as true as your history is complete. Workout history before Mar 2 hasn\'t been imported yet.'},
+  {s:'c1-crossed',w:1208,h:1045,t:'Crossed, and next up',who:'Claude v1',page:'The Ledger',src:C1+'4-the-ledger.html',
+   shows:'A dated list of thresholds passed this year ("71 crossed so far"), then the next rung for each practice with a progress track and an ETA.',
+   needs:'Nothing. A crossing date is just the first day the running total passed the threshold.'},
+  {s:'cx-yours',w:1228,h:282,t:'Already yours',who:'Codex v1',page:'Within reach',src:CX+'2-within-reach.html',
+   shows:'Three shelf cards of totals crossed: 500 drawing minutes, 20 music days, 10 books finished.',
+   compare:'The same receipts as E2, shortened to three cards and placed next to the invitations.'},
+  {s:'cx2-earned',w:968,h:754,t:'See what added up',who:'Codex v2',page:'Practice board',src:CX+'5-practice-board-v2.html',
+   cap:'The "See what added up" tab of the practice board.',
+   shows:'The collection\'s total, cumulative lines for the latest 28 days vs. the 28 before, recent crossings, and best day this period.',
+   bet:'Works for any practice, with or without a goal, and says outright that corrected logs can change it.'},
+  {s:'c1-trophy',w:1208,h:448,t:'Trophy timeline',who:'Claude v1',page:'The Ledger',src:C1+'4-the-ledger.html',
+   shows:'Every threshold crossed this year as a diamond on each practice\'s row. Clusters mark months where several practices built up at once, and the July gap shows without being pointed out.',
+   compare:'Same form as D6, applied to totals instead of deliverables.'},
+  {s:'c1-records',w:1208,h:640,t:'Records',who:'Claude v1',page:'The Ledger',src:C1+'4-the-ledger.html',
+   shows:'Best day, week, and month, longest and current streak, and days active, for each practice. Gold marks records set in the last 60 days.',
+   bet:'A record you\'re close to is worth more than one from 2023, so the page says which is which.'}
+  ]},
+{ k:'F', name:'The ghost', intro:'Race the person who logged all of this last year. A goal is a number you picked; last year is one you actually hit. Claude v1 only, and set aside in v2 until the history is complete.',
+  split:[['Status','Claude v1 said the diverging bar was the most motivating thing per line of code. Claude v2 dropped the whole page because workouts aren\'t imported yet.']],
+  plates:[
+  {s:'c1-race',w:1208,h:628,t:'Race against last year',who:'Claude v1',page:'The Ghost',src:C1+'5-the-ghost.html',
+   shows:'A 2026 vs. 2025 same-date scoreboard with a verdict ("N days ahead of last year"), then this year\'s cumulative curve over last year\'s full-year curve, so you can see the finish you have to beat. Includes a replay button.',
+   bet:'It works before you\'ve set a single goal, and passing last year is unambiguous.',
+   watch:'Needs a complete prior year.'},
+  {s:'c1-gap',w:610,h:380,t:'The gap',who:'Claude v1',page:'The Ghost',src:C1+'5-the-ghost.html',
+   shows:'The running difference between this year and last, green above zero and red below. It names the week you pulled ahead.',
+   bet:'Claude v1 called it "the best chart on any of these pages": the steepest climb is a stretch worth copying on purpose.'},
+  {s:'c1-roll',w:610,h:380,t:'Rolling 90 days',who:'Claude v1',page:'The Ghost',src:C1+'5-the-ghost.html',
+   shows:'Every 90-day window across two years, with a personal-best line and your rank: "#111 of 529, 3 sessions from your record."',
+   bet:'Answers "is right now one of my good stretches?"'},
+  {s:'c1-allghost',w:1208,h:439,t:'Every practice vs. its own ghost',who:'Claude v1',page:'The Ghost',src:C1+'5-the-ghost.html',
+   shows:'Diverging bars: each practice\'s percent ahead of or behind the same date last year.',
+   bet:'The whole dashboard on one screen. Claude v1\'s candidate for the home page, and step 3 of its build order.'}
+  ]},
+{ k:'G', name:'Any practice', intro:'Codex v2\'s test of whether the generalization is real: can you define something the page has never heard of and get every view without new code?',
+  split:[['The claim','A new habit or project should cost data entry only. A new entity type costs an adapter, and that\'s the honest limit of "generic".']],
+  plates:[
+  {s:'cx2-builder',w:1252,h:684,t:'Make a practice this page has never heard of',who:'Codex v2',page:'Practice board',src:CX+'5-practice-board-v2.html',
+   shows:'A form: name it, choose a source (project or habit logs), pick records, choose what counts (minutes, active days, sessions, or every-habit-on-the-same-day), and set a target. It joins the board with all three views.',
+   bet:'Labels and selected IDs are data. No code branches on "writing".',
+   needs:'practice + goal entities; source adapters with declared metric capabilities. Production pickers would use Choices.js.'}
+  ]}
+];
+const PLATES = []; F.forEach(f => f.plates.forEach((p, i) => { p.id = f.k + (i + 1); p.fam = f; PLATES.push(p); }));
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const href = src => '../' + src;   // this file lives in claude/; src is relative to the exploration root
+document.getElementById('toc').innerHTML = F.map(f =>
+  `<li><a href="#fam-${f.k}"><b>${f.k}</b>${esc(f.name)} <span class="n">${f.plates.length}</span></a></li>`).join('');
+
+function plateHTML(p) {
+  const row = (lab, txt, cls = '') => txt ? `<dt class="${cls}">${lab}</dt><dd>${esc(txt)}</dd>` : '';
+  return `<article class="plate" id="${p.id}" aria-labelledby="${p.id}-t">
+    <div class="edge"><b>${p.id}</b><span>${esc(p.who)} · ${esc(p.page)}</span></div>
+    <div>
+      <div class="ph"><h3 id="${p.id}-t">${esc(p.t)}</h3><span class="who">${esc(p.who)}</span></div>
+      <div class="layout${p.w < 700 ? ' side' : ''}">
+        <figure class="print">
+          <img src="review-shots/${p.s}.jpg" width="${p.w}" height="${p.h}" loading="lazy" decoding="async"
+            alt="${esc(p.who)} ${esc(p.page)} mockup: ${esc(p.t)}">
+          ${p.cap ? `<figcaption>${esc(p.cap)}</figcaption>` : ''}
+        </figure>
+        <div class="read">
+          <p>${esc(p.shows)}</p>
+          <dl>${row('The bet', p.bet)}${row('Compare', p.compare)}${row('Needs', p.needs)}${row('Watch for', p.watch, 'watch')}</dl>
+          <div class="src"><a href="${href(p.src)}">${esc(p.src)} ↗</a></div>
+        </div>
+      </div>
+    </div>
+  </article>`;
+}
+document.getElementById('families').innerHTML = F.map(f => `
+  <section class="family" id="fam-${f.k}" aria-labelledby="fam-${f.k}-h">
+    <header class="fam-head">
+      <span class="fam-letter" aria-hidden="true">${f.k}</span>
+      <div>
+        <h2 id="fam-${f.k}-h">${esc(f.name)}</h2>
+        <p>${esc(f.intro)}</p>
+        <ul class="split">${f.split.map(([a, b]) => `<li><span>${esc(a)}</span><span>${esc(b)}</span></li>`).join('')}</ul>
+      </div>
+    </header>
+    <div>${f.plates.map(plateHTML).join('')}</div>
+  </section>`).join('');
+</script>
+</body></html>
