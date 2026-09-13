@@ -30,7 +30,9 @@ Combine the Claude table and palette with the Codex spacing and labels.
 - Separate duration, count, and best-performance measurements from dated, weekly, and open-ended timing.
 - Include weekly reading duration, sessions for one meditation, and open-ended duration for one book.
 - Show open-ended totals without deadline pace; use recent activity in their lower-right panel.
-- Defer book completion presentation, page progress, nonfiction filters, and arbitrary attribute goals.
+- Include book completion with optional deadlines and separate page, chapter, and audiobook-position charts.
+- Complete book goals only from a reading log marked finished, independently of its recorded positions.
+- Defer nonfiction filters and arbitrary attribute goals.
 - Defer tasks per project, moon phases, and astrology.
 
 ## Scope
@@ -49,8 +51,9 @@ The user waived the application visual-series baseline for this standalone mocku
 
 ## Context
 
-- Current iteration: `mockups/2026-09-motivating-dashboards/codex/mockup-codex-09-goals-dashboard.html`.
-- Version 09 semantics and validation live in adjacent `goals-09-*.md` files.
+- Current iteration: `mockups/2026-09-motivating-dashboards/codex/mockup-codex-10-goals-dashboard.html`.
+- Version 10 semantics and validation live in adjacent `goals-10-*.md` files.
+- Version 09 was committed before the book-completion iteration as `ebe7e4e`.
 - Previous mockup delivered: `mockups/2026-09-motivating-dashboards/codex/mockup-codex-08-goals-dashboard.html`.
 - Data proposal and browser validation are recorded in adjacent `goals-08-*.md` files.
 - Production implementation remains pending design review.
