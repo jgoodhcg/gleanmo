@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Goals · first dashboard · Claude Code mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@6.0.0/dist/echarts.min.js"></script>
+<style>
+/* Claude Code mockup: the first real goals dashboard. App tokens from
+   resources/tailwind.css; Space Mono is the app's sans. Fictional data. */
+:root{
+  --bg:#0d1117; --surface:#161b22; --surface-2:#0b0e13; --border:#30363d; --grid:#21262d;
+  --text:#c9d1d9; --dim:#8b949e; --white:#f0f6fc;
+  --done:#06b6d4;    /* neon-cyan: what you logged */
+  --ask:#8b5cf6;     /* neon-violet: needed from tomorrow */
+  --ref:#8b949e;     /* even pace, last year */
+  --behind:#f59e0b;  /* status: needed is above your rate */
+  --ok:#22c55e;      /* status: needed is at or below your rate */
+  --mono:'Space Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 var(--mono);
+  padding:0 16px 48px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto}
+h1,h2,h3{margin:0;color:var(--white);font-weight:700}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--done);outline-offset:2px}
+
+header.top{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;border-bottom:1px solid var(--border);
+  padding-block:16px;margin-bottom:24px}
+.brand{font-weight:700;color:var(--white)} .brand span{color:var(--done)}
+.tag{font-size:10px;letter-spacing:.14em;text-transform:uppercase;background:var(--done);color:var(--bg);
+  padding:2px 8px;border-radius:4px;font-weight:700}
+.today{margin-left:auto;color:var(--dim);font-size:12px}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:24px;min-width:0}
+.card + .card{margin-top:16px}
+.chip{display:inline-block;border:1px solid var(--border);border-radius:999px;padding:2px 10px;font-size:11px;color:var(--dim)}
+
+/* selected goal */
+.hero-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 16px}
+.hero-head h2{font-size:22px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.big-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;margin-top:16px}
+.big{font-size:clamp(48px,9vw,88px);line-height:1;font-weight:700;letter-spacing:-.03em;color:var(--white)}
+.of{font-size:18px;color:var(--dim)}
+.bar{position:relative;height:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:4px}
+.bar>i{position:absolute;inset:0 auto 0 0;background:var(--done);border-radius:3px}
+.bar>u{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--white);margin-left:-1px}
+.hero .bar{height:12px;margin-top:16px}
+.bar-cap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;margin-top:8px;font-size:12px;color:var(--dim)}
+.tickkey{display:inline-block;width:2px;height:10px;background:var(--white);vertical-align:-1px;margin-right:6px}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-top:24px;
+  border:1px solid var(--border);border-radius:6px;background:var(--surface-2)}
+.tile{padding:16px;min-width:0}
+.tile + .tile{border-left:1px solid var(--border)}
+.tile .k{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.tile .v{font-size:28px;font-weight:700;color:var(--white);margin-top:4px;line-height:1.2}
+.tile .u{font-size:12px;color:var(--dim)}
+.tile .st{font-size:12px;margin-top:6px;font-weight:700}
+.behind{color:var(--behind)} .ok{color:var(--ok)}
+
+.chart-head{margin-top:32px}
+.chart-head h3{font-size:14px}
+.chart{width:100%;height:380px;margin-top:8px}
+.chart-note{margin:8px 0 0;font-size:12px;color:var(--dim)}
+details{margin-top:16px;border-top:1px solid var(--border);padding-top:8px}
+summary{cursor:pointer;min-height:40px;display:flex;align-items:center;color:var(--dim);font-size:12px}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);text-align:left;font-weight:700;
+  padding:0 12px 8px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:12px;border-bottom:1px solid var(--grid);vertical-align:top}
+.r{text-align:right}
+.twin td,.twin th{padding:6px 12px;font-size:12px}
+
+/* all goals */
+.list-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:16px}
+.list-head h2{font-size:18px}
+.hint{font-size:12px;color:var(--dim)}
+th button{background:none;border:0;padding:0;cursor:pointer;letter-spacing:inherit;text-transform:inherit;
+  font-weight:700;color:var(--dim);min-height:24px}
+th button:hover{color:var(--white)}
+th[aria-sort] button{color:var(--white)}
+th .arrow{display:inline-block;width:1em}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:rgba(255,255,255,.02)}
+tbody tr.sel td{background:rgba(6,182,212,.07)}
+tbody tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--done)}
+.gname{background:none;border:0;padding:0;cursor:pointer;text-align:left;font-weight:700;color:var(--white)}
+.src{display:block;font-size:11px;color:var(--dim);margin-top:2px}
+.done-cell{min-width:190px}
+.done-cell .bar{margin-top:8px}
+.unit{font-size:11px;color:var(--dim)}
+.key{margin:16px 0 0;font-size:12px;color:var(--dim);line-height:1.7}
+.key b{color:var(--text)}
+
+.cards{display:none;list-style:none;margin:0;padding:0}
+.gcard{border:1px solid var(--border);border-radius:6px;padding:16px;background:var(--surface-2);cursor:pointer}
+.gcard + .gcard{margin-top:8px}
+.gcard.sel{border-color:var(--done)}
+.gc-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.gc-label{font-weight:700;color:var(--white)}
+.gc-done{margin-top:4px;font-size:13px}
+.gcard .bar{margin-top:8px}
+.gc-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin:12px 0 0}
+.gc-grid dt{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.gc-grid dd{margin:0;font-size:13px}
+
+.about{margin-top:24px;color:var(--dim);font-size:12px}
+.about summary{font-size:12px}
+.about p,.about li{max-width:84ch;line-height:1.7}
+.about pre{background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:12px 16px;overflow-x:auto;
+  font:12px/1.6 var(--mono);color:var(--text)}
+footer{margin-top:32px;border-top:1px solid var(--border);padding-top:16px;font-size:11px;color:var(--dim);text-align:center}
+
+@media (max-width:860px){
+  .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tile:nth-child(3){border-left:0}
+  .tile:nth-child(n+3){border-top:1px solid var(--border)}
+}
+@media (max-width:760px){
+  .card{padding:16px}
+  .desk{display:none}
+  .cards{display:block}
+  .chart{height:300px}
+  .hint{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style></head>
+<body><div class="wrap">
+
+<header class="top">
+  <span class="brand">gleanmo <span>/ goals</span></span>
+  <span class="tag">Claude Code mockup</span>
+  <span class="today">Sat Sep 12, 2026 · day 255 of 365 · fictional data</span>
+</header>
+
+<section class="card hero" aria-labelledby="g-title">
+  <div class="hero-head">
+    <h2 id="g-title"></h2>
+    <div class="chips"><span class="chip" id="g-window"></span><span class="chip" id="g-source"></span></div>
+  </div>
+  <div class="big-row"><span class="big" id="g-total"></span><span class="of" id="g-of"></span></div>
+  <div class="bar" id="g-bar" role="img"><i></i><u></u></div>
+  <div class="bar-cap"><span id="g-pct"></span><span id="g-even"></span></div>
+
+  <div class="tiles">
+    <div class="tile"><div class="k">Your rate</div><div class="v" id="t-rate"></div><div class="u" id="t-rate-u"></div></div>
+    <div class="tile"><div class="k">Needed from tomorrow</div><div class="v" id="t-need"></div><div class="u" id="t-need-u"></div><div class="st" id="t-need-st"></div></div>
+    <div class="tile"><div class="k">Remaining</div><div class="v" id="t-rem"></div><div class="u" id="t-rem-u"></div></div>
+    <div class="tile"><div class="k">Next threshold</div><div class="v" id="t-next"></div><div class="u" id="t-next-u"></div></div>
+  </div>
+
+  <div class="chart-head"><h3 id="c-title"></h3></div>
+  <div id="chart" class="chart" role="img"></div>
+  <p class="chart-note" id="c-note"></p>
+  <details><summary>Chart data by month</summary><div class="scroll"><table class="twin" id="twin"></table></div></details>
+</section>
+
+<section class="card" aria-labelledby="list-h">
+  <div class="list-head"><h2 id="list-h">All goals</h2><span class="hint">Select a row to open it above</span></div>
+  <div class="scroll desk">
+    <table class="goals">
+      <thead><tr>
+        <th scope="col" data-key="label"><button type="button">Goal<span class="arrow"></span></button></th>
+        <th scope="col" data-key="pct"><button type="button">Done / target<span class="arrow"></span></button></th>
+        <th scope="col" class="r">Rate</th>
+        <th scope="col" class="r">Needed</th>
+        <th scope="col" class="r" data-key="ratio"><button type="button">Needed ÷ rate<span class="arrow"></span></button></th>
+        <th scope="col" class="r" data-key="ahead"><button type="button">Vs even pace<span class="arrow"></span></button></th>
+        <th scope="col">Next threshold</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <ul class="cards" id="cards"></ul>
+  <p class="key">
+    <b>Rate</b>: your average since the goal started, per day (per week for day counts).
+    <b>Needed</b>: what each remaining day needs, from tomorrow on.
+    <b>Needed ÷ rate</b>: 1.00× means your current rate finishes on Dec 31; ▲ means it falls short.
+    <b>Vs even pace</b>: days ahead of or behind an equal share every day.
+    <b>Tick</b> on a bar: where even pace puts you today.
+  </p>
+</section>
+
+<details class="about">
+  <summary>About this mockup</summary>
+  <p>Built from the crit-sheet feedback: A4's layout, A11 and A13's table, the A2/A3 burn-up without the slider,
+    and F1's last-year line. Every number comes from one daily series per goal.</p>
+  <pre>;; the one new entity behind every row
+[:goal/label :string]
+[:goal/source [:enum :meditation-log :project-log :reading-log :habit-log :exercise-line]]
+[:goal/metric [:enum :minutes :sessions :active-days :reps]]
+[:goal/project-ids    {:optional true} [:set :project/id]]
+[:goal/habit-ids      {:optional true} [:set :habit/id]]
+[:goal/meditation-ids {:optional true} [:set :meditation/id]]
+[:goal/exercise-ids   {:optional true} [:set :exercise/id]]
+[:goal/target :number]
+[:goal/starts-on :local-date]
+[:goal/ends-on :local-date]
+[:goal/time-zone :string]
+[:goal/archived {:optional true} :boolean]</pre>
+  <ul>
+    <li>Rate = total ÷ days elapsed (255). Needed = remaining ÷ days left (110).</li>
+    <li>Vs even pace = (total − target × 255 / 365) ÷ (target / 365), in days.</li>
+    <li>Next threshold: step = target ÷ 10, rounded to 1, 2 or 5 × 10ⁿ (10,000 reps → 1,000; 105 h → 10 h; 190 days → 20).</li>
+    <li>The 2025 line shows only when the goal's source has complete history from Jan 1, 2025. That is one
+      "complete since" date per source, kept in code.</li>
+    <li>Left off this screen on purpose: the tonight slider, "tonight" cards, generated sentences, streaks and the
+      practice grid (next step), activity, routine and milestone fields.</li>
+    <li>Colors are app tokens. Cyan = logged, violet = needed from tomorrow, grey = even pace and 2025. Amber ▲ and
+      green ✓ mark needed above or within your rate. Palette check on #161b22: colour-blind and normal-vision
+      separation pass; the lightness-band check fails because the app's neon tokens are brighter than the
+      reference band.</li>
+  </ul>
+</details>
+
+<footer>Claude Code · first dashboard mockup · fictional data · Sep 12, 2026</footer>
+</div>
+
+<script>
+/* ---------- calendar ---------- */
+const YEAR_DAYS = 365, TODAY = 254, ELAPSED = TODAY + 1, LEFT = YEAR_DAYS - ELAPSED;
+const DAY = 86400000, JAN1 = Date.UTC(2026, 0, 1), DEC31 = JAN1 + 364 * DAY;
+const ts = i => JAN1 + i * DAY;
+const fmtDate = t => new Date(t).toLocaleDateString('en-US', {month: 'short', day: 'numeric', timeZone: 'UTC'});
+const fmtLong = iso => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC'});
+const MONTH_ENDS = [30, 58, 89, 119, 150, 180, 211, 242, 272, 303, 333, 364];
+
+/* Per-source "complete since" dates: the only coverage rule, kept in code. */
+const COMPLETE_SINCE = {'exercise-line': '2024-03-02', 'meditation-log': '2023-01-01',
+  'reading-log': '2024-01-01', 'habit-log': '2024-06-01', 'project-log': '2025-06-01'};
+
+/* ---------- formatting by metric ---------- */
+const nf0 = new Intl.NumberFormat('en-US', {maximumFractionDigits: 0});
+const nf1 = new Intl.NumberFormat('en-US', {minimumFractionDigits: 1, maximumFractionDigits: 1});
+const nfUpTo1 = new Intl.NumberFormat('en-US', {maximumFractionDigits: 1});
+const hrs = m => (m / 60 >= 100 ? nf0 : nfUpTo1).format(m / 60);
+const dur = m => m < 120 ? `${nf0.format(Math.ceil(m))} min` : `${nf1.format(m / 60)} h`;
+const M = {
+  reps: {div: 1, axis: 'reps', unit: 'reps', amt: v => nf0.format(v), amtU: v => `${nf0.format(v)} reps`,
+    rate: v => nf1.format(v), rateUnit: 'reps / day', gap: v => nf0.format(Math.ceil(v)), axisFmt: v => nf0.format(v)},
+  minutes: {div: 60, axis: 'hours', unit: 'h', amt: v => hrs(v), amtU: v => `${hrs(v)} h`,
+    rate: v => nf0.format(v), rateUnit: 'min / day', gap: v => dur(v), axisFmt: v => `${nf1.format(v)} h`},
+  'active-days': {div: 1, axis: 'days', unit: 'days', amt: v => nf0.format(v), amtU: v => `${nf0.format(v)} days`,
+    rate: v => nf1.format(v * 7), rateUnit: 'days / week', gap: v => nf0.format(Math.ceil(v)), axisFmt: v => nf0.format(v)},
+};
+
+/* ---------- fictional data ---------- */
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const GOALS = [
+  {id: 'pullups', label: 'Pull-ups', source: 'exercise-line', metric: 'reps', scope: 'Pull-up, Chin-up',
+    target: 10000, p: .56, lo: 38, hi: 58, ly: .82, seed: 11},
+  {id: 'meditation', label: 'Meditation', source: 'meditation-log', metric: 'minutes', scope: 'all meditation types',
+    target: 6300, p: .86, lo: 10, hi: 30, ly: .75, seed: 12},
+  {id: 'workouts', label: 'Workout days', source: 'exercise-line', metric: 'active-days', scope: 'any exercise',
+    target: 190, p: .5, ly: .9, seed: 13},
+  {id: 'reading', label: 'Reading', source: 'reading-log', metric: 'minutes', scope: 'all books',
+    target: 7200, p: .64, lo: 15, hi: 60, ly: 1.05, seed: 14, slump: true},
+  {id: 'writing', label: 'Writing', source: 'project-log', metric: 'minutes', scope: 'Low Tide',
+    target: 12000, p: .4, lo: 30, hi: 110, seed: 15, slump: true},
+  {id: 'music', label: 'Music', source: 'project-log', metric: 'minutes', scope: 'Music practice',
+    target: 3000, p: .3, lo: 15, hi: 45, seed: 16, slump: true},
+  {id: 'software', label: 'Software', source: 'project-log', metric: 'minutes', scope: 'Gleanmo, Moth Lantern, dotfiles',
+    target: 24000, p: .6, lo: 45, hi: 170, seed: 17},
+  {id: 'floss', label: 'Floss', source: 'habit-log', metric: 'active-days', scope: 'Floss',
+    target: 300, p: .8, ly: .85, seed: 18},
+];
+function gen(g, rng, days, scale) {
+  const out = [];
+  for (let i = 0; i < days; i++) {
+    let p = g.p * scale;
+    if (g.slump && i >= 181 && i <= 211) p *= .3;          // July slump
+    const on = rng() < Math.min(p, .98);
+    out.push(!on ? 0 : g.metric === 'active-days' ? 1 : Math.round(g.lo + rng() * (g.hi - g.lo)));
+  }
+  return out;
+}
+const cum = a => { let s = 0; return a.map(v => s += v); };
+
+/* ---------- the engine: pure functions over a daily series ---------- */
+function niceStep(x) {                        // 1-2-5 × 10^n
+  const e = Math.pow(10, Math.floor(Math.log10(x))), f = x / e;
+  return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * e;
+}
+function stats(g) {
+  const total = g.cum26[TODAY], rate = total / ELAPSED;
+  const remaining = Math.max(0, g.target - total), needed = remaining / LEFT;
+  const even = g.target * ELAPSED / YEAR_DAYS;
+  const step = niceStep(g.target / g.div / 10) * g.div;
+  const next = Math.min(g.target, (Math.floor(total / step) + 1) * step);
+  return {total, rate, remaining, needed, ratio: rate ? needed / rate : Infinity,
+    pct: total / g.target, evenPct: ELAPSED / YEAR_DAYS, ahead: (total - even) / (g.target / YEAR_DAYS),
+    next, toNext: Math.max(0, next - total), met: remaining === 0,
+    lyOK: COMPLETE_SINCE[g.source] <= '2025-01-01', lyToday: g.cum25[TODAY], lyFinal: g.cum25[YEAR_DAYS - 1]};
+}
+GOALS.forEach(g => {
+  g.m = M[g.metric]; g.div = g.m.div;
+  g.s26 = gen(g, mulberry32(g.seed), ELAPSED, 1);
+  g.s25 = gen(g, mulberry32(g.seed * 97 + 3), YEAR_DAYS, g.ly ?? 1);
+  g.cum26 = cum(g.s26); g.cum25 = cum(g.s25);
+  g.s = stats(g);
+});
+
+/* ---------- shared bits ---------- */
+const $ = id => document.getElementById(id);
+const behind = s => !s.met && s.ratio > 1.0005;
+const statusText = s => s.met ? '✓ goal met' : `${behind(s) ? '▲' : '✓'} ${s.ratio.toFixed(2)}× your rate`;
+const statusCls = s => behind(s) ? 'behind' : 'ok';
+const aheadShort = s => { const a = Math.round(s.ahead); return a === 0 ? 'on pace' : a > 0 ? `+${a} d` : `−${-a} d`; };
+const aheadLong = s => {
+  const a = Math.round(s.ahead);
+  return a === 0 ? 'on even pace' : `${Math.abs(a)} ${Math.abs(a) === 1 ? 'day' : 'days'} ${a > 0 ? 'ahead of' : 'behind'} even pace`;
+};
+const nextShort = (g, s) => s.met ? '—' : `${g.m.gap(s.toNext)} to ${g.m.amt(s.next)}`;
+const barHTML = s => `<div class="bar" role="img" aria-label="${(s.pct * 100).toFixed(1)}% done; even pace today ${(s.evenPct * 100).toFixed(1)}%"><i style="width:${Math.min(100, s.pct * 100).toFixed(1)}%"></i><u style="left:${(s.evenPct * 100).toFixed(1)}%"></u></div>`;
+
+/* ---------- selected goal ---------- */
+let chart = null, selected = null;
+function renderHero(g) {
+  const s = g.s, m = g.m;
+  $('g-title').textContent = g.label;
+  $('g-window').textContent = 'Jan 1 → Dec 31, 2026';
+  $('g-source').textContent = `${g.source} ${g.metric} · ${g.scope}`;
+  $('g-total').textContent = m.amt(s.total);
+  $('g-of').textContent = `/ ${m.amtU(g.target)}`;
+  const bar = $('g-bar');
+  bar.querySelector('i').style.width = Math.min(100, s.pct * 100).toFixed(1) + '%';
+  bar.querySelector('u').style.left = (s.evenPct * 100).toFixed(1) + '%';
+  bar.setAttribute('aria-label', `${(s.pct * 100).toFixed(1)}% done; even pace today ${(s.evenPct * 100).toFixed(1)}%`);
+  $('g-pct').textContent = `${(s.pct * 100).toFixed(1)}% done`;
+  $('g-even').innerHTML = `<span class="tickkey" aria-hidden="true"></span>even pace today ${(s.evenPct * 100).toFixed(1)}% · ${aheadLong(s)}`;
+
+  $('t-rate').textContent = m.rate(s.rate);
+  $('t-rate-u').textContent = `${m.rateUnit} · ${ELAPSED} days`;
+  $('t-need').textContent = m.rate(s.needed);
+  $('t-need-u').textContent = `${m.rateUnit} · ${LEFT} days left`;
+  const st = $('t-need-st'); st.textContent = statusText(s); st.className = 'st ' + statusCls(s);
+  $('t-rem').textContent = g.metric === 'minutes' ? `${hrs(s.remaining)} h` : m.amt(s.remaining);
+  $('t-rem-u').textContent = `to ${m.amtU(g.target)}`;
+  $('t-next').textContent = s.met ? '—' : m.gap(s.toNext);
+  $('t-next-u').textContent = s.met ? 'goal met' : `to ${m.amtU(s.next)}`;
+
+  $('c-title').textContent = `Cumulative ${m.axis}, 2026`;
+  $('c-note').textContent = s.lyOK
+    ? `2025 by ${fmtDate(ts(TODAY))}: ${m.amtU(s.lyToday)}. 2025 full year: ${m.amtU(s.lyFinal)}.`
+    : `No 2025 line: ${g.source} history is complete only from ${fmtLong(COMPLETE_SINCE[g.source])}.`;
+  renderChart(g, s);
+  renderTwin(g, s);
+}
+
+function renderChart(g, s) {
+  if (!window.echarts) { $('chart').textContent = 'Chart needs ECharts (loaded from jsDelivr).'; return; }
+  const d = g.div, m = g.m;
+  const done = g.cum26.map((v, i) => [ts(i), v / d]);
+  const even = Array.from({length: YEAR_DAYS}, (_, i) => [ts(i), g.target * (i + 1) / YEAR_DAYS / d]);
+  const ray = Array.from({length: YEAR_DAYS - TODAY}, (_, k) => [ts(TODAY + k), Math.min(g.target, s.total + s.needed * k) / d]);
+  const last = s.lyOK ? g.cum25.map((v, i) => [ts(i), v / d]) : [];
+  const font = {fontFamily: getComputedStyle(document.body).fontFamily, fontSize: 11};
+  const marks = [{yAxis: g.target / d, label: {formatter: `goal ${m.amtU(g.target)}`}}];
+  if (!s.met && s.next < g.target) marks.push({yAxis: s.next / d, label: {formatter: `next ${m.amtU(s.next)}`}});
+  const legend = ['Done', 'Even pace', 'Needed from tomorrow'].concat(s.lyOK ? ['2025'] : []);
+
+  $('chart').setAttribute('aria-label', `Cumulative ${m.axis} in 2026: ${m.amtU(s.total)} of ${m.amtU(g.target)} by ${fmtDate(ts(TODAY))}. Monthly values are in the table below the chart.`);
+  chart = chart || echarts.init($('chart'), null, {renderer: 'svg'});
+  chart.setOption({
+    backgroundColor: 'transparent',
+    textStyle: font,
+    animationDuration: 400,
+    grid: {left: 8, right: 72, top: 48, bottom: 8, containLabel: true},
+    legend: {data: legend, top: 0, left: 0, itemWidth: 18, itemHeight: 8, itemGap: 16,
+      textStyle: {...font, color: '#8b949e'}, inactiveColor: '#484f58'},
+    tooltip: {
+      trigger: 'axis', backgroundColor: '#0b0e13', borderColor: '#30363d', textStyle: {...font, color: '#c9d1d9', fontSize: 12},
+      axisPointer: {type: 'line', lineStyle: {color: '#484f58'}},
+      formatter: ps => {
+        const t = ps[0].axisValue;
+        const rows = ps.filter(p => p.seriesName !== 'Today' && Math.abs(p.value[0] - t) < DAY / 2)
+          .map(p => `${p.marker}${p.seriesName}: ${m.axisFmt(p.value[1])}`);
+        return `<b>${fmtDate(t)}</b><br>${rows.join('<br>')}`;
+      },
+    },
+    xAxis: {type: 'time', min: JAN1, max: DEC31, axisTick: {show: false}, splitLine: {show: false},
+      axisLine: {lineStyle: {color: '#30363d'}},
+      axisLabel: {...font, color: '#8b949e', formatter: v => new Date(v).toLocaleDateString('en-US', {month: 'short', timeZone: 'UTC'})}},
+    yAxis: {type: 'value', name: m.axis, nameTextStyle: {...font, color: '#8b949e', align: 'left'},
+      axisLabel: {...font, color: '#8b949e', formatter: v => nf0.format(v)},
+      splitLine: {lineStyle: {color: '#21262d', width: 1, type: 'solid'}}},
+    series: [
+      {name: 'Even pace', type: 'line', data: even, showSymbol: false, z: 1,
+        lineStyle: {color: '#8b949e', width: 1.5, type: [4, 4], opacity: .7}, itemStyle: {color: '#8b949e'}},
+      {name: '2025', type: 'line', data: last, showSymbol: false, z: 2,
+        lineStyle: {color: '#8b949e', width: 2}, itemStyle: {color: '#8b949e'},
+        endLabel: {show: s.lyOK, ...font, color: '#8b949e', formatter: '2025'}},
+      {name: 'Needed from tomorrow', type: 'line', data: ray, showSymbol: false, z: 3,
+        lineStyle: {color: '#8b5cf6', width: 2, type: [6, 4]}, itemStyle: {color: '#8b5cf6'}},
+      {name: 'Done', type: 'line', data: done, showSymbol: false, z: 4,
+        lineStyle: {color: '#06b6d4', width: 2}, itemStyle: {color: '#06b6d4'},
+        areaStyle: {color: 'rgba(6,182,212,.10)'},
+        endLabel: {show: true, ...font, color: '#f0f6fc', fontWeight: 700, formatter: () => m.amt(s.total)},
+        markLine: {silent: true, symbol: 'none', lineStyle: {color: '#484f58', type: 'dashed', width: 1},
+          label: {...font, color: '#8b949e', position: 'insideStartTop'}, data: marks}},
+      {name: 'Today', type: 'scatter', data: [[ts(TODAY), s.total / d]], symbolSize: 10, z: 5, silent: true,
+        itemStyle: {color: '#06b6d4', borderColor: '#161b22', borderWidth: 2}, tooltip: {show: false}},
+    ],
+  }, true);
+}
+
+function renderTwin(g, s) {
+  const m = g.m, cell = v => v == null ? '—' : m.amt(v);
+  const idx = [...MONTH_ENDS.filter(i => i < TODAY), TODAY, ...MONTH_ENDS.filter(i => i > TODAY)];
+  $('twin').innerHTML = `<thead><tr><th>Date</th><th class="r">Done</th><th class="r">Even pace</th><th class="r">Needed path</th>${s.lyOK ? '<th class="r">2025</th>' : ''}</tr></thead><tbody>` +
+    idx.map(i => `<tr><td>${fmtDate(ts(i))}${i === TODAY ? ' (today)' : ''}</td><td class="r">${cell(i <= TODAY ? g.cum26[i] : null)}</td>` +
+      `<td class="r">${cell(g.target * (i + 1) / YEAR_DAYS)}</td><td class="r">${cell(i >= TODAY ? Math.min(g.target, s.total + s.needed * (i - TODAY)) : null)}</td>` +
+      `${s.lyOK ? `<td class="r">${cell(g.cum25[i])}</td>` : ''}</tr>`).join('') + '</tbody>';
+}
+
+/* ---------- all goals ---------- */
+let sort = {key: 'ratio', dir: -1};
+function sorted() {
+  const val = g => sort.key === 'label' ? g.label : g.s[sort.key];
+  return [...GOALS].sort((a, b) => {
+    const x = val(a), y = val(b);
+    return (typeof x === 'string' ? x.localeCompare(y) : x - y) * sort.dir;
+  });
+}
+function renderList() {
+  const list = sorted();
+  $('rows').innerHTML = list.map(g => {
+    const s = g.s, m = g.m, cls = statusCls(s);
+    return `<tr data-id="${g.id}" class="${g.id === selected ? 'sel' : ''}">
+      <td><button type="button" class="gname" data-id="${g.id}" aria-current="${g.id === selected}">${g.label}</button>
+        <span class="src">${g.source} · ${g.scope}</span></td>
+      <td class="done-cell">${m.amt(s.total)} / ${m.amtU(g.target)}${barHTML(s)}</td>
+      <td class="r">${m.rate(s.rate)} <span class="unit">${m.rateUnit}</span></td>
+      <td class="r ${cls}"><b>${behind(s) ? '▲' : '✓'} ${m.rate(s.needed)}</b> <span class="unit">${m.rateUnit}</span></td>
+      <td class="r ${cls}"><b>${s.met ? 'met' : s.ratio.toFixed(2) + '×'}</b></td>
+      <td class="r">${aheadShort(s)}</td>
+      <td>${nextShort(g, s)}</td></tr>`;
+  }).join('');
+  $('cards').innerHTML = list.map(g => {
+    const s = g.s, m = g.m;
+    return `<li class="gcard ${g.id === selected ? 'sel' : ''}" data-id="${g.id}" role="button" tabindex="0" aria-current="${g.id === selected}">
+      <div class="gc-top"><span class="gc-label">${g.label}</span><span class="${statusCls(s)}"><b>${statusText(s)}</b></span></div>
+      <div class="gc-done">${m.amt(s.total)} / ${m.amtU(g.target)}</div>${barHTML(s)}
+      <dl class="gc-grid">
+        <div><dt>Rate</dt><dd>${m.rate(s.rate)} <span class="unit">${m.rateUnit}</span></dd></div>
+        <div><dt>Needed</dt><dd class="${statusCls(s)}">${m.rate(s.needed)} <span class="unit">${m.rateUnit}</span></dd></div>
+        <div><dt>Vs even pace</dt><dd>${aheadShort(s)}</dd></div>
+        <div><dt>Next threshold</dt><dd>${nextShort(g, s)}</dd></div>
+      </dl></li>`;
+  }).join('');
+  document.querySelectorAll('th[data-key]').forEach(th => {
+    const on = th.dataset.key === sort.key;
+    if (on) th.setAttribute('aria-sort', sort.dir > 0 ? 'ascending' : 'descending'); else th.removeAttribute('aria-sort');
+    th.querySelector('.arrow').textContent = on ? (sort.dir > 0 ? '↑' : '↓') : '';
+  });
+}
+function select(id, scroll) {
+  selected = id;
+  renderHero(GOALS.find(g => g.id === id));
+  renderList();
+  if (scroll) document.querySelector('.hero').scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+document.querySelectorAll('th[data-key] button').forEach(b => b.addEventListener('click', () => {
+  const key = b.closest('th').dataset.key;
+  sort = sort.key === key ? {key, dir: -sort.dir} : {key, dir: key === 'label' ? 1 : -1};
+  renderList();
+}));
+$('rows').addEventListener('click', e => { const tr = e.target.closest('tr[data-id]'); if (tr) select(tr.dataset.id, false); });
+$('cards').addEventListener('click', e => { const li = e.target.closest('[data-id]'); if (li) select(li.dataset.id, true); });
+$('cards').addEventListener('keydown', e => {
+  const li = e.target.closest('[data-id]');
+  if (li && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); select(li.dataset.id, true); }
+});
+window.addEventListener('resize', () => chart && chart.resize());
+
+select(sorted()[0].id, false);
+</script>
+</body></html>
