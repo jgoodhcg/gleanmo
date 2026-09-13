@@ -27,6 +27,10 @@ Combine the Claude table and palette with the Codex spacing and labels.
 - Reset weekly targets each Monday in the goal timezone.
 - Use duration for elapsed time and period for calendar units.
 - Keep implementation notes outside the dashboard.
+- Separate duration, count, and best-performance measurements from dated, weekly, and open-ended timing.
+- Include weekly reading duration, sessions for one meditation, and open-ended duration for one book.
+- Show open-ended totals without deadline pace; use recent activity in their lower-right panel.
+- Defer book completion presentation, page progress, nonfiction filters, and arbitrary attribute goals.
 - Defer tasks per project, moon phases, and astrology.
 
 ## Scope
@@ -45,7 +49,9 @@ The user waived the application visual-series baseline for this standalone mocku
 
 ## Context
 
-- Mockup delivered: `mockups/2026-09-motivating-dashboards/codex/mockup-codex-08-goals-dashboard.html`.
+- Current iteration: `mockups/2026-09-motivating-dashboards/codex/mockup-codex-09-goals-dashboard.html`.
+- Version 09 semantics and validation live in adjacent `goals-09-*.md` files.
+- Previous mockup delivered: `mockups/2026-09-motivating-dashboards/codex/mockup-codex-08-goals-dashboard.html`.
 - Data proposal and browser validation are recorded in adjacent `goals-08-*.md` files.
 - Production implementation remains pending design review.
 - `mockups/2026-09-motivating-dashboards/claude-code/mockup-claude-code-01-first-dashboard.html`
