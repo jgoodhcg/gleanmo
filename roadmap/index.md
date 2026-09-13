@@ -62,6 +62,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 
 ### Active
 
+- [081-goals-dashboard.md](./081-goals-dashboard.md) - Unified goals dashboard mockup and proposed data contract
 - [017-infrastructure.md](./017-infrastructure.md) - Database migration from Neon to DigitalOcean
 - [014-data-migration-status.md](./014-data-migration-status.md) - Tracker for Airtable backfills and remaining imports
 - [015-exercise.md](./015-exercise.md) - Exercise tracking with superset support and Airtable backfill

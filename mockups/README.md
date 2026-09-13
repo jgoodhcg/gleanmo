@@ -21,4 +21,7 @@ mockups/<yyyy-mm>-<topic>/<agent>/mockup-<agent>-<nn>-<slug>.html
   - Claude v1: `claude/mockup-claude-00-index.html`
   - Claude v2: `claude/mockup-claude-v2-00-index.html`
   - Codex: `codex/mockup-codex-00-index.html`
+  - Combined goals dashboard: `codex/mockup-codex-08-goals-dashboard.html`
+    - Data proposal: `codex/goals-08-data-contract.md`
+    - Browser checks: `codex/goals-08-validation.md`
   - Crit sheet: `claude/mockup-claude-crit-sheet.html` — every visualization from all four rounds, grouped by idea, each with a plate ID (A1, B3…) for comments. Screenshots in `claude/review-shots/`.
