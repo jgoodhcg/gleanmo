@@ -1,6 +1,7 @@
 /.cpcache
 /.nrepl-port
 /bin
+/node_modules
 /config.edn
 /config.sh
 /secrets.env

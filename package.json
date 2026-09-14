@@ -1,0 +1,9 @@
+{
+  "name": "gleanmo",
+  "private": true,
+  "description": "CSS toolchain pins for Gleanmo (Biff serves the app; npm is only used for Tailwind)",
+  "devDependencies": {
+    "@tailwindcss/forms": "^0.5.11",
+    "tailwindcss": "^3.4.17"
+  }
+}
