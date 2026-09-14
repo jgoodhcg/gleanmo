@@ -1,0 +1,199 @@
+{
+  "id": "application-language",
+  "title": "Application language and rewrite decision",
+  "created": "2026-09-10",
+  "status": "draft",
+  "decision": "",
+  "context": {
+    "problem": "Decide whether to retain Clojure or rewrite Gleanmo in another language.",
+    "constraints": [
+      "Hold the target database and required user behavior constant when comparing language options.",
+      "Use current observations for agent performance. Historical rankings are context, not assessments.",
+      "Framework and runtime details remain open until the user specifies them."
+    ]
+  },
+  "completion_guidance": {
+    "blank_values": "Null weights and scores are unassessed, not zero. Empty notes and conclusions await user input.",
+    "weights": "Set each weight to low, medium, or high when ready.",
+    "scores": "Use 0 through 5, with higher scores always indicating a better fit. For effort, cost, risk, and churn, lower burden scores higher.",
+    "comparison": "Assess migration costs separately from ongoing benefits. Record concrete stack and hosting assumptions in option notes before scoring.",
+    "ownership": "The user will provide assessments. No option has been ranked or selected."
+  },
+  "options": [
+    {
+      "id": "A",
+      "label": "Clojure — retain and evolve",
+      "description": "Continue the current application, allowing the database and framework decisions to change independently."
+    },
+    {
+      "id": "B",
+      "label": "Go — rewrite",
+      "description": "Rewrite the application in Go. Specify framework and data-access choices before assessment."
+    },
+    {
+      "id": "C",
+      "label": "TypeScript — rewrite",
+      "description": "Rewrite the application in TypeScript. Specify runtime, framework, and data-access choices before assessment."
+    },
+    {
+      "id": "D",
+      "label": "Rust — rewrite",
+      "description": "Rewrite the application in Rust. Specify framework and data-access choices before assessment."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "personal-enjoyment",
+      "label": "Personal enjoyment",
+      "description": "Enjoyment of reading, changing, and maintaining the application.",
+      "weight": null
+    },
+    {
+      "id": "code-readability",
+      "label": "Code readability",
+      "description": "Ease of understanding implementation details and reviewing changes.",
+      "weight": null
+    },
+    {
+      "id": "agent-implementation-quality",
+      "label": "Agent implementation quality",
+      "description": "Observed correctness and maintainability of agent-generated changes.",
+      "weight": null
+    },
+    {
+      "id": "agent-verification-autonomy",
+      "label": "Agent verification autonomy",
+      "description": "Ability of agents to verify and correct changes without user intervention.",
+      "weight": null
+    },
+    {
+      "id": "compiler-feedback",
+      "label": "Compiler feedback",
+      "description": "Usefulness and speed of static feedback before running the application.",
+      "weight": null
+    },
+    {
+      "id": "development-speed",
+      "label": "Development speed",
+      "description": "Time needed to implement verified changes after the transition.",
+      "weight": null
+    },
+    {
+      "id": "debugging-effort",
+      "label": "Debugging effort",
+      "description": "Work required to locate and fix defects.",
+      "weight": null
+    },
+    {
+      "id": "deployment-simplicity",
+      "label": "Deployment simplicity",
+      "description": "Burden of building, packaging, deploying, and operating the application.",
+      "weight": null
+    },
+    {
+      "id": "ecosystem-longevity",
+      "label": "Ecosystem longevity",
+      "description": "Expected durability of the language, libraries, tooling, and available expertise.",
+      "weight": null
+    },
+    {
+      "id": "rewrite-effort",
+      "label": "Rewrite effort",
+      "description": "Work required to reach a usable replacement, including integration and verification.",
+      "weight": null
+    },
+    {
+      "id": "feature-parity-risk",
+      "label": "Feature parity risk",
+      "description": "Risk of losing existing behavior, workflows, or data semantics during replacement.",
+      "weight": null
+    },
+    {
+      "id": "opportunity-cost",
+      "label": "Opportunity cost",
+      "description": "Value of features and other projects deferred while transitioning.",
+      "weight": null
+    }
+  ],
+  "matrix": [
+    {
+      "option": "A",
+      "criteria_scores": {
+        "personal-enjoyment": null,
+        "code-readability": null,
+        "agent-implementation-quality": null,
+        "agent-verification-autonomy": null,
+        "compiler-feedback": null,
+        "development-speed": null,
+        "debugging-effort": null,
+        "deployment-simplicity": null,
+        "ecosystem-longevity": null,
+        "rewrite-effort": null,
+        "feature-parity-risk": null,
+        "opportunity-cost": null
+      },
+      "notes": ""
+    },
+    {
+      "option": "B",
+      "criteria_scores": {
+        "personal-enjoyment": null,
+        "code-readability": null,
+        "agent-implementation-quality": null,
+        "agent-verification-autonomy": null,
+        "compiler-feedback": null,
+        "development-speed": null,
+        "debugging-effort": null,
+        "deployment-simplicity": null,
+        "ecosystem-longevity": null,
+        "rewrite-effort": null,
+        "feature-parity-risk": null,
+        "opportunity-cost": null
+      },
+      "notes": ""
+    },
+    {
+      "option": "C",
+      "criteria_scores": {
+        "personal-enjoyment": null,
+        "code-readability": null,
+        "agent-implementation-quality": null,
+        "agent-verification-autonomy": null,
+        "compiler-feedback": null,
+        "development-speed": null,
+        "debugging-effort": null,
+        "deployment-simplicity": null,
+        "ecosystem-longevity": null,
+        "rewrite-effort": null,
+        "feature-parity-risk": null,
+        "opportunity-cost": null
+      },
+      "notes": ""
+    },
+    {
+      "option": "D",
+      "criteria_scores": {
+        "personal-enjoyment": null,
+        "code-readability": null,
+        "agent-implementation-quality": null,
+        "agent-verification-autonomy": null,
+        "compiler-feedback": null,
+        "development-speed": null,
+        "debugging-effort": null,
+        "deployment-simplicity": null,
+        "ecosystem-longevity": null,
+        "rewrite-effort": null,
+        "feature-parity-risk": null,
+        "opportunity-cost": null
+      },
+      "notes": ""
+    }
+  ],
+  "rationale": "",
+  "follow_ups": [],
+  "references": [
+    "roadmap/archived/006-rewrite-analysis.md",
+    ".decisions/database-choice.json",
+    ".decisions/framework-ui-direction.json"
+  ]
+}

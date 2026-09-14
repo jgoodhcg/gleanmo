@@ -1,0 +1,191 @@
+{
+  "id": "framework-ui-direction",
+  "title": "Framework and UI direction",
+  "created": "2026-09-10",
+  "status": "draft",
+  "decision": "",
+  "context": {
+    "problem": "Choose Gleanmo’s Clojure framework and interaction approach, separating Biff 2 adoption from Datastar adoption.",
+    "constraints": [
+      "This matrix assumes Clojure remains the application language. Revisit it if the language decision selects a rewrite.",
+      "Postgres integration is retained as a stated criterion. Revisit it if the database decision selects another database.",
+      "These options are editable starting points, not an exhaustive list of combinations."
+    ]
+  },
+  "completion_guidance": {
+    "blank_values": "Null weights and scores are unassessed, not zero. Empty notes and conclusions await user input.",
+    "weights": "Set each weight to low, medium, or high when ready.",
+    "scores": "Use 0 through 5, with higher scores always indicating a better fit. For effort, cost, risk, and churn, lower burden scores higher.",
+    "comparison": "Assess migration costs separately from ongoing benefits. Record concrete stack and hosting assumptions in option notes before scoring.",
+    "ownership": "The user will provide assessments. No option has been ranked or selected."
+  },
+  "options": [
+    {
+      "id": "A",
+      "label": "Biff 1 + HTMX",
+      "description": "Retain the current framework and interaction approach."
+    },
+    {
+      "id": "B",
+      "label": "Biff 2 + HTMX",
+      "description": "Adopt Biff 2 components while retaining HTMX interactions. Assess the integration work explicitly."
+    },
+    {
+      "id": "C",
+      "label": "Biff 2 + Datastar",
+      "description": "Adopt Biff 2 and replace the relevant HTMX interactions with Datastar."
+    },
+    {
+      "id": "D",
+      "label": "Independent Clojure libraries + HTMX",
+      "description": "Compose the required Clojure libraries directly and retain HTMX, replacing Biff integration as needed."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "maintenance-outlook",
+      "label": "Framework maintenance outlook",
+      "description": "Expected availability of fixes, support, and maintainers for the selected composition.",
+      "weight": null
+    },
+    {
+      "id": "new-capabilities",
+      "label": "Useful new capabilities",
+      "description": "Value of capabilities that address actual Gleanmo needs.",
+      "weight": null
+    },
+    {
+      "id": "interaction-simplicity",
+      "label": "Interaction simplicity",
+      "description": "Ease of implementing and maintaining browser and server interactions.",
+      "weight": null
+    },
+    {
+      "id": "ui-compatibility",
+      "label": "Existing UI compatibility",
+      "description": "Fit with existing forms, Choices.js widgets, timers, and visualizations.",
+      "weight": null
+    },
+    {
+      "id": "debugging-clarity",
+      "label": "Debugging clarity",
+      "description": "Ease of tracing requests, state changes, rendering, and failures.",
+      "weight": null
+    },
+    {
+      "id": "testing-ease",
+      "label": "Testing ease",
+      "description": "Ease of verifying application behavior reliably.",
+      "weight": null
+    },
+    {
+      "id": "learning-effort",
+      "label": "Learning effort",
+      "description": "Work required to understand the chosen components and conventions.",
+      "weight": null
+    },
+    {
+      "id": "migration-effort",
+      "label": "Migration effort",
+      "description": "Work required to change framework integration, interactions, and tests.",
+      "weight": null
+    },
+    {
+      "id": "postgres-integration",
+      "label": "Postgres integration",
+      "description": "Ease of using PostgreSQL directly across application data, authentication, and background work.",
+      "weight": null
+    },
+    {
+      "id": "component-independence",
+      "label": "Component independence",
+      "description": "Ease of replacing or omitting individual libraries and framework conventions.",
+      "weight": null
+    },
+    {
+      "id": "ongoing-churn",
+      "label": "Ongoing churn",
+      "description": "Expected burden of API changes, upgrades, and recurring integration changes.",
+      "weight": null
+    }
+  ],
+  "matrix": [
+    {
+      "option": "A",
+      "criteria_scores": {
+        "maintenance-outlook": null,
+        "new-capabilities": null,
+        "interaction-simplicity": null,
+        "ui-compatibility": null,
+        "debugging-clarity": null,
+        "testing-ease": null,
+        "learning-effort": null,
+        "migration-effort": null,
+        "postgres-integration": null,
+        "component-independence": null,
+        "ongoing-churn": null
+      },
+      "notes": ""
+    },
+    {
+      "option": "B",
+      "criteria_scores": {
+        "maintenance-outlook": null,
+        "new-capabilities": null,
+        "interaction-simplicity": null,
+        "ui-compatibility": null,
+        "debugging-clarity": null,
+        "testing-ease": null,
+        "learning-effort": null,
+        "migration-effort": null,
+        "postgres-integration": null,
+        "component-independence": null,
+        "ongoing-churn": null
+      },
+      "notes": ""
+    },
+    {
+      "option": "C",
+      "criteria_scores": {
+        "maintenance-outlook": null,
+        "new-capabilities": null,
+        "interaction-simplicity": null,
+        "ui-compatibility": null,
+        "debugging-clarity": null,
+        "testing-ease": null,
+        "learning-effort": null,
+        "migration-effort": null,
+        "postgres-integration": null,
+        "component-independence": null,
+        "ongoing-churn": null
+      },
+      "notes": ""
+    },
+    {
+      "option": "D",
+      "criteria_scores": {
+        "maintenance-outlook": null,
+        "new-capabilities": null,
+        "interaction-simplicity": null,
+        "ui-compatibility": null,
+        "debugging-clarity": null,
+        "testing-ease": null,
+        "learning-effort": null,
+        "migration-effort": null,
+        "postgres-integration": null,
+        "component-independence": null,
+        "ongoing-churn": null
+      },
+      "notes": ""
+    }
+  ],
+  "rationale": "",
+  "follow_ups": [],
+  "references": [
+    "deps.edn",
+    "https://github.com/jacobobryant/biff/blob/master/README.md",
+    "https://data-star.dev/guide/reactive_signals",
+    ".decisions/database-choice.json",
+    ".decisions/application-language.json"
+  ]
+}

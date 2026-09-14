@@ -48,3 +48,5 @@ test-results/
 .env.*
 !.env.example
 !.env.*.example
+
+mockups/2026-09-motivating-dashboards/codex/review-shots/goals-09-debug.png

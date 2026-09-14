@@ -1,0 +1,202 @@
+{
+  "id": "database-choice",
+  "title": "Database decision",
+  "created": "2026-09-10",
+  "status": "draft",
+  "decision": "",
+  "context": {
+    "problem": "Choose the primary application database for Gleanmo, independently of framework and application language.",
+    "constraints": [
+      "Compare primary application databases. A separate analytics engine can be evaluated later.",
+      "Holding the application language and framework constant isolates the database decision.",
+      "The existing PostgreSQL storage backing for XTDB is distinct from using PostgreSQL directly.",
+      "Define required history preservation before evaluating migration risk."
+    ]
+  },
+  "completion_guidance": {
+    "blank_values": "Null weights and scores are unassessed, not zero. Empty notes and conclusions await user input.",
+    "weights": "Set each weight to low, medium, or high when ready.",
+    "scores": "Use 0 through 5, with higher scores always indicating a better fit. For effort, cost, risk, and churn, lower burden scores higher.",
+    "comparison": "Assess migration costs separately from ongoing benefits. Record concrete stack and hosting assumptions in option notes before scoring.",
+    "ownership": "The user will provide assessments. No option has been ranked or selected."
+  },
+  "options": [
+    {
+      "id": "A",
+      "label": "XTDB 1.x",
+      "description": "Retain the current XTDB 1.x database and data model. This option does not imply upgrading to XTDB 2."
+    },
+    {
+      "id": "B",
+      "label": "PostgreSQL",
+      "description": "Use PostgreSQL directly as the application database, with an explicit relational schema."
+    },
+    {
+      "id": "C",
+      "label": "SQLite",
+      "description": "Use SQLite directly as the application database, with an explicit relational schema."
+    },
+    {
+      "id": "D",
+      "label": "Datomic",
+      "description": "Use Datomic as the application database. Specify the deployment edition and topology before assessment."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "query-clarity",
+      "label": "Query clarity",
+      "description": "Ease of expressing and understanding application queries.",
+      "weight": null
+    },
+    {
+      "id": "analytics-access",
+      "label": "Analytics access",
+      "description": "Ease of expressing aggregates, time series, and exploratory analysis. External tool connectivity belongs under interoperability.",
+      "weight": null
+    },
+    {
+      "id": "data-inspection",
+      "label": "Data inspection",
+      "description": "Ease of inspecting records and diagnosing unexpected data.",
+      "weight": null
+    },
+    {
+      "id": "performance-predictability",
+      "label": "Performance predictability",
+      "description": "Ease of anticipating, measuring, and controlling query costs as data grows.",
+      "weight": null
+    },
+    {
+      "id": "data-integrity",
+      "label": "Data integrity",
+      "description": "Support for transactions, constraints, relationships, and concurrent updates.",
+      "weight": null
+    },
+    {
+      "id": "schema-evolution",
+      "label": "Schema evolution",
+      "description": "Ease of changing the data model while preserving existing records.",
+      "weight": null
+    },
+    {
+      "id": "temporal-history-needs",
+      "label": "Temporal/history needs",
+      "description": "Fit for the history, audit, and temporal queries Gleanmo actually needs.",
+      "weight": null
+    },
+    {
+      "id": "operational-simplicity",
+      "label": "Operational simplicity",
+      "description": "Burden of hosting, backups, restores, upgrades, and routine administration.",
+      "weight": null
+    },
+    {
+      "id": "migration-effort",
+      "label": "Migration effort",
+      "description": "Work needed to port data, queries, mutations, integrations, and tests.",
+      "weight": null
+    },
+    {
+      "id": "migration-risk",
+      "label": "Migration risk",
+      "description": "Risk of data loss, semantic changes, downtime, and incomplete rollback during migration.",
+      "weight": null
+    },
+    {
+      "id": "ecosystem-longevity",
+      "label": "Ecosystem longevity",
+      "description": "Expected durability of maintenance, expertise, libraries, and support.",
+      "weight": null
+    },
+    {
+      "id": "interoperability-portability",
+      "label": "Interoperability and portability",
+      "description": "Ease of moving hosts, connecting analytics tools, or replacing the application while retaining the database. Consider language drivers, protocols, connectors, and framework coupling.",
+      "weight": null
+    }
+  ],
+  "matrix": [
+    {
+      "option": "A",
+      "criteria_scores": {
+        "query-clarity": null,
+        "analytics-access": null,
+        "data-inspection": null,
+        "performance-predictability": null,
+        "data-integrity": null,
+        "schema-evolution": null,
+        "temporal-history-needs": null,
+        "operational-simplicity": null,
+        "migration-effort": null,
+        "migration-risk": null,
+        "ecosystem-longevity": null,
+        "interoperability-portability": null
+      },
+      "notes": ""
+    },
+    {
+      "option": "B",
+      "criteria_scores": {
+        "query-clarity": null,
+        "analytics-access": null,
+        "data-inspection": null,
+        "performance-predictability": null,
+        "data-integrity": null,
+        "schema-evolution": null,
+        "temporal-history-needs": null,
+        "operational-simplicity": null,
+        "migration-effort": null,
+        "migration-risk": null,
+        "ecosystem-longevity": null,
+        "interoperability-portability": null
+      },
+      "notes": ""
+    },
+    {
+      "option": "C",
+      "criteria_scores": {
+        "query-clarity": null,
+        "analytics-access": null,
+        "data-inspection": null,
+        "performance-predictability": null,
+        "data-integrity": null,
+        "schema-evolution": null,
+        "temporal-history-needs": null,
+        "operational-simplicity": null,
+        "migration-effort": null,
+        "migration-risk": null,
+        "ecosystem-longevity": null,
+        "interoperability-portability": null
+      },
+      "notes": ""
+    },
+    {
+      "option": "D",
+      "criteria_scores": {
+        "query-clarity": null,
+        "analytics-access": null,
+        "data-inspection": null,
+        "performance-predictability": null,
+        "data-integrity": null,
+        "schema-evolution": null,
+        "temporal-history-needs": null,
+        "operational-simplicity": null,
+        "migration-effort": null,
+        "migration-risk": null,
+        "ecosystem-longevity": null,
+        "interoperability-portability": null
+      },
+      "notes": ""
+    }
+  ],
+  "rationale": "",
+  "follow_ups": [],
+  "references": [
+    "roadmap/archived/004-postgres-migration.md",
+    "src/tech/jgood/gleanmo/db/queries.clj",
+    "src/tech/jgood/gleanmo/db/mutations.clj",
+    "https://www.sqlite.org/whentouse.html",
+    "https://docs.datomic.com/datomic-overview.html"
+  ]
+}
