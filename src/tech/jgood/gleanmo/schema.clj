@@ -6,6 +6,7 @@
             [tech.jgood.gleanmo.schema.ical-url-schema :as is]
             [tech.jgood.gleanmo.schema.meditation-schema :as ms]
             [tech.jgood.gleanmo.schema.exercise-schema :as es]
+            [tech.jgood.gleanmo.schema.goal-schema :as gs]
             [tech.jgood.gleanmo.schema.bm-schema :as bs]
             [tech.jgood.gleanmo.schema.medication-schema :as meds]
             [tech.jgood.gleanmo.schema.calendar-event-schema :as ces]
@@ -35,6 +36,11 @@
    :local-date          [:fn t/date?]
    :number              [:fn number?]
    :float               [:fn float?]
+   ;; Constrained integer aliases. Fields declare the alias keyword rather
+   ;; than an inline `[:int {:min 1}]`, which the CRUD field parser cannot
+   ;; dispatch on; see `schema.utils/numeric-aliases`.
+   :positive-int        [:int {:min 1}]
+   :nonnegative-int     [:int {:min 0}]
    :user/id             :uuid
    :habit/id            :uuid
    :habit-log/id        :uuid
@@ -62,6 +68,7 @@
    :boulder-problem/id  :uuid
    :boulder-attempt/id  :uuid
    :task/id             :uuid
+   :goal/id             :uuid
    :user                us/user
    :habit               hs/habit
    :habit-log           hs/habit-log
@@ -89,6 +96,7 @@
    :boulder-problem     bschema/boulder-problem
    :boulder-attempt     bschema/boulder-attempt
    :task                ts/task
+   :goal                gs/goal
    :cruddy              cs/cruddy
    :performance-report  perf/performance-report})
 

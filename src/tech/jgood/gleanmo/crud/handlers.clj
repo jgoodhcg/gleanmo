@@ -23,7 +23,8 @@
                                  #_{:clj-kondo/ignore [:shadowed-var]}
                                  type       (:type field-info)
                                  {:keys [input-type]}
-                                 (schema-utils/determine-input-type type)]
+                                 (schema-utils/input-type-info
+                                  type (:opts field-info))]
                              ;; Skip empty values for optional fields, otherwise
                              ;; convert
                              (if (and optional? (or (nil? v) (and (string? v) (str/blank? v))))
@@ -118,6 +119,37 @@
         {:status  303,
          :headers {"location" final-redirect}}))))
 
+(defn- submitted-param
+  "[present? value] for a field's input name, tolerating string or keyword
+   param keys."
+  [params input-name]
+  (cond
+    (contains? params input-name)           [true (get params input-name)]
+    (contains? params (keyword input-name)) [true (get params (keyword input-name))]
+    :else                                   [false nil]))
+
+(defn cleared-fields
+  "`{field-key :db/dissoc}` for optional fields of a clearable input type
+   that the form submitted blank while the stored entity still has a value.
+
+   A field absent from the params was not on the form, so it is left alone;
+   only an explicit blank clears, which keeps untouched fields intact on
+   unrelated edits."
+  [schema params current-entity]
+  (into {}
+        (for [entry (schema-utils/extract-schema-fields schema)
+              :let  [{:keys [field-key opts type]} (schema-utils/parse-field entry)
+                     {:keys [input-type]} (schema-utils/input-type-info type opts)
+                     [present? v] (submitted-param
+                                   params
+                                   (schema-utils/ns-keyword->input-name field-key))]
+              :when (and (:optional opts)
+                         (contains? schema-utils/clearable-input-types input-type)
+                         present?
+                         (str/blank? (str v))
+                         (contains? current-entity field-key))]
+          [field-key :db/dissoc])))
+
 (defn update-entity!
   "Handle entity update from form submission"
   [{:keys [schema entity-key entity-str]}
@@ -150,7 +182,8 @@
                                (schema-utils/extract-schema-fields schema))
 
         form-data      (-> (form->schema updated-params schema ctx)
-                           (default-label-from-field entity-key label-fallbacks))
+                           (default-label-from-field entity-key label-fallbacks)
+                           (merge (cleared-fields schema params current-entity)))
         time-zone      (-> params
                            (get (str entity-str "/time-zone")))
         user-time-zone (get-user-time-zone ctx)

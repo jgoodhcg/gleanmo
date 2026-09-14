@@ -139,7 +139,8 @@
                                     :weight        (:exercise-line/weight line)
                                     :unit          (some-> (:exercise-line/weight-unit line) name)
                                     :distance      (:exercise-line/distance line)
-                                    :distance-unit (some-> (:exercise-line/distance-unit line) name)}))))
+                                    :distance-unit (some-> (:exercise-line/distance-unit line) name)
+                                    :duration      (:exercise-line/duration-seconds line)}))))
                       {}
                       lines)]
     {:by-exercise by-ex
@@ -175,6 +176,8 @@
       (and reps weight) (str reps " × " weight " " (or unit "lbs"))
       reps              (str reps " reps")
       distance          (str distance (when d-unit (str " " d-unit)))
+      (:exercise-line/duration-seconds line)
+      (str (:exercise-line/duration-seconds line) " s")
       :else             "—")))
 
 (defn- fmt-clock
@@ -227,6 +230,7 @@
 (def ^:private default-reps 12)
 (def ^:private default-weight 0)
 (def ^:private default-distance 0)
+(def ^:private default-duration 0)
 
 ;; All form behavior wires up here off data attributes, per `[data-line-form]`
 ;; rather than per id, because the same fields render in the session form and
@@ -254,6 +258,7 @@
        var reps=form.querySelector('[name=reps]');
        var weight=form.querySelector('[name=weight]');
        var distance=form.querySelector('[name=distance]');
+       var duration=form.querySelector('[name=duration]');
        var primary=form.querySelector('[data-line-primary]');
        function unitInput(field){ return form.querySelector('[name='+field+'-unit]'); }
        function unitOf(field){ var i=unitInput(field); return i?i.value:null; }
@@ -272,7 +277,8 @@
            if(weight) weight.value=(m.weight!=null?m.weight:dWeight);
            setUnit('weight',m.unit||'lbs');
            if(distance) distance.value=(m.distance!=null?m.distance:dDistance);
-           setUnit('distance',m['distance-unit']||'miles'); }
+           setUnit('distance',m['distance-unit']||'miles');
+           if(duration) duration.value=(m.duration!=null?m.duration:0); }
          syncPrimary(); }); }
        form.querySelectorAll('[data-unit-btn]').forEach(function(b){
          b.addEventListener('click',function(){
@@ -284,6 +290,7 @@
            var step=1;
            if(name==='weight') step=(unitOf('weight')==='kg')?2.5:5;
            else if(name==='distance') step=(unitOf('distance')==='meters')?10:0.1;
+           else if(name==='duration') step=5;
            var min=(name==='reps')?1:0;
            i.value=Math.max(min,Math.round(((parseFloat(i.value)||0)+dir*step)*100)/100);
            syncPrimary(); }); });
@@ -391,8 +398,10 @@
    full CRUD edit form, and a row you have to reveal first is only marginally
    better than one you have to navigate to. A zero reads as 'not applicable'
    and is stored as no value, the same convention weight already uses for
-   bodyweight, so the extra row costs a lifter nothing."
-  [{:keys [field-name exercise-id reps weight unit distance distance-unit]} ctx]
+   bodyweight, so the extra row costs a lifter nothing. Duration follows the
+   same rule: seconds held on this one exercise, zero for none."
+  [{:keys [field-name exercise-id reps weight unit distance distance-unit
+           duration]} ctx]
   [:<>
    [:div {:class "text-[10px] font-semibold tracking-widest text-gray-500 mb-2"} "EXERCISE"]
    ;; Shared inline-create picker rather than a hand-rolled select, so
@@ -418,7 +427,10 @@
      [:span {:class "text-[10px] font-semibold tracking-widest text-gray-500"} "DIST"]
      (unit-toggle "distance" [["miles" "mi"] ["km" "km"] ["meters" "m"]]
                   (or distance-unit default-distance-unit))]
-    (stepper-ctrl "distance" (str (or distance 0)))]])
+    (stepper-ctrl "distance" (str (or distance 0)))]
+   [:div.flex.items-center.justify-between.gap-3.py-2
+    [:span {:class "text-[10px] font-semibold tracking-widest text-gray-500"} "SECS"]
+    (stepper-ctrl "duration" (str (or duration default-duration)))]])
 
 (defn- log-form
   "The main log form: shared line fields and a primary button that names its
@@ -448,7 +460,8 @@
                    :weight        (or (:weight m) default-weight)
                    :unit          (or (:unit m) "lbs")
                    :distance      (or (:distance m) default-distance)
-                   :distance-unit (or (:distance-unit m) default-distance-unit)}
+                   :distance-unit (or (:distance-unit m) default-distance-unit)
+                   :duration      (or (:duration m) default-duration)}
                   ctx)
      [:div.flex.flex-col.gap-2.mt-4
       [:button (cond-> {:id "wk-log-primary" :data-line-primary true :type "submit"
@@ -466,7 +479,7 @@
    touches the set's interval, so describing a set later costs its timing
    nothing."
   [{:keys [action submit-label exercise-id reps weight unit distance
-           distance-unit memory delete-action]} ctx]
+           distance-unit duration memory delete-action]} ctx]
   [:div {:class "mt-2.5 rounded-lg border border-dark bg-dark p-3 min-w-0"}
    (biff/form
     (cond-> {:data-line-form true :action action :method "post"}
@@ -480,7 +493,8 @@
                   :weight        weight
                   :unit          unit
                   :distance      distance
-                  :distance-unit distance-unit}
+                  :distance-unit distance-unit
+                  :duration      duration}
                  ctx)
     [:div.flex.items-center.gap-2.mt-3
      [:button {:type "submit"
@@ -1131,18 +1145,22 @@
         w        (parse-num* (:weight params))
         weight   (when (and w (pos? w)) w)
         d        (parse-num* (:distance params))
-        distance (when (and d (pos? d)) d)]
+        distance (when (and d (pos? d)) d)
+        s        (parse-num* (:duration params))
+        duration (when (and s (pos? s) (Double/isFinite s)) s)]
     {:exercise-id   (some-> raw parse-uuid)
      :reps          (parse-int* (:reps params))
      :weight        weight
      :unit          (when weight (get weight-units (:weight-unit params) :lbs))
      :distance      distance
      :distance-unit (when distance
-                      (get distance-units (:distance-unit params) :miles))}))
+                      (get distance-units (:distance-unit params) :miles))
+     :duration      duration}))
 
 (defn- line-doc
   "The document a line form describes, ready for create-entity!."
-  [user-id set-id {:keys [exercise-id reps weight unit distance distance-unit]}]
+  [user-id set-id {:keys [exercise-id reps weight unit distance distance-unit
+                          duration]}]
   (cond-> {:user/id                   user-id
            :exercise-line/set-id      set-id
            :exercise-line/exercise-id exercise-id}
@@ -1150,7 +1168,8 @@
     weight        (assoc :exercise-line/weight weight)
     unit          (assoc :exercise-line/weight-unit unit)
     distance      (assoc :exercise-line/distance distance)
-    distance-unit (assoc :exercise-line/distance-unit distance-unit)))
+    distance-unit (assoc :exercise-line/distance-unit distance-unit)
+    duration      (assoc :exercise-line/duration-seconds duration)))
 
 (defn add-line!
   "Record a line against the session's running set. The primary submit also
@@ -1208,6 +1227,7 @@
                   :unit          (or (:unit m) "lbs")
                   :distance      (or (:distance m) default-distance)
                   :distance-unit (or (:distance-unit m) default-distance-unit)
+                  :duration      (or (:duration m) default-duration)
                   :memory        by-exercise}
                  ctx)))
     (fragment ctx [:p.text-xs.text-gray-500 "Set not found."])))
@@ -1243,6 +1263,8 @@
                 :distance      (or (:exercise-line/distance line) default-distance)
                 :distance-unit (or (some-> (:exercise-line/distance-unit line) name)
                                    default-distance-unit)
+                :duration      (or (:exercise-line/duration-seconds line)
+                                   default-duration)
                 :delete-action (str "/app/exercise/line/" (:xt/id line) "/delete")}
                ctx))
     (fragment ctx [:p.text-xs.text-gray-500 "Line not found."])))
@@ -1254,7 +1276,7 @@
    zeroing a distance really does remove it."
   [{:keys [params] :as ctx}]
   (if-let [line (owned-entity ctx :exercise-line)]
-    (let [{:keys [exercise-id reps weight unit distance distance-unit]}
+    (let [{:keys [exercise-id reps weight unit distance distance-unit duration]}
           (line-params params)]
       (if exercise-id
         (do (mutations/update-entity!
@@ -1266,7 +1288,8 @@
                            :exercise-line/weight         (or weight :db/dissoc)
                            :exercise-line/weight-unit    (or unit :db/dissoc)
                            :exercise-line/distance       (or distance :db/dissoc)
-                           :exercise-line/distance-unit  (or distance-unit :db/dissoc)}})
+                           :exercise-line/distance-unit  (or distance-unit :db/dissoc)
+                           :exercise-line/duration-seconds (or duration :db/dissoc)}})
             (redirect-back ctx))
         (redirect-back ctx :error "pick-exercise")))
     (redirect-back ctx)))

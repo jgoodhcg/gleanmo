@@ -121,6 +121,7 @@ async function main() {
       { path: '/app/crud/exercise-set', label: 'exercise-sets' },
       { path: '/app/crud/boulder-session', label: 'boulder-sessions' },
       { path: '/app/crud/boulder-attempt', label: 'boulder-attempts' },
+      { path: '/app/crud/goal', label: 'goals' },
     ];
 
     console.log('\n4. CRUD list pages...');
@@ -139,6 +140,7 @@ async function main() {
       { path: '/app/crud/form/mood-log/new', label: 'new-mood-log-form' },
       { path: '/app/crud/form/exercise-set/new', label: 'new-exercise-set-form' },
       { path: '/app/crud/form/boulder-attempt/new', label: 'new-boulder-attempt-form' },
+      { path: '/app/goals/new', label: 'new-goal-editor' },
     ];
 
     console.log('\n5. CRUD new form pages...');
@@ -166,6 +168,14 @@ async function main() {
     await loadPage(page, '/app/exercise/session', 'workout-screen');
     await assertSidebar(page, 'workout-screen');
     await captureScreenshot(page, '08-workout');
+
+    // ── 9. Goals dashboard ──
+    console.log('\n9. Goals dashboard...');
+    await loadPage(page, '/app/goals', 'goals');
+    await assertSidebar(page, 'goals');
+    await expect(page.locator('h1:has-text("Goals")')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#sidebar a[href="/app/goals"]')).toHaveCount(1);
+    await captureScreenshot(page, '09-goals');
 
     console.log('\n=== Smoke Test Passed ===\n');
   } catch (error) {

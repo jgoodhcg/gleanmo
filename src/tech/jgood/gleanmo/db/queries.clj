@@ -365,6 +365,28 @@
       (into [] (keep by-id) ids))
     []))
 
+(defnp owned-entity-ids
+  "The subset of `ids` that are live (not soft-deleted) `entity-type`
+   documents owned by `user-id`. Bound to the given ids, so cost tracks the
+   input size rather than the user's history."
+  [db user-id entity-type ids]
+  (if (seq ids)
+    (let [found   (->> (q db
+                          '{:find  [?e]
+                            :where [[?e :user/id user-id]
+                                    [?e ::sm/type entity-type]]
+                            :in    [user-id entity-type [?e ...]]}
+                          user-id entity-type (vec ids))
+                       (into #{} (map first)))
+          deleted (->> (q db
+                          '{:find  [?e]
+                            :where [[?e ::sm/deleted-at]]
+                            :in    [[?e ...]]}
+                          (vec found))
+                       (into #{} (map first)))]
+      (into #{} (remove deleted) found))
+    #{}))
+
 (defn- temporal-sort-field
   "Return the timestamp/beginning field used by heatmap visualizations."
   [entity-type entity-schema]
@@ -1295,6 +1317,171 @@
          (remove ::sm/deleted-at)
          (take limit)
          vec)))
+
+;; ---------------------------------------------------------------------------
+;; Goal progress reads
+;;
+;; Goals never store progress; the dashboard reads minimal projections of
+;; their source records over the chart window and computes everything in
+;; `goals/calc.clj`. Each read is index-only up to the records that survive
+;; visibility filtering, and one read serves every goal on the same source.
+;; ---------------------------------------------------------------------------
+
+(defnp goals-for-user
+  "The user's live goals, newest first, archived ones included so the caller
+   can list them separately. Scan-then-pull, bounded by `limit`."
+  [db user-id & {:keys [limit], :or {limit 500}}]
+  (all-entities-for-user db user-id :goal
+                         :filter-archived true
+                         :limit           limit
+                         :order-key       ::sm/created-at
+                         :order-direction :desc))
+
+(def ^:private goal-source-shapes
+  "The attribute that dates each goal source's records, its interval end when
+   it has one, and the extra attributes measurements read."
+  {:project-log      {:time :project-log/beginning, :end :project-log/end}
+   :reading-log      {:time :reading-log/beginning, :end :reading-log/end}
+   :meditation-log   {:time :meditation-log/beginning, :end :meditation-log/end}
+   :exercise-session {:time :exercise-session/beginning, :end :exercise-session/end}
+   :boulder-session  {:time :boulder-session/beginning, :end :boulder-session/end}
+   :boulder-attempt  {:time  :boulder-attempt/beginning, :end :boulder-attempt/end,
+                      :attrs {:attempts :boulder-attempt/attempts}}
+   :habit-log        {:time :habit-log/timestamp}})
+
+(def ^:private goal-relation-fields
+  "The attribute carrying each goal source's relation-filter ids."
+  {:project-log    :project-log/project-id
+   :reading-log    :reading-log/book-id
+   :meditation-log :meditation-log/type-id
+   :habit-log      :habit-log/habit-ids
+   :exercise-line  :exercise-line/exercise-id})
+
+(defn- range-scan
+  "`[id time]` of the user's documents whose `time-key` is in [since, until).
+
+   The range drives the scan and the user is an output variable filtered
+   afterwards — the shape `build-windowed-scan-query` explains and measures.
+   `time-key` is type-specific, so it already implies the type."
+  [db user-id time-key since until]
+  (->> (q db
+          {:find  '[?e ?t ?scan-user]
+           :where [['?e time-key '?t]
+                   '[(>= ?t since)]
+                   '[(< ?t until)]
+                   '[?e :user/id ?scan-user]]
+           :in    '[since until]}
+          since until)
+       (into [] (keep (fn [[e t u]] (when (= u user-id) [e t]))))))
+
+(defn- attr-values
+  "`{id value}` of a single-valued `attr` for `ids`. Index-only."
+  [db ids attr]
+  (if (seq ids)
+    (into {} (q db {:find  '[?e ?v]
+                    :where [['?e attr '?v]]
+                    :in    '[[?e ...]]}
+                (vec ids)))
+    {}))
+
+(defn- visible-rows
+  "Rows (maps with `:xt/id`) of `entity-type` that survive deleted, sensitive,
+   archived, and related-entity visibility, with relationship attributes
+   merged in."
+  [db user-id entity-type settings rows]
+  (apply-heatmap-exclusions
+   db user-id entity-type settings
+   (schema-utils/extract-relationship-fields
+    (get schema-registry/schema entity-type) :remove-system-fields true)
+   rows))
+
+(defn- as-id-set
+  [v]
+  (cond (set? v) v (some? v) #{v} :else #{}))
+
+(defn- exercise-line-records
+  "Exercise lines dated by their parent set's beginning. Parent-bound: sets
+   in the window are found first, then only their lines are read."
+  [db user-id {:keys [since until relation-ids]} settings]
+  (let [set-at   (->> (range-scan db user-id :exercise-set/beginning since until)
+                      (map (fn [[e t]] {:xt/id e, ::at t}))
+                      (visible-rows db user-id :exercise-set settings)
+                      (into {} (map (juxt :xt/id ::at))))
+        lines    (when (seq set-at)
+                   (->> (q db
+                           '{:find  [?l ?s]
+                             :where [[?l :exercise-line/set-id ?s]]
+                             :in    [[?s ...]]}
+                           (vec (keys set-at)))
+                        (map (fn [[l _]] {:xt/id l}))
+                        (visible-rows db user-id :exercise-line settings)
+                        (filter #(or (nil? relation-ids)
+                                     (contains? relation-ids
+                                                (:exercise-line/exercise-id %))))
+                        vec))
+        ids      (mapv :xt/id lines)
+        reps     (attr-values db ids :exercise-line/reps)
+        weight   (attr-values db ids :exercise-line/weight)
+        unit     (attr-values db ids :exercise-line/weight-unit)
+        duration (attr-values db ids :exercise-line/duration-seconds)]
+    (mapv (fn [{:keys [xt/id] :as line}]
+            {:id          id
+             :at          (get set-at (:exercise-line/set-id line))
+             :relations   (as-id-set (:exercise-line/exercise-id line))
+             :reps        (get reps id)
+             :weight      (get weight id)
+             :weight-unit (get unit id)
+             :duration    (get duration id)})
+          lines)))
+
+(defnp goal-source-records
+  "Minimal visible records of one goal source dated in [since, until).
+
+   `relation-ids`, when given, keeps only records related to one of them;
+   nil means every record. A record is `{:id :at :relations}` plus `:end` and
+   `:open?` for interval sources and the measured attributes (`:attempts`;
+   `:reps :weight :weight-unit :duration` for exercise lines, which are
+   dated by their parent set). Visibility follows the user's resolved
+   settings for the records and the entities they reference."
+  [db user-id {:keys [source since until relation-ids user-settings]}]
+  (let [settings (or user-settings (get-user-settings db user-id))
+        rel-ids  (some-> relation-ids set)]
+    (if (= :exercise-line source)
+      (exercise-line-records db user-id {:since since, :until until,
+                                         :relation-ids rel-ids}
+                             settings)
+      (let [{time-key :time, end-key :end, attrs :attrs} (goal-source-shapes source)
+            rel-field (goal-relation-fields source)
+            rows      (->> (range-scan db user-id time-key since until)
+                           (map (fn [[e t]] {:xt/id e, ::at t}))
+                           (visible-rows db user-id source settings)
+                           (filter #(or (nil? rel-ids)
+                                        (some rel-ids (as-id-set (get % rel-field)))))
+                           vec)
+            ids       (mapv :xt/id rows)
+            ends      (when end-key (attr-values db ids end-key))
+            extras    (into {} (for [[k attr] attrs] [k (attr-values db ids attr)]))]
+        (mapv (fn [{:keys [xt/id] :as row}]
+                (cond-> {:id        id
+                         :at        (::at row)
+                         :relations (as-id-set (get row rel-field))}
+                  end-key (assoc :end (get ends id), :open? (nil? (get ends id)))
+                  true    (merge (into {} (for [[k vs] extras] [k (get vs id)])))))
+              rows)))))
+
+(defnp reading-logs-for-book
+  "Every live reading log of one book. Equality-bound on the book, so cost
+   tracks that book's history rather than the user's."
+  [db user-id book-id]
+  (->> (q db
+          '{:find  [(pull ?e [*])]
+            :where [[?e :reading-log/book-id book-id]
+                    [?e :user/id user-id]]
+            :in    [user-id book-id]}
+          user-id book-id)
+       (map first)
+       (remove ::sm/deleted-at)
+       vec))
 
 (defnp get-events-for-user-year
   "Get all events for a user within a specific year, using user's timezone.

@@ -235,6 +235,7 @@
 
       ;; Layer 3 — look back at what was logged.
       [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Review"]
+      [:a.link {:href "/app/goals"} "🏁 goals"]
       [:a.link {:href "/app/calendar/year"} "📅 calendar (year)"]
       [:a.link {:href "/app/dashboards/stats"} "📊 stats & charts"]
       [:a.link {:href "/app/stats/medication-history"} "💊 medication history"]

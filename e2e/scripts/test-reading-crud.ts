@@ -50,6 +50,9 @@ async function createBook(page: Page, email: string, title: string, author?: str
   if (author) {
     await form.locator('[name="book/author"]').fill(author);
   }
+  // Edition totals the goals dashboard compares positions against.
+  await form.locator('[name="book/total-pages"]').fill('300');
+  await form.locator('[name="book/audiobook-duration-seconds"]').fill('10:30:00');
   await submitHtmxForm(form, '/app/crud/book');
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(300);
@@ -123,7 +126,10 @@ async function getLocationId(page: Page, email: string) {
 async function createReadingLog(
   page: Page,
   email: string,
-  data: { bookId: string; beginning: string; end?: string; locationId?: string; format?: string }
+  data: {
+    bookId: string; beginning: string; end?: string; locationId?: string; format?: string;
+    positions?: Record<string, string>; finished?: boolean;
+  }
 ) {
   await authenticateForDev(page, email);
   await page.goto(`${BASE_URL}/app/crud/form/reading-log/new`);
@@ -142,6 +148,12 @@ async function createReadingLog(
   }
   if (data.format) {
     await setHiddenOrVisibleSelectValue(form.locator('select[name="reading-log/format"]'), data.format);
+  }
+  for (const [name, value] of Object.entries(data.positions || {})) {
+    await form.locator(`[name="${name}"]`).fill(value);
+  }
+  if (data.finished) {
+    await form.locator('input[name="reading-log/finished?"]').check();
   }
 
   await submitHtmxForm(form, '/app/crud/reading-log');
@@ -220,7 +232,14 @@ async function main() {
       beginning,
       end,
       locationId,
-      format: 'paperback',
+      format: 'ebook',
+      // Several measures on one log; zero is a real starting position.
+      positions: {
+        'reading-log/start-page': '0',
+        'reading-log/end-page': '42',
+        'reading-log/end-audio-position-seconds': '1:02:03',
+      },
+      finished: true,
     });
     await captureScreenshot(page, '05-reading-log-created');
 
@@ -235,6 +254,35 @@ async function main() {
     await expect(page.locator('text=Edit').first()).toBeVisible({ timeout: 5000 });
     console.log('  [+] Reading log visible in list');
     await captureScreenshot(page, '06-reading-log-list');
+
+    // 8. Positions, ebook, and finished reload; clearing one field removes
+    //    only that field.
+    console.log('\n8. Verifying reading positions round-trip...');
+    // Target the edit URL: a has-text("Edit") match is a case-insensitive
+    // substring and also hits the sidebar's "meditation log".
+    await page.locator('a[href*="/app/crud/form/reading-log/edit/"]').first().click();
+    await page.waitForLoadState('networkidle');
+    const editUrl = page.url();
+    let logForm = page.locator('#reading-log-edit-form');
+    await expect(logForm.locator('[name="reading-log/start-page"]')).toHaveValue('0');
+    await expect(logForm.locator('[name="reading-log/end-page"]')).toHaveValue('42');
+    await expect(logForm.locator('[name="reading-log/end-audio-position-seconds"]')).toHaveValue('1:02:03');
+    await expect(logForm.locator('select[name="reading-log/format"]')).toHaveValue('ebook');
+    await expect(logForm.locator('input[name="reading-log/finished?"]')).toBeChecked();
+    await captureScreenshot(page, '07-reading-log-positions');
+
+    await logForm.locator('[name="reading-log/end-page"]').fill('');
+    // Wait for the post-submit page itself: the redirect lands on this same
+    // URL, so navigating away early could abandon the POST.
+    await Promise.all([page.waitForEvent('load'), submitHtmxForm(logForm, '/app/crud/reading-log')]);
+    await page.waitForLoadState('networkidle');
+    await page.goto(editUrl);
+    await page.waitForLoadState('networkidle');
+    logForm = page.locator('#reading-log-edit-form');
+    await expect(logForm.locator('[name="reading-log/end-page"]')).toHaveValue('');
+    await expect(logForm.locator('[name="reading-log/start-page"]')).toHaveValue('0');
+    await expect(logForm.locator('[name="reading-log/end-audio-position-seconds"]')).toHaveValue('1:02:03');
+    console.log('  [+] Positions reload; a cleared position is removed, others survive');
 
     console.log('\n=== Test Passed ===\n');
   } catch (error) {

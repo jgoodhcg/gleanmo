@@ -7,6 +7,7 @@
      get-user-time-zone]]
    [tech.jgood.gleanmo.db.queries :as queries :refer [all-for-user-query]]
    [tech.jgood.gleanmo.db.relation-labels :as rel-labels]
+   [tech.jgood.gleanmo.duration :as duration]
    [tech.jgood.gleanmo.schema :as schema-registry]
    [tech.jgood.gleanmo.schema.utils :as schema-utils]
    [tick.core :as t])
@@ -229,6 +230,48 @@
                 :autocomplete        "off",
                 :data-original-value (str value)}
          value (assoc :value value))]]]))
+
+(defn- render-min-int
+  "Integer input with the alias's minimum as its HTML `min`. The attribute is
+   a convenience only; malli rejects out-of-range values at write time."
+  [field ctx]
+  (let [rendered ((get-method render :int) field ctx)]
+    ;; `:int` renders [:div label [:div.mt-2 [:input ...]]]; add `min` to
+    ;; that input rather than restating the markup.
+    (update-in rendered [2 1 1] assoc :min (str (:input-min field)))))
+
+(defmethod render :positive-int
+  [field ctx]
+  (render-min-int field ctx))
+
+(defmethod render :nonnegative-int
+  [field ctx]
+  (render-min-int field ctx))
+
+(defmethod render :hms-duration
+  [field _]
+  (let [{:keys [input-name
+                input-label
+                input-required
+                value]}
+        field
+        formatted (if (number? value) (duration/format-hms value) (some-> value str))]
+    [:div
+     [:label.form-label {:for input-name}
+      input-label]
+     [:div.mt-2
+      [:input.form-input.tabular-nums
+       (cond-> {:type                "text",
+                :inputmode           "numeric",
+                :pattern             "\\d+|\\d+:[0-5]\\d:[0-5]\\d",
+                :placeholder         "H:MM:SS",
+                :title               "Whole seconds, or hours:minutes:seconds",
+                :id                  input-name,
+                :name                input-name,
+                :required            input-required,
+                :autocomplete        "off",
+                :data-original-value (str formatted)}
+         formatted (assoc :value formatted))]]]))
 
 (defmethod render :float
   [field _]

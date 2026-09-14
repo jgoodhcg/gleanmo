@@ -38,6 +38,9 @@
     [:p.text-sm.text-gray-400
      "Hand-built for jobs the generic CRUD forms handle awkwardly."]
     [:div.grid.grid-cols-1.md:grid-cols-2.gap-6
+     (dashboard-card "Goals"
+                     "Targets, weekly rhythms, and books to finish, from your logs"
+                     "/app/goals" "🏁" "neon-cyan")
      (dashboard-card "Retire / Restore Problems"
                      "Bulk-manage which problems are on the wall"
                      "/app/boulder/problems" "🧗" "neon-lime")]

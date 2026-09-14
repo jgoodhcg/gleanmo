@@ -3,6 +3,7 @@
    [clojure.string :as str]
    [tech.jgood.gleanmo.app.shared :refer [format-date-time-local get-user-time-zone]]
    [tech.jgood.gleanmo.db.queries :as db]
+   [tech.jgood.gleanmo.duration :as duration]
    [tech.jgood.gleanmo.schema.meta :as sm]))
 
 ;; Multimethod for formatting cell values based on field type
@@ -56,6 +57,20 @@
   (if (nil? value)
     [:span.text-gray-400 "—"]
     [:span (str value)]))
+
+(defmethod format-cell-value :positive-int
+  [_ value ctx]
+  (format-cell-value :int value ctx))
+
+(defmethod format-cell-value :nonnegative-int
+  [_ value ctx]
+  (format-cell-value :int value ctx))
+
+(defmethod format-cell-value :hms-duration
+  [_ value _]
+  (if (nil? value)
+    [:span.text-gray-400 "—"]
+    [:span.tabular-nums (duration/format-hms value)]))
 
 (defmethod format-cell-value :local-date
   [_ value _]

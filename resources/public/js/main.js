@@ -89,17 +89,48 @@ function renderEChart(elementId, options) {
   return chart;
 }
 
+// Server-built chart options can't carry functions, so they carry a `gleanmo`
+// hint instead: `{unit: "h"}` appends a unit to tooltip values, and
+// `{format: "hms"}` shows seconds as H:MM:SS on the tooltip and y axis.
+function formatHMS(v) {
+  if (v == null || isNaN(v)) return '—';
+  const s = Math.round(v);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return h + ':' + String(m).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+}
+
+function applyGleanmoChartFormat(options) {
+  const hint = options.gleanmo;
+  if (!hint) return options;
+  delete options.gleanmo;
+  const value = function (v) {
+    if (Array.isArray(v)) v = v[1];
+    if (v == null || isNaN(v)) return '—';
+    if (hint.format === 'hms') return formatHMS(v);
+    const n = (Math.round(v * 10) / 10).toLocaleString('en-US');
+    return hint.unit ? n + ' ' + hint.unit : n;
+  };
+  options.tooltip = Object.assign({}, options.tooltip, { valueFormatter: value });
+  if (hint.format === 'hms' && options.yAxis) {
+    options.yAxis.axisLabel = Object.assign({}, options.yAxis.axisLabel, {
+      formatter: function (v) { return formatHMS(v).replace(/:\d\d$/, ''); }
+    });
+  }
+  return options;
+}
+
 function renderEChartFromData(chartElementId, dataElementId) {
   const dataElement = document.getElementById(dataElementId);
   if (!dataElement) {
     console.error('Data element not found:', dataElementId);
     return;
   }
-  
+
   const dataJson = dataElement.textContent || dataElement.innerText;
-  
+
   try {
-    const options = JSON.parse(dataJson);
+    const options = applyGleanmoChartFormat(JSON.parse(dataJson));
     
     // Add custom styling and tooltip for calendar heatmaps
     if (options.calendar && options.series && options.series[0].type === 'heatmap') {
@@ -715,4 +746,95 @@ function toggleTaskRow(rowId) {
     var forms = document.querySelectorAll('form[data-submitting]');
     for (var i = 0; i < forms.length; i++) unlock(forms[i]);
   });
+})();
+
+// Goals dashboard table (roadmap/081-goals-dashboard.md)
+//
+// Measurement and timing filters, text search, and sortable columns over the
+// server-rendered rows, which carry `data-kind`, `data-timing`, `data-search`
+// and one `data-sort-<column>` value per column (absent values sort last).
+// Selecting a row clicks its link, which htmx swaps into the detail card, so
+// filter and sort state survive selection.
+(function () {
+  function sortValue(row, key) {
+    var v = row.getAttribute('data-sort-' + key);
+    if (v == null || v === '') return null;
+    return key === 'label' ? v : parseFloat(v);
+  }
+
+  function initGoalsTable(root) {
+    var panel = (root || document).querySelector('[data-goals-table]');
+    if (!panel || panel.dataset.goalsInit === 'true') return;
+    panel.dataset.goalsInit = 'true';
+    var tbody = panel.querySelector('tbody');
+    var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr[data-goal-row]'));
+    var count = panel.querySelector('[data-goals-count]');
+    var empty = panel.querySelector('[data-goals-empty]');
+    var state = { kind: 'all', timing: 'all', q: '', key: 'label', dir: 1 };
+
+    function apply() {
+      var visible = rows.filter(function (r) {
+        return (state.kind === 'all' || r.dataset.kind === state.kind) &&
+               (state.timing === 'all' || r.dataset.timing === state.timing) &&
+               (r.dataset.search || '').indexOf(state.q) !== -1;
+      });
+      visible.sort(function (a, b) {
+        var av = sortValue(a, state.key), bv = sortValue(b, state.key);
+        if (av === null) return bv === null ? 0 : 1;
+        if (bv === null) return -1;
+        return state.dir * (typeof av === 'string' ? av.localeCompare(bv) : av - bv);
+      });
+      rows.forEach(function (r) { r.hidden = visible.indexOf(r) === -1; });
+      visible.forEach(function (r) { tbody.appendChild(r); });
+      if (count) count.textContent = visible.length + ' / ' + rows.length;
+      if (empty) empty.hidden = visible.length > 0;
+      panel.querySelectorAll('th[data-sort-key]').forEach(function (th) {
+        var active = th.dataset.sortKey === state.key;
+        th.setAttribute('aria-sort', active ? (state.dir === 1 ? 'ascending' : 'descending') : 'none');
+        var b = th.querySelector('button');
+        b.textContent = b.textContent.replace(/ [↕↑↓]$/, '') + ' ' +
+          (active ? (state.dir === 1 ? '↑' : '↓') : '↕');
+      });
+    }
+
+    function wireGroup(attr, field) {
+      var buttons = panel.querySelectorAll('[' + attr + ']');
+      buttons.forEach(function (b) {
+        b.addEventListener('click', function () {
+          state[field] = b.getAttribute(attr);
+          buttons.forEach(function (o) { o.setAttribute('aria-pressed', String(o === b)); });
+          apply();
+        });
+      });
+    }
+
+    wireGroup('data-goal-kind', 'kind');
+    wireGroup('data-goal-timing', 'timing');
+    var search = panel.querySelector('[data-goals-search]');
+    if (search) {
+      search.addEventListener('input', function () {
+        state.q = search.value.trim().toLowerCase();
+        apply();
+      });
+    }
+    panel.querySelectorAll('th[data-sort-key] button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var key = b.closest('th').dataset.sortKey;
+        state.dir = state.key === key ? -state.dir : 1;
+        state.key = key;
+        apply();
+      });
+    });
+    tbody.addEventListener('click', function (e) {
+      var row = e.target.closest('tr[data-goal-row]');
+      if (!row) return;
+      rows.forEach(function (r) { r.setAttribute('aria-selected', String(r === row)); });
+      if (!e.target.closest('a, button, form')) {
+        var link = row.querySelector('a[data-goal-link]');
+        if (link) link.click();
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () { initGoalsTable(document); });
 })();

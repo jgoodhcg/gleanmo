@@ -1,9 +1,9 @@
 ---
 title: "Goals dashboard"
-status: ready
+status: active
 description: "Implement the approved dashboard with reusable numeric types, reading positions, goal storage, and scoped progress queries."
 created: 2026-09-12
-updated: 2026-09-13
+updated: 2026-09-14
 tags: [goals, visualization, schema, reading]
 priority: medium
 ---
@@ -251,6 +251,43 @@ Add tests for behavior rather than snapshots of implementation structure.
 - [ ] Add `/app/goals` to `e2e/scripts/manifest.ts` and smoke navigation coverage.
 - [ ] Capture before/after desktop and mobile screenshots; compare against version 10 and inspect chart labels, keyboard controls, and table overflow.
 - [ ] Run relevant namespace tests, `just validate`, reading/goals E2E, and required visual-series captures before requesting an implementation commit.
+
+## Implementation status (2026-09-14)
+
+A first implementation exists and awaits user review; expect iteration.
+
+- Per-goal routes live under `/app/goal/:id/...`.
+  Reitit rejects `/app/goals/new` beside `/app/goals/:id`.
+- Pure calculations are in `goals/calc.clj`; orchestration is in `goals/dashboard.clj`.
+  The registry is in `goals/registry.clj`, and write rules are in `schema/rules.clj`.
+- Comparisons always report "No comparable history", because no coverage metadata exists.
+  The calculator and a known-coverage renderer are tested with fixtures.
+- Not done: query-plan inspection with debug logging, and keyboard navigation of the activity cells.
+
+## Review and dogfood feedback
+
+This is a running list from user review and daily use.
+Resolve each item, or move it to another work unit, before archiving this unit.
+
+- [ ] Edit placement.
+  The user looked for Edit on the table row, with a right-click, and at the top right of the selected-goal card.
+  Candidate: move Edit · Archive · Delete to the top right of the card.
+  A per-row edit control is a possible later addition.
+- [ ] Count today.
+  Include today's records in totals and the chart.
+  Keep the rates on completed days, and label them so (for example, "per completed day").
+  This changes the one-cutoff rule in the specification above.
+- [ ] Duplicate entities.
+  "Pullup" and "Pullups" are separate exercises.
+  Workaround: select both exercises in the goal filter.
+  The fix is tracked in [042](./042-entity-merge.md).
+- [ ] Grouped measurement select.
+  The editor's `<optgroup>` headings are a new pattern in the app, and the user liked them.
+  Consider them for other long fixed lists.
+- [ ] Hands-on familiarization exercises, deferred until the dashboard stabilizes.
+  Outline: read the registry; predict `calc/numeric-progress` output in the REPL; inspect real `dashboard/dashboard` data; implement "count today" with the test first.
+- [x] Time zone default.
+  It works as designed; the account had an unexpected time zone set.
 
 ## Context: implementation entry points
 

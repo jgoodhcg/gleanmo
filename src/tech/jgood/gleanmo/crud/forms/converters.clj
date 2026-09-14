@@ -1,6 +1,7 @@
 (ns tech.jgood.gleanmo.crud.forms.converters
   (:require
-   [tech.jgood.gleanmo.app.shared :refer [get-user-time-zone str->instant!]])
+   [tech.jgood.gleanmo.app.shared :refer [get-user-time-zone str->instant!]]
+   [tech.jgood.gleanmo.duration :as duration])
   (:import
    [java.time ZoneId]))
 
@@ -19,6 +20,23 @@
          (throw (ex-info (str "Could not convert '" value
                               "' to int: " (.getMessage e))
                          {:value value, :type :int})))))
+
+;; Integer aliases parse as integers; their minimums are enforced by malli at
+;; write time, independently of the HTML `min` attribute.
+(defmethod convert-field-value :positive-int
+  [_ value ctx]
+  (convert-field-value :int value ctx))
+
+(defmethod convert-field-value :nonnegative-int
+  [_ value ctx]
+  (convert-field-value :int value ctx))
+
+(defmethod convert-field-value :hms-duration
+  [_ value _]
+  (or (duration/parse-hms value)
+      (throw (ex-info (str "Could not convert '" value
+                           "' to a duration: use whole seconds or H:MM:SS")
+                      {:value value, :type :hms-duration}))))
 
 (defmethod convert-field-value :float
   [_ value _]

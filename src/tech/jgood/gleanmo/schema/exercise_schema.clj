@@ -104,6 +104,13 @@
    [:exercise-line/reps {:optional true :crud/priority 3} :int]
    [:exercise-line/weight {:optional true :crud/priority 4} :number]
    [:exercise-line/weight-unit {:optional true :crud/priority 5} [:enum :lbs :kg]]
+   ;; Explicit hold/effort duration for this one exercise (a dead hang, a
+   ;; plank). Never derived from the set interval: a superset's interval
+   ;; spans several exercises. Positive finite seconds, fractions allowed —
+   ;; enforced at the write boundary (`schema.rules`), since an inline
+   ;; `[:and ...]` type would defeat the CRUD field parser.
+   [:exercise-line/duration-seconds
+    {:optional true :crud/priority 6 :crud/label "Duration (seconds)"} :number]
    [:exercise-line/distance {:optional true} :number]
    [:exercise-line/distance-unit {:optional true} [:enum :miles :km :meters]]
    [:exercise-line/notes {:optional true} :string]

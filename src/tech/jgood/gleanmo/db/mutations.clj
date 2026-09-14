@@ -1,7 +1,9 @@
 (ns tech.jgood.gleanmo.db.mutations
   (:require
    [com.biffweb :as biff]
+   [tech.jgood.gleanmo.db.queries :as queries]
    [tech.jgood.gleanmo.schema.meta :as sm]
+   [tech.jgood.gleanmo.schema.rules :as rules]
    [tech.jgood.gleanmo.schema.utils :as schema-utils]
    [tick.core :as t]
    [xtdb.api :as xt]))
@@ -96,10 +98,53 @@
         (dissoc doc running-key))
       doc)))
 
+;; ---------------------------------------------------------------------------
+;; Write rules
+;;
+;; `schema.rules` holds the constraints malli cannot carry on a schema the CRUD
+;; parser still understands. They are checked here, against the complete
+;; document, so no write path can skip them. A violation throws before
+;; anything is submitted; callers that render forms catch it with
+;; `invalid-write?` and show `:errors` beside the fields.
+;; ---------------------------------------------------------------------------
+
+(defn invalid-write?
+  "True for the exception a rule violation throws."
+  [e]
+  (= ::invalid-write (:type (ex-data e))))
+
+(defn- fresh-db
+  [{:keys [biff.xtdb/node biff/db]}]
+  (if node (xt/db node) db))
+
+(defn- enforce-write-rules!
+  [ctx entity-key doc]
+  (let [db     (fresh-db ctx)
+        errors (rules/write-errors
+                entity-key doc
+                {:owned-ids (fn [entity-type ids]
+                              (queries/owned-entity-ids db (:user/id doc)
+                                                        entity-type ids))})]
+    (when (seq errors)
+      (throw (ex-info (str "Invalid " (name entity-key))
+                      {:type       ::invalid-write
+                       :entity-key entity-key
+                       :errors     errors})))))
+
+(defn- merged-doc
+  "The document an `:update` of `data` would produce."
+  [stored data]
+  (reduce-kv (fn [m k v]
+               (if (= :db/dissoc v) (dissoc m k) (assoc m k v)))
+             (or stored {})
+             data))
+
 (defn create-entity!
   "Create a new entity in the database."
   [ctx {:keys [entity-key data]}]
   (let [doc (entity-doc entity-key data)]
+    (when (rules/needs-check? entity-key doc)
+      (enforce-write-rules! ctx entity-key doc))
     (biff/submit-tx ctx
                     [(merge {:db/doc-type entity-key,
                              :xt/id       (:xt/id doc)}
@@ -112,6 +157,9 @@
   (let [docs    (mapv (fn [{:keys [entity-key data]}]
                         [entity-key (entity-doc entity-key data)])
                       entity-specs)
+        _       (doseq [[entity-key doc] docs]
+                  (when (rules/needs-check? entity-key doc)
+                    (enforce-write-rules! ctx entity-key doc)))
         tx-docs (mapv (fn [[entity-key doc]]
                         (merge {:db/doc-type entity-key
                                 :xt/id       (:xt/id doc)}
@@ -128,6 +176,10 @@
    `running` flag rides along whenever `data` touches an interval field, so
    every path — CRUD form included — maintains it without knowing it exists."
   [ctx {:keys [entity-key entity-id data]}]
+  (when (rules/needs-check? entity-key data)
+    (enforce-write-rules! ctx entity-key
+                          (merged-doc (xt/entity (fresh-db ctx) entity-id)
+                                      data)))
   (let [tx-op   {:db/op       :update,
                  :db/doc-type entity-key,
                  ::sm/type    entity-key,

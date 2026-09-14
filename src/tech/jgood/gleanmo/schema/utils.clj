@@ -53,6 +53,22 @@
       maybe-type
       maybe-opts)))
 
+(def numeric-aliases
+  "Registered integer aliases (see the registry in `tech.jgood.gleanmo.schema`)
+   and the minimum each enforces. The input type keeps the alias name, so
+   inputs, converters, and formatters can dispatch on it while reusing the
+   plain integer behavior."
+  {:positive-int    {:min 1}
+   :nonnegative-int {:min 0}})
+
+(def clearable-input-types
+  "Input types whose blank submission on an edit form removes a stored value.
+
+   Scoped to these types on purpose: other optional fields keep the historical
+   skip-blank behavior, which `:crud/scale` fields rely on to preserve legacy
+   values."
+  #{:positive-int :nonnegative-int :hms-duration})
+
 (defn determine-input-type
   "Determines the input type based on the field type definition.
     Handles enum fields, relationships, or-types, and primitive types."
@@ -60,6 +76,12 @@
   (cond
     (and (vector? ftype) (= :maybe (first ftype)))
     (determine-input-type (second ftype))
+
+    (contains? numeric-aliases ftype)
+    {:input-type         ftype,
+     :input-min          (get-in numeric-aliases [ftype :min]),
+     :enum-options       nil,
+     :related-entity-str nil}
 
     (and (vector? ftype) (= :enum (first ftype)))
     {:input-type         :enum,
@@ -119,10 +141,22 @@
       (some-> (namespace t)
               keyword))))
 
+(defn input-type-info
+  "`determine-input-type`, plus the field-option overrides that change how a
+   field is entered without changing its stored type. An integer alias marked
+   `:crud/duration-format :hms` becomes `:hms-duration`: still integer seconds
+   in the database, entered and displayed as `H:MM:SS`."
+  [ftype opts]
+  (let [info (determine-input-type ftype)]
+    (if (and (= :hms (:crud/duration-format opts))
+             (contains? numeric-aliases (:input-type info)))
+      (assoc info :input-type :hms-duration)
+      info)))
+
 (defn add-descriptors
   "Attach :input-type metadata to a parsed field."
   [{:keys [field-key], :as field}]
-  (let [type-info (determine-input-type (:type field))]
+  (let [type-info (input-type-info (:type field) (:opts field))]
     (merge field
            {:field-key field-key}
            type-info)))

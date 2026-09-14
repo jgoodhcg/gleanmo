@@ -136,13 +136,14 @@
           :biff/db     {}
           :path-params {:id (str (random-uuid))}
           :params      {:line-exercise-id (str ex-id) :reps "10" :weight "0"
-                        :distance "0"}})
-        (is (= {:exercise-line/exercise-id   ex-id
-                :exercise-line/reps          10
-                :exercise-line/weight        :db/dissoc
-                :exercise-line/weight-unit   :db/dissoc
-                :exercise-line/distance      :db/dissoc
-                :exercise-line/distance-unit :db/dissoc}
+                        :distance "0" :duration "0"}})
+        (is (= {:exercise-line/exercise-id        ex-id
+                :exercise-line/reps               10
+                :exercise-line/weight             :db/dissoc
+                :exercise-line/weight-unit        :db/dissoc
+                :exercise-line/distance           :db/dissoc
+                :exercise-line/distance-unit      :db/dissoc
+                :exercise-line/duration-seconds   :db/dissoc}
                (:data @updated))))))
   (testing "a distance survives the round trip with its unit"
     (let [updated (atom nil)

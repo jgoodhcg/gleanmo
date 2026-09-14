@@ -74,10 +74,9 @@ PWA notification scaffolding does not establish working reminder delivery.
 - [024-reading-schema-proposal.md](./024-reading-schema-proposal.md) - Draft Malli schemas for reading entities
 - [066-unified-timer-page.md](./066-unified-timer-page.md) - One timer workspace: all running timers, search-to-start, one-tap start/stop without form bounces (implemented 2026-07-27; e2e/screenshot validation pending)
 - [071-timer-running-flag.md](./071-timer-running-flag.md) - Replace the two-full-scan set difference behind active timers with an indexed flag derived at write time, reconciled daily (built and tested 2026-08-04; deploy + m007 backfill, prod confirmation pending)
+- [081-goals-dashboard.md](./081-goals-dashboard.md) - Implement approved version 10: numeric aliases, reading positions, goal storage, scoped queries, and dashboard (first implementation 2026-09-14; awaiting user review and iteration)
 
 ### Ready
-
-- [081-goals-dashboard.md](./081-goals-dashboard.md) - Implement approved version 10: numeric aliases, reading positions, goal storage, scoped queries, and dashboard
 
 - [075-exercise-export.md](./075-exercise-export.md) - The exercise composite export (session → set → line as nested Markdown or JSON, denormalized to CSV); depends on 078-data-export.md
 - [074-query-shape-audit.md](./074-query-shape-audit.md) - Find clauses that cost without narrowing, and ranges that never prune, across db/queries.clj
@@ -90,6 +89,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 
 ### Draft
 
+- [082-exercise-effort.md](./082-exercise-effort.md) - Record on each exercise line whether a set reached failure or how many reps were left
 - [078-data-export.md](./078-data-export.md) - Export page, generic per-entity exporter, and the composite registry, in Markdown/CSV/JSON; interim to the full ai-assistance API/CLI/MCP
 - [076-performance-regression-tracking.md](./076-performance-regression-tracking.md) - Make performance comparable across deploys — scheduled snapshots, cross-instance aggregation, per-SHA grouping, and a synthetic benchmark so low traffic still yields data
 - [077-scheduled-work-multi-instance.md](./077-scheduled-work-multi-instance.md) - Scheduled tasks, tx listeners and queues all run per-container with no singleton guarantee — make them safe before the app ever scales past one instance
@@ -98,7 +98,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 - [009-bouldering.md](./009-bouldering.md) - Climbing sessions and problem attempts with Airtable backfill
 - [039-local-dev-db-locking.md](./039-local-dev-db-locking.md) - RocksDB file lock prevents running REPL and CLI migrations concurrently
 - [049-schema-consistency.md](./049-schema-consistency.md) - Audit and standardize all Malli schemas for naming, field ordering, and conventions
-- [042-entity-merge.md](./042-entity-merge.md) - Combine logs from duplicate entities into one target entity
+- [042-entity-merge.md](./042-entity-merge.md) - Combine duplicate entities by repointing every schema-declared reference, goal filters included (first need: Pullup/Pullups)
 - [072-exercise-session-location-relation.md](./072-exercise-session-location-relation.md) - Replace the free-text location string on exercise-session with a proper location relation, matching every other log entity
 - [037-biff-upgrade-v1-9.md](./037-biff-upgrade-v1-9.md) - Upgrade Biff and task libs to at least v1.9.0, then validate XTDB/Agrona changes and Java 25 compatibility
 - [031-dynamic-server-port.md](./031-dynamic-server-port.md) - Make the server dynamically choose a port to run on to support git worktree and multiple project development

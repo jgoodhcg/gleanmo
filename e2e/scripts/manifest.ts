@@ -66,6 +66,7 @@ export const MANIFEST_ROUTES: ManifestRoute[] = [
   { slug: 'dashboards-entities',     path: '/app/dashboards/entities',     group: 'dashboards', viewports: ['desktop'] },
   { slug: 'dashboards-activity-logs', path: '/app/dashboards/activity-logs', group: 'dashboards', viewports: ['desktop'] },
   { slug: 'dashboards-stats',        path: '/app/dashboards/stats',        group: 'dashboards', viewports: ['desktop'] },
+  { slug: 'goals',                   path: '/app/goals',                   group: 'dashboards', settleMs: 1500 },
 
   // ── Visualizations (ECharts — highest timelapse value) ───────────────
   { slug: 'viz-habit-log',       path: '/app/viz/habit-log',       group: 'viz', settleMs: 1500 },

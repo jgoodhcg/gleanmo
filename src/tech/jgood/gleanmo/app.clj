@@ -15,6 +15,7 @@
    [tech.jgood.gleanmo.app.exercise-line :as exercise-line]
    [tech.jgood.gleanmo.app.exercise-session :as exercise-session]
    [tech.jgood.gleanmo.app.exercise-set :as exercise-set]
+   [tech.jgood.gleanmo.app.goals :as goals]
    [tech.jgood.gleanmo.app.habit :as habit]
    [tech.jgood.gleanmo.app.habit-log :as habit-log]
    [tech.jgood.gleanmo.app.mood-log :as mood-log]
@@ -80,6 +81,7 @@
     :boulder-problem
     :boulder-attempt
     :task
+    :goal
     :cruddy})
 
 (defn db-viz
@@ -601,6 +603,10 @@
             boulder-attempt/crud-routes
             task/crud-routes
             task/routes
+            goals/crud-routes
+
+            ;; Goals dashboard and editor
+            goals/routes
 
             ;; Dashboard routes
             dashboards/routes
