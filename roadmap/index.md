@@ -62,7 +62,6 @@ PWA notification scaffolding does not establish working reminder delivery.
 
 ### Active
 
-- [081-goals-dashboard.md](./081-goals-dashboard.md) - Unified goals dashboard mockup and proposed data contract
 - [017-infrastructure.md](./017-infrastructure.md) - Database migration from Neon to DigitalOcean
 - [014-data-migration-status.md](./014-data-migration-status.md) - Tracker for Airtable backfills and remaining imports
 - [015-exercise.md](./015-exercise.md) - Exercise tracking with superset support and Airtable backfill
@@ -77,6 +76,8 @@ PWA notification scaffolding does not establish working reminder delivery.
 - [071-timer-running-flag.md](./071-timer-running-flag.md) - Replace the two-full-scan set difference behind active timers with an indexed flag derived at write time, reconciled daily (built and tested 2026-08-04; deploy + m007 backfill, prod confirmation pending)
 
 ### Ready
+
+- [081-goals-dashboard.md](./081-goals-dashboard.md) - Implement approved version 10: numeric aliases, reading positions, goal storage, scoped queries, and dashboard
 
 - [075-exercise-export.md](./075-exercise-export.md) - The exercise composite export (session → set → line as nested Markdown or JSON, denormalized to CSV); depends on 078-data-export.md
 - [074-query-shape-audit.md](./074-query-shape-audit.md) - Find clauses that cost without narrowing, and ranges that never prune, across db/queries.clj
@@ -109,7 +110,6 @@ PWA notification scaffolding does not establish working reminder delivery.
 - [032-task-activity-logs.md](./032-task-activity-logs.md) - Spawn time logs from tasks and link habits/calendar events to tasks
 - [035-workflow-optimization.md](./035-workflow-optimization.md) - Dashboard quick reference, minimize clicks for logging, and motivating stats
 - [054-bm-log-bloating.md](./054-bm-log-bloating.md) - Add bloating tracking to bm-log schema with flexible modeling options
-- [055-reading-log-pages.md](./055-reading-log-pages.md) - Add page number tracking to reading-log schema
 - [050-config-cleanup.md](./050-config-cleanup.md) - Audit and consolidate configuration files to remove legacy artifacts
 - [060-keyboard-navigation.md](./060-keyboard-navigation.md) - Audit of keyboard accessibility across forms and index views, with phased remediation roadmap
 - [044-form-tab-ordering.md](./044-form-tab-ordering.md) - Ensure logical tab order across all CRUD forms for keyboard accessibility (superseded by 060-keyboard-navigation.md)
@@ -135,6 +135,10 @@ PWA notification scaffolding does not establish working reminder delivery.
 - [056-cronometer-integration.md](./056-cronometer-integration.md) - Pull nutrition and body composition from Cronometer: reverse-engineered mobile API for recent days, CSV import for the backfill (phase 0 session-safety check gates the API path)
 - [061-ai-assistance.md](./061-ai-assistance.md) - Restore task use through conversational cleanup, scoped agent access, and approved batch changes
 - [080-relation-defaults.md](./080-relation-defaults.md) - Curated per-relation defaults that prefill log fields from the related entity (meditation position first; medication dose, book format, exercise unit to follow)
+
+### Dropped
+
+- [055-reading-log-pages.md](./archived/055-reading-log-pages.md) - Superseded by the reading-position and goals implementation plan in 081
 
 ### Done
 
