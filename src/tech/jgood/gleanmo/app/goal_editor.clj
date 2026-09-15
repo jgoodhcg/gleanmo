@@ -72,7 +72,9 @@
 
 (defn- params->form
   [params]
-  {:label            (:label params)
+  {:default-start    (:default-start params)
+   :default-end      (:default-end params)
+   :label            (:label params)
    :measurement      (:measurement params)
    :target           (:target params)
    :threshold-step   (:threshold-step params)
@@ -93,6 +95,9 @@
         timing (or timing "dated")]
     {:measurement (or measurement default-measurement)
      :timing      timing
+     :default-start (str (if (= "weekly" timing) (monday-of today) today))
+     :default-end (if (= "weekly" timing) (str (.plusDays (monday-of today) 6)) "")
+     :ends-on (when (= "weekly" timing) (str (.plusDays (monday-of today) 6)))
      ;; Weekly goals default to whole calendar weeks.
      :starts-on   (str (if (= "weekly" timing) (monday-of today) today))
      :time-zone   (shared/get-user-time-zone ctx)}))
@@ -255,6 +260,9 @@
         timing     (keyword (or (:timing form) "dated"))
         unit-label (get-in m [:input-unit :label])]
     [:div#goal-editor-fields.space-y-6
+     (for [k [:default-start :default-end]]
+       (when (contains? form k)
+         [:input {:type "hidden" :name (name k) :value (get form k)}]))
      [:p.text-sm.text-gray-400 (:counts m)]
      (relation-field m form ctx)
      (field-errors errors :goal/project-ids :goal/book-ids :goal/meditation-ids
@@ -277,6 +285,7 @@
      (timing-select m form)
      (field-errors errors :goal/timing)
      [:div.grid.grid-cols-1.sm:grid-cols-2.gap-4
+      {:oninput "var k=event.target.name==='starts-on'?'default-start':event.target.name==='ends-on'?'default-end':null; var h=k&&this.closest('form').elements[k]; if(h) h.value='changed';"}
       [:div
        (text-input {:id "starts-on", :label "Start counting on", :type "date",
                     :value (:starts-on form), :required true,
@@ -383,6 +392,13 @@
    dependent fields match a new measurement or timing. Never writes."
   [{:keys [params] :as ctx}]
   (let [form (params->form params)
+        weekly? (and (nil? (:goal-id params)) (= "weekly" (:timing form)))
+        defaults (new-form ctx params)
+        form (cond-> form
+               (and weekly? (= (:starts-on form) (:default-start form)))
+               (assoc :starts-on (:starts-on defaults) :default-start (:default-start defaults))
+               (and weekly? (= (or (:ends-on form) "") (:default-end form)))
+               (assoc :ends-on (:ends-on defaults) :default-end (:default-end defaults)))
         form (cond-> form
                (str/blank? (:starts-on form))
                (assoc :starts-on (:starts-on (new-form ctx params))))]

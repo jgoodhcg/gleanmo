@@ -32,10 +32,12 @@
   (.toInstant (.atStartOfDay d zone)))
 
 (defn local-date
+  "Calendar date of an Instant in the supplied ZoneId."
   ^LocalDate [^Instant i ^ZoneId zone]
   (.toLocalDate (.atZone i zone)))
 
 (defn plus-days
+  "Shift a LocalDate by a signed whole-day count."
   ^LocalDate [^LocalDate d n]
   (.plusDays d (long n)))
 
@@ -177,20 +179,28 @@
 (defn daily-values
   "Sorted `{LocalDate value}` of measurement `m` over `records` dated in
    `[from, to)`. Duration totals union and split intervals; point measures
-   date a record by `:at` and combine by sum (totals) or max (best)."
-  [m records ^ZoneId zone ^Instant from ^Instant to]
-  (if (and (= :duration (:measure m)) (= :total (:aggregation m)))
-    (daily-seconds (keep #(when-not (:open? %) (interval %)) records) zone from to)
-    (let [combine (if (= :best (:aggregation m)) max +)]
-      (reduce (fn [acc {:keys [at] :as r}]
-                (let [v (point-value m r)]
-                  (if (and (some? v) at
-                           (not (.isBefore ^Instant at from))
-                           (.isBefore ^Instant at to))
-                    (update acc (local-date at zone) #(if % (combine % v) v))
-                    acc)))
-              (sorted-map)
-              records))))
+   date a record by `:at` and combine by sum (totals) or max (best).
+   Exclude open intervals and ends beyond cutoff before clipping; cutoff
+   defaults to to, but can follow the end of an ended goal period."
+  ([m records zone from to]
+   (daily-values m records zone from to to))
+  ([m records ^ZoneId zone ^Instant from ^Instant to ^Instant cutoff]
+   (let [records (filter #(and (not (:open? %))
+                               (or (nil? (:end %))
+                                   (not (.isAfter ^Instant (:end %) cutoff))))
+                         records)]
+     (if (and (= :duration (:measure m)) (= :total (:aggregation m)))
+       (daily-seconds (keep #(when-not (:open? %) (interval %)) records) zone from to)
+       (let [combine (if (= :best (:aggregation m)) max +)]
+         (reduce (fn [acc {:keys [at] :as r}]
+                   (let [v (point-value m r)]
+                     (if (and (some? v) at
+                              (not (.isBefore ^Instant at from))
+                              (.isBefore ^Instant at to))
+                       (update acc (local-date at zone) #(if % (combine % v) v))
+                       acc)))
+                 (sorted-map)
+                 records))))))
 
 (defn scoped-records
   "Records inside the goal's relation filter; every record when it has none."
@@ -236,6 +246,8 @@
                        init
                        (dates start through))))))
 
+(declare covered?)
+
 (defn numeric-progress
   "Progress of a total or best goal as of `cutoff-date`.
 
@@ -244,55 +256,62 @@
    average; even-pace difference = (logged ÷ target × period days) −
    completed days. Each is nil where it has no meaning — best goals,
    open-ended goals, zero completed days, zero averages, ended goals — so the
-   view never shows NaN, Infinity, or an invented zero."
-  [goal m records cutoff-date]
-  (let [zone     (zone-of goal)
-        {:keys [start end through status completed-days remaining-days
-                total-days]
-         :as   w} (window goal cutoff-date)
-        cutoff   (day-start cutoff-date zone)
-        from     (day-start start zone)
-        to       (if end (min-inst (day-start (plus-days end 1) zone) cutoff) cutoff)
-        daily    (if (.isBefore from to)
-                   (daily-values m (scoped-records goal m records) zone from to)
-                   (sorted-map))
-        best?    (= :best (:aggregation m))
-        target   (double (:goal/target goal))
-        logged   (if best?
-                   (some->> (vals daily) seq (apply max) double)
-                   (double (reduce + 0 (vals daily))))
-        amount   (or logged 0.0)
-        reached? (>= amount target)
-        paced?   (and (not best?) (not= :open-ended (:goal/timing goal)))
-        average  (when (and (not best?) (pos? completed-days))
-                   (/ amount completed-days))
-        required (when (and paced? (= :active status) (not reached?)
-                            (pos? (or remaining-days 0)))
-                   (/ (max 0.0 (- target amount)) remaining-days))
-        step     (threshold-step goal m)]
-    {:window       w
-     :daily        daily
-     :logged       logged
-     :target       target
-     :remaining    (max 0.0 (- target amount))
-     :progress     (/ amount target)
-     :reached?     reached?
-     :average      average
-     :required     required
-     :ratio        (when (and required average (pos? average))
-                     (/ required average))
-     :pace-days    (when (and paced? total-days (not= :not-started status))
-                     (- (* (/ amount target) total-days) completed-days))
-     :even-pace    (when (and paced? total-days)
-                     (/ completed-days total-days))
-     :next         (when-not reached?
-                     (min target
-                          (* step (inc (Math/floor (/ (+ amount 1e-9) step))))))
-     :series       (progress-series daily start through best?)}))
+   view never shows NaN, Infinity, or an invented zero.
+   Coverage is a collection of known-complete date ranges, or nil for unknown.
+   Unknown coverage suppresses pace rates and leaves an empty total unknown."
+  ([goal m records cutoff-date]
+   (numeric-progress goal m records cutoff-date nil))
+  ([goal m records cutoff-date coverage]
+   (let [zone     (zone-of goal)
+         {:keys [start end through status completed-days remaining-days
+                 total-days]
+          :as   w} (window goal cutoff-date)
+         cutoff   (day-start cutoff-date zone)
+         from     (day-start start zone)
+         to       (if end (min-inst (day-start (plus-days end 1) zone) cutoff) cutoff)
+         daily    (if (.isBefore from to)
+                    (daily-values m (scoped-records goal m records) zone from to cutoff)
+                    (sorted-map))
+         complete? (covered? coverage w)
+         best?    (= :best (:aggregation m))
+         target   (double (:goal/target goal))
+         logged   (if best?
+                    (some->> (vals daily) seq (apply max) double)
+                    (when (or complete? (seq daily))
+                      (double (reduce + 0 (vals daily)))))
+         amount   (or logged 0.0)
+         reached? (>= amount target)
+         paced?   (and complete? (not best?) (not= :open-ended (:goal/timing goal)))
+         average  (when (and complete? (not best?) (pos? completed-days))
+                    (/ amount completed-days))
+         required (when (and paced? (= :active status) (not reached?)
+                             (pos? (or remaining-days 0)))
+                    (/ (max 0.0 (- target amount)) remaining-days))
+         step     (threshold-step goal m)]
+     {:coverage     (if complete? :complete :unknown)
+      :window       w
+      :daily        daily
+      :logged       logged
+      :target       target
+      :remaining    (max 0.0 (- target amount))
+      :progress     (when (some? logged) (/ amount target))
+      :reached?     reached?
+      :average      average
+      :required     required
+      :ratio        (when (and required average (pos? average))
+                      (/ required average))
+      :pace-days    (when (and paced? total-days (not= :not-started status))
+                      (- (* (/ amount target) total-days) completed-days))
+      :even-pace    (when (and paced? total-days)
+                      (/ completed-days total-days))
+      :next         (when-not reached?
+                      (min target
+                           (* step (inc (Math/floor (/ (+ amount 1e-9) step))))))
+      :series       (progress-series daily start through (or best? (nil? logged)))})))
 
 (defn recent-activity
-  "What the last `days` completed days added to the goal, and on how many
-   days — the open-ended goal's supporting panel. Days before starts-on do
+  "Recent observed total or maximum over `days` completed days, plus the
+   number of active days. Best performances never add. Days before starts-on do
    not count, since they do not count toward the goal."
   [goal m records cutoff-date days]
   (let [zone  (zone-of goal)
@@ -303,7 +322,9 @@
                 {})]
     {:from        from
      :through     (plus-days cutoff-date -1)
-     :amount      (reduce + 0 (vals daily))
+     :amount      (if (= :best (:aggregation m))
+                    (some->> (vals daily) seq (apply max))
+                    (reduce + 0 (vals daily)))
      :active-days (count (filter pos? (vals daily)))}))
 
 (defn history
@@ -458,11 +479,11 @@
 (defn comparison
   "This period against the matching period `years` back.
 
-   Returns `{:status :unknown}` unless `coverage` establishes the prior
+   Returns `{:status :unknown}` unless `coverage` establishes both the current and prior
    window, so missing history is never shown as zero activity."
   [goal m records current-amount w years coverage]
   (let [cw (comparison-window goal w years)]
-    (if-not (and cw (covered? coverage cw))
+    (if-not (and cw (covered? coverage w) (covered? coverage cw))
       {:status :unknown, :window cw}
       (let [zone  (zone-of goal)
             daily (daily-values m (scoped-records goal m records) zone

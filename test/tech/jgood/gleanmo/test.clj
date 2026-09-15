@@ -19,6 +19,7 @@
    [tech.jgood.gleanmo.test.db.queries-test]
    [tech.jgood.gleanmo.test.goals.calc-test]
    [tech.jgood.gleanmo.test.goals.dashboard-test]
+   [tech.jgood.gleanmo.test.goals.measurements-test]
    [tech.jgood.gleanmo.test.goals.validation-test]
    [tech.jgood.gleanmo.test.middleware-test]
    [tech.jgood.gleanmo.test.timer.routes-test]

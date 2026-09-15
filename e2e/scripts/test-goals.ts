@@ -151,6 +151,22 @@ async function main() {
     // ── 3. Duration goal ──
     console.log('\n2. Creating a dated duration goal...');
     let form = await openEditor(page);
+    const initialStart = await form.locator('[name="starts-on"]').inputValue();
+    await refreshField(page, form.locator('[name="timing"]'), 'weekly');
+    const weekday = new Date(initialStart + 'T12:00:00Z').getUTCDay();
+    const monday = shiftDate(initialStart, -((weekday + 6) % 7));
+    await expect(form.locator('[name="starts-on"]')).toHaveValue(monday);
+    await expect(form.locator('[name="ends-on"]')).toHaveValue(shiftDate(monday, 6));
+    await refreshField(page, form.locator('[name="timing"]'), 'dated');
+    const customStart = shiftDate(initialStart, -2);
+    const customEnd = shiftDate(initialStart, 19);
+    await form.locator('[name="starts-on"]').fill(customStart);
+    await form.locator('[name="ends-on"]').fill(customEnd);
+    await refreshField(page, form.locator('[name="timing"]'), 'weekly');
+    await expect(form.locator('[name="starts-on"]')).toHaveValue(customStart);
+    await expect(form.locator('[name="ends-on"]')).toHaveValue(customEnd);
+    await refreshField(page, form.locator('[name="timing"]'), 'dated');
+    console.log('  [+] Weekly defaults use Monday/Sunday and preserve deliberate dates');
     await form.locator('[name="label"]').fill('Reading time');
     await form.locator('[name="target"]').fill('10');
     await form.locator('[name="starts-on"]').fill(shiftDate(today, -7));
@@ -242,6 +258,20 @@ async function main() {
     await page.locator('tr[data-goal-row]', { hasText: 'Finish The Odyssey' }).locator('a[data-goal-link]').click();
     await page.waitForLoadState('networkidle');
     await expect(page.locator('#goal-detail')).toContainText('In progress');
+    const bookGoalId = new URL(page.url()).searchParams.get('goal');
+    form = await openEditor(page, `/app/goal/${bookGoalId}/edit`);
+    await refreshField(page, form.locator('[name="timing"]'), 'dated');
+    await form.locator('[name="ends-on"]').fill(shiftDate(today, 30));
+    await submitForm(form, `/app/goal/${bookGoalId}`);
+    await page.locator('#book-even-pace').check();
+    await page.waitForLoadState('networkidle');
+    await page.reload();
+    await expect(page.locator('#book-even-pace')).toBeChecked();
+    await page.locator('#book-even-pace').uncheck();
+    await page.waitForLoadState('networkidle');
+    await page.reload();
+    await expect(page.locator('#book-even-pace')).not.toBeChecked();
+    console.log('  [+] Even-pace preference persists in both directions');
     await createReadingLog(page, {
       book, beginning: `${yesterday}T20:00`, end: `${yesterday}T20:30`, finished: true,
     });

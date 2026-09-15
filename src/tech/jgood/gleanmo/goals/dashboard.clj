@@ -1,8 +1,7 @@
 (ns tech.jgood.gleanmo.goals.dashboard
   "Orchestration for the goals dashboard.
 
-   Reads each goal source's records once — one scan per source, shared by
-   every goal on it, over the union of their windows — through
+   Batches each source's overlapping goal windows and preserves gaps through
    `db/queries.clj`, then computes every goal's progress with the pure
    functions in `goals/calc.clj`. Book goals read their one book's logs,
    bound to that book."
@@ -12,7 +11,7 @@
    [tech.jgood.gleanmo.goals.registry :as registry]
    [tech.jgood.gleanmo.schema.meta :as sm])
   (:import
-   [java.time Instant LocalDate]))
+   [java.time Instant]))
 
 (def history-days
   "Length of the activity strip: twelve weeks of completed days."
@@ -22,49 +21,45 @@
   "Length of the open-ended goal's recent-rhythm panel."
   28)
 
-(def ^:private interval-lookback-days
-  "Intervals are dated by their beginning but clipped to the window, so a
-   duration scan starts this many days early to catch intervals that began
-   before the window and ended inside it."
-  3)
-
 (def reading-duration
   (registry/measurement {:goal/source      :reading-log
                          :goal/measure     :duration
                          :goal/aggregation :total}))
 
-(defn- min-date [^LocalDate a ^LocalDate b] (if (.isBefore a b) a b))
-(defn- min-inst [^Instant a ^Instant b] (if (.isBefore a b) a b))
 (defn- max-inst [^Instant a ^Instant b] (if (.isAfter a b) a b))
 
-(defn- request-window
-  "The instants one goal needs records for: its counting start or the
-   activity strip's start, whichever is earlier, through the cutoff."
-  [goal m cutoff-date]
-  (let [zone  (calc/zone-of goal)
-        start (min-date (:goal/starts-on goal)
-                        (calc/plus-days cutoff-date (- history-days)))
-        start (cond-> start
-                (= :duration (:measure m))
-                (calc/plus-days (- interval-lookback-days)))]
-    {:since (calc/day-start start zone)
-     :until (calc/day-start cutoff-date zone)}))
+(defn- request-windows
+  "Actual progress and activity windows for one goal, without the unused gap."
+  [goal cutoff-date]
+  (let [zone (calc/zone-of goal)
+        {:keys [start through]} (calc/window goal cutoff-date)]
+    (filter #(neg? (compare (:since %) (:until %)))
+            [{:since (calc/day-start start zone)
+              :until (calc/day-start (calc/plus-days through 1) zone)}
+             {:since (calc/day-start (calc/plus-days cutoff-date (- history-days)) zone)
+              :until (calc/day-start cutoff-date zone)}])))
 
 (defn source-requests
-  "One records request per source, covering every goal that reads it. The
-   relation scope is the union of the goals' filters, or everything when any
-   goal on the source is unfiltered."
-  [entries cutoff-date]
+  "Bounded requests per source. Merge overlapping ranges, preserving gaps.
+   Each entry carries its goal-local cutoff date derived from the request instant."
+  [entries]
   (into {}
         (for [[source es] (group-by (comp :source :measurement) entries)]
-          (let [windows (map #(request-window (:goal %) (:measurement %) cutoff-date) es)
-                filters (map #(get (:goal %) (get-in % [:measurement :relation :key]))
-                             es)]
-            [source {:source       source
-                     :since        (reduce min-inst (map :since windows))
-                     :until        (reduce max-inst (map :until windows))
-                     :relation-ids (when (every? seq filters)
-                                     (reduce into #{} filters))}]))))
+          (let [windows (mapcat #(request-windows (:goal %) (:cutoff-date %)) es)
+                filters (map #(get (:goal %) (get-in % [:measurement :relation :key])) es)
+                ranges (reduce (fn [acc w]
+                                 (if-let [prev (peek acc)]
+                                   (if (pos? (compare (:since w) (:until prev)))
+                                     (conj acc w)
+                                     (conj (pop acc) (update prev :until max-inst (:until w))))
+                                   [w]))
+                               [] (sort-by :since windows))]
+            [source (mapv #(assoc % :source source
+                                  :overlap? (boolean (some (fn [e]
+                                                             (= :duration (get-in e [:measurement :kind]))) es))
+                                  :relation-ids (when (every? seq filters)
+                                                  (reduce into #{} filters)))
+                          ranges)]))))
 
 (defn- hidden?
   [entity {:keys [show-sensitive show-archived]}]
@@ -84,6 +79,7 @@
          (into {} (map (juxt :xt/id identity))))))
 
 (defn entity-label
+  "Display label or title of an entity; Untitled when neither exists."
   [entity]
   (let [t (some-> (::sm/type entity) name)]
     (or (get entity (keyword t "label"))
@@ -114,10 +110,10 @@
                                           1 nil)))))
 
 (defn- book-entry
-  [db user-id {:keys [goal related] :as entry} cutoff-date]
+  [db user-id {:keys [goal related] :as entry} cutoff-date settings]
   (let [book-id (first (:goal/book-ids goal))
         book    (get related book-id)
-        logs    (if book (queries/reading-logs-for-book db user-id book-id) [])
+        logs    (if book (queries/reading-logs-for-book db user-id book-id settings) [])
         records (mapv (fn [l]
                         {:id        (:xt/id l)
                          :at        (:reading-log/beginning l)
@@ -132,16 +128,17 @@
                                   history-days))))
 
 (defn dashboard
-  "Everything the goals page renders, computed as of `cutoff-date` (today in
-   the user's time zone; only earlier days count).
+  "Everything the goals page renders from one captured `now` instant.
+   Each goal counts completed days in its saved time zone.
 
    Returns `{:active [entry] :archived [goal] :hidden-count n}`. Goals whose
    selected records the user's visibility settings hide are left out of both
    lists and counted instead."
-  [db user-id {:keys [cutoff-date user-settings]}]
+  [db user-id {:keys [now user-settings]}]
+  {:pre [(instance? Instant now) (map? user-settings)]}
   (let [goals    (queries/goals-for-user db user-id)
         related  (related-entities db user-id goals)
-        settings (or user-settings (queries/get-user-settings db user-id))
+        settings user-settings
         visible? (fn [g]
                    (not-any? (fn [k]
                                (some #(let [e (get related %)]
@@ -153,7 +150,8 @@
         entries  (for [g active
                        :let [m (registry/measurement g)]
                        :when m]
-                   {:goal        g
+                   {:cutoff-date (calc/local-date now (calc/zone-of g))
+                    :goal        g
                     :measurement m
                     :related     related
                     :scope       (scope g m related)})
@@ -161,14 +159,17 @@
                                                   (get-in % [:measurement :aggregation]))
                                               entries)
         records  (into {}
-                       (for [[source req] (source-requests numeric cutoff-date)]
-                         [source (queries/goal-source-records
-                                  db user-id (assoc req :user-settings settings))]))]
-    {:cutoff-date  cutoff-date
+                       (for [[source requests] (source-requests numeric)]
+                         [source (->> requests
+                                      (mapcat #(queries/goal-source-records
+                                                db user-id (assoc % :user-settings settings)))
+                                      (reduce (fn [acc r] (assoc acc (:id r) r)) {})
+                                      vals)]))]
+    {:now          now
      :active       (vec (concat
                          (map #(numeric-entry % (get records (get-in % [:measurement :source]))
-                                              cutoff-date)
+                                              (:cutoff-date %))
                               numeric)
-                         (map #(book-entry db user-id % cutoff-date) books)))
+                         (map #(book-entry db user-id % (:cutoff-date %) settings) books)))
      :archived     (vec (sort-by :goal/label archived))
      :hidden-count (- (count goals) (count (filter visible? goals)))}))

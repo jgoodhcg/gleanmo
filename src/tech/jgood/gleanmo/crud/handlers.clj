@@ -2,6 +2,7 @@
   (:require [clojure.string :as str]
             [tech.jgood.gleanmo.app.shared :refer [get-user-time-zone]]
             [tech.jgood.gleanmo.crud.forms.converters :refer [convert-field-value]]
+            [tech.jgood.gleanmo.crud.forms :as forms]
             [tech.jgood.gleanmo.schema.utils :as schema-utils]
             [tech.jgood.gleanmo.db.mutations :as mutations]
             [tech.jgood.gleanmo.db.queries :as db]))
@@ -30,7 +31,13 @@
                              (if (and optional? (or (nil? v) (and (string? v) (str/blank? v))))
                                acc ; Skip this field
                                (let [converted-value
-                                     (convert-field-value input-type v ctx)]
+                                     (try (convert-field-value input-type v ctx)
+                                          (catch clojure.lang.ExceptionInfo e
+                                            (if (:type (ex-data e))
+                                              (throw (ex-info "Invalid form value"
+                                                              {:crud/conversion-error true
+                                                               :errors {k [(.getMessage e)]}} e))
+                                              (throw e))))]
                                  (assoc acc k converted-value)))))))
                      ;; Start with defaults for missing boolean fields
                      (reduce (fn [acc field]
@@ -80,7 +87,7 @@
       (default-label-from-field entity-key label-fallbacks)
       (assoc :user/id user-id)))
 
-(defn create-entity!
+(defn- create-entity-handler!
   "Handle entity creation from form submission"
   [{:keys [schema entity-key entity-str]}
    {:keys [session biff/db params headers], :as ctx}]
@@ -144,13 +151,14 @@
                                    params
                                    (schema-utils/ns-keyword->input-name field-key))]
               :when (and (:optional opts)
-                         (contains? schema-utils/clearable-input-types input-type)
+                         (or (:crud/clearable opts)
+                             (contains? schema-utils/clearable-input-types input-type))
                          present?
                          (str/blank? (str v))
                          (contains? current-entity field-key))]
           [field-key :db/dissoc])))
 
-(defn update-entity!
+(defn- update-entity-handler!
   "Handle entity update from form submission"
   [{:keys [schema entity-key entity-str]}
    {:keys [session params path-params biff/db headers] :as ctx}]
@@ -213,6 +221,27 @@
          :headers {"HX-Redirect" final-redirect}}
         {:status  303,
          :headers {"location" final-redirect}}))))
+
+(defn- with-form-errors
+  "Render submitted values for recognized conversion and write-validation errors."
+  [handler render-form config ctx]
+  (try
+    (handler config ctx)
+    (catch clojure.lang.ExceptionInfo e
+      (if (or (mutations/invalid-write? e) (:crud/conversion-error (ex-data e)))
+        (render-form config (assoc ctx :crud/errors (:errors (ex-data e))
+                                   :crud/submitted (:params ctx)))
+        (throw e)))))
+
+(defn create-entity!
+  "Create an entity, or render the submitted form with field validation errors."
+  [config ctx]
+  (with-form-errors create-entity-handler! forms/new-form config ctx))
+
+(defn update-entity!
+  "Update an entity, or render the submitted form with field validation errors."
+  [config ctx]
+  (with-form-errors update-entity-handler! forms/edit-form config ctx))
 
 (defn delete-entity!
   "Soft-delete an entity by setting its deleted-at timestamp"

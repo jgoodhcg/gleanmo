@@ -134,8 +134,9 @@
 (defn- progress-bar
   [fraction tick open?]
   [:div {:class "relative mt-2 ml-auto h-1.5 w-full max-w-[10rem] rounded-full border border-dark bg-dark"}
-   [:span {:class (str "block h-full rounded-full " (if open? "bg-neon-lime" "bg-neon-cyan"))
-           :style {:width (str (min 100.0 (* 100.0 (max 0.0 fraction))) "%")}}]
+   (when (some? fraction)
+     [:span {:class (str "block h-full rounded-full " (if open? "bg-neon-lime" "bg-neon-cyan"))
+             :style {:width (str (min 100.0 (* 100.0 (max 0.0 fraction))) "%")}}])
    (when tick
      [:i {:class       "absolute -top-1 h-3 w-0.5 bg-white"
           :aria-hidden "true"
@@ -197,8 +198,8 @@
                              :next     (when next (/ (- next (or logged 0)) target))}))
      (name-cell entry)
      [:td {:class "px-4 py-3 text-right align-top tabular-nums"}
-      [:span.text-white (if (duration-total? m)
-                          (fmt-num (/ (or logged 0) 3600))
+      [:span.text-white (if (and logged (duration-total? m))
+                          (fmt-num (/ logged 3600))
                           (if logged (fmt-num logged) "—"))]
       [:span.text-gray-400 (str " / " (amount m target))]
       (progress-bar progress
@@ -285,7 +286,7 @@
    ["next" "Next threshold" "text-right"]])
 
 (defn- goals-table
-  [entries selected cutoff-date]
+  [entries selected]
   [:section {:class "rounded-xl border border-dark bg-dark-surface overflow-hidden"
              :aria-label "All goals"
              :data-goals-table true}
@@ -328,7 +329,7 @@
      "No goals match. Try another name or goal type."]]
    [:div {:class "flex justify-between gap-3 border-t border-dark px-4 py-1.5 text-xs text-gray-400"}
     [:span [:i {:class "mr-1.5 inline-block h-2.5 w-0.5 bg-white align-middle"}]
-     (str "Even pace for scheduled totals · through " (short-date (calc/plus-days cutoff-date -1)))]
+     "Even pace requires complete coverage · each goal uses its saved time zone"]
     [:span.hidden.sm:inline "No deadline = no required pace · select a goal to explore"]]])
 
 ;; ---------------------------------------------------------------------------
@@ -535,17 +536,22 @@
       [:p.mt-1.text-xs.text-gray-400
        (str (source-line entry) " · " (if best? "Best performance" (:label m)))]
       [:div {:class "mt-2 text-3xl font-semibold tabular-nums text-white"}
-       (if (and best? (nil? logged)) "No record yet" (amount m (or logged 0)))
+       (if (nil? logged)
+         (if best? "No record yet" "Coverage unknown")
+         (amount m logged))
        [:span {:class "ml-3 text-sm font-normal text-gray-400"}
         (str "of " (amount m target))]]
       [:p.mt-1.text-xs.text-gray-400
-       (str (fmt-num (* 100 (:progress progress))) "% "
-            (if best? "of target" "logged") " · "
+       (str (when-let [fraction (:progress progress)]
+              (str (fmt-num (* 100 fraction)) "% " (if best? "of target" "recorded") " · "))
             (window-caption goal progress best?))]
+      (when (= :unknown (:coverage progress))
+        [:p.mt-2.text-xs.text-neon-amber
+         "Coverage is incomplete or unknown. Recorded values are shown; pace estimates are unavailable."])
       [:div.mt-3 (actions goal)]]
      [:div {:class "grid grid-cols-1 gap-4 border-t border-dark pt-4 sm:grid-cols-3 lg:border-t-0 lg:pt-0 lg:items-center"}
       (cond
-        open?
+        (and open? (not best?))
         [:<>
          (stat "Still to go" (amount m remaining) "No deadline")
          (stat "Average so far" (rate m average)
@@ -573,7 +579,7 @@
                  (case status
                    :ended       "The goal period has ended"
                    :not-started "Not started yet"
-                   "Target reached")))
+                   (if (= :unknown (:coverage progress)) "Coverage unknown" "Target reached"))))
          (stat "Next threshold" (if next (amount m (- next (or logged 0))) "—")
                (when next (str "to " (amount m next))))])]]))
 
@@ -593,8 +599,8 @@
 (defn- chart-readout
   [{:keys [goal measurement progress]}]
   (cond
-    (= :open-ended (:goal/timing goal)) "Progress keeps accumulating · no reset or required pace"
     (= :best (:aggregation measurement)) "Best recorded within the goal period"
+    (= :open-ended (:goal/timing goal)) "Progress keeps accumulating · no reset or required pace"
     (= :weekly (:goal/timing goal)) "Each week stands on its own · no carry-forward"
     (:pace-days progress)
     (let [d (:pace-days progress)]
@@ -641,15 +647,18 @@
 (defn- rhythm-panel
   [{:keys [measurement recent]}]
   [:section.min-w-0.p-4.sm:p-6
-   (side-panel-head "Your recent rhythm"
+   (side-panel-head (if (= :best (:aggregation measurement)) "Your recent best" "Your recent rhythm")
                     (str (short-date (:from recent)) " – " (short-date (:through recent)))
                     "LAST 28 DAYS")
-   [:div.text-xs.text-gray-400 "Added in the last 28 days"
+   [:div.text-xs.text-gray-400
+    (if (= :best (:aggregation measurement)) "Best in the last 28 days" "Recorded in the last 28 days")
     [:strong {:class "my-1 block text-2xl font-semibold tabular-nums text-white"}
      (amount measurement (:amount recent))]
     (str "Across " (:active-days recent) " active days")]
    [:p.mt-3.text-xs.text-gray-400
-    "Your total keeps growing. There is no deadline to catch up with."]])
+    (if (= :best (:aggregation measurement))
+      "Your strongest recorded performance in this period."
+      "Recorded activity in this period. Coverage may be incomplete.")]])
 
 (defn- comparison-panel
   [{:keys [comparison measurement progress]}]
@@ -878,9 +887,9 @@
 (defn goals-page
   "GET /app/goals — `?goal=<id>` selects the detail card."
   [{:keys [session biff/db params] :as ctx}]
-  (let [cutoff   (shared/user-local-date ctx)
+  (let [now      (java.time.Instant/now)
         data     (dashboard/dashboard db (:uid session)
-                                      {:cutoff-date   cutoff
+                                      {:now           now
                                        :user-settings (queries/resolve-user-settings ctx)})
         entries  (sort-by (comp str/lower-case :goal/label :goal) (:active data))
         want     (some-> (:goal params) parse-uuid)
@@ -895,15 +904,14 @@
         :subtitle "A little closer, every time."
         :actions  [:a.form-button-primary {:href "/app/goals/new"} "+ New goal"]})
       [:p.text-xs.text-gray-400
-       (str "Through " (fmt-date (calc/plus-days cutoff -1) "EEEE, MMMM d")
-            " · completed days only · " (shared/get-user-time-zone ctx))]
+       "Completed days only · each goal uses its saved time zone"]
       (if (empty? entries)
         (layout/empty-state
          {:message "No goals yet. A goal counts what you already log — time, sessions, reps, or finishing a book."
           :action  [:a.form-button-primary {:href "/app/goals/new"} "Create your first goal"]})
         [:div.space-y-4
-         (goals-table entries selected cutoff)
-         [:div#goal-detail-mount (goal-detail selected cutoff)]])
+         (goals-table entries selected)
+         [:div#goal-detail-mount (goal-detail selected (:cutoff-date selected))]])
       (archived-section (:archived data))
       (when (pos? (:hidden-count data))
         [:p.text-xs.text-gray-500

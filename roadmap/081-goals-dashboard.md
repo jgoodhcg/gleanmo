@@ -3,7 +3,7 @@ title: "Goals dashboard"
 status: active
 description: "Implement the approved dashboard with reusable numeric types, reading positions, goal storage, and scoped progress queries."
 created: 2026-09-12
-updated: 2026-09-14
+updated: 2026-09-15
 tags: [goals, visualization, schema, reading]
 priority: medium
 ---
@@ -252,6 +252,35 @@ Add tests for behavior rather than snapshots of implementation structure.
 - [ ] Capture before/after desktop and mobile screenshots; compare against version 10 and inspect chart labels, keyboard controls, and table overflow.
 - [ ] Run relevant namespace tests, `just validate`, reading/goals E2E, and required visual-series captures before requesting an implementation commit.
 
+## Development test coverage (2026-09-15)
+
+Build measurement integration coverage before further goal features or shipping.
+Keep browser regression work and query-performance profiling in final validation.
+
+- [x] Add independent expected results for every registered measurement.
+  Require exact equality between fixture keys and registry IDs so registry additions fail until covered.
+- [x] Run every supported measurement/timing combination through real mutations, queries, and dashboard orchestration.
+  Current coverage includes 13 measurements and 36 timing combinations.
+- [x] Include foreign-user history and owned history outside selected relations.
+  Neither must change the selected goal results.
+- [x] Delete contributing source records and verify recalculation.
+  Assert totals, best performances, activity days, and book completion before and after deletion.
+- [x] Register the integration namespace in the main test entry point.
+- [x] Pass the focused measurement suite and full validation.
+  Focused suite: 2 tests, 299 assertions.
+  Full validation: 152 tests, 1,283 assertions; no failures or errors.
+  No browser rerun was needed for these test and documentation changes.
+
+Tests live in `test/tech/jgood/gleanmo/test/goals/measurements_test.clj`.
+Run `clj -M:dev test tech.jgood.gleanmo.test.goals.measurements-test` during measurement development.
+Use explicit expected values; do not calculate fixture expectations with production aggregation functions.
+When adding a measurement, add its fixture and expected results in the same change.
+
+This suite verifies source field mappings, relation scope, supported timing modes, and recalculation.
+Existing calculation tests retain coverage for DST, boundaries, incomplete coverage, and rate formulas.
+Existing browser tests cover shared editor and dashboard interactions.
+Production-sized query plans, latency, and final browser regression checks remain required before shipping.
+
 ## Implementation status (2026-09-14)
 
 A first implementation exists and awaits user review; expect iteration.
@@ -288,6 +317,173 @@ Resolve each item, or move it to another work unit, before archiving this unit.
   Outline: read the registry; predict `calc/numeric-progress` output in the REPL; inspect real `dashboard/dashboard` data; implement "count today" with the test first.
 - [x] Time zone default.
   It works as designed; the account had an unexpected time zone set.
+
+## Code review findings (Codex, 2026-09-14)
+
+Reviewed `fd02b83` against this specification and the version 08–10 contracts.
+Verification was static; no tests, E2E, server, REPL, or live database access ran.
+Local clj-kondo matches CI (`v2026.07.24`).
+Source paths below are relative to `src/tech/jgood/gleanmo/`.
+
+### Bug
+
+- [x] Enforce ownership and live-parent checks on source records.
+  `db/queries.clj:1411` selects lines by set without checking the line's owner.
+  `db/queries.clj:1392` delegates visibility to helpers that do not check parent ownership or exclude deleted parents (`db/queries.clj:133`).
+  A foreign-owned line referencing an owned set contributes its measurements.
+  An unfiltered project goal still counts logs after their project is deleted.
+  Check candidate line ownership and validate referenced parents with bounded ID reads before aggregation.
+  Cover foreign lines, foreign parents, deleted parents, and exercise-session ancestry in query tests.
+
+- [x] Apply resolved log visibility to book-completion reads.
+  `db/queries.clj:1472` only filters reading logs by owner, book, and log deletion.
+  `goals/dashboard.clj:120` uses these records without checking their locations.
+  A log at a sensitive or archived location can complete a book and expose its positions while numeric reading goals exclude it.
+  Pass resolved settings into the book query and apply the same related-entity visibility policy before calculating completion or rendering logs.
+
+- [x] Derive each goal's local accounting date from one captured instant.
+  `app/goals.clj:881` obtains the account's date; `goals/dashboard.clj:51` reinterprets that date in every goal's zone.
+  When the account and goal have different local dates, the goal includes an incomplete day or omits a completed day.
+  For example, Tokyo can already be Monday while Los Angeles is still Sunday; the Los Angeles weekly goal resets early.
+  Capture the request time once and derive each goal's completed-day boundary and labels in its saved zone.
+  Test zones on opposite sides of midnight.
+
+- [x] Exclude records whose interval ends beyond the accounting cutoff.
+  `db/queries.clj:1468` defines openness only by a missing end.
+  `goals/calc.clj:183` clips duration, and `goals/calc.clj:187` checks only the beginning for point measures.
+  A session beginning yesterday and ending tomorrow already counts as completed; duration goals also credit its pre-cutoff portion.
+  Filter interval records by completion at the explicit cutoff before attribution or clipping to the goal period.
+  Keep this eligibility rule explicit when implementing the separately tracked change to count today.
+
+- [x] Replace the three-day duration lookback with an overlap query.
+  `goals/dashboard.clj:25` and `goals/dashboard.clj:45` add three days before the earliest requested date.
+  `db/queries.clj:1455` then selects only beginnings within that range.
+  A completed interval beginning earlier and ending inside the required range disappears before the correct clipping calculation can see it.
+  Query intervals overlapping the requested range, with no assumed maximum duration, and add a query-to-calculator regression case.
+
+- [x] Keep open-ended best performance out of additive recent-rhythm calculations.
+  `goals/dashboard.clj:106` requests recent activity for every open-ended numeric goal.
+  `goals/calc.clj:306` sums daily maxima; `app/goals.clj:647` calls the result “Added in the last 28 days.”
+  Best weights of 80 kg and 90 kg on separate days therefore display 170 kg added.
+  Dispatch supporting panels and summary statistics by aggregation as well as timing.
+  Show the recent maximum for best goals, with wording that describes a performance rather than accumulation.
+
+- [x] Allow the new exercise duration to be cleared through generic CRUD.
+  `schema/utils.clj:70` makes only integer aliases and H:MM:SS fields clearable.
+  Exercise duration is `:number`, so a blank submission is skipped at `crud/handlers.clj:30` and preserves the old duration.
+  A corrected line can therefore continue contributing an obsolete best performance.
+  Add field-level clearing metadata for this attribute and honor it in `cleared-fields`, without changing unrelated numeric fields.
+  Test blank removal and omission preservation through the update handler.
+
+- [x] Render the new validation errors in generic CRUD forms.
+  `crud/handlers.clj:99` calls the validated mutation without handling its field errors.
+  Only the focused editor catches `invalid-write?` (`app/goal_editor.clj:399`).
+  Entering zero exercise duration in its generic form raises an exception instead of showing the useful duration error.
+  Generic goal forms have the same problem for cross-field validation.
+  Catch conversion and write-validation failures in shared CRUD handlers and re-render submitted values with field errors.
+
+- [x] Apply complete-week defaults when switching a new goal to weekly timing.
+  `app/goal_editor.clj:97` defaults to Monday only when the page initially receives weekly timing.
+  The normal new form starts dated; `app/goal_editor.clj:386` preserves its populated start when the user selects Weekly.
+  Creating a weekly goal midweek therefore defaults to a partial first week despite the specified complete-week default.
+  Track whether dates remain at their defaults and initialize Monday/Sunday when switching a new goal to weekly.
+  Preserve dates the user deliberately entered.
+
+### Rule violation
+
+- [x] Bound source requests to the actual chart and activity windows.
+  `goals/dashboard.clj:45` always starts at the earlier of the original goal start and the activity window.
+  It ignores the current weekly period and dated end, then scans continuously through today.
+  A weekly goal created years ago reads those years on every refresh, although only the current week and 84-day history are displayed.
+  An old ended goal also reads the unused gap between its deadline and recent activity.
+  Build requests from `calc/window` and the supporting-panel windows; batch compatible ranges without filling unrelated gaps.
+  Also bound visibility lookups to candidate parent IDs: `db/queries.clj:1392` reaches the user-wide exclusion scans at `db/queries.clj:133`.
+  Actual join order and latency remain unverified under the already tracked query-plan task.
+
+- [x] Preserve changed-field highlighting for the new workout duration input.
+  `app/workout.clj:433` renders duration through `stepper-ctrl`, whose input lacks `data-original-value` at `app/workout.clj:356`.
+  The custom edit form cannot compare the duration against its saved value.
+  Add the original value to the shared stepper input and dispatch input events when its buttons change the value.
+
+- [x] Replace the new pixel-valued Tailwind class.
+  `app/workout.clj:432` adds `text-[10px]` for the duration label, contrary to the named-size rule.
+  Use a named text size, such as `text-xs`, consistent with the surrounding controls.
+
+- [x] Document the new public functions.
+  Docstrings are absent from `goals/calc.clj:34`, `goals/calc.clj:38`, `goals/dashboard.clj:86`, `goals/validation.clj:18`, and `goals/registry.clj:126`.
+  Their callers need clear date, numeric, and invalid-input contracts.
+  Add concise docstrings or make functions private when they have no external callers.
+
+- [x] Remove direct user-settings fallbacks from the new goal paths.
+  `goals/dashboard.clj:144` and `db/queries.clj:1447` call `get-user-settings` directly when settings are absent.
+  The normal page supplies resolved settings, but these public fallback paths bypass the required ctx-first resolver.
+  Require resolved settings as an argument, or resolve them once from context at the orchestration boundary.
+
+### Risk
+
+- [x] Distinguish unknown current coverage from confirmed zero activity.
+  `goals/calc.clj:263` turns every empty total window into zero without a coverage input.
+  `app/goals.clj:542` then displays zero percent and pace statistics even when the source history is unavailable.
+  This is separate from the already tracked absence of prior-year comparisons.
+  Carry a coverage state for the current window and label incomplete coverage; reserve confirmed-zero claims for known-complete windows.
+
+- [x] Extend validation coverage beyond the existing happy paths.
+  `test/tech/jgood/gleanmo/test/goals/dashboard_test.clj:63` covers parent dating but not foreign lines, deleted parents, or bounded orchestration requests.
+  `test/tech/jgood/gleanmo/test/goals/calc_test.clj:125` has no explicit best-duration assertion.
+  The calculation tests also omit a partial final week, autumn DST, equal-end-time book ordering, and recalculation after a book-total edit.
+  `e2e/scripts/test-goals.ts:186` tests measure persistence but not the even-pace preference or weekly editor defaults.
+  Add behavior tests for these checklist gaps alongside regressions for the bugs above.
+
+### Cleanup
+
+- [x] Reuse registry relation metadata instead of maintaining a second mapping.
+  `db/queries.clj:1352` repeats the source-to-relation attributes already declared at `goals/registry.clj:13`.
+  Adding a source currently requires keeping both maps synchronized despite the registry's stated role as the shared definition.
+  Derive relation fields from the registry and retain only query-specific projection details in the database namespace.
+
+### Refinement of already tracked work
+
+The comparison deferral is broader than missing coverage entry.
+`app/goals.clj:654` renders one textual comparison; `app/goals.clj:374` has no prior-year series or year-selection controls.
+`goals/calc.clj:465` checks prior coverage only, although the contract requires both periods to be covered.
+The review fixes now require coverage for both periods and test the known-coverage renderer.
+The comparison follow-up still includes coverage entry, prior-year chart series, and year-selection controls.
+
+## Review resolution (2026-09-15)
+
+The code-review checklist above is implemented.
+The separate dogfood feedback remains open.
+
+- Source visibility now checks ownership, deletion, and visibility through bounded reads of candidate ancestors.
+  Book completion uses the same policy as numeric reading goals.
+- Each goal derives its completed-day cutoff from one request instant in its saved time zone.
+  Intervals must finish by that cutoff before clipping to the goal period.
+- Source requests merge overlapping progress and activity windows without scanning unused gaps.
+  Duration requests find overlapping intervals without a maximum-duration assumption.
+- Best-performance summaries use maxima and performance wording.
+  Unknown current coverage leaves empty totals unknown and suppresses pace estimates.
+  Recorded nonempty totals remain visible with a coverage label.
+- Generic CRUD shows conversion and write-validation errors beside fields and retains submitted values.
+  Exercise duration explicitly supports blank removal; omitted values remain stored.
+- Weekly editor defaults use Monday and Sunday until the user changes each date.
+  Workout steppers preserve original values and dispatch input events.
+- Regression tests cover ownership, ancestry, visibility, long intervals, bounded requests, opposite-midnight zones, cutoff eligibility, and current coverage.
+  They also cover best duration, recent maxima, autumn DST, partial final weeks, book ordering, edited totals, and comparison rendering.
+  Browser tests cover weekly defaults, both preference states, duration highlighting, validation errors, and clearing.
+
+Validation:
+
+- `just validate`: 150 tests, 984 assertions, no failures or errors.
+- Goals, reading CRUD, and reading timer E2E passed.
+- Baseline and final visual series each captured all 64 frames.
+  Final capture: `e2e/screenshots/series/2026-09-15T13-24-38Z/`.
+- The expanded workout E2E passed after restarting the dev server.
+  It verified duration highlighting, validation errors, submitted values, and persisted blank removal.
+  The fresh-process persistence test also passed.
+  The previous process retained schema metadata captured when its CRUD routes were initialized.
+
+The production-sized query-plan and latency audit remains open.
+The comparison controls and activity-cell keyboard navigation remain follow-up work.
 
 ## Context: implementation entry points
 

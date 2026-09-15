@@ -16,6 +16,7 @@
   (and (string? s) (contains? @zone-ids s)))
 
 (defn finite-positive?
+  "True only for finite numeric values greater than zero."
   [x]
   (and (number? x) (Double/isFinite (double x)) (pos? (double x))))
 

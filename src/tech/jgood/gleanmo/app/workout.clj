@@ -293,6 +293,7 @@
            else if(name==='duration') step=5;
            var min=(name==='reps')?1:0;
            i.value=Math.max(min,Math.round(((parseFloat(i.value)||0)+dir*step)*100)/100);
+           i.dispatchEvent(new Event('input',{bubbles:true}));
            syncPrimary(); }); });
        if(reps) reps.addEventListener('input',syncPrimary);
        syncPrimary();
@@ -354,6 +355,7 @@
     [:div.flex.items-center.gap-1.5.shrink-0
      [:button {:type "button" :data-adjust (str input-name ":-1") :class btn-class} "−"]
      [:input {:type "number" :step "any" :name input-name :value value
+              :data-original-value (str value)
               :class "w-16 text-center text-xl font-bold text-white bg-transparent border-none p-0 tabular-nums"}]
      [:button {:type "button" :data-adjust (str input-name ":1") :class btn-class} "+"]]))
 
@@ -429,7 +431,7 @@
                   (or distance-unit default-distance-unit))]
     (stepper-ctrl "distance" (str (or distance 0)))]
    [:div.flex.items-center.justify-between.gap-3.py-2
-    [:span {:class "text-[10px] font-semibold tracking-widest text-gray-500"} "SECS"]
+    [:span {:class "text-xs font-semibold tracking-widest text-gray-500"} "SECS"]
     (stepper-ctrl "duration" (str (or duration default-duration)))]])
 
 (defn- log-form

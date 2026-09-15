@@ -64,10 +64,14 @@
 (defn- interval-record [b e]
   {:at (at b) :end (at e) :open? false :relations #{}})
 
+(defn- known-progress [g m records cutoff]
+  (calc/numeric-progress g m records cutoff
+                         [{:start (date "2000-01-01") :end (date "2100-01-01")}]))
+
 (deftest numeric-progress-test
   (let [dur (m :reading-log :duration :total)]
     (testing "rates follow the version 08 formulas"
-      (let [p (calc/numeric-progress
+      (let [p (known-progress
                (goal {:goal/ends-on (date "2026-07-10") :goal/target 36000.0})
                dur
                [(interval-record "2026-07-01T10:00" "2026-07-01T12:00")
@@ -80,7 +84,7 @@
         (is (= 1.0 (:ratio p)))
         (is (= 0.0 (:pace-days p)))))
     (testing "future records and open timers do not count"
-      (let [p (calc/numeric-progress
+      (let [p (known-progress
                (goal {})
                dur
                [(interval-record "2026-07-05T10:00" "2026-07-05T11:00")
@@ -90,9 +94,9 @@
         (is (= 0.0 (:average p)))
         (is (nil? (:ratio p)) "no ratio against a zero average")))
     (testing "not started, ended, and reached goals guard their rates"
-      (let [not-started (calc/numeric-progress (goal {}) dur [] (date "2026-07-01"))
-            ended       (calc/numeric-progress (goal {}) dur [] (date "2026-11-02"))
-            reached     (calc/numeric-progress
+      (let [not-started (known-progress (goal {}) dur [] (date "2026-07-01"))
+            ended       (known-progress (goal {}) dur [] (date "2026-11-02"))
+            reached     (known-progress
                          (goal {:goal/target 3600.0}) dur
                          [(interval-record "2026-07-01T10:00" "2026-07-01T12:00")]
                          (date "2026-07-03"))]
@@ -104,7 +108,7 @@
         (is (nil? (:next reached)))
         (is (= 0.0 (:remaining reached)))))
     (testing "open-ended goals have no required rate or pace"
-      (let [p (calc/numeric-progress
+      (let [p (known-progress
                (goal {:goal/timing :open-ended :goal/ends-on nil})
                dur [(interval-record "2026-07-01T10:00" "2026-07-01T12:00")]
                (date "2026-07-03"))]
@@ -113,7 +117,7 @@
         (is (nil? (:pace-days p)))
         (is (= 3600.0 (:average p)))))
     (testing "weekly totals ignore last week's surplus"
-      (let [p (calc/numeric-progress
+      (let [p (known-progress
                (goal {:goal/timing :weekly :goal/ends-on nil :goal/target 7200.0})
                dur
                [(interval-record "2026-09-08T10:00" "2026-09-08T20:00")
@@ -220,7 +224,7 @@
                                [(interval-record "2025-07-03T10:00" "2025-07-03T11:00")
                                 (interval-record "2025-07-11T10:00" "2025-07-11T11:00")]
                                7200.0 w 1
-                               [{:start (date "2025-01-01") :end (date "2025-12-31")}])]
+                               [{:start (date "2025-01-01") :end (date "2026-12-31")}])]
         (is (= {:start (date "2025-07-01") :through (date "2025-07-10")} (:window c)))
         (is (= 3600.0 (:amount c)))
         (is (= 100.0 (:percent c)))))
@@ -245,3 +249,61 @@
                                               :through (date "2026-12-29")
                                               :completed-days 2}
                                           1)))))))
+
+(deftest accounting-cutoff-test
+  (doseq [measure [(m :reading-log :duration :total)
+                   (m :meditation-log :records :total)]]
+    (is (empty? (calc/daily-values
+                 measure [(interval-record "2026-07-02T10:00" "2026-07-06T10:00")]
+                 detroit (at "2026-07-01T00:00") (at "2026-07-05T00:00")))))
+  (testing "eligibility uses the accounting cutoff before clipping to the goal end"
+    (is (= 3600.0 (:logged
+                   (known-progress
+                    (goal {:goal/ends-on (date "2026-07-02")})
+                    (m :reading-log :duration :total)
+                    [(interval-record "2026-07-02T23:00" "2026-07-03T01:00")]
+                    (date "2026-07-05")))))))
+
+(deftest current-coverage-test
+  (let [g (goal {}) ms (m :reading-log :duration :total)
+        cutoff (date "2026-07-05")
+        unknown (calc/numeric-progress g ms [] cutoff)
+        known (known-progress g ms [] cutoff)]
+    (is (= :unknown (:coverage unknown)))
+    (is (every? nil? (map unknown [:logged :progress :average :required :pace-days])))
+    (is (= :complete (:coverage known)))
+    (is (= 0.0 (:logged known)))
+    (is (= :unknown (:status (calc/comparison
+                              g ms [] 0 (calc/window g cutoff) 1
+                              [{:start (date "2025-01-01") :end (date "2025-12-31")}]))))))
+
+(deftest best-duration-and-recent-test
+  (let [g (goal {:goal/timing :open-ended})
+        records [{:at (at "2026-07-02T09:00") :duration 80 :reps 1 :weight 80 :weight-unit :kg}
+                 {:at (at "2026-07-03T09:00") :duration 90 :reps 1 :weight 90 :weight-unit :kg}
+                 {:at (at "2026-07-04T09:00") :duration -10}]]
+    (is (= 90.0 (:logged (known-progress g (m :exercise-line :duration :best)
+                                         records (date "2026-07-05")))))
+    (is (= 90.0 (:amount (calc/recent-activity g (m :exercise-line :weight :best)
+                                               records (date "2026-07-05") 28))))))
+
+(deftest partial-final-week-and-autumn-dst-test
+  (let [w (calc/window (goal {:goal/timing :weekly :goal/ends-on (date "2026-09-16")})
+                       (date "2026-09-20"))]
+    (is (= 3 (:total-days w)))
+    (is (= 3 (:completed-days w)))
+    (is (:partial? w)))
+  (is (= {(date "2026-11-01") 90000.0}
+         (calc/daily-seconds [[(at "2026-11-01T00:00") (at "2026-11-02T00:00")]]
+                             detroit (at "2026-11-01T00:00") (at "2026-11-02T00:00")))))
+
+(deftest book-order-and-total-edit-test
+  (let [g (goal {})
+        logs [(log "2026-07-02T10:00" :xt/id #uuid "00000000-0000-0000-0000-000000000002"
+                   :reading-log/end-page 100)
+              (log "2026-07-02T10:00" :xt/id #uuid "00000000-0000-0000-0000-000000000001"
+                   :reading-log/end-page 50)]
+        progress #(calc/book-progress g {:book/total-pages %} logs (date "2026-07-05"))]
+    (is (= 100 (get-in (progress 200) [:measures :pages :latest :value])))
+    (is (= 0.5 (get-in (progress 200) [:measures :pages :percent])))
+    (is (= 0.25 (get-in (progress 400) [:measures :pages :percent])))))

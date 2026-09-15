@@ -1,6 +1,7 @@
 (ns tech.jgood.gleanmo.crud.forms
   (:require
    [clojure.string :as str]
+   [clojure.walk :as walk]
    [com.biffweb :as biff]
    [tech.jgood.gleanmo.app.layout :as layout]
    [tech.jgood.gleanmo.crud.forms.inputs :as inputs]
@@ -18,20 +19,54 @@
          ;; remove fields that aren't necessary for forms
          (remove schema-utils/should-remove-system-or-user-field?))))
 
+(defn- submitted-render
+  "Restore raw submitted values after rendering, including invalid scalar input."
+  [rendered field ctx]
+  (let [params (:crud/submitted ctx)
+        input-name (:input-name field)
+        key (:field-key field)
+        present? (or (contains? params input-name) (contains? params key))
+        raw (get params input-name (get params key))
+        values (set (map str (if (coll? raw) raw [raw])))]
+    (if-not params
+      rendered
+      (walk/postwalk
+       (fn [node]
+         (if (and (vector? node) (keyword? (first node)) (map? (second node)))
+           (let [[tag attrs & children] node
+                 tag-name (first (str/split (name tag) #"[.#]"))]
+             (cond
+               (= tag-name "option")
+               (into [tag (assoc attrs :selected (contains? values (str (:value attrs))))] children)
+               (and (= input-name (:name attrs)) (= tag-name "textarea") present?)
+               [tag attrs (str raw)]
+               (and (= input-name (:name attrs)) (= tag-name "input"))
+               (into [tag (if (contains? #{"checkbox" "radio"} (:type attrs))
+                            (assoc attrs :checked (and present? (contains? values (str (:value attrs)))))
+                            (if present? (assoc attrs :value raw) attrs))] children)
+               :else node))
+           node))
+       rendered))))
+
 (defn render-field
-  "Render an input, appending :crud/description help text when present."
+  "Render an input, its help text, and any field errors, preserving submitted values."
   [field ctx]
-  (let [rendered    (inputs/render field ctx)
-        description (get-in field [:opts :crud/description])]
-    (if description
-      [:div rendered [:p.form-help description]]
+  (let [rendered (submitted-render (inputs/render field ctx) field ctx)
+        description (get-in field [:opts :crud/description])
+        errors (get-in ctx [:crud/errors (:field-key field)])]
+    (if (or description (seq errors))
+      [:div
+       rendered
+       (when description [:p.form-help description])
+       (for [message errors]
+         [:p.mt-1.text-sm.text-red-400 {:role "alert"} message])]
       rendered)))
 
 (defn schema->form
   "Convert a schema to form fields"
   [schema ctx schema-map]
   (let [fields (prepare-form-fields schema)
-        pre-populated-values (:pre-populated-values ctx)
+        pre-populated-values (when-not (:crud/submitted ctx) (:pre-populated-values ctx))
         ctx-with-schema (assoc ctx :schema-map schema-map)]
     (for [field fields
           :let  [field-input-name    (:input-name field)

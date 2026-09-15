@@ -4,6 +4,7 @@
    [clojure.tools.logging :as log]
    [com.biffweb :as    biff
     :refer [q]]
+   [tech.jgood.gleanmo.goals.registry :as goal-registry]
    [tech.jgood.gleanmo.schema :as schema-registry]
    [tech.jgood.gleanmo.schema.utils :as schema-utils]
    [tech.jgood.gleanmo.schema.meta :as sm]
@@ -1349,14 +1350,6 @@
                       :attrs {:attempts :boulder-attempt/attempts}}
    :habit-log        {:time :habit-log/timestamp}})
 
-(def ^:private goal-relation-fields
-  "The attribute carrying each goal source's relation-filter ids."
-  {:project-log    :project-log/project-id
-   :reading-log    :reading-log/book-id
-   :meditation-log :meditation-log/type-id
-   :habit-log      :habit-log/habit-ids
-   :exercise-line  :exercise-line/exercise-id})
-
 (defn- range-scan
   "`[id time]` of the user's documents whose `time-key` is in [since, until).
 
@@ -1384,20 +1377,56 @@
                 (vec ids)))
     {}))
 
-(defn- visible-rows
-  "Rows (maps with `:xt/id`) of `entity-type` that survive deleted, sensitive,
-   archived, and related-entity visibility, with relationship attributes
-   merged in."
-  [db user-id entity-type settings rows]
-  (apply-heatmap-exclusions
-   db user-id entity-type settings
-   (schema-utils/extract-relationship-fields
-    (get schema-registry/schema entity-type) :remove-system-fields true)
-   rows))
-
 (defn- as-id-set
   [v]
   (cond (set? v) v (some? v) #{v} :else #{}))
+
+(defn- goal-parent-ids
+  [doc]
+  (mapcat #(as-id-set (get doc (:field-key %)))
+          (schema-utils/extract-relationship-fields
+           (get schema-registry/schema (::sm/type doc))
+           :remove-system-fields true)))
+
+(defn- visible-rows
+  "Pull candidate rows and their referenced ancestors by ID, checking ownership
+   and visibility at every level. No user-wide exclusion scans are needed."
+  [db user-id _entity-type settings rows]
+  (let [docs (loop [pending (set (map :xt/id rows)), seen #{}, docs {}]
+               (if (empty? pending)
+                 docs
+                 (let [fetched (fetch-entities-by-ids db pending)
+                       seen (into seen pending)]
+                   (recur (into #{} (remove seen) (mapcat goal-parent-ids fetched))
+                          seen (into docs (map (juxt :xt/id identity)) fetched)))))
+        visible? (fn visible? [id seen]
+                   (let [doc (get docs id)
+                         t (some-> (::sm/type doc) name)]
+                     (and doc t (= user-id (:user/id doc))
+                          (not (::sm/deleted-at doc))
+                          (or (:show-sensitive settings)
+                              (not (true? (get doc (keyword t "sensitive")))))
+                          (or (:show-archived settings)
+                              (not (true? (get doc (keyword t "archived")))))
+                          (or (contains? seen id)
+                              (every? #(visible? % (conj seen id))
+                                      (goal-parent-ids doc))))))]
+    (into [] (comp (filter #(visible? (:xt/id %) #{}))
+                   (map #(merge (get docs (:xt/id %)) %))) rows)))
+
+(defn- overlap-scan
+  "Index-only candidates with a beginning before until and an end after since."
+  [db user-id time-key end-key since until]
+  (->> (q db
+          {:find '[?e ?t ?scan-user]
+           :where [['?e end-key '?end]
+                   '[(> ?end since)]
+                   ['?e time-key '?t]
+                   '[(< ?t until)]
+                   '[?e :user/id ?scan-user]]
+           :in '[since until]}
+          since until)
+       (into [] (keep (fn [[e t u]] (when (= u user-id) [e t]))))))
 
 (defn- exercise-line-records
   "Exercise lines dated by their parent set's beginning. Parent-bound: sets
@@ -1435,7 +1464,9 @@
           lines)))
 
 (defnp goal-source-records
-  "Minimal visible records of one goal source dated in [since, until).
+  "Minimal visible records of one source dated in [since, until).
+   With `overlap?`, interval sources include beginnings before since when
+   their ends overlap the range. Calculators enforce completion at their cutoff.
 
    `relation-ids`, when given, keeps only records related to one of them;
    nil means every record. A record is `{:id :at :relations}` plus `:end` and
@@ -1443,16 +1474,19 @@
    `:reps :weight :weight-unit :duration` for exercise lines, which are
    dated by their parent set). Visibility follows the user's resolved
    settings for the records and the entities they reference."
-  [db user-id {:keys [source since until relation-ids user-settings]}]
-  (let [settings (or user-settings (get-user-settings db user-id))
+  [db user-id {:keys [source since until relation-ids user-settings overlap?]}]
+  {:pre [(map? user-settings)]}
+  (let [settings user-settings
         rel-ids  (some-> relation-ids set)]
     (if (= :exercise-line source)
       (exercise-line-records db user-id {:since since, :until until,
                                          :relation-ids rel-ids}
                              settings)
       (let [{time-key :time, end-key :end, attrs :attrs} (goal-source-shapes source)
-            rel-field (goal-relation-fields source)
-            rows      (->> (range-scan db user-id time-key since until)
+            rel-field (get-in goal-registry/sources [source :relation :field])
+            rows      (->> (if (and overlap? end-key)
+                             (overlap-scan db user-id time-key end-key since until)
+                             (range-scan db user-id time-key since until))
                            (map (fn [[e t]] {:xt/id e, ::at t}))
                            (visible-rows db user-id source settings)
                            (filter #(or (nil? rel-ids)
@@ -1471,8 +1505,10 @@
 
 (defnp reading-logs-for-book
   "Every live reading log of one book. Equality-bound on the book, so cost
-   tracks that book's history rather than the user's."
-  [db user-id book-id]
+   tracks that book's history rather than the user's. Resolved settings apply
+   to each log and its owned, live referenced entities."
+  [db user-id book-id user-settings]
+  {:pre [(map? user-settings)]}
   (->> (q db
           '{:find  [(pull ?e [*])]
             :where [[?e :reading-log/book-id book-id]
@@ -1480,8 +1516,7 @@
             :in    [user-id book-id]}
           user-id book-id)
        (map first)
-       (remove ::sm/deleted-at)
-       vec))
+       (visible-rows db user-id :reading-log user-settings)))
 
 (defnp get-events-for-user-year
   "Get all events for a user within a specific year, using user's timezone.

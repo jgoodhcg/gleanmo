@@ -171,10 +171,40 @@ async function main() {
     // deliberately carries no recall-on-select memory.
     await pickExercise(page, 'line-exercise-id', other);
     await expect(page.locator('[data-line-form] [name="reps"]').last()).toHaveValue('7');
+    const duration = page.locator('[data-line-form] [name="duration"]').last();
+    await expect(duration).toHaveAttribute('data-original-value', '0');
+    await page.locator('[data-line-form] [data-adjust="duration:1"]').last().click();
+    await expect(duration).toHaveValue('5');
+    await expect(duration).toHaveClass(/border-neon-cyan/);
+    await page.locator('[data-line-form] [data-adjust="duration:-1"]').last().click();
+    await expect(duration).not.toHaveClass(/border-neon-cyan/);
+    await duration.fill('90');
+    const lineAction = await page.locator('[data-line-form]').last().getAttribute('action');
+    const lineId = lineAction?.split('/').pop();
+    if (!lineId) throw new Error('No exercise line id');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await page.waitForLoadState('networkidle');
     await expect(setCard(page, 2).getByText(other, { exact: true })).toBeVisible();
     await expect(setCard(page, 2).getByText('7 reps', { exact: true })).toBeVisible();
+
+    // Generic CRUD preserves submitted values on errors and permits explicit clearing.
+    await page.goto(`${BASE_URL}/app/crud/form/exercise-line/edit/${lineId}`, { waitUntil: 'networkidle' });
+    const crudForm = page.locator('#exercise-line-edit-form');
+    const crudDuration = crudForm.locator('[name="exercise-line/duration-seconds"]');
+    await expect(crudDuration).toHaveValue('90.0');
+    await crudDuration.fill('0');
+    await crudForm.locator('[name="exercise-line/notes"]').fill('Retain this correction');
+    await crudForm.getByRole('button', { name: 'Save Changes', exact: true }).click();
+    await expect(crudForm.getByRole('alert')).toContainText('Duration must be a positive number of seconds.');
+    await expect(crudDuration).toHaveValue('0');
+    await expect(crudForm.locator('[name="exercise-line/notes"]')).toHaveValue('Retain this correction');
+    await crudDuration.fill('');
+    await crudForm.getByRole('button', { name: 'Save Changes', exact: true }).click();
+    await page.waitForLoadState('networkidle');
+    await page.reload();
+    await expect(crudDuration).toHaveValue('');
+    await expect(crudForm.locator('[name="exercise-line/notes"]')).toHaveValue('Retain this correction');
+    await page.goto(`${BASE_URL}/app/exercise/session`, { waitUntil: 'networkidle' });
 
     // Only one editor open at a time, so the picker's DOM id stays unique.
     await setCard(page, 1).getByText(exercise, { exact: true }).click();

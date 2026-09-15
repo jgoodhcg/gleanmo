@@ -1,8 +1,13 @@
 (ns tech.jgood.gleanmo.test.crud.handlers-test
   (:require
    [clojure.test :refer [deftest is testing]]
+   [com.biffweb :refer [test-xtdb-node]]
+   [tech.jgood.gleanmo :as main]
+   [xtdb.api :as xt]
    [tech.jgood.gleanmo.app.shared :as shared]
    [tech.jgood.gleanmo.crud.handlers :as handlers]
+   [tech.jgood.gleanmo.crud.forms :as forms]
+   [tech.jgood.gleanmo.schema :as schema]
    [tech.jgood.gleanmo.db.mutations :as mutations]
    [tech.jgood.gleanmo.db.queries :as db-queries]))
 
@@ -338,3 +343,73 @@
             (is (= 303 (:status result)))
             (is (= "/app/crud/habit"
                    (get-in result [:headers "location"])))))))))
+
+(deftest exercise-duration-clear-update-test
+  (let [id (random-uuid) writes (atom [])
+        config {:schema (:exercise-line schema/schema) :entity-key :exercise-line
+                :entity-str "exercise-line"}
+        ctx {:session {:uid (random-uuid)} :path-params {:id (str id)}}
+        update! #(handlers/update-entity! config (assoc ctx :params %))]
+    (with-redefs [db-queries/get-entity-for-user
+                  (fn [& _] {:xt/id id :exercise-line/duration-seconds 90})
+                  shared/get-user-time-zone (constantly "UTC")
+                  mutations/update-entity! (fn [_ args] (swap! writes conj (:data args)) id)]
+      (is (= 303 (:status (update! {"exercise-line/duration-seconds" ""}))))
+      (is (= :db/dissoc (:exercise-line/duration-seconds (last @writes))))
+      (is (= 303 (:status (update! {"exercise-line/notes" "unchanged duration"}))))
+      (is (not (contains? (last @writes) :exercise-line/duration-seconds))))))
+
+(deftest crud-field-errors-test
+  (let [id (random-uuid)
+        config {:schema (:exercise-line schema/schema) :entity-key :exercise-line
+                :entity-str "exercise-line"}
+        ctx {:session {:uid id} :path-params {:id (str id)}}
+        render (fn [_ ctx] (select-keys ctx [:crud/errors :crud/submitted]))
+        calls (atom 0)]
+    (with-redefs [db-queries/get-entity-by-id (fn [& _] {:xt/id id})
+                  db-queries/get-entity-for-user (fn [& _] {:xt/id id})
+                  shared/get-user-time-zone (constantly "UTC")
+                  forms/new-form render forms/edit-form render
+                  mutations/create-entity!
+                  (fn [& _]
+                    (swap! calls inc)
+                    (throw (ex-info "Invalid write"
+                                    {:type :tech.jgood.gleanmo.db.mutations/invalid-write
+                                     :errors {:exercise-line/duration-seconds ["Positive seconds required."]}})))
+                  mutations/update-entity!
+                  (fn [& _]
+                    (swap! calls inc)
+                    (throw (ex-info "Invalid write"
+                                    {:type :tech.jgood.gleanmo.db.mutations/invalid-write
+                                     :errors {:exercise-line/duration-seconds ["Positive seconds required."]}})))]
+      (doseq [handler [handlers/create-entity! handlers/update-entity!]
+              value ["zero?" "0"]]
+        (let [params {"exercise-line/duration-seconds" value "exercise-line/notes" "Keep this"}
+              result (handler config (assoc ctx :params params))]
+          (is (seq (get-in result [:crud/errors :exercise-line/duration-seconds])))
+          (is (= params (:crud/submitted result)))))
+      (is (= 2 @calls) "conversion failures never reach the mutation"))))
+
+(deftest exercise-duration-persistence-test
+  (with-open [node (test-xtdb-node [])]
+    (let [user (random-uuid)
+          context {:biff.xtdb/node node :biff/malli-opts #'main/malli-opts
+                   :session {:uid user}}
+          id (mutations/create-entity!
+              (assoc context :biff/db (xt/db node))
+              {:entity-key :exercise-line
+               :data {:user/id user :exercise-line/set-id (random-uuid)
+                      :exercise-line/exercise-id (random-uuid)
+                      :exercise-line/duration-seconds 90}})
+          config {:schema (:exercise-line schema/schema)
+                  :entity-key :exercise-line :entity-str "exercise-line"}
+          update! #(handlers/update-entity!
+                    config (assoc context :biff/db (xt/db node)
+                                  :path-params {:id (str id)} :params %))
+          stored #(db-queries/get-entity-for-user (xt/db node) id user :exercise-line)]
+      (with-redefs [shared/get-user-time-zone (constantly "UTC")]
+        (is (= 303 (:status (update! {"exercise-line/notes" "Keep duration"})))))
+      (is (= 90 (:exercise-line/duration-seconds (stored))))
+      (with-redefs [shared/get-user-time-zone (constantly "UTC")]
+        (is (= 303 (:status (update! {"exercise-line/duration-seconds" ""})))))
+      (is (not (contains? (stored) :exercise-line/duration-seconds))))))

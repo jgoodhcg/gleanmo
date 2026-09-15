@@ -124,6 +124,7 @@
   (str (namespace id) "/" (name id)))
 
 (defn string->measurement
+  "Resolve a source/measurement form string, or return nil for invalid input."
   [s]
   (when (string? s)
     (let [[ns-part name-part] (str/split s #"/" 2)]

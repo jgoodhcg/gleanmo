@@ -110,7 +110,7 @@
    ;; enforced at the write boundary (`schema.rules`), since an inline
    ;; `[:and ...]` type would defeat the CRUD field parser.
    [:exercise-line/duration-seconds
-    {:optional true :crud/priority 6 :crud/label "Duration (seconds)"} :number]
+    {:optional true :crud/clearable true :crud/priority 6 :crud/label "Duration (seconds)"} :number]
    [:exercise-line/distance {:optional true} :number]
    [:exercise-line/distance-unit {:optional true} [:enum :miles :km :meters]]
    [:exercise-line/notes {:optional true} :string]
