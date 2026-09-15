@@ -239,6 +239,15 @@ checkmark.
 - `just e2e-flow <name>` — run a UI flow (requires dev server)
 - `just e2e-shot-series` — capture one visual-timeline tick of every manifest route (requires dev server)
 
+## Local Browser Validation Authorization
+
+Agents run the documented E2E tests, screenshot commands, and series captures without asking for confirmation.
+This authorization includes localhost requests and fixture reads/writes in dedicated local-dev test accounts.
+It also includes launching the browser and writing generated screenshots inside the repository.
+These actions are exempt from the confirmation rules below.
+The user must still start the dev server; if it is unavailable, ask the user to start it.
+Production access, migrations, and changes to personal accounts are not covered by this authorization.
+
 ## Require Confirmation
 
 - Any server, REPL, watcher, or long-running process
@@ -367,14 +376,13 @@ Testing philosophy
   (same routes, same viewports, same wait conditions = frames that line up for
   a timelapse).
 
-  **Before making UI edits, ask the user to run `just e2e-shot-series` and wait
-  for the baseline result.** Do not silently start the user's dev server. A
-  prior successful tick from the current source state counts; the user can
-  explicitly waive the baseline. Tell the user that the command creates or
-  advances the dedicated local-dev series account. If the working tree is
-  already dirty, ask whether those existing changes belong in the baseline
-  rather than assuming they do. Dirty captures are supported and record the
-  status plus a source fingerprint in metadata.
+  **Before making UI edits, run `just e2e-shot-series` yourself and wait for the baseline result.**
+  Do not ask the user to run or approve local browser validation.
+  Do not start the user's dev server.
+  A prior successful tick from the current source state counts; the user can explicitly waive the baseline.
+  The command creates or advances the dedicated local-dev series account under the authorization above.
+  When the working tree is dirty, capture its current state and report that fact.
+  Dirty captures record status and a source fingerprint in metadata.
 
   Run another tick before committing UI changes — even if you think nothing
   visible moved. This is how the progression archive gets a regular heartbeat

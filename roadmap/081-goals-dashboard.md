@@ -205,7 +205,8 @@ Use full targets for partial first/last weeks and identify those periods as part
 Open-ended totals count from starts-on, never reset, and have no required rate or even-pace difference.
 Use the version 08 formulas for applicable numeric goals and guard zero elapsed days, zero totals, expired goals, and reached targets.
 Use bounded last-28-day activity, including today, for the open-ended supporting panel.
-Keep missing source coverage distinct from confirmed zero activity.
+Use logged data as authoritative for current-goal progress and pace.
+Days without logs contribute zero; current goals require no coverage metadata.
 
 Book calculations:
 
@@ -542,3 +543,34 @@ Validation:
 
 The full unrelated E2E suite and query-plan/latency profiling were not run for this scoped change.
 No commit, push, deployment, production migration, or server restart was performed.
+
+## Logged-data assumption (2026-09-15)
+
+User review supersedes the earlier current-window coverage requirement.
+Current numeric goals use logged data directly, including zero activity on days without logs.
+Averages and required pace retain completed-day accounting; totals and charts include eligible activity today.
+Best-performance goals remain unset until a qualifying record exists.
+Historical comparisons retain their separate coverage requirements.
+
+Removed the current-goal coverage warning and the metadata dependency in progress calculations.
+Regression tests cover empty histories, skipped logging days, completed-day rates, and dashboard integration.
+Browser checks verify visible pace values and chart guides without coverage metadata.
+
+Multi-year ranges now show both years in table rows and numeric/book chart headings.
+Same-year closed ranges retain compact month/day labels.
+Weekly ranges crossing New Year also show both years.
+The E2E fixture verifies a three-year range in the table and chart, with mobile overflow checks.
+
+Validation:
+
+- Calculator regression tests failed against the previous coverage requirement, then passed after the change.
+- `just lint-fast`, `just check`, and `just validate` passed: 158 tests, 1,349 assertions, no failures or errors.
+  Lint retained 24 existing warnings outside the changed files.
+- Goals E2E passed with visible averages, required pace, chart guides, and multi-year labels.
+  The before run captured baseline screenshots but failed at its obsolete assertion that pace guides must be absent.
+- Desktop and mobile screenshots were visually reviewed.
+- Baseline series: `e2e/screenshots/series/2026-09-15T21-18-12Z/`, 64/64 frames.
+  This dirty baseline included the calculation fix prepared before UI edits.
+- The full unrelated E2E suite and query profiling were not run for this scoped change.
+- Final series: `e2e/screenshots/series/2026-09-15T21-25-18Z/`, 64/64 frames.
+- `git diff --check` passed.

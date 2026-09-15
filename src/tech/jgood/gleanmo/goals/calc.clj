@@ -258,79 +258,70 @@
                        init
                        (dates start through))))))
 
-(declare covered?)
-
 (defn- observed-amount
-  [daily best? complete?]
+  [daily best?]
   (if best?
     (some->> (vals daily) seq (apply max) double)
-    (when (or complete? (seq daily))
-      (double (reduce + 0 (vals daily))))))
+    (double (reduce + 0 (vals daily)))))
 
 (defn numeric-progress
   "Progress through as-of, an Instant or a date-only midnight snapshot.
    Totals and charts include today's eligible activity. Pace uses records
    completed by local midnight, attributed only to completed days.
    Required pace and even-pace difference use that same completed-day amount.
-   Coverage contains explicit complete date ranges; unknown coverage suppresses
-   pace estimates and leaves empty totals unknown. Best goals have no rates."
-  ([goal m records as-of]
-   (numeric-progress goal m records as-of nil))
-  ([goal m records as-of coverage]
-   (let [zone (zone-of goal)
-         {:keys [now today midnight observed-through]} (accounting-clock goal as-of)
-         {:keys [start end through status completed-days remaining-days total-days]
-          :as w} (window goal today)
-         observed-through (if end (min-date end observed-through) observed-through)
-         from (day-start start zone)
-         to (if end (min-inst (day-start (plus-days end 1) zone) now) now)
-         completed-to (min-inst to midnight)
-         records (scoped-records goal m records)
-         daily (if (.isBefore from to)
-                 (daily-values m records zone from to now) (sorted-map))
-         completed-daily (if (.isBefore from completed-to)
-                           (daily-values m records zone from completed-to midnight)
-                           (sorted-map))
-         complete? (covered? coverage (assoc w :through observed-through))
-         pace-complete? (and complete? (covered? coverage w))
-         best? (= :best (:aggregation m))
-         target (double (:goal/target goal))
-         logged (observed-amount daily best? complete?)
-         completed-logged (observed-amount completed-daily best? pace-complete?)
-         amount (or logged 0.0)
-         completed-amount (or completed-logged 0.0)
-         reached? (>= amount target)
-         paced? (and pace-complete? (not best?) (not= :open-ended (:goal/timing goal)))
-         average (when (and pace-complete? (not best?) (pos? completed-days))
-                   (/ completed-amount completed-days))
-         required (when (and paced? (= :active status) (not reached?)
-                             (pos? (or remaining-days 0)))
-                    (/ (max 0.0 (- target completed-amount)) remaining-days))
-         step (threshold-step goal m)
-         series (progress-series daily start through (or best? (nil? logged)))
-         partial-today? (and (not (.isBefore today start))
-                             (or (nil? end) (not (.isAfter today end)))
-                             (.isAfter now midnight))]
-     {:coverage (if complete? :complete :unknown)
-      :window w
-      :daily daily
-      :logged logged
-      :completed-logged completed-logged
-      :today-logged (get daily today)
-      :target target
-      :remaining (max 0.0 (- target amount))
-      :progress (when (some? logged) (/ amount target))
-      :reached? reached?
-      :average average
-      :required required
-      :ratio (when (and required average (pos? average)) (/ required average))
-      :pace-days (when (and paced? total-days (pos? completed-days))
-                   (- (* (/ completed-amount target) total-days) completed-days))
-      :even-pace (when (and paced? total-days) (/ completed-days total-days))
-      :next (when-not reached?
-              (min target (* step (inc (Math/floor (/ (+ amount 1e-9) step))))))
-      :series (cond-> series
-                partial-today? (conj [(.toLocalDateTime (.atZone now zone)) logged]))})))
+   Logged data is authoritative; days without logs contribute zero.
+   Best goals have no rates and remain unset until a performance is recorded."
+  [goal m records as-of]
+  (let [zone (zone-of goal)
+        {:keys [now today midnight]} (accounting-clock goal as-of)
+        {:keys [start end through status completed-days remaining-days total-days]
+         :as w} (window goal today)
+        from (day-start start zone)
+        to (if end (min-inst (day-start (plus-days end 1) zone) now) now)
+        completed-to (min-inst to midnight)
+        records (scoped-records goal m records)
+        daily (if (.isBefore from to)
+                (daily-values m records zone from to now) (sorted-map))
+        completed-daily (if (.isBefore from completed-to)
+                          (daily-values m records zone from completed-to midnight)
+                          (sorted-map))
+        best? (= :best (:aggregation m))
+        target (double (:goal/target goal))
+        logged (observed-amount daily best?)
+        completed-logged (observed-amount completed-daily best?)
+        amount (or logged 0.0)
+        completed-amount (or completed-logged 0.0)
+        reached? (>= amount target)
+        paced? (and (not best?) (not= :open-ended (:goal/timing goal)))
+        average (when (and (not best?) (pos? completed-days))
+                  (/ completed-amount completed-days))
+        required (when (and paced? (= :active status) (not reached?)
+                            (pos? (or remaining-days 0)))
+                   (/ (max 0.0 (- target completed-amount)) remaining-days))
+        step (threshold-step goal m)
+        series (progress-series daily start through (or best? (nil? logged)))
+        partial-today? (and (not (.isBefore today start))
+                            (or (nil? end) (not (.isAfter today end)))
+                            (.isAfter now midnight))]
+    {:window w
+     :daily daily
+     :logged logged
+     :completed-logged completed-logged
+     :today-logged (get daily today)
+     :target target
+     :remaining (max 0.0 (- target amount))
+     :progress (when (some? logged) (/ amount target))
+     :reached? reached?
+     :average average
+     :required required
+     :ratio (when (and required average (pos? average)) (/ required average))
+     :pace-days (when (and paced? total-days (pos? completed-days))
+                  (- (* (/ completed-amount target) total-days) completed-days))
+     :even-pace (when (and paced? total-days) (/ completed-days total-days))
+     :next (when-not reached?
+             (min target (* step (inc (Math/floor (/ (+ amount 1e-9) step))))))
+     :series (cond-> series
+               partial-today? (conj [(.toLocalDateTime (.atZone now zone)) logged]))}))
 
 (defn recent-activity
   "Observed total or maximum over `days` calendar days including today.

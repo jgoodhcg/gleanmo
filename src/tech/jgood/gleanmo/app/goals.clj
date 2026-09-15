@@ -51,6 +51,13 @@
 (defn- short-date [d] (fmt-date d "MMM d"))
 (defn- long-date [d] (fmt-date d "MMMM d, yyyy"))
 
+(defn- date-span
+  "Compact range with explicit years across year boundaries or an open end."
+  [^LocalDate start ^LocalDate end]
+  (let [pattern (if (and start end (= (.getYear start) (.getYear end)))
+                  "MMM d" "MMM d, yyyy")]
+    (str (fmt-date start pattern) " – " (if end (fmt-date end pattern) "today"))))
+
 (defn- fmt-num
   "At most one decimal place, grouped thousands, no trailing .0."
   [x]
@@ -119,7 +126,7 @@
     :open-ended (str "No deadline · since " (short-date (:goal/starts-on goal)))
     :weekly     (str "Weekly · resets Monday"
                      (when-let [e (:goal/ends-on goal)] (str " · until " (short-date e))))
-    (str (short-date (:goal/starts-on goal)) " – " (short-date (:goal/ends-on goal)))))
+    (date-span (:goal/starts-on goal) (:goal/ends-on goal))))
 
 (defn- kind-of [{:keys [measurement]}] (name (:kind measurement)))
 
@@ -329,7 +336,7 @@
      "No goals match. Try another name or goal type."]]
    [:div {:class "flex justify-between gap-3 border-t border-dark px-4 py-1.5 text-xs text-gray-400"}
     [:span [:i {:class "mr-1.5 inline-block h-2.5 w-0.5 bg-white align-middle"}]
-     "Even pace requires complete coverage · each goal uses its saved time zone"]
+     "Days without logs count as zero · each goal uses its saved time zone"]
     [:span.hidden.sm:inline "No deadline = no required pace · select a goal to explore"]]])
 
 ;; ---------------------------------------------------------------------------
@@ -523,7 +530,7 @@
       (= :open-ended (:goal/timing goal))
       (str "counting since " (long-date start))
       (= :weekly (:goal/timing goal))
-      (str (short-date start) "–" (short-date end) (when partial? " · partial week"))
+      (str (date-span start end) (when partial? " · partial week"))
       :else (str (if best? "best within " "by ") (long-date end)))))
 
 (defn- numeric-summary
@@ -539,17 +546,14 @@
        (str (source-line entry) " · " (if best? "Best performance" (:label m)))]
       [:div {:class "mt-2 text-3xl font-semibold tabular-nums text-white"}
        (if (nil? logged)
-         (if best? "No record yet" "Coverage unknown")
+         "No record yet"
          (amount m logged))
        [:span {:class "ml-3 text-sm font-normal text-gray-400"}
         (str "of " (amount m target))]]
       [:p.mt-1.text-xs.text-gray-400
        (str (when-let [fraction (:progress progress)]
               (str (fmt-num (* 100 fraction)) "% " (if best? "of target" "recorded") " · "))
-            (window-caption goal progress best?))]
-      (when (= :unknown (:coverage progress))
-        [:p.mt-2.text-xs.text-neon-amber
-         "Coverage is incomplete or unknown. Recorded values are shown; pace estimates are unavailable."])]
+            (window-caption goal progress best?))]]
      [:div {:class "grid grid-cols-1 gap-4 border-t border-dark pt-4 sm:grid-cols-3 lg:border-t-0 lg:pt-0 lg:items-center"}
       (cond
         (and open? (not best?))
@@ -580,7 +584,7 @@
                  (case status
                    :ended       "The goal period has ended"
                    :not-started "Not started yet"
-                   (if (= :unknown (:coverage progress)) "Coverage unknown" "Target reached"))))
+                   "Target reached")))
          (stat "Next threshold" (if next (amount m (- next (or logged 0))) "—")
                (when next (str "to " (amount m next))))])]]))
 
@@ -589,13 +593,12 @@
   (let [{:keys [start end]} (:window progress)]
     (cond
       (= :best (:aggregation measurement))
-      (str "Best performance · " (short-date start) " – "
-           (if end (short-date end) "today"))
+      (str "Best performance · " (date-span start end))
       (= :open-ended (:goal/timing goal))
-      (str "Cumulative progress · " (short-date start) " – today · no deadline")
+      (str "Cumulative progress · " (date-span start nil) " · no deadline")
       (= :weekly (:goal/timing goal))
-      (str "This calendar week · " (short-date start) "–" (short-date end))
-      :else (str "Cumulative progress · " (short-date start) " – " (short-date end)))))
+      (str "This calendar week · " (date-span start end))
+      :else (str "Cumulative progress · " (date-span start end)))))
 
 (defn- chart-readout
   [{:keys [goal measurement progress]}]
@@ -837,8 +840,8 @@
          (book-controls entry measure)
          [:div.mb-1.text-xs.text-gray-400
           (str (measure-labels measure) " position · "
-               (short-date (:goal/starts-on (:goal entry))) " – "
-               (if-let [e (get-in entry [:goal :goal/ends-on])] (short-date e) "today"))]
+               (date-span (get-in entry [:goal :goal/starts-on])
+                          (get-in entry [:goal :goal/ends-on])))]
          (chart-block "goal-chart" (book-chart entry measure cutoff-date)
                       (str (get-in entry [:goal :goal/label]) ": recorded "
                            (str/lower-case (measure-labels measure)) " positions"))

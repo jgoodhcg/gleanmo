@@ -173,6 +173,12 @@ async function main() {
     await expect(detail).toContainText('Reading time');
     await expect(detail).toContainText('1.5 h');
     await expect(detail.locator('#goal-chart canvas')).toBeVisible({ timeout: 10000 });
+    await expect(detail).not.toContainText('Coverage');
+    await expect(detail).toContainText('12.9 min/day');
+    await expect(detail).toContainText('16.5 min/day');
+    const initialChart = JSON.parse((await page.locator('#goal-chart-data').textContent())!);
+    expect(initialChart.series.map((series: { name: string }) => series.name))
+      .toEqual(expect.arrayContaining(['Even pace', 'Required at day start']));
     console.log('  [+] Dashboard shows 1.5 h logged with a chart');
 
     // ── 4. Book completion goal ──
@@ -294,7 +300,7 @@ async function main() {
 
     // Today's eligible interval updates totals, chart, book position, and activity.
     // Use seconds so this remains valid even during the first minute of a UTC day.
-    console.log('\n8. Counting today without inventing pace coverage...');
+    console.log('\n8. Counting today while pace uses completed days...');
     const requestTime = new Date();
     const currentDay = requestTime.toISOString().slice(0, 10);
     const endTime = new Date(Math.floor(requestTime.getTime() / 1000) * 1000);
@@ -319,10 +325,11 @@ async function main() {
     expect(logged.data.at(-1)[1]).toBeCloseTo(3 + secondsToday / 3600, 5);
     expect(logged.data.at(-1)[0]).toContain(currentDay);
     expect(new Date(logged.data.at(-1)[0]).getTime()).toBeLessThanOrEqual(new Date(chart.xAxis.max).getTime());
-    expect(chart.series.some((series: { name: string }) => /pace|Required/.test(series.name))).toBe(false);
+    expect(chart.series.some((series: { name: string }) => series.name === 'Even pace')).toBe(true);
     await expect(page.getByText('Totals include today · rates use completed days · each goal uses its saved time zone')).toBeVisible();
     await expect(detail).toContainText('Average per completed day');
-    await expect(detail).toContainText('pace estimates are unavailable');
+    await expect(detail).not.toContainText('pace estimates are unavailable');
+    await expect(detail).not.toContainText('Coverage unknown');
     await expect(detail.locator('header [data-goal-actions]')).toBeVisible();
     await expect(detail.locator('[data-goal-actions]')).toHaveCount(1);
     const cardBox = (await detail.boundingBox())!;
@@ -340,7 +347,7 @@ async function main() {
     const positions = bookChart.series.find((series: { type: string }) => series.type === 'scatter');
     expect(positions.data.at(-1)[1]).toBe(250);
     expect(positions.data.at(-1)[0]).toContain(currentDay);
-    console.log('  [+] Today updates numeric and book charts; future ends and unsupported pace stay excluded');
+    console.log('  [+] Today updates numeric and book charts; future ends stay excluded');
 
     // ── 9. Archive and restore ──
     console.log('\n8. Archiving and restoring...');
@@ -359,6 +366,17 @@ async function main() {
     ]);
     await expect(page.locator('[data-goals-count]')).toHaveText('2 / 2');
     console.log('  [+] Archive hides the goal; restore brings it back');
+
+    // Multi-year labels include years in both the table and chart heading.
+    const year = Number(today.slice(0, 4));
+    form = await openEditor(page, `/app/goal/${goalId}/edit`);
+    await form.locator('[name="starts-on"]').fill(`${year - 2}-09-14`);
+    await form.locator('[name="ends-on"]').fill(`${year + 1}-09-16`);
+    await submitForm(form, `/app/goal/${goalId}`);
+    const span = `Sep 14, ${year - 2} – Sep 16, ${year + 1}`;
+    await expect(page.locator('tr[data-goal-row]', { hasText: 'Reading time' })).toContainText(span);
+    await expect(detail).toContainText(`Cumulative progress · ${span}`);
+    await captureScreenshot(page, '07-multi-year');
 
     // ── 10. Mobile ──
     console.log('\n9. Mobile layout...');
