@@ -16,6 +16,39 @@ Implement the approved goals dashboard using actual user records.
 Support duration totals, counts, best performances, and explicit book completion.
 This document is the implementation handoff; the planning session must not implement it.
 
+## Current status (2026-09-15)
+
+The core dashboard and code-review fixes are implemented.
+The user tested a sample of features and reported that everything tried appeared to work.
+This is partial hands-on confirmation; it does not establish exhaustive flow coverage or query performance.
+The unit remains active until final verification and follow-up disposition are complete.
+
+### Remaining verification
+
+- [ ] Inspect query plans and measure latency with production-sized local test fixtures.
+- [ ] Run the full E2E suite before shipping.
+
+### Feature and usability follow-ups
+
+- [ ] Historical comparisons: coverage entry, prior-year chart series, and year-selection controls.
+  Known-coverage calculations and rendering already have fixture coverage.
+- [ ] Keyboard navigation between activity cells.
+- [ ] Edit controls in individual goal table rows.
+- [ ] Resolve or separately track the remaining dogfood feedback before archiving this work unit.
+  Duplicate merging already belongs to [042](./042-entity-merge.md).
+  Grouped selects elsewhere and hands-on familiarization exercises remain optional follow-ups.
+
+### Book-goal behavior clarified during review
+
+Reading logs can record pages, chapters, and audio positions independently or together.
+The goal saves one chart measure at a time; dashboard controls can change it.
+Book records store total pages, total chapters, and audiobook duration.
+Without the matching total, recorded positions remain visible; percentages, total lines, and pace guides are omitted.
+An eligible reading log marked finished completes the goal independently of its chart measure.
+Completed goals show a green completion label and completion date; late completion is identified.
+They remain in the main table until manually archived.
+Archiving is optional and reversible; the archived section provides Edit and Restore, with charts available after restoration.
+
 ## Design reference and precedence
 
 - Approved mock: [version 10](../mockups/2026-09-motivating-dashboards/codex/mockup-codex-10-goals-dashboard.html).
@@ -250,23 +283,27 @@ Empty goals offer creation; unavailable measurements explain what is missing rat
 
 Follow AGENTS.md's validation levels, test namespace registration, and E2E discovery conventions.
 Add tests for behavior rather than snapshots of implementation structure.
+Checked items reflect the recorded implementation validation below, not a new test run during this roadmap update.
 
-- [ ] Aliases: positive rejects zero/negative/fractional; nonnegative accepts zero and rejects negative/fractional; existing documents still validate.
-- [ ] CRUD: aliases render/convert/format correctly; blank optional fields clear correctly; untouched fields survive edits; relationship sets still resolve.
-- [ ] Duration input: integer seconds and H:MM:SS round-trip, including hours above 23; malformed values fail without writes.
-- [ ] Reading: all measures coexist; missing endpoints, backward positions, and positions above totals remain valid; ebook saves and reloads.
-- [ ] Goals: validate the allowlist, target types, empty/wrong-owner filters, single-book completion, dates, timezone, and archive behavior.
-- [ ] Calculations: overlap union, DST split, weekly resets, partial weeks, zero/future/ended/reached states, rep sums, attempts defaults, and unit conversion.
-- [ ] Book completion: 100% without finished remains incomplete; finished below total completes; corrections recalculate; late completion remains visible.
-- [ ] Book charts: latest rather than maximum, missing values/totals, solid versus dotted links, unchanged point counts, and independent measures.
-- [ ] Queries: owner isolation, visibility, parent scope, and bounded chart/history requests; inspect representative query plans using local test data.
-- [ ] Comparisons: unknown coverage shows unavailable; known fixtures align windows and reconcile totals for each selected year.
-- [ ] Register new unit namespaces in `test/tech/jgood/gleanmo/test.clj`.
-- [ ] Add `e2e/scripts/test-goals.ts` and package script `test:goals`; extend reading CRUD tests for positions and completion.
-- [ ] E2E: create/edit/archive a goal, change its source data, verify the redirected dashboard, filter/select goals, and persist book preferences.
-- [ ] Add `/app/goals` to `e2e/scripts/manifest.ts` and smoke navigation coverage.
-- [ ] Capture before/after desktop and mobile screenshots; compare against version 10 and inspect chart labels, keyboard controls, and table overflow.
-- [ ] Run relevant namespace tests, `just validate`, reading/goals E2E, and required visual-series captures before requesting an implementation commit.
+- [x] Aliases: positive rejects zero/negative/fractional; nonnegative accepts zero and rejects negative/fractional; existing documents still validate.
+- [x] CRUD: aliases render/convert/format correctly; blank optional fields clear correctly; untouched fields survive edits; relationship sets still resolve.
+- [x] Duration input: integer seconds and H:MM:SS round-trip, including hours above 23; malformed values fail without writes.
+- [x] Reading: all measures coexist; missing endpoints, backward positions, and positions above totals remain valid; ebook saves and reloads.
+- [x] Goals: validate the allowlist, target types, empty/wrong-owner filters, single-book completion, dates, timezone, and archive behavior.
+- [x] Calculations: overlap union, DST split, weekly resets, partial weeks, zero/future/ended/reached states, rep sums, attempts defaults, and unit conversion.
+- [x] Book completion: 100% without finished remains incomplete; finished below total completes; corrections recalculate; late completion remains visible.
+- [x] Book charts: latest rather than maximum, missing values/totals, solid versus dotted links, unchanged point counts, and independent measures.
+- [x] Queries: owner isolation, visibility, parent scope, and bounded chart/history requests.
+- [ ] Inspect representative query plans and measure latency using production-sized local test fixtures.
+- [x] Comparisons: unknown coverage shows unavailable; known fixtures exercise calendar alignment and comparison rendering.
+- [ ] Validate prior-year chart series and year-selection controls after implementing those follow-ups.
+- [x] Register new unit namespaces in `test/tech/jgood/gleanmo/test.clj`.
+- [x] Add `e2e/scripts/test-goals.ts` and package script `test:goals`; extend reading CRUD tests for positions and completion.
+- [x] E2E: create/edit/archive a goal, change its source data, verify the redirected dashboard, filter/select goals, and persist book preferences.
+- [x] Add `/app/goals` to `e2e/scripts/manifest.ts` and smoke navigation coverage.
+- [x] Capture before/after desktop and mobile screenshots; compare against version 10 and inspect chart labels and table overflow.
+- [ ] Implement and validate activity-cell keyboard navigation.
+- [x] Run relevant namespace tests, `just validate`, reading/goals E2E, and required visual-series captures before requesting an implementation commit.
 
 ## Development test coverage (2026-09-15)
 
@@ -299,7 +336,8 @@ Production-sized query plans, latency, and final browser regression checks remai
 
 ## Implementation status (2026-09-14)
 
-A first implementation exists and awaits user review; expect iteration.
+Historical checkpoint: a first implementation existed and awaited user review.
+The current status above incorporates subsequent fixes and hands-on feedback.
 
 - Per-goal routes live under `/app/goal/:id/...`.
   Reitit rejects `/app/goals/new` beside `/app/goals/:id`.
@@ -329,7 +367,7 @@ Resolve each item, or move it to another work unit, before archiving this unit.
   The editor's `<optgroup>` headings are a new pattern in the app, and the user liked them.
   Consider them for other long fixed lists.
 - [ ] Hands-on familiarization exercises, deferred until the dashboard stabilizes.
-  Outline: read the registry; predict `calc/numeric-progress` output in the REPL; inspect real `dashboard/dashboard` data; implement "count today" with the test first.
+  Outline: read the registry; predict `calc/numeric-progress` output in the REPL; inspect real `dashboard/dashboard` data; review the completed "count today" change and its boundary tests.
 - [x] Time zone default.
   It works as designed; the account had an unexpected time zone set.
 
