@@ -8,9 +8,9 @@
    and the version 08–10 data contracts in
    mockups/2026-09-motivating-dashboards/codex/.
 
-   One cutoff governs every value: `cutoff-date` is today in the user's time
-   zone, and only days before it count (completed-day accounting). Records at
-   or after local midnight starting today are excluded."
+   Totals include eligible records through one captured request instant.
+   Pace calculations retain the completed-day cutoff in each goal's zone.
+   A LocalDate input denotes midnight starting that date, for date-only reads."
   (:import
    [java.time DayOfWeek Duration Instant LocalDate YearMonth ZoneId]
    [java.time.temporal ChronoUnit IsoFields TemporalAdjusters]))
@@ -51,6 +51,18 @@
 (defn- min-inst [^Instant a ^Instant b] (if (.isBefore a b) a b))
 (defn- max-inst [^Instant a ^Instant b] (if (.isAfter a b) a b))
 
+(defn accounting-clock
+  "Resolve an Instant, or a date-only midnight snapshot, in the goal's zone.
+   Returns the current instant, local date, completed-day cutoff, and last
+   observed date. At exact midnight, the last observed date is yesterday."
+  [goal as-of]
+  (let [zone (zone-of goal)
+        now (if (instance? LocalDate as-of) (day-start as-of zone) as-of)
+        today (local-date now zone)
+        midnight (day-start today zone)]
+    {:now now :today today :midnight midnight
+     :observed-through (if (= now midnight) (plus-days today -1) today)}))
+
 (defn dates
   "Every date from `from` through `through`, inclusive."
   [^LocalDate from ^LocalDate through]
@@ -71,8 +83,8 @@
 
    `:through` is the last completed day counted, `:completed-days` how many
    days of the period are complete, `:remaining-days` how many are left
-   (including today). `:status` is the goal's: `:not-started` until a day of
-   it has completed, `:ended` once its last day has."
+   (including today). Status is `:not-started` before the start date and
+   `:ended` once the last day has completed."
   [{:goal/keys [timing starts-on ends-on]} ^LocalDate cutoff-date]
   (let [last-done (plus-days cutoff-date -1)
         [start end partial?]
@@ -101,7 +113,7 @@
      :total-days     total
      :remaining-days (when total (- total completed))
      :status         (cond
-                       (not (.isAfter cutoff-date starts-on))        :not-started
+                       (.isBefore cutoff-date starts-on)             :not-started
                        (and ends-on (.isAfter cutoff-date ends-on)) :ended
                        :else                                         :active)}))
 
@@ -248,97 +260,109 @@
 
 (declare covered?)
 
-(defn numeric-progress
-  "Progress of a total or best goal as of `cutoff-date`.
+(defn- observed-amount
+  [daily best? complete?]
+  (if best?
+    (some->> (vals daily) seq (apply max) double)
+    (when (or complete? (seq daily))
+      (double (reduce + 0 (vals daily))))))
 
-   Rates follow the version 08 formulas: average = logged ÷ completed days;
-   required = max(0, target − logged) ÷ remaining days; ratio = required ÷
-   average; even-pace difference = (logged ÷ target × period days) −
-   completed days. Each is nil where it has no meaning — best goals,
-   open-ended goals, zero completed days, zero averages, ended goals — so the
-   view never shows NaN, Infinity, or an invented zero.
-   Coverage is a collection of known-complete date ranges, or nil for unknown.
-   Unknown coverage suppresses pace rates and leaves an empty total unknown."
-  ([goal m records cutoff-date]
-   (numeric-progress goal m records cutoff-date nil))
-  ([goal m records cutoff-date coverage]
-   (let [zone     (zone-of goal)
-         {:keys [start end through status completed-days remaining-days
-                 total-days]
-          :as   w} (window goal cutoff-date)
-         cutoff   (day-start cutoff-date zone)
-         from     (day-start start zone)
-         to       (if end (min-inst (day-start (plus-days end 1) zone) cutoff) cutoff)
-         daily    (if (.isBefore from to)
-                    (daily-values m (scoped-records goal m records) zone from to cutoff)
-                    (sorted-map))
-         complete? (covered? coverage w)
-         best?    (= :best (:aggregation m))
-         target   (double (:goal/target goal))
-         logged   (if best?
-                    (some->> (vals daily) seq (apply max) double)
-                    (when (or complete? (seq daily))
-                      (double (reduce + 0 (vals daily)))))
-         amount   (or logged 0.0)
+(defn numeric-progress
+  "Progress through as-of, an Instant or a date-only midnight snapshot.
+   Totals and charts include today's eligible activity. Pace uses records
+   completed by local midnight, attributed only to completed days.
+   Required pace and even-pace difference use that same completed-day amount.
+   Coverage contains explicit complete date ranges; unknown coverage suppresses
+   pace estimates and leaves empty totals unknown. Best goals have no rates."
+  ([goal m records as-of]
+   (numeric-progress goal m records as-of nil))
+  ([goal m records as-of coverage]
+   (let [zone (zone-of goal)
+         {:keys [now today midnight observed-through]} (accounting-clock goal as-of)
+         {:keys [start end through status completed-days remaining-days total-days]
+          :as w} (window goal today)
+         observed-through (if end (min-date end observed-through) observed-through)
+         from (day-start start zone)
+         to (if end (min-inst (day-start (plus-days end 1) zone) now) now)
+         completed-to (min-inst to midnight)
+         records (scoped-records goal m records)
+         daily (if (.isBefore from to)
+                 (daily-values m records zone from to now) (sorted-map))
+         completed-daily (if (.isBefore from completed-to)
+                           (daily-values m records zone from completed-to midnight)
+                           (sorted-map))
+         complete? (covered? coverage (assoc w :through observed-through))
+         pace-complete? (and complete? (covered? coverage w))
+         best? (= :best (:aggregation m))
+         target (double (:goal/target goal))
+         logged (observed-amount daily best? complete?)
+         completed-logged (observed-amount completed-daily best? pace-complete?)
+         amount (or logged 0.0)
+         completed-amount (or completed-logged 0.0)
          reached? (>= amount target)
-         paced?   (and complete? (not best?) (not= :open-ended (:goal/timing goal)))
-         average  (when (and complete? (not best?) (pos? completed-days))
-                    (/ amount completed-days))
+         paced? (and pace-complete? (not best?) (not= :open-ended (:goal/timing goal)))
+         average (when (and pace-complete? (not best?) (pos? completed-days))
+                   (/ completed-amount completed-days))
          required (when (and paced? (= :active status) (not reached?)
                              (pos? (or remaining-days 0)))
-                    (/ (max 0.0 (- target amount)) remaining-days))
-         step     (threshold-step goal m)]
-     {:coverage     (if complete? :complete :unknown)
-      :window       w
-      :daily        daily
-      :logged       logged
-      :target       target
-      :remaining    (max 0.0 (- target amount))
-      :progress     (when (some? logged) (/ amount target))
-      :reached?     reached?
-      :average      average
-      :required     required
-      :ratio        (when (and required average (pos? average))
-                      (/ required average))
-      :pace-days    (when (and paced? total-days (not= :not-started status))
-                      (- (* (/ amount target) total-days) completed-days))
-      :even-pace    (when (and paced? total-days)
-                      (/ completed-days total-days))
-      :next         (when-not reached?
-                      (min target
-                           (* step (inc (Math/floor (/ (+ amount 1e-9) step))))))
-      :series       (progress-series daily start through (or best? (nil? logged)))})))
+                    (/ (max 0.0 (- target completed-amount)) remaining-days))
+         step (threshold-step goal m)
+         series (progress-series daily start through (or best? (nil? logged)))
+         partial-today? (and (not (.isBefore today start))
+                             (or (nil? end) (not (.isAfter today end)))
+                             (.isAfter now midnight))]
+     {:coverage (if complete? :complete :unknown)
+      :window w
+      :daily daily
+      :logged logged
+      :completed-logged completed-logged
+      :today-logged (get daily today)
+      :target target
+      :remaining (max 0.0 (- target amount))
+      :progress (when (some? logged) (/ amount target))
+      :reached? reached?
+      :average average
+      :required required
+      :ratio (when (and required average (pos? average)) (/ required average))
+      :pace-days (when (and paced? total-days (pos? completed-days))
+                   (- (* (/ completed-amount target) total-days) completed-days))
+      :even-pace (when (and paced? total-days) (/ completed-days total-days))
+      :next (when-not reached?
+              (min target (* step (inc (Math/floor (/ (+ amount 1e-9) step))))))
+      :series (cond-> series
+                partial-today? (conj [(.toLocalDateTime (.atZone now zone)) logged]))})))
 
 (defn recent-activity
-  "Recent observed total or maximum over `days` completed days, plus the
-   number of active days. Best performances never add. Days before starts-on do
-   not count, since they do not count toward the goal."
-  [goal m records cutoff-date days]
-  (let [zone  (zone-of goal)
-        from  (max-date (:goal/starts-on goal) (plus-days cutoff-date (- days)))
-        daily (if (.isBefore ^LocalDate from ^LocalDate cutoff-date)
+  "Observed total or maximum over `days` calendar days including today.
+   At a midnight snapshot, the window ends yesterday. Days before starts-on
+   do not count. Best performances never add."
+  [goal m records as-of days]
+  (let [zone (zone-of goal)
+        {:keys [now observed-through]} (accounting-clock goal as-of)
+        from (max-date (:goal/starts-on goal) (plus-days observed-through (- 1 days)))
+        daily (if (.isBefore (day-start from zone) now)
                 (daily-values m (scoped-records goal m records) zone
-                              (day-start from zone) (day-start cutoff-date zone))
+                              (day-start from zone) now now)
                 {})]
-    {:from        from
-     :through     (plus-days cutoff-date -1)
-     :amount      (if (= :best (:aggregation m))
-                    (some->> (vals daily) seq (apply max))
-                    (reduce + 0 (vals daily)))
+    {:from from
+     :through observed-through
+     :amount (if (= :best (:aggregation m))
+               (some->> (vals daily) seq (apply max))
+               (reduce + 0 (vals daily)))
      :active-days (count (filter pos? (vals daily)))}))
 
 (defn history
-  "Daily presence for the `days` completed days before `cutoff-date`,
-   including days before the goal started: this is an activity view, not a
-   contribution to the total. Each entry is `{:date :value}` with a nil
-   value for a day with nothing logged."
-  [goal m records cutoff-date days]
-  (let [zone  (zone-of goal)
-        from  (plus-days cutoff-date (- days))
+  "Daily presence over `days` calendar days including today, as of one instant.
+   Date-only midnight snapshots end yesterday. Includes activity before the
+   goal started; missing recorded values remain nil."
+  [goal m records as-of days]
+  (let [zone (zone-of goal)
+        {:keys [now observed-through]} (accounting-clock goal as-of)
+        from (plus-days observed-through (- 1 days))
         daily (daily-values m (scoped-records goal m records) zone
-                            (day-start from zone) (day-start cutoff-date zone))]
-    (mapv (fn [d] {:date d, :value (get daily d)})
-          (dates from (plus-days cutoff-date -1)))))
+                            (day-start from zone) now now)]
+    (mapv (fn [d] {:date d :value (get daily d)})
+          (dates from observed-through))))
 
 ;; ---------------------------------------------------------------------------
 ;; Book completion
@@ -395,21 +419,22 @@
    finish stays visible. The first eligible log marked finished completes the
    goal on its end date; reaching a book total never does, and removing the
    flag later un-completes it."
-  [goal book logs cutoff-date]
+  [goal book logs as-of]
   (let [zone     (zone-of goal)
         from     (day-start (:goal/starts-on goal) zone)
-        cutoff   (day-start cutoff-date zone)
+        {:keys [now today]} (accounting-clock goal as-of)
+        cutoff now
         eligible (->> logs
                       (filter (fn [{:reading-log/keys [end]}]
                                 (and end
                                      (not (.isBefore ^Instant end from))
-                                     (.isBefore ^Instant end cutoff))))
+                                     (not (.isAfter ^Instant end cutoff)))))
                       (sort-by (juxt :reading-log/end (comp str :xt/id)))
                       vec)
         finished (first (filter #(true? (:reading-log/finished? %)) eligible))
         ends-on  (:goal/ends-on goal)
         done-on  (some-> finished :reading-log/end (local-date zone))
-        w        (window goal cutoff-date)]
+        w        (window goal today)]
     {:window     w
      :logs       eligible
      :completion (when finished
@@ -417,7 +442,7 @@
                     :log-id (:xt/id finished)
                     :late?  (boolean (and ends-on (.isAfter ^LocalDate done-on ends-on)))})
      :overdue?   (boolean (and (nil? finished) ends-on
-                               (.isAfter ^LocalDate cutoff-date ends-on)))
+                               (.isAfter ^LocalDate today ends-on)))
      :time-spent (reduce + 0 (vals (daily-seconds
                                     (keep #(interval {:at  (:reading-log/beginning %)
                                                       :end (:reading-log/end %)})

@@ -3,8 +3,8 @@
    and one selected goal's chart, activity strip, and comparison or
    recent-reading panel.
 
-   Every number comes from `goals/dashboard.clj` as of a single cutoff —
-   local midnight starting today — so all regions agree. Mutations here
+   Totals include today through one captured request instant. Rates use
+   completed days in each goal's saved zone. Mutations here
    (book chart preferences, archive, delete) write and 303 back, so the page
    always renders from a fresh snapshot."
   (:require
@@ -24,7 +24,7 @@
    [tech.jgood.gleanmo.schema :refer [schema]]
    [tech.jgood.gleanmo.ui :as ui])
   (:import
-   [java.time LocalDate]
+   [java.time Instant LocalDate]
    [java.time.format DateTimeFormatter]
    [java.util Locale]))
 
@@ -279,7 +279,7 @@
 (def ^:private columns
   [["label" "Goal" "text-left"]
    ["progress" "Done / target" "text-right"]
-   ["rate" "Average so far" "text-right"]
+   ["rate" "Average per completed day" "text-right"]
    ["needed" "Required" "text-right"]
    ["ratio" "Required ÷ average" "text-right"]
    ["pace" "Vs even pace" "text-right"]
@@ -374,13 +374,14 @@
 
 (defn- numeric-chart
   [{:keys [goal measurement progress]} cutoff-date]
-  (let [{:keys [window series target required logged]} progress
+  (let [{:keys [window series target required completed-logged]} progress
         {:keys [start end]} window
         m      measurement
         best?  (= :best (:aggregation m))
         open?  (= :open-ended (:goal/timing goal))
-        paced? (and (not best?) (not open?))
-        x-end  (if (and end (not open?)) (calc/plus-days end 1) cutoff-date)
+        paced? (and (not best?) (not open?) (some? (:even-pace progress)))
+        x-end  (if (and end (not open?)) (calc/plus-days end 1)
+                   (calc/plus-days cutoff-date 1))
         t      (chart-value m target)
         now?   (not (.isAfter ^LocalDate cutoff-date x-end))]
     (-> (base-chart (chart-unit m))
@@ -400,8 +401,8 @@
                  paced? (conj (dashed "Even pace" "#6b7785"
                                       [[(str start) 0] [(str x-end) t]]))
                  (and paced? required)
-                 (conj (dashed "Required from today" violet
-                               [[(str cutoff-date) (chart-value m logged)] [(str x-end) t]]
+                 (conj (dashed "Required at day start" violet
+                               [[(str cutoff-date) (chart-value m completed-logged)] [(str x-end) t]]
                                :width 2))
                  (or best? open?)
                  (conj (dashed "Target" violet [[(str start) t] [(str x-end) t]])))))))
@@ -412,13 +413,15 @@
         {:keys [points segments total]} (get measures measure)
         start   (:goal/starts-on goal)
         ends-on (:goal/ends-on goal)
+        tomorrow (calc/plus-days cutoff-date 1)
         x-end   (if ends-on
                   (let [e (calc/plus-days ends-on 1)]
-                    (if (.isAfter ^LocalDate cutoff-date e) cutoff-date e))
-                  cutoff-date)
+                    (if (.isAfter ^LocalDate tomorrow e) tomorrow e))
+                  tomorrow)
         top     (reduce max (or total 1) (map :value points))
         guide?  (and ends-on (:goal/even-pace-enabled goal) total (nil? completion))
-        pt      (fn [{:keys [at value]}] [(str at) value])
+        pt      (fn [{:keys [at value]}]
+                  [(str (.toLocalDateTime (.atZone ^Instant at (calc/zone-of goal)))) value])
         seg     (fn [{:keys [from to style]}]
                   {:name "Recorded position" :type "line" :showSymbol false :silent true
                    :data [(pt from) (pt to)]
@@ -498,7 +501,8 @@
 
 (defn- actions
   [goal]
-  [:div.flex.flex-wrap.items-center.gap-3.text-xs
+  [:div {:class "flex flex-wrap justify-end items-center gap-3 text-xs"
+         :data-goal-actions true}
    [:a.link {:href (str "/app/goal/" (:xt/id goal) "/edit")} "Edit"]
    (biff/form {:action (str "/app/goal/" (:xt/id goal) "/archive") :method "post"
                :class "inline"}
@@ -531,8 +535,6 @@
         {:keys [completed-days remaining-days status]} window]
     [:div {:class "grid gap-6 p-4 sm:p-6 lg:grid-cols-[1.35fr_2fr]"}
      [:div
-      [:div.flex.flex-wrap.items-center.gap-3
-       [:h2.text-lg.font-semibold.text-white (:goal/label goal)] (badge goal)]
       [:p.mt-1.text-xs.text-gray-400
        (str (source-line entry) " · " (if best? "Best performance" (:label m)))]
       [:div {:class "mt-2 text-3xl font-semibold tabular-nums text-white"}
@@ -547,14 +549,13 @@
             (window-caption goal progress best?))]
       (when (= :unknown (:coverage progress))
         [:p.mt-2.text-xs.text-neon-amber
-         "Coverage is incomplete or unknown. Recorded values are shown; pace estimates are unavailable."])
-      [:div.mt-3 (actions goal)]]
+         "Coverage is incomplete or unknown. Recorded values are shown; pace estimates are unavailable."])]
      [:div {:class "grid grid-cols-1 gap-4 border-t border-dark pt-4 sm:grid-cols-3 lg:border-t-0 lg:pt-0 lg:items-center"}
       (cond
         (and open? (not best?))
         [:<>
          (stat "Still to go" (amount m remaining) "No deadline")
-         (stat "Average so far" (rate m average)
+         (stat "Average per completed day" (rate m average)
                (str "Since " (short-date (:goal/starts-on goal)) " · "
                     completed-days " completed days"))
          (stat "Next milestone" (if next (amount m (- next (or logged 0))) "—")
@@ -569,10 +570,10 @@
 
         :else
         [:<>
-         (stat "Average so far" (rate m average) (str completed-days " completed days"))
+         (stat "Average per completed day" (rate m average) (str completed-days " completed days"))
          (if required
            (stat "Required from today" (rate m required)
-                 (str remaining-days " days left"
+                 (str remaining-days " days left · based on completed days"
                       (when ratio (format " · %.2f× your average" (double ratio))))
                  (if (and ratio (> ratio 1)) "text-neon-amber" "text-neon-lime"))
            (stat "Required from today" "—"
@@ -605,7 +606,7 @@
     (:pace-days progress)
     (let [d (:pace-days progress)]
       (str (fmt-num (Math/abs (double d))) " days " (if (neg? d) "behind" "ahead of")
-           " even pace"))
+           " even pace · completed days"))
     :else ""))
 
 (defn- history-panel
@@ -716,9 +717,12 @@
            :weekly     " Each Monday–Sunday week has the full target and resets on Monday; surplus never carries forward."
            (str " The goal period is " (long-date (:goal/starts-on goal)) " – "
                 (long-date (:goal/ends-on goal)) ", inclusive."))
-         " Values include completed days through "
-         (long-date (calc/plus-days cutoff-date -1)) " in " (:goal/time-zone goal)
-         ". Open timers, deleted logs, and logs hidden by your visibility settings are excluded.")]
+         " Totals and charts include today's eligible records through this page's refresh in "
+         (:goal/time-zone goal) ". Rates use completed days through "
+         (long-date (calc/plus-days cutoff-date -1))
+         "; today's activity is excluded from pace calculations."
+         " Intervals must have ended by the relevant cutoff before clipping to the goal period."
+         " Open timers, future-ending intervals, deleted logs, and hidden logs are excluded.")]
    extra])
 
 (defn- book-values
@@ -787,10 +791,6 @@
         state (book-state entry)]
     [:div {:class "grid gap-6 p-4 sm:p-6 lg:grid-cols-[1.35fr_2fr]"}
      [:div
-      [:div.flex.flex-wrap.items-center.gap-3
-       [:h2.text-lg.font-semibold.text-white (:goal/label goal)]
-       [:span {:class "rounded border border-dark px-1.5 py-0.5 text-xs text-gray-400"}
-        (if-let [e (:goal/ends-on goal)] (str "By " (long-date e)) "No deadline")]]
       [:p.mt-1.text-xs.text-gray-400 (str (source-line entry) " · Completion")]
       [:div {:class (str "mt-2 text-3xl font-semibold "
                          (case state :completed "text-neon-lime" :overdue "text-neon-amber" "text-white"))}
@@ -801,8 +801,7 @@
                          (when (:late? completion) " · after the deadline"))
          (= :overdue state) (str "The deadline was " (long-date (:goal/ends-on goal))
                                  " · complete when a reading log is marked finished")
-         :else "Complete when a reading log is marked finished")]
-      [:div.mt-3 (actions goal)]]
+         :else "Complete when a reading log is marked finished")]]
      [:div {:class "grid grid-cols-1 gap-4 border-t border-dark pt-4 sm:grid-cols-3 lg:border-t-0 lg:pt-0 lg:items-center"}
       (stat (str "Latest " (str/lower-case (measure-labels measure)))
             [:span (position-text measure (:value latest))
@@ -824,6 +823,11 @@
   [:section#goal-detail
    {:class "rounded-xl border border-dark bg-dark-surface overflow-hidden"
     :aria-label "Selected goal"}
+   [:header {:class "flex items-start justify-between gap-4 px-4 pt-4 sm:px-6 sm:pt-6"}
+    [:div.flex.min-w-0.flex-wrap.items-center.gap-3
+     [:h2.text-lg.font-semibold.text-white {:class "break-words"} (get-in entry [:goal :goal/label])]
+     (badge (:goal entry))]
+    (actions (:goal entry))]
    (if (:book-progress entry)
      (let [measure (chart-measure entry)
            {:keys [total]} (get-in entry [:book-progress :measures measure])]
@@ -904,7 +908,7 @@
         :subtitle "A little closer, every time."
         :actions  [:a.form-button-primary {:href "/app/goals/new"} "+ New goal"]})
       [:p.text-xs.text-gray-400
-       "Completed days only · each goal uses its saved time zone"]
+       "Totals include today · rates use completed days · each goal uses its saved time zone"]
       (if (empty? entries)
         (layout/empty-state
          {:message "No goals yet. A goal counts what you already log — time, sessions, reps, or finishing a book."

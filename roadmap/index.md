@@ -74,7 +74,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 - [024-reading-schema-proposal.md](./024-reading-schema-proposal.md) - Draft Malli schemas for reading entities
 - [066-unified-timer-page.md](./066-unified-timer-page.md) - One timer workspace: all running timers, search-to-start, one-tap start/stop without form bounces (implemented 2026-07-27; e2e/screenshot validation pending)
 - [071-timer-running-flag.md](./071-timer-running-flag.md) - Replace the two-full-scan set difference behind active timers with an indexed flag derived at write time, reconciled daily (built and tested 2026-08-04; deploy + m007 backfill, prod confirmation pending)
-- [081-goals-dashboard.md](./081-goals-dashboard.md) - Implement approved version 10: numeric aliases, reading positions, goal storage, scoped queries, and dashboard (review fixes implemented; registry-wide measurement integration coverage added before further feature work; final browser and query-performance validation remain)
+- [081-goals-dashboard.md](./081-goals-dashboard.md) - Implement approved version 10: numeric aliases, reading positions, goal storage, scoped queries, and dashboard (review fixes and registry-wide measurement coverage implemented; Count today and card action placement validated; query-performance and comparison follow-ups remain)
 
 ### Ready
 

@@ -14,7 +14,7 @@
    [java.time Instant]))
 
 (def history-days
-  "Length of the activity strip: twelve weeks of completed days."
+  "Length of the activity strip: twelve weeks of calendar days including today."
   84)
 
 (def recent-days
@@ -30,22 +30,26 @@
 
 (defn- request-windows
   "Actual progress and activity windows for one goal, without the unused gap."
-  [goal cutoff-date]
+  [goal as-of]
   (let [zone (calc/zone-of goal)
-        {:keys [start through]} (calc/window goal cutoff-date)]
+        {:keys [now today observed-through]} (calc/accounting-clock goal as-of)
+        {:keys [start end]} (calc/window goal today)
+        until (if end
+                (let [period-end (calc/day-start (calc/plus-days end 1) zone)]
+                  (if (.isBefore period-end now) period-end now))
+                now)]
     (filter #(neg? (compare (:since %) (:until %)))
-            [{:since (calc/day-start start zone)
-              :until (calc/day-start (calc/plus-days through 1) zone)}
-             {:since (calc/day-start (calc/plus-days cutoff-date (- history-days)) zone)
-              :until (calc/day-start cutoff-date zone)}])))
+            [{:since (calc/day-start start zone) :until until}
+             {:since (calc/day-start (calc/plus-days observed-through (- 1 history-days)) zone)
+              :until now}])))
 
 (defn source-requests
   "Bounded requests per source. Merge overlapping ranges, preserving gaps.
-   Each entry carries its goal-local cutoff date derived from the request instant."
+   Each entry carries the captured request instant in :now."
   [entries]
   (into {}
         (for [[source es] (group-by (comp :source :measurement) entries)]
-          (let [windows (mapcat #(request-windows (:goal %) (:cutoff-date %)) es)
+          (let [windows (mapcat #(request-windows (:goal %) (:now %)) es)
                 filters (map #(get (:goal %) (get-in % [:measurement :relation :key])) es)
                 ranges (reduce (fn [acc w]
                                  (if-let [prev (peek acc)]
@@ -94,23 +98,23 @@
       (mapv #(if-let [e (get related %)] (entity-label e) "Unavailable") ids))))
 
 (defn- numeric-entry
-  [{:keys [goal measurement] :as entry} records cutoff-date]
-  (let [progress (calc/numeric-progress goal measurement records cutoff-date)]
+  [{:keys [goal measurement] :as entry} records now]
+  (let [progress (calc/numeric-progress goal measurement records now)]
     (assoc entry
            :progress progress
-           :history (calc/history goal measurement records cutoff-date history-days)
+           :history (calc/history goal measurement records now history-days)
            :recent (when (= :open-ended (:goal/timing goal))
-                     (calc/recent-activity goal measurement records cutoff-date
+                     (calc/recent-activity goal measurement records now
                                            recent-days))
            ;; No source has coverage metadata yet, so every comparison reports
            ;; unknown history rather than inferring zero activity.
            :comparison (when (not= :open-ended (:goal/timing goal))
                          (calc/comparison goal measurement records
-                                          (:logged progress) (:window progress)
+                                          (:completed-logged progress) (:window progress)
                                           1 nil)))))
 
 (defn- book-entry
-  [db user-id {:keys [goal related] :as entry} cutoff-date settings]
+  [db user-id {:keys [goal related] :as entry} now settings]
   (let [book-id (first (:goal/book-ids goal))
         book    (get related book-id)
         logs    (if book (queries/reading-logs-for-book db user-id book-id settings) [])
@@ -123,13 +127,13 @@
                       logs)]
     (assoc entry
            :book book
-           :book-progress (calc/book-progress goal (or book {}) logs cutoff-date)
-           :history (calc/history goal reading-duration records cutoff-date
+           :book-progress (calc/book-progress goal (or book {}) logs now)
+           :history (calc/history goal reading-duration records now
                                   history-days))))
 
 (defn dashboard
   "Everything the goals page renders from one captured `now` instant.
-   Each goal counts completed days in its saved time zone.
+   Each goal includes today and computes completed-day pace in its saved zone.
 
    Returns `{:active [entry] :archived [goal] :hidden-count n}`. Goals whose
    selected records the user's visibility settings hide are left out of both
@@ -150,7 +154,8 @@
         entries  (for [g active
                        :let [m (registry/measurement g)]
                        :when m]
-                   {:cutoff-date (calc/local-date now (calc/zone-of g))
+                   {:now         now
+                    :cutoff-date (calc/local-date now (calc/zone-of g))
                     :goal        g
                     :measurement m
                     :related     related
@@ -168,8 +173,8 @@
     {:now          now
      :active       (vec (concat
                          (map #(numeric-entry % (get records (get-in % [:measurement :source]))
-                                              (:cutoff-date %))
+                                              now)
                               numeric)
-                         (map #(book-entry db user-id % (:cutoff-date %) settings) books)))
+                         (map #(book-entry db user-id % now settings) books)))
      :archived     (vec (sort-by :goal/label archived))
      :hidden-count (- (count goals) (count (filter visible? goals)))}))

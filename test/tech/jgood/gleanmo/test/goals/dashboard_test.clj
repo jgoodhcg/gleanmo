@@ -234,7 +234,7 @@
            :goal/ends-on (LocalDate/parse "2020-01-31")}
         requests (dashboard/source-requests
                   [{:goal g :measurement {:source :habit-log}
-                    :cutoff-date (LocalDate/parse "2026-09-14")}])]
+                    :now (at "2026-09-14T12:00")}])]
     (is (= 2 (count (:habit-log requests))) "the unused six-year gap is not scanned")))
 
 (deftest supporting-panel-render-test
@@ -255,7 +255,7 @@
     (is (str/includes? html "90 s"))
     (is (not (str/includes? html "170 s")))
     (is (not (str/includes? html "Progress keeps accumulating")))
-    (is (not (str/includes? html "Average so far")))
+    (is (not (str/includes? html "Average per completed day")))
     (let [dated (assoc-in entry [:goal :goal/timing] :dated)
           dated (assoc-in dated [:goal :goal/ends-on] (LocalDate/parse "2026-07-10"))
           dated (assoc dated :comparison {:status :known :percent 12.5 :amount 80
@@ -263,3 +263,49 @@
           html (rum/render-static-markup (goals-page/goal-detail dated cutoff))]
       (is (str/includes? html "vs 2025"))
       (is (str/includes? html "+12.5%")))))
+
+(deftest dashboard-counts-today-test
+  (with-open [node (test-xtdb-node [])]
+    (let [user (random-uuid)
+          book (create! node :book {:user/id user :book/title "Today" :book/total-pages 100})
+          base {:user/id user :goal/time-zone "UTC"
+                :goal/starts-on (LocalDate/parse "2026-07-01")
+                :goal/timing :dated :goal/ends-on (LocalDate/parse "2026-07-10")
+                :goal/source :reading-log :goal/book-ids #{book}}
+          numeric (create! node :goal (merge base {:goal/label "Reading today"
+                                                   :goal/measure :duration
+                                                   :goal/aggregation :total :goal/target 36000}))
+          completion (create! node :goal (merge base {:goal/label "Finish today"
+                                                      :goal/measure :book-completion
+                                                      :goal/aggregation :completion}))
+          add-log (fn [beginning end fields]
+                    (create! node :reading-log
+                             (merge {:user/id user :reading-log/book-id book
+                                     :reading-log/beginning (at beginning)
+                                     :reading-log/time-zone "UTC"}
+                                    (when end {:reading-log/end (at end)}) fields)))
+          _ (add-log "2026-07-02T09:00" "2026-07-02T10:00" {})
+          today (add-log "2026-07-03T11:00" "2026-07-03T12:00"
+                         {:reading-log/finished? true :reading-log/end-page 80})
+          _ (add-log "2026-07-02T20:00" "2026-07-03T13:00" {:reading-log/end-page 100})
+          _ (add-log "2026-07-02T21:00" nil {})
+          read-dashboard (fn []
+                           (into {} (map (juxt #(get-in % [:goal :xt/id]) identity))
+                                 (:active (dashboard/dashboard
+                                           (xt/db node) user
+                                           {:now (at "2026-07-03T12:00")
+                                            :user-settings visible}))))
+          entries (read-dashboard)
+          p (get-in entries [numeric :progress])]
+      (is (= 7200.0 (:logged p)))
+      (is (= 3600.0 (:completed-logged p)))
+      (is (= 3600.0 (:today-logged p)))
+      (is (= 7200.0 (second (peek (:series p)))))
+      (is (every? nil? (map p [:average :required :ratio :pace-days])))
+      (is (= today (get-in entries [completion :book-progress :completion :log-id])))
+      (is (= 80 (get-in entries [completion :book-progress :measures :pages :latest :value])))
+      (is (= 3600.0 (:value (peek (get-in entries [numeric :history])))))
+      (mutations/soft-delete-entity! (ctx node) {:entity-key :reading-log :entity-id today})
+      (let [after (read-dashboard)]
+        (is (= 3600.0 (get-in after [numeric :progress :logged])))
+        (is (nil? (get-in after [completion :book-progress :completion])))))))

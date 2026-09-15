@@ -53,13 +53,6 @@ function shiftDate(isoDate: string, days: number) {
   return d.toISOString().slice(0, 10);
 }
 
-async function todayFor(page: Page) {
-  await page.goto(`${BASE_URL}/app/crud/form/reading-log/new`);
-  await page.waitForLoadState('networkidle');
-  const beginning = await page.locator('input[name="reading-log/beginning"]').inputValue();
-  return beginning.slice(0, 10);
-}
-
 async function createBook(page: Page, title: string) {
   await page.goto(`${BASE_URL}/app/crud/form/book/new`);
   await page.waitForLoadState('networkidle');
@@ -129,7 +122,8 @@ async function main() {
     console.log('1. Creating a book and reading logs...');
     await createBook(page, 'The Odyssey');
     const book = await bookId(page);
-    const today = await todayFor(page);
+    // All source records and goals in this test use UTC.
+    const today = new Date().toISOString().slice(0, 10);
     const yesterday = shiftDate(today, -1);
     const twoDaysAgo = shiftDate(today, -2);
     await createReadingLog(page, {
@@ -167,6 +161,7 @@ async function main() {
     await expect(form.locator('[name="ends-on"]')).toHaveValue(customEnd);
     await refreshField(page, form.locator('[name="timing"]'), 'dated');
     console.log('  [+] Weekly defaults use Monday/Sunday and preserve deliberate dates');
+    await setSelect(form.locator('[name="time-zone"]'), 'UTC');
     await form.locator('[name="label"]').fill('Reading time');
     await form.locator('[name="target"]').fill('10');
     await form.locator('[name="starts-on"]').fill(shiftDate(today, -7));
@@ -183,6 +178,7 @@ async function main() {
     // ── 4. Book completion goal ──
     console.log('\n3. Creating a book completion goal...');
     form = await openEditor(page);
+    await setSelect(form.locator('[name="time-zone"]'), 'UTC');
     await form.locator('[name="label"]').fill('Finish The Odyssey');
     await refreshField(page, form.locator('select[name="measurement"]'),
       'reading-log/book-completion-completion');
@@ -230,7 +226,7 @@ async function main() {
     await page.locator('th[data-sort-key="progress"] button').click();
     await expect(page.locator('th[data-sort-key="progress"]')).toHaveAttribute('aria-sort', 'ascending');
     await page.locator('tr[data-goal-row]', { hasText: 'Reading time' }).locator('td').nth(2).click();
-    await expect(page.locator('#goal-detail')).toContainText('Average so far', { timeout: 10000 });
+    await expect(page.locator('#goal-detail')).toContainText('Average per completed day', { timeout: 10000 });
     await expect(page).toHaveURL(/goal=/);
     console.log('  [+] Filters, search, sort, and row selection work');
     await captureScreenshot(page, '03-dashboard');
@@ -239,7 +235,9 @@ async function main() {
     console.log('\n6. Editing the goal and adding a log...');
     const goalUrl = new URL(page.url());
     const goalId = goalUrl.searchParams.get('goal');
-    form = await openEditor(page, `/app/goal/${goalId}/edit`);
+    await detail.locator('header a', { hasText: 'Edit' }).click();
+    await expect(page).toHaveURL(new RegExp(`/app/goal/${goalId}/edit`));
+    form = page.locator('#goal-editor-form');
     await form.locator('[name="target"]').fill('2');
     await submitForm(form, `/app/goal/${goalId}`);
     await expect(page.locator('#goal-detail')).toContainText('of 2 h');
@@ -294,6 +292,56 @@ async function main() {
     await expect(page.locator('[data-goals-count]')).toHaveText('2 / 2');
     console.log('  [+] Field error shown; nothing written');
 
+    // Today's eligible interval updates totals, chart, book position, and activity.
+    // Use seconds so this remains valid even during the first minute of a UTC day.
+    console.log('\n8. Counting today without inventing pace coverage...');
+    const requestTime = new Date();
+    const currentDay = requestTime.toISOString().slice(0, 10);
+    const endTime = new Date(Math.floor(requestTime.getTime() / 1000) * 1000);
+    const startTime = new Date(Math.max(
+      Date.parse(`${currentDay}T00:00:00Z`), endTime.getTime() - 60000,
+    ));
+    const secondsToday = (endTime.getTime() - startTime.getTime()) / 1000;
+    await createReadingLog(page, {
+      book, beginning: startTime.toISOString().slice(0, 19),
+      end: endTime.toISOString().slice(0, 19),
+      fields: { 'reading-log/end-page': '250' },
+    });
+    // A future-ending interval must not contribute even its completed-day portion.
+    await createReadingLog(page, {
+      book, beginning: `${yesterday}T23:00`, end: `${shiftDate(currentDay, 1)}T12:00`,
+      fields: { 'reading-log/end-page': '999' },
+    });
+    await page.goto(`${BASE_URL}/app/goals?goal=${goalId}`);
+    await page.waitForLoadState('networkidle');
+    const chart = JSON.parse((await page.locator('#goal-chart-data').textContent())!);
+    const logged = chart.series.find((series: { name: string }) => series.name === 'Logged');
+    expect(logged.data.at(-1)[1]).toBeCloseTo(3 + secondsToday / 3600, 5);
+    expect(logged.data.at(-1)[0]).toContain(currentDay);
+    expect(new Date(logged.data.at(-1)[0]).getTime()).toBeLessThanOrEqual(new Date(chart.xAxis.max).getTime());
+    expect(chart.series.some((series: { name: string }) => /pace|Required/.test(series.name))).toBe(false);
+    await expect(page.getByText('Totals include today · rates use completed days · each goal uses its saved time zone')).toBeVisible();
+    await expect(detail).toContainText('Average per completed day');
+    await expect(detail).toContainText('pace estimates are unavailable');
+    await expect(detail.locator('header [data-goal-actions]')).toBeVisible();
+    await expect(detail.locator('[data-goal-actions]')).toHaveCount(1);
+    const cardBox = (await detail.boundingBox())!;
+    const actionBox = (await detail.locator('[data-goal-actions]').boundingBox())!;
+    expect(actionBox.y - cardBox.y).toBeLessThan(40);
+    expect(cardBox.x + cardBox.width - actionBox.x - actionBox.width).toBeLessThan(40);
+    await captureScreenshot(page, '05-count-today');
+    await page.goto(`${BASE_URL}/app/goals?goal=${bookGoalId}`);
+    await page.waitForLoadState('networkidle');
+    await detail.locator('button[name="progress-measure"][value="pages"]').click();
+    await page.waitForLoadState('networkidle');
+    await expect(detail).toContainText('250');
+    await expect(detail).not.toContainText('999');
+    const bookChart = JSON.parse((await page.locator('#goal-chart-data').textContent())!);
+    const positions = bookChart.series.find((series: { type: string }) => series.type === 'scatter');
+    expect(positions.data.at(-1)[1]).toBe(250);
+    expect(positions.data.at(-1)[0]).toContain(currentDay);
+    console.log('  [+] Today updates numeric and book charts; future ends and unsupported pace stay excluded');
+
     // ── 9. Archive and restore ──
     console.log('\n8. Archiving and restoring...');
     await page.goto(`${BASE_URL}/app/goals?goal=${goalId}`);
@@ -320,7 +368,14 @@ async function main() {
     await page.waitForTimeout(800);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     if (overflow > 1) throw new Error(`Page scrolls horizontally on mobile by ${overflow}px`);
+    const mobileActions = (await detail.locator('header [data-goal-actions]').boundingBox())!;
+    const mobileCard = (await detail.boundingBox())!;
+    expect(mobileActions.y - mobileCard.y).toBeLessThan(40);
+    expect(mobileCard.x + mobileCard.width - mobileActions.x - mobileActions.width).toBeLessThan(30);
     await captureScreenshot(page, '04-mobile', true);
+    await detail.locator('header').evaluate((node) => node.scrollIntoView({ block: 'start', behavior: 'instant' }));
+    await page.waitForTimeout(300);
+    await captureScreenshot(page, '06-mobile-card');
     console.log('  [+] No page-level horizontal scroll; table scrolls inside its panel');
 
     if (errors.length) throw new Error(`Page errors: ${errors.join('; ')}`);

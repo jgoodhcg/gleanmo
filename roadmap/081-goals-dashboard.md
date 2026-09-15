@@ -175,8 +175,23 @@ Use targeted projections for full chart windows; a chart genuinely needs its int
 Batch compatible requests for several goals instead of repeating the same source scan for every table row.
 Apply ownership and resolved visibility to both logs and related entities.
 
-Use one explicit cutoff for every dashboard region: local midnight starting today, matching the mock's completed-day accounting.
-Exclude open timers and records beyond that cutoff; label the cutoff in the UI.
+Capture one request instant and derive today and local midnight in each goal's saved time zone.
+Totals, best performances, book positions, completion, and charts include today's eligible records up to that instant.
+Point measurements use the half-open range ending at that instant; interval ends can equal it.
+Exclude open intervals and intervals ending after the relevant cutoff before clipping or attributing their values.
+
+Rates retain completed-day accounting at local midnight starting today.
+Average, required rate, rate ratio, and even-pace difference use only the completed-day amount and completed-day denominator.
+Intervals ending today cannot affect those calculations until the next local day, including their portions attributed to earlier days.
+Required rate uses the remaining target at midnight and the calendar days remaining, including today.
+Once today's records reach the target, suppress the required rate.
+Label averages "per completed day" and explain the completed-day baseline for required pace.
+Unknown coverage continues to suppress unsupported pace estimates.
+
+The chart's partial-day endpoint uses the captured local time, rather than tomorrow's boundary.
+Activity strips and recent panels include today within their existing 84-day and 28-day bounds.
+Weekly progress resets at local Monday midnight; a goal becomes active on its start date.
+Ended numeric goals remain clipped to their goal period, while book goals retain late completion.
 Duration totals clip completed intervals to the goal range, split at local midnight, and merge overlaps within the selected scope.
 Use local calendar boundaries rather than fixed-second approximations across DST.
 Session/log counts use their beginning/timestamp; exercise lines use their parent set's beginning.
@@ -189,7 +204,7 @@ Weekly totals reset Monday, with no surplus carry-forward.
 Use full targets for partial first/last weeks and identify those periods as partial; default creation to complete calendar weeks.
 Open-ended totals count from starts-on, never reset, and have no required rate or even-pace difference.
 Use the version 08 formulas for applicable numeric goals and guard zero elapsed days, zero totals, expired goals, and reached targets.
-Use bounded last-28-day activity for the open-ended supporting panel.
+Use bounded last-28-day activity, including today, for the open-ended supporting panel.
 Keep missing source coverage distinct from confirmed zero activity.
 
 Book calculations:
@@ -298,14 +313,13 @@ A first implementation exists and awaits user review; expect iteration.
 This is a running list from user review and daily use.
 Resolve each item, or move it to another work unit, before archiving this unit.
 
-- [ ] Edit placement.
-  The user looked for Edit on the table row, with a right-click, and at the top right of the selected-goal card.
-  Candidate: move Edit · Archive · Delete to the top right of the card.
-  A per-row edit control is a possible later addition.
-- [ ] Count today.
-  Include today's records in totals and the chart.
-  Keep the rates on completed days, and label them so (for example, "per completed day").
-  This changes the one-cutoff rule in the specification above.
+- [x] Edit placement.
+  Edit, Archive, and Delete now share the selected-goal card's top-right header on desktop and mobile.
+  A per-row edit control remains later work.
+- [x] Count today.
+  Totals and charts include today's eligible records through one captured request instant.
+  Rates retain the completed-day cutoff in each goal's saved zone.
+  The specification above replaces the earlier one-cutoff rule.
 - [ ] Duplicate entities.
   "Pullup" and "Pullups" are separate exercises.
   Workaround: select both exercises in the goal filter.
@@ -452,7 +466,7 @@ The comparison follow-up still includes coverage entry, prior-year chart series,
 ## Review resolution (2026-09-15)
 
 The code-review checklist above is implemented.
-The separate dogfood feedback remains open.
+Count today and Edit placement are implemented below; the remaining dogfood feedback stays open.
 
 - Source visibility now checks ownership, deletion, and visibility through bounded reads of candidate ancestors.
   Book completion uses the same policy as numeric reading goals.
@@ -498,3 +512,33 @@ The comparison controls and activity-cell keyboard navigation remain follow-up w
 
 Paths abbreviated above are relative to `src/tech/jgood/gleanmo/` unless prefixed with `test/`.
 No code, schema, or database changes were made during creation of this plan.
+
+## Count today and action placement (2026-09-15)
+
+Boundary tests were written before implementation and failed against the previous cutoff behavior.
+They cover today versus completed-day amounts, open and future-ending intervals, midnight, opposite time zones, Monday resets, and ended goals.
+Database tests verify today's reading totals and completion, then delete the source record and verify recalculation.
+Book and numeric charts retain today's points within their displayed bounds.
+Unknown coverage still suppresses pace estimates, including chart guides.
+
+The selected-goal header now contains Edit, Archive, and Delete at the top right.
+Browser checks exercise Edit and Archive there and verify desktop/mobile placement.
+Per-row editing, query profiling, comparison controls, activity keyboard navigation, and duplicate merging remain separate follow-ups.
+
+Validation:
+
+- `just lint-fast` passed for every changed Clojure file.
+- `just check` and `just validate` passed: 158 tests, 1,343 assertions, no failures or errors.
+  Lint reported 24 existing warnings outside the changed files.
+- Focused calculator and dashboard namespace tests passed.
+  Full validation also ran the registry-wide measurement integration tests.
+- Goals E2E passed before and after the change, with paired desktop/mobile screenshots.
+  The expanded test verifies today's numeric and book chart points, future-ending exclusion, and unknown-coverage suppression.
+  It also verifies header action placement and exercises Edit and Archive.
+- Reading CRUD and reading timer E2E passed.
+- Baseline series: `e2e/screenshots/series/2026-09-15T20-02-51Z/`, 64/64 frames.
+- Final series: `e2e/screenshots/series/2026-09-15T20-23-38Z/`, 64/64 frames.
+- `git diff --check` passed; desktop and mobile goal screenshots were visually reviewed.
+
+The full unrelated E2E suite and query-plan/latency profiling were not run for this scoped change.
+No commit, push, deployment, production migration, or server restart was performed.

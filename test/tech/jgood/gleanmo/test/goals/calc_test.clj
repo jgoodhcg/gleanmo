@@ -57,7 +57,8 @@
              (select-keys (calc/window g (date "2026-09-16"))
                           [:start :partial? :completed-days])))))
   (testing "states"
-    (is (= :not-started (:status (calc/window (goal {}) (date "2026-07-01")))))
+    (is (= :not-started (:status (calc/window (goal {}) (date "2026-06-30")))))
+    (is (= :active (:status (calc/window (goal {}) (date "2026-07-01")))))
     (is (= :ended (:status (calc/window (goal {}) (date "2026-11-01")))))
     (is (= 0 (:remaining-days (calc/window (goal {}) (date "2026-11-05")))))))
 
@@ -307,3 +308,112 @@
     (is (= 100 (get-in (progress 200) [:measures :pages :latest :value])))
     (is (= 0.5 (get-in (progress 200) [:measures :pages :percent])))
     (is (= 0.25 (get-in (progress 400) [:measures :pages :percent])))))
+
+(deftest count-today-boundaries-test
+  (let [g (goal {:goal/starts-on (date "2026-07-01")
+                 :goal/ends-on (date "2026-07-10") :goal/target 36000.0})
+        ms (m :reading-log :duration :total)
+        now (at "2026-07-03T12:00")
+        records [(interval-record "2026-07-01T10:00" "2026-07-01T12:00")
+                 (interval-record "2026-07-03T09:00" "2026-07-03T10:00")
+                 (interval-record "2026-07-03T11:00" "2026-07-03T12:00")
+                 (interval-record "2026-07-02T23:00" "2026-07-03T13:00")
+                 {:at (at "2026-07-02T20:00") :open? true}]
+        p (known-progress g ms records now)]
+    (is (= 14400.0 (:logged p)) "today includes intervals ending exactly now")
+    (is (= 7200.0 (:completed-logged p)))
+    (is (= 7200.0 (:today-logged p)))
+    (is (= 3600.0 (:average p)) "only completed-day amount enters the average")
+    (is (= 3600.0 (:required p)) "required pace retains the completed-day baseline")
+    (is (= 1.0 (:ratio p)))
+    (is (= 0.0 (:pace-days p)))
+    (is (= 14400.0 (second (peek (:series p)))))
+    (is (= (LocalDateTime/parse "2026-07-03T12:00") (first (peek (:series p))))
+        "today's partial point ends at the captured local time")
+    (is (= 7200.0 (:value (peek (calc/history g ms records now 84)))))
+    (is (= 14400.0 (:amount (calc/recent-activity g ms records now 28))))
+    (let [unknown (calc/numeric-progress g ms records now)]
+      (is (= 14400.0 (:logged unknown)))
+      (is (every? nil? (map unknown [:average :required :ratio :pace-days]))))
+    (let [partial (calc/numeric-progress g ms records now
+                                         [{:start (date "2026-07-01")
+                                           :end (date "2026-07-02")}])]
+      (is (= :unknown (:coverage partial)))
+      (is (every? nil? (map partial [:average :required :ratio :pace-days]))))))
+
+(deftest today-midnight-and-reset-test
+  (let [ms (m :habit-log :records :total)
+        g (goal {:goal/timing :weekly :goal/ends-on nil
+                 :goal/starts-on (date "2026-09-01") :goal/target 7})
+        records [{:at (at "2026-09-13T23:59")}
+                 {:at (at "2026-09-14T00:00")}
+                 {:at (at "2026-09-14T00:01")}]
+        midnight (known-progress g ms records (at "2026-09-14T00:00"))
+        monday (known-progress g ms records (at "2026-09-14T12:00"))]
+    (is (= 0.0 (:logged midnight)))
+    (is (= 2.0 (:logged monday)))
+    (is (= 0.0 (:completed-logged monday)))
+    (is (nil? (:average monday)))
+    (is (= 0 (get-in monday [:window :completed-days])))
+    (is (= (date "2026-09-14") (get-in monday [:window :start])))
+    (is (= :active (get-in (known-progress
+                            (assoc g :goal/starts-on (date "2026-09-14"))
+                            ms records (at "2026-09-14T12:00")) [:window :status])))))
+
+(deftest today-interval-eligibility-before-clipping-test
+  (let [g (goal {:goal/ends-on (date "2026-07-02")})
+        records [(interval-record "2026-07-02T23:00" "2026-07-03T01:00")
+                 (interval-record "2026-07-02T20:00" "2026-07-03T13:00")]
+        now (at "2026-07-03T12:00")]
+    (doseq [[ms expected] [[(m :reading-log :duration :total) 3600.0]
+                           [(m :meditation-log :records :total) 1.0]]]
+      (let [p (known-progress g ms records now)]
+        (is (= expected (:logged p)))
+        (is (= 0.0 (:completed-logged p)))
+        (is (= :ended (get-in p [:window :status])))
+        (is (nil? (:required p)))
+        (is (= (date "2026-07-03") (first (peek (:series p)))))
+        (is (= expected (second (peek (:series p)))))))))
+
+(deftest today-book-and-best-test
+  (let [now (at "2026-07-03T12:00")
+        g (goal {:goal/ends-on (date "2026-07-02")})
+        p (calc/book-progress g {:book/total-pages 300}
+                              [(log "2026-07-03T12:00" :reading-log/finished? true
+                                    :reading-log/end-page 200)
+                               (log "2026-07-03T13:00" :reading-log/end-page 300)] now)]
+    (is (= 1 (count (:logs p))))
+    (is (= (date "2026-07-03") (get-in p [:completion :date])))
+    (is (true? (get-in p [:completion :late?])))
+    (is (= 200 (get-in p [:measures :pages :latest :value]))))
+  (let [p (known-progress (goal {}) (m :exercise-line :duration :best)
+                          [{:at (at "2026-07-02T09:00") :duration 80}
+                           {:at (at "2026-07-03T09:00") :duration 90}
+                           {:at (at "2026-07-03T13:00") :duration 100}]
+                          (at "2026-07-03T12:00"))]
+    (is (= 90.0 (:logged p)))
+    (is (= 80.0 (:completed-logged p)))
+    (is (every? nil? (map p [:average :required :ratio :pace-days])))))
+
+(deftest today-goal-local-zones-test
+  (let [now (Instant/parse "2026-09-14T01:00:00Z")
+        ms (m :habit-log :records :total)
+        records [{:at (Instant/parse "2026-09-13T14:00:00Z")}
+                 {:at (Instant/parse "2026-09-13T16:00:00Z")}
+                 {:at (Instant/parse "2026-09-14T00:30:00Z")}]
+        progress (fn [zone]
+                   (known-progress
+                    (goal {:goal/timing :weekly :goal/ends-on nil
+                           :goal/starts-on (date "2026-09-01")
+                           :goal/time-zone zone :goal/target 7})
+                    ms records now))
+        tokyo (progress "Asia/Tokyo")
+        la (progress "America/Los_Angeles")]
+    (is (= (date "2026-09-14") (get-in tokyo [:window :start])))
+    (is (= 2.0 (:logged tokyo)))
+    (is (= 0.0 (:completed-logged tokyo)))
+    (is (nil? (:average tokyo)))
+    (is (= (date "2026-09-07") (get-in la [:window :start])))
+    (is (= 3.0 (:logged la)))
+    (is (= 0.0 (:completed-logged la)))
+    (is (= 0.0 (:average la)))))
