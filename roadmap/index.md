@@ -81,7 +81,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 
 ### Ready
 
-- [083-lucide-icon-consolidation.md](./083-lucide-icon-consolidation.md) - One inline-Lucide icon system replacing emoji, per-page hand-drawn SVGs, and stray Heroicons
+- [083-lucide-icon-consolidation.md](./083-lucide-icon-consolidation.md) - One inline-Lucide icon system, one icon per entity type, replacing emoji, hand-drawn SVGs, and stray Heroicons in three phases
 - [075-exercise-export.md](./075-exercise-export.md) - The exercise composite export (session → set → line as nested Markdown or JSON, denormalized to CSV); depends on 078-data-export.md
 - [074-query-shape-audit.md](./074-query-shape-audit.md) - Find clauses that cost without narrowing, and ranges that never prune, across db/queries.clj
 - [063-qol-quick-actions.md](./063-qol-quick-actions.md) - Navigation & logging QOL: sidebar reorder, stop-in-place timers, boulder problem discoverability, home quick actions
