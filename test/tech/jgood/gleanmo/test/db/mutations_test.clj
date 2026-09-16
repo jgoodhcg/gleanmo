@@ -101,6 +101,30 @@
         (is (= entity-key (::sm/type updated-entity)))
         (is (some? (::sm/created-at updated-entity)))))))
 
+(deftest update-entities-test
+  (testing "update-entities! merges each spec in one batch and returns ids in order"
+    (with-open [node (test-xtdb-node [])]
+      (let [ctx     (get-context node)
+            user-id (UUID/randomUUID)
+            ids     (mutations/create-entities!
+                     ctx
+                     [{:entity-key :task
+                       :data {:user/id user-id :task/label "A" :task/state :now}}
+                      {:entity-key :task
+                       :data {:user/id user-id :task/label "B" :task/state :now}}])
+            result  (mutations/update-entities!
+                     ctx
+                     (map-indexed (fn [idx id]
+                                    {:entity-key :task
+                                     :entity-id  id
+                                     :data       {:task/focus-order idx}})
+                                  (reverse ids)))
+            tasks   (mapv #(xt/entity (xt/db node) %) ids)]
+        (is (= (vec (reverse ids)) result))
+        (is (= [1 0] (mapv :task/focus-order tasks)))
+        (is (= ["A" "B"] (mapv :task/label tasks)))
+        (is (= [] (mutations/update-entities! ctx [])))))))
+
 (deftest soft-delete-entity-test
   (testing "soft-delete-entity!"
     (with-open [node (test-xtdb-node [])]

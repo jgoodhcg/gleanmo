@@ -16,7 +16,7 @@
    - data-sortable-id: unique ID for each item"
   (:require
    [cheshire.core :as json]
-   [com.biffweb :as biff]
+   [tech.jgood.gleanmo.db.mutations :as mutations]
    [xtdb.api :as xt]))
 
 (defn sortable-list
@@ -63,13 +63,12 @@
                   (json/parse-string)
                   (->> (map parse-uuid))))]
     (when (seq ids)
-      (let [tx-docs (map-indexed
-                     (fn [idx id]
-                       {:db/op :update
-                        :db/doc-type entity-type
-                        :xt/id id
-                        order-field idx})
-                     ids)]
-        (biff/submit-tx ctx tx-docs)))
+      (mutations/update-entities! ctx
+                                  (map-indexed
+                                   (fn [idx id]
+                                     {:entity-key entity-type
+                                      :entity-id  id
+                                      :data       {order-field idx}})
+                                   ids)))
     ;; Return fresh db
     (xt/db node)))

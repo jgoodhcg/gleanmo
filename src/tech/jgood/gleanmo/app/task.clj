@@ -1,7 +1,6 @@
 (ns tech.jgood.gleanmo.app.task
   (:require
    [clojure.string :as str]
-   [com.biffweb :as biff]
    [tech.jgood.gleanmo.app.shared :as shared]
    [tech.jgood.gleanmo.app.task-focus :as task-focus]
    [tech.jgood.gleanmo.app.task-today :as task-today]
@@ -26,14 +25,14 @@
         now          (java.time.Instant/now)
         task         (queries/get-entity-by-id db task-id)
         state-change-count (or (:task/state-change-count task) 0)
-        tx-doc       (cond-> {:db/op             :update,
-                              :db/doc-type       :task,
-                              :xt/id             task-id,
-                              :task/state        new-state,
+        data         (cond-> {:task/state        new-state,
                               :task/last-state-change-at now,
                               :task/state-change-count (inc state-change-count)}
                        (= new-state :done) (assoc :task/done-at now))]
-    (biff/submit-tx ctx [tx-doc])
+    (mutations/update-entity! ctx
+                              {:entity-key :task
+                               :entity-id  task-id
+                               :data       data})
     (task-focus/focus-view (assoc ctx :biff/db (xt/db node)))))
 
 (defn snooze!
@@ -43,22 +42,20 @@
         snooze-until (.plusDays (shared/user-local-date ctx) days)
         task         (queries/get-entity-by-id db task-id)
         snooze-count (or (:task/snooze-count task) 0)]
-    (biff/submit-tx ctx
-                    [{:db/op :update,
-                      :db/doc-type :task,
-                      :xt/id task-id,
-                      :task/snooze-until snooze-until,
-                      :task/snooze-count (inc snooze-count)}])
+    (mutations/update-entity! ctx
+                              {:entity-key :task
+                               :entity-id  task-id
+                               :data       {:task/snooze-until snooze-until,
+                                            :task/snooze-count (inc snooze-count)}})
     (task-focus/focus-view (assoc ctx :biff/db (xt/db node)))))
 
 (defn clear-snooze!
   [{:keys [biff.xtdb/node path-params], :as ctx}]
   (let [task-id (parse-uuid (:id path-params))]
-    (biff/submit-tx ctx
-                    [{:db/op            :update,
-                      :db/doc-type      :task,
-                      :xt/id            task-id,
-                      :task/snooze-until nil}])
+    (mutations/update-entity! ctx
+                              {:entity-key :task
+                               :entity-id  task-id
+                               :data       {:task/snooze-until nil}})
     (task-focus/focus-view (assoc ctx :biff/db (xt/db node)))))
 
 ;; Daily focus actions
@@ -102,14 +99,13 @@
         now (java.time.Instant/now)
         task (queries/get-entity-by-id db task-id)
         state-change-count (or (:task/state-change-count task) 0)]
-    (biff/submit-tx ctx
-                    [{:db/op :update
-                      :db/doc-type :task
-                      :xt/id task-id
-                      :task/state :done
-                      :task/done-at now
-                      :task/last-state-change-at now
-                      :task/state-change-count (inc state-change-count)}])
+    (mutations/update-entity! ctx
+                              {:entity-key :task
+                               :entity-id  task-id
+                               :data       {:task/state :done
+                                            :task/done-at now
+                                            :task/last-state-change-at now
+                                            :task/state-change-count (inc state-change-count)}})
     (task-today/today-content (assoc ctx :biff/db (xt/db node)))))
 
 (defn defer-today!
@@ -117,11 +113,10 @@
   [{:keys [biff.xtdb/node path-params], :as ctx}]
   (let [task-id (parse-uuid (:id path-params))
         tomorrow (.plusDays (shared/user-local-date ctx) 1)]
-    (biff/submit-tx ctx
-                    [{:db/op :update
-                      :db/doc-type :task
-                      :xt/id task-id
-                      :task/focus-date tomorrow}])
+    (mutations/update-entity! ctx
+                              {:entity-key :task
+                               :entity-id  task-id
+                               :data       {:task/focus-date tomorrow}})
     (task-today/today-content (assoc ctx :biff/db (xt/db node)))))
 
 (defn remove-from-today!
@@ -129,12 +124,11 @@
    Returns appropriate view based on referer (Focus page vs Today page)."
   [{:keys [biff.xtdb/node path-params headers params], :as ctx}]
   (let [task-id (parse-uuid (:id path-params))]
-    (biff/submit-tx ctx
-                    [{:db/op :update
-                      :db/doc-type :task
-                      :xt/id task-id
-                      :task/focus-date :db/dissoc
-                      :task/focus-order :db/dissoc}])
+    (mutations/update-entity! ctx
+                              {:entity-key :task
+                               :entity-id  task-id
+                               :data       {:task/focus-date :db/dissoc
+                                            :task/focus-order :db/dissoc}})
     ;; Return appropriate view based on where the request came from
     (let [origin          (:origin params)
           hx-target       (get headers "hx-target")

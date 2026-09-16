@@ -169,25 +169,37 @@
       (biff/submit-tx ctx tx-docs))
     (mapv (comp :xt/id second) docs)))
 
+(defn- update-tx-op
+  "Check write rules for, and build, the `:update` op for one entity."
+  [ctx {:keys [entity-key entity-id data]}]
+  (when (rules/needs-check? entity-key data)
+    (enforce-write-rules! ctx entity-key
+                          (merged-doc (xt/entity (fresh-db ctx) entity-id)
+                                      data)))
+  (merge {:db/op       :update,
+          :db/doc-type entity-key,
+          ::sm/type    entity-key,
+          :xt/id       entity-id}
+         (with-derived-running ctx entity-key entity-id data)))
+
 (defn update-entity!
   "Update an existing entity in the database.
 
    `data` is merged into the stored document. For timer entities the derived
    `running` flag rides along whenever `data` touches an interval field, so
    every path — CRUD form included — maintains it without knowing it exists."
-  [ctx {:keys [entity-key entity-id data]}]
-  (when (rules/needs-check? entity-key data)
-    (enforce-write-rules! ctx entity-key
-                          (merged-doc (xt/entity (fresh-db ctx) entity-id)
-                                      data)))
-  (let [tx-op   {:db/op       :update,
-                 :db/doc-type entity-key,
-                 ::sm/type    entity-key,
-                 :xt/id       entity-id}
-        tx-data (merge tx-op
-                       (with-derived-running ctx entity-key entity-id data))]
-    (biff/submit-tx ctx [tx-data])
-    entity-id))
+  [ctx {:keys [entity-id], :as spec}]
+  (biff/submit-tx ctx [(update-tx-op ctx spec)])
+  entity-id)
+
+(defn update-entities!
+  "Update multiple existing entities in one transaction. Each spec takes the
+   same shape as `update-entity!`. Returns the entity IDs in input order."
+  [ctx entity-specs]
+  (let [tx-ops (mapv #(update-tx-op ctx %) entity-specs)]
+    (when (seq tx-ops)
+      (biff/submit-tx ctx tx-ops))
+    (mapv :entity-id entity-specs)))
 
 (defn soft-delete-entity!
   "Soft-delete an entity by setting its deleted-at timestamp."
@@ -214,3 +226,15 @@
   [ctx event-data]
   (create-entity! ctx {:entity-key :event
                        :data event-data}))
+
+(defn put-performance-report!
+  "Replace the performance report document for one process instance.
+   `report` carries the `:performance-report/*` fields; the document id is
+   derived from the instance id so each instance keeps a single history."
+  [ctx {:keys [instance-id instance-started-at]} report]
+  (let [doc (merge {:xt/id          (keyword "performance-report" instance-id),
+                    ::sm/type       :performance-report,
+                    ::sm/created-at instance-started-at}
+                   report)]
+    (biff/submit-tx ctx [(assoc doc :db/doc-type :performance-report)])
+    doc))

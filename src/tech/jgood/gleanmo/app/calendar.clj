@@ -5,8 +5,8 @@
    [com.biffweb :as biff]
    [potpuri.core :as pot]
    [tech.jgood.gleanmo.app.shared :refer [get-user-time-zone str->instant!]]
+   [tech.jgood.gleanmo.db.mutations :as mutations]
    [tech.jgood.gleanmo.db.queries :as db]
-   [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.ui :as ui]
    [tick.core :as t]))
 
@@ -329,16 +329,9 @@
                           :calendar-event/all-day true,
                           :calendar-event/time-zone tz,
                           :calendar-event/color-neon color-neon,
-                          :calendar-event/source :gleanmo}
-              eid        (random-uuid)
-              doc        (merge {:xt/id          eid,
-                                 ::sm/type       :calendar-event,
-                                 ::sm/created-at (t/now)}
-                                event)
-              tx         [(merge {:db/doc-type :calendar-event,
-                                  :xt/id       (:xt/id doc)}
-                                 doc)]
-              _txres     (biff/submit-tx ctx tx)]
+                          :calendar-event/source :gleanmo}]
+          (mutations/create-entity! ctx {:entity-key :calendar-event,
+                                         :data       event})
             ;; Clear modal content and trigger calendar refresh
           {:status 200, :headers {"content-type" "text/html", "HX-Trigger" "eventCreated"}, :body ""})
         (catch Exception e

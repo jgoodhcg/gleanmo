@@ -4,11 +4,10 @@
    [clojure.java.shell    :as shell]
    [clojure.string        :as str]
    [clojure.tools.logging :as log]
-   [com.biffweb           :as biff]
    [taoensso.encore       :as enc]
    [taoensso.tufte        :as tufte]
    [taoensso.tufte.impl   :as timpl]
-   [tech.jgood.gleanmo.schema.meta :as sm]))
+   [tech.jgood.gleanmo.db.mutations :as mutations]))
 
 (defonce ^:private profiling-initialized? (atom false))
 (defonce ^:private stats-accumulator (atom nil))
@@ -171,22 +170,15 @@
   []
   (aggregator-snapshot))
 
-(defn- instance-doc-id
-  []
-  (keyword "performance-report" instance-id))
-
 (defn persist-instance-snapshot!
   "Flush accumulated metrics and persist them to XTDB.
    Returns the document that was written, or nil if no metrics were available."
   [ctx]
   (when-let [snapshot (aggregator-snapshot {:reset? true})]
-    (let [doc (merge {:xt/id          (instance-doc-id),
-                      :db/doc-type    :performance-report,
-                      ::sm/type       :performance-report,
-                      ::sm/created-at instance-started-at}
-                     snapshot)]
-      (biff/submit-tx ctx [doc])
-      doc)))
+    (mutations/put-performance-report! ctx
+                                       {:instance-id         instance-id,
+                                        :instance-started-at instance-started-at}
+                                       snapshot)))
 
 (defn profile-request
   "Wrap an arbitrary thunk in a tufte profile block keyed by a readable descriptor."
