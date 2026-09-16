@@ -90,7 +90,7 @@
    [:input {:type "hidden" :name "__anti-forgery-token" :value csrf/*anti-forgery-token*}]
    [:button.w-6.h-6.rounded.border-2.border-gray-500.hover:border-neon-cyan.hover:bg-neon-cyan.hover:bg-opacity-20.transition-all.flex.items-center.justify-center
     {:type "submit" :title "Complete"}
-    [:span.text-transparent.hover:text-neon-cyan "✓"]]])
+    (icons/check {:class "w-4 h-4 text-transparent hover:text-neon-cyan"})]])
 
 (defn- format-due-date
   "Format a due date for display, with overdue highlighting."
@@ -161,7 +161,8 @@
   "Render empty state when no tasks for today."
   []
   [:div.text-center.py-12
-   [:div.text-4xl.mb-4 "✨"]
+   [:div.flex.justify-center.mb-4.text-neon-cyan
+    (icons/sparkles {:class "w-10 h-10"})]
    [:h3.text-lg.font-medium.text-white.mb-2 "All done for today!"]
    [:p.text-gray-400 "Add tasks from your backlog to plan your day."]])
 

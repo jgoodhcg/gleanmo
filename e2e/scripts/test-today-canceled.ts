@@ -73,7 +73,7 @@ async function main() {
 
     const taskRow = await taskRowForLabel(page, taskLabel);
     await expect(taskRow).toBeVisible({ timeout: 10000 });
-    await taskRow.locator('button:has-text("📌 Today")').first().click();
+    await taskRow.locator('form[action$="/focus-today"] button').first().click();
     await page.waitForTimeout(500);
     await captureScreenshot(page, '01-focused');
 

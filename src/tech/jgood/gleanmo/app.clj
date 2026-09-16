@@ -45,7 +45,8 @@
    [tech.jgood.gleanmo.observability :as obs]
    [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.settings :as settings]
-   [tech.jgood.gleanmo.ui :as ui]))
+   [tech.jgood.gleanmo.ui :as ui]
+   [tech.jgood.gleanmo.ui.icons :as icons]))
 
 (def about-page
   (ui/page
@@ -222,7 +223,7 @@
    [:button.text-gray-400.hover:text-white.ml-4
     {:onclick "window.__pwaDismiss()"
      :aria-label "Dismiss"}
-    "✕"]])
+    (icons/x)]])
 
 (defn root
   [ctx]
@@ -250,10 +251,11 @@
        {:title "Log something"
         :subtitle "Ordered by how often you actually use them"})
       [:div.grid.grid-cols-1.sm:grid-cols-2.gap-3
-       (for [{:keys [label href]} (shared/visible-quick-actions show-bm-logs)]
-         [:a.no-underline.rounded-xl.border.border-dark.bg-dark-surface.px-4.py-4.text-base.text-gray-200.transition-colors.hover:border-neon-cyan.hover:text-white
+       (for [{:keys [label href] :as item} (shared/visible-quick-actions show-bm-logs)]
+         [:a.flex.items-center.gap-3.no-underline.rounded-xl.border.border-dark.bg-dark-surface.px-4.py-4.text-base.text-gray-200.transition-colors.hover:border-neon-cyan.hover:text-white
           {:key href, :href href}
-          label])]))))
+          (shared/quick-action-icon item {:class "w-5 h-5 text-gray-400"})
+          [:span label]])]))))
 
 (defn- super-user?
   [db user-id]

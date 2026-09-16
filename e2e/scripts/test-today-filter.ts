@@ -76,7 +76,7 @@ async function main() {
 
     const todayRow = await taskRowForLabel(page, labelToday);
     await expect(todayRow).toBeVisible({ timeout: 10000 });
-    await todayRow.locator('button:has-text("📌 Today")').first().click();
+    await todayRow.locator('form[action$="/focus-today"] button').first().click();
     await page.waitForTimeout(500);
     await captureScreenshot(page, '02-after-toggle');
 

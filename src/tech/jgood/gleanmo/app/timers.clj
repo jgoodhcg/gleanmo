@@ -9,6 +9,7 @@
    [tech.jgood.gleanmo.schema.utils :as schema-utils]
    [tech.jgood.gleanmo.timer.routes :as timer-routes]
    [tech.jgood.gleanmo.ui :as ui]
+   [tech.jgood.gleanmo.ui.icons :as icons]
    [tick.core :as t]))
 
 (def timer-entities
@@ -17,19 +18,16 @@
     :entity-str "project-log"
     :display-name "Projects"
     :description "Track time spent working on projects"
-    :icon "📋"
     :route "/app/timer/project-log"}
    {:entity-key :meditation-log
     :entity-str "meditation-log"
     :display-name "Meditation"
     :description "Log focused meditation sessions"
-    :icon "🧘"
     :route "/app/timer/meditation-log"}
    {:entity-key :reading-log
     :entity-str "reading-log"
     :display-name "Reading"
     :description "Track time spent reading books"
-    :icon "📖"
     :route "/app/timer/reading-log"}])
 
 (def timer-entity-configs
@@ -118,11 +116,11 @@
    Deliberately dense: the list spans every parent across all three types and
    the filter is the primary way in, so rows are single-line and quiet rather
    than card-like."
-  [{:keys [parent icon config label]}]
+  [{:keys [parent config label]}]
   [:div.flex.items-center.justify-between.gap-2.bg-dark-surface.rounded.px-3.py-2.border.border-dark.transition-colors.duration-300.hover:border-neon-yellow
    {:data-filter-text label}
    [:div.flex.items-center.gap-2.min-w-0
-    [:span.text-base.shrink-0 icon]
+    (icons/entity-icon (:entity-key config) {:class "w-4 h-4 shrink-0 text-gray-400"})
     [:span.text-sm.text-white.truncate label]]
    [:button.bg-neon-yellow.bg-opacity-20.text-neon-yellow.px-2.py-1.rounded.text-xs.font-medium.hover:bg-opacity-30.transition-all.shrink-0
     {:type "submit"
@@ -174,7 +172,7 @@
                            locations)]
       [:div.space-y-2
        [:div.flex.items-center.gap-2
-        [:span.text-lg {:aria-hidden "true"} "📍"]
+        (icons/map-pin {:class "w-5 h-5 shrink-0 text-gray-400"})
         [:div.flex-1.min-w-0
          [:select#start-location-select.form-select.w-full
           {:name "location-id"
@@ -229,12 +227,13 @@
   [sections]
   (let [redirect (java.net.URLEncoder/encode "/app/timers" "UTF-8")]
     [:div.flex.flex-wrap.gap-3
-     (for [{:keys [entity-key icon config]} sections]
+     (for [{:keys [entity-key config]} sections]
        (let [parent-str (:parent-entity-str config)]
          ^{:key entity-key}
-         [:a.bg-neon-yellow.bg-opacity-20.text-neon-yellow.px-3.py-2.rounded.text-sm.font-medium.hover:bg-opacity-30.transition-all.no-underline
+         [:a.inline-flex.items-center.gap-2.bg-neon-yellow.bg-opacity-20.text-neon-yellow.px-3.py-2.rounded.text-sm.font-medium.hover:bg-opacity-30.transition-all.no-underline
           {:href (str "/app/crud/form/" parent-str "/new?redirect=" redirect)}
-          (str icon " New " parent-str)]))]))
+          (icons/entity-icon entity-key)
+          [:span (str "New " parent-str)]]))]))
 
 (defn- search-to-start-section
   "One text input filtering a single list of all parent entities across types.
@@ -246,10 +245,9 @@
    get create links so the page is never a dead end."
   [sections locations current-location]
   (let [recency (latest-instant-by-parent sections)
-        rows    (->> (for [{:keys [config icon] :as section} sections
+        rows    (->> (for [{:keys [config] :as section} sections
                            parent (:parents section)]
                        {:parent    parent
-                        :icon      icon
                         :config    config
                         :label     (or (get parent (parent-label-key config))
                                        "Unnamed")
@@ -297,14 +295,13 @@
         redirect  (java.net.URLEncoder/encode "/app/timers" "UTF-8")
         rows      (->> sections
                        (mapcat
-                        (fn [{:keys [config icon parents recent]}]
+                        (fn [{:keys [config parents recent]}]
                           (let [label-key (parent-label-key config)
                                 labels    (into {}
                                                 (map (juxt :xt/id #(get % label-key)))
                                                 parents)]
                             (for [log recent]
                               {:log         log
-                               :icon        icon
                                :config      config
                                :parent-name (or (get labels
                                                      (get log (:relationship-key config)))
@@ -313,7 +310,7 @@
                        (take 5))]
     (if (seq rows)
       [:div.space-y-2
-       (for [{:keys [log icon config parent-name]} rows]
+       (for [{:keys [log config parent-name]} rows]
          (let [{:keys [entity-str beginning-key end-key]} config
                duration    (timer-routes/log-duration-seconds log beginning-key end-key)
                start-local (t/in (get log beginning-key) tz)
@@ -323,7 +320,7 @@
            [:a.block.no-underline {:href edit-url}
             [:div.bg-dark-surface.rounded.p-3.border.border-dark.flex.items-center.justify-between.transition-all.duration-300.hover:border-neon-cyan
              [:div.flex.items-center.gap-2.min-w-0
-              [:span icon]
+              (icons/entity-icon (:entity-key config) {:class "w-4 h-4 shrink-0 text-gray-400"})
               [:div.min-w-0
                [:span.text-sm.text-white parent-name]
                [:span.text-xs.text-gray-500.ml-2
@@ -337,9 +334,11 @@
    longer recent-log lists."
   [sections]
   [:div.flex.flex-wrap.gap-4.pt-2.border-t.border-dark
-   (for [{:keys [entity-key route icon display-name]} sections]
+   (for [{:keys [entity-key route display-name]} sections]
      ^{:key entity-key}
-     [:a.link {:href route} (str icon " " display-name " stats →")])])
+     [:a.link.inline-flex.items-center.gap-2 {:href route}
+      (icons/entity-icon entity-key)
+      [:span (str display-name " stats →")]])])
 
 (defn timer-workspace
   "Unified timer workspace: every running timer across types, search-to-start
@@ -353,7 +352,9 @@
      ctx
      (layout/page-shell
       ctx {:width :normal}
-      (layout/page-header {:title "⏱️ Timers"})
+      (layout/page-header {:title [:span.inline-flex.items-center.gap-2
+                                   (icons/timer {:class "w-6 h-6"})
+                                   "Timers"]})
 
       [:div.space-y-3
        (layout/section-header "ACTIVE TIMERS")

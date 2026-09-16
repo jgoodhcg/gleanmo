@@ -6,7 +6,8 @@
    [tech.jgood.gleanmo.app.shared :refer [user-local-date]]
    [tech.jgood.gleanmo.db.queries :as queries]
    [tech.jgood.gleanmo.schema.meta :as sm]
-   [tech.jgood.gleanmo.ui :as ui]))
+   [tech.jgood.gleanmo.ui :as ui]
+   [tech.jgood.gleanmo.ui.icons :as icons]))
 
 (def ^:private task-states
   [:inbox :now :later :waiting :done :canceled])
@@ -215,12 +216,13 @@
        :name  "__anti-forgery-token",
        :value csrf/*anti-forgery-token*}]
      [:input {:type "hidden" :name "origin" :value "focus"}]
-     [:button.inline-flex.items-center.justify-center.rounded-md.text-xs.font-medium.transition-all
+     [:button.inline-flex.items-center.justify-center.gap-1.rounded-md.text-xs.font-medium.transition-all
       {:type "submit",
        :title "Remove from today",
        :class
        "bg-neon-cyan text-dark border border-neon-cyan hover:bg-transparent hover:text-neon-cyan px-2 py-1"}
-      "✓ Today"]]
+      (icons/check {:class "w-3 h-3"})
+      "Today"]]
     ;; Not focused - show add button
     [:form.inline
      {:method     "post",
@@ -235,11 +237,12 @@
        :name  "__anti-forgery-token",
        :value csrf/*anti-forgery-token*}]
      [:input {:type "hidden" :name "origin" :value "focus"}]
-     [:button.inline-flex.items-center.justify-center.rounded-md.text-xs.font-medium.transition-all
+     [:button.inline-flex.items-center.justify-center.gap-1.rounded-md.text-xs.font-medium.transition-all
       {:type "submit",
        :class
        "border border-neon-cyan text-neon-cyan hover:bg-neon-cyan hover:text-dark px-2 py-1"}
-      "📌 Today"]]))
+      (icons/pin {:class "w-3 h-3"})
+      "Today"]]))
 
 (defn- task-row
   [task project-by-id today now]

@@ -8,6 +8,7 @@
    [tech.jgood.gleanmo.schema :refer [schema]]
    [tech.jgood.gleanmo.schema.utils :as schema-utils]
    [tech.jgood.gleanmo.ui :as ui]
+   [tech.jgood.gleanmo.ui.icons :as icons]
    [tick.core :as t]))
 
 (defn infer-primary-rel
@@ -311,7 +312,7 @@
     (when (and current (schema-utils/schema-field entity-schema loc-key))
       [:p.text-sm.text-gray-400.truncate
        {:data-timer-location (str current)}
-       [:span.mr-1 {:aria-hidden "true"} "📍"]
+       (icons/map-pin {:class "w-4 h-4 mr-1 inline-block align-text-bottom"})
        (or (->> locations
                 (filter #(= current (:xt/id %)))
                 first
@@ -368,7 +369,9 @@
      (side-bar
       ctx
       [:div.container.mx-auto.p-6.space-y-8
-       [:h1.text-3xl.font-bold.text-white "⏱️ Time Tracker"]
+       [:h1.flex.items-center.gap-2.text-3xl.font-bold.text-white
+        (icons/timer {:class "w-8 h-8"})
+        "Time Tracker"]
 
 ;; Active Timers Section
        [:div.mb-8

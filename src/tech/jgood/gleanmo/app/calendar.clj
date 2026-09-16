@@ -8,6 +8,7 @@
    [tech.jgood.gleanmo.db.mutations :as mutations]
    [tech.jgood.gleanmo.db.queries :as db]
    [tech.jgood.gleanmo.ui :as ui]
+   [tech.jgood.gleanmo.ui.icons :as icons]
    [tick.core :as t]))
 
 (defn color-neon->tailwind
@@ -238,7 +239,7 @@
         :aria-label "Close",
         :onclick
         "var m=htmx.find('#bc-modal'); m.innerHTML=''; m.classList.add('hidden');"}
-       "✕"]]
+       (icons/x)]]
 
      (biff/form
       {:id        "bc-event-form",
@@ -309,7 +310,7 @@
             :aria-label "Close",
             :onclick
             "var m=htmx.find('#bc-modal'); m.innerHTML=''; m.classList.add('hidden');"}
-           "✕"]]
+           (icons/x)]]
          [:div.text-sm.mb-3.text-secondary error]
          (biff/form
           {:hx-get    (str "/app/calendar/event-form?date=" date),
@@ -345,7 +346,7 @@
                 :aria-label "Close",
                 :onclick
                 "var m=htmx.find('#bc-modal'); m.innerHTML=''; m.classList.add('hidden');"}
-               "✕"]]
+               (icons/x)]]
              [:div.text-sm.mb-3.text-secondary error]
              (biff/form
               {:hx-get    (str "/app/calendar/event-form?date=" date),

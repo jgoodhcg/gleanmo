@@ -4,11 +4,11 @@
 // This test:
 // 1. Creates a test task
 // 2. Navigates to Focus page filtered to that task
-// 3. Toggles "📌 Today" on and confirms it changes to "✓ Today"
-// 4. Toggles "✓ Today" off and confirms it returns to "📌 Today"
+// 3. Toggles Today on (focus-today form) and confirms the remove-from-today form replaces it
+// 4. Toggles Today off (remove-from-today form) and confirms focus-today returns
 // 5. Takes screenshots for visual validation
 
-import { chromium, Page, expect } from '@playwright/test';
+import { chromium, Locator, Page, expect } from '@playwright/test';
 import { authenticateForDev } from './auth.js';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:8080';
@@ -51,9 +51,15 @@ async function taskRowForLabel(page: Page, label: string) {
   return page.locator('.bg-dark-surface', { has: page.locator(`a:has-text("${label}")`) });
 }
 
-async function toggleTodayButton(page: Page, label: string, buttonText: string) {
+// Today actions are selected by their form's action suffix rather than by
+// icon or label text, so restyling the button can't break the test.
+function todayButton(scope: Locator, action: 'focus-today' | 'remove-from-today') {
+  return scope.locator(`form[action$="/${action}"] button`).first();
+}
+
+async function toggleTodayButton(page: Page, label: string, action: 'focus-today' | 'remove-from-today') {
   const taskRow = await taskRowForLabel(page, label);
-  const button = taskRow.locator(`button:has-text("${buttonText}")`).first();
+  const button = todayButton(taskRow, action);
   await expect(button).toBeVisible({ timeout: 10000 });
   await button.click();
   await page.waitForTimeout(500);
@@ -82,14 +88,14 @@ async function main() {
     await expect(taskRow).toBeVisible({ timeout: 10000 });
     await captureScreenshot(page, '01-before-toggle');
 
-    console.log('\n3. Toggling on (📌 Today -> ✓ Today)...');
-    await toggleTodayButton(page, taskLabel, '📌 Today');
-    await expect(taskRow.locator('button:has-text("✓ Today")')).toBeVisible({ timeout: 10000 });
+    console.log('\n3. Toggling on (focus-today -> remove-from-today)...');
+    await toggleTodayButton(page, taskLabel, 'focus-today');
+    await expect(todayButton(taskRow, 'remove-from-today')).toBeVisible({ timeout: 10000 });
     await captureScreenshot(page, '02-after-toggle-on');
 
-    console.log('\n4. Toggling off (✓ Today -> 📌 Today)...');
-    await toggleTodayButton(page, taskLabel, '✓ Today');
-    await expect(taskRow.locator('button:has-text("📌 Today")')).toBeVisible({ timeout: 10000 });
+    console.log('\n4. Toggling off (remove-from-today -> focus-today)...');
+    await toggleTodayButton(page, taskLabel, 'remove-from-today');
+    await expect(todayButton(taskRow, 'focus-today')).toBeVisible({ timeout: 10000 });
     await captureScreenshot(page, '03-after-toggle-off');
 
     console.log('\n=== Test Passed ===\n');

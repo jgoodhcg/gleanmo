@@ -29,9 +29,9 @@ async function getTaskLabelsInOrder(page: Page): Promise<string[]> {
 }
 
 async function addTaskToToday(page: Page, taskLabel: string) {
-  // Find the task row containing this label and click its "📌 Today" button
+  // Find the task row containing this label and click its Today button
   const taskRow = page.locator('.bg-dark-surface', { has: page.locator(`a:has-text("${taskLabel}")`) });
-  const todayButton = taskRow.locator('button:has-text("Today")').first();
+  const todayButton = taskRow.locator('form[action$="/focus-today"] button').first();
 
   if (await todayButton.isVisible()) {
     await todayButton.click();

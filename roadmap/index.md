@@ -40,6 +40,7 @@ unfinished QOL batch items 3-5 are no longer competing with a migration.
 - [021-performance.md](./021-performance.md) - Performance monitoring and profiling dashboard
 - [013-dashboard-performance.md](./013-dashboard-performance.md) - Home page dashboard performance improvements
 - [012-daily-focus.md](./012-daily-focus.md) - Existing daily task workflow; evaluate a manageable chosen list after conversational cleanup
+- [083-lucide-icon-consolidation.md](./083-lucide-icon-consolidation.md) - All three phases implemented on `dev` 2026-09-16; mark done and archive once shipped
 - [010-calendar.md](./010-calendar.md) - Year-at-a-glance calendar with event interactions and external sync
 - [008-backlog.md](./008-backlog.md) - Minor improvements without full work-unit docs
 
@@ -81,7 +82,6 @@ PWA notification scaffolding does not establish working reminder delivery.
 
 ### Ready
 
-- [083-lucide-icon-consolidation.md](./083-lucide-icon-consolidation.md) - One inline-Lucide icon system, one icon per entity type, replacing emoji, hand-drawn SVGs, and stray Heroicons in three phases
 - [075-exercise-export.md](./075-exercise-export.md) - The exercise composite export (session → set → line as nested Markdown or JSON, denormalized to CSV); depends on 078-data-export.md
 - [074-query-shape-audit.md](./074-query-shape-audit.md) - Find clauses that cost without narrowing, and ranges that never prune, across db/queries.clj
 - [063-qol-quick-actions.md](./063-qol-quick-actions.md) - Navigation & logging QOL: sidebar reorder, stop-in-place timers, boulder problem discoverability, home quick actions

@@ -13,6 +13,7 @@
    [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.timer.routes :as timer-routes]
    [tech.jgood.gleanmo.ui :as ui]
+   [tech.jgood.gleanmo.ui.icons :as icons]
    [tick.core :as t]))
 
 (def recent-activity-types
@@ -64,25 +65,6 @@
   [color-key]
   (get event-colors color-key (get event-colors :default)))
 
-(def recent-activity-accents
-  {"task"           {:accent "#84cc16", :muted "rgba(132,204,22,0.16)"},
-   "habit-log"      {:accent "#8b5cf6", :muted "rgba(139,92,246,0.16)"},
-   "meditation-log" {:accent "#22c55e", :muted "rgba(34,197,94,0.16)"},
-   "bm-log"         {:accent "#0ea5e9", :muted "rgba(14,165,233,0.16)"},
-   "medication-log" {:accent "#f59e0b", :muted "rgba(245,158,11,0.16)"},
-   "project-log"    {:accent "#3b82f6", :muted "rgba(59,130,246,0.16)"},
-   "calendar-event" {:accent "#ec4899", :muted "rgba(236,72,153,0.16)"},
-   "reading-log"    {:accent "#f97316", :muted "rgba(249,115,22,0.16)"},
-   "exercise-session" {:accent "#ef4444", :muted "rgba(239,68,68,0.16)"},
-   "symptom-log"    {:accent "#f43f5e", :muted "rgba(244,63,94,0.16)"},
-   "mood-log"       {:accent "#06b6d4", :muted "rgba(6,182,212,0.16)"},
-   "boulder-session" {:accent "#84cc16", :muted "rgba(132,204,22,0.16)"},
-   :default         {:accent "#8b949e", :muted "rgba(139,148,158,0.16)"}})
-
-(defn accent-style
-  [etype]
-  (get recent-activity-accents etype (get recent-activity-accents :default)))
-
 (def timeline-type-order
   ["reading-log"
    "meditation-log"
@@ -98,19 +80,19 @@
    "exercise-session"])
 
 (def timeline-type-meta
-  {"reading-log"      {:code "READ" :label "reading log" :icon-key :book}
-   "meditation-log"  {:code "MED" :label "meditation log" :icon-key :medit}
-   "project-log"     {:code "PROJ" :label "project log" :icon-key :project}
-   "task"            {:code "TASK" :label "task" :icon-key :task}
-   "medication-log"  {:code "MEDS" :label "medication log" :icon-key :pill}
-   "habit-log"       {:code "HABIT" :label "habit log" :icon-key :habit}
-   "bm-log"          {:code "BM" :label "bm log" :icon-key :drop}
-   "symptom-log"     {:code "SYMP" :label "symptom log" :icon-key :pulse}
-   "mood-log"        {:code "MOOD" :label "mood log" :icon-key :pulse}
-   "boulder-session" {:code "CLIMB" :label "boulder session" :icon-key :dumbbell}
-   "calendar-event"  {:code "CAL" :label "calendar event" :icon-key :calendar}
-   "exercise-session" {:code "EX" :label "exercise session" :icon-key :dumbbell}
-   :default          {:code "ITEM" :label "item" :icon-key :pin}})
+  {"reading-log"      {:code "READ" :label "reading log"}
+   "meditation-log"  {:code "MED" :label "meditation log"}
+   "project-log"     {:code "PROJ" :label "project log"}
+   "task"            {:code "TASK" :label "task"}
+   "medication-log"  {:code "MEDS" :label "medication log"}
+   "habit-log"       {:code "HABIT" :label "habit log"}
+   "bm-log"          {:code "BM" :label "bm log"}
+   "symptom-log"     {:code "SYMP" :label "symptom log"}
+   "mood-log"        {:code "MOOD" :label "mood log"}
+   "boulder-session" {:code "CLIMB" :label "boulder session"}
+   "calendar-event"  {:code "CAL" :label "calendar event"}
+   "exercise-session" {:code "EX" :label "exercise session"}
+   :default          {:code "ITEM" :label "item"}})
 
 (def status-styles
   {:running    {:ring "#22d3ee" :icon "#22d3ee" :shadow "0 0 0 4px rgba(34,211,238,.10)"
@@ -134,77 +116,6 @@
   [etype entity-id]
   (str "/app/crud/form/" etype "/edit/" entity-id
        "?redirect=" (url-encode "/app")))
-
-(defn- icon-svg
-  [icon-key size]
-  (let [attrs {:width size
-               :height size
-               :viewBox "0 0 24 24"
-               :fill "none"
-               :stroke "currentColor"
-               :stroke-width "1.7"
-               :stroke-linecap "round"
-               :stroke-linejoin "round"}]
-    (case icon-key
-      :book
-      [:svg attrs
-       [:path {:d "M12 6.2C10.4 4.9 8.3 4.2 5 4.2v13.6c3.3 0 5.4.7 7 2 1.6-1.3 3.7-2 7-2V4.2c-3.3 0-5.4.7-7 2z"}]
-       [:line {:x1 "12" :y1 "6.2" :x2 "12" :y2 "19.8"}]]
-
-      :medit
-      [:svg attrs
-       [:circle {:cx "12" :cy "12" :r "7.5"}]
-       [:circle {:cx "12" :cy "12" :r "2.5"}]]
-
-      :project
-      [:svg attrs
-       [:rect {:x "3.5" :y "8" :width "17" :height "11.5" :rx "1.5"}]
-       [:path {:d "M9 8V6.5A1.5 1.5 0 0 1 10.5 5h3A1.5 1.5 0 0 1 15 6.5V8"}]
-       [:line {:x1 "3.5" :y1 "12.5" :x2 "20.5" :y2 "12.5"}]]
-
-      :task
-      [:svg attrs
-       [:rect {:x "4" :y "4" :width "16" :height "16" :rx "3"}]
-       [:polyline {:points "8 12 11 15 16 9"}]]
-
-      :pill
-      [:svg attrs
-       [:rect {:x "3.5" :y "8.5" :width "17" :height "7" :rx "3.5"}]
-       [:line {:x1 "12" :y1 "8.5" :x2 "12" :y2 "15.5"}]]
-
-      :habit
-      [:svg attrs
-       [:path {:d "M4.5 12a7.5 7.5 0 0 1 12.9-5.2L19.5 8.9"}]
-       [:polyline {:points "19.5 4.4 19.5 8.9 15 8.9"}]
-       [:path {:d "M19.5 12a7.5 7.5 0 0 1-12.9 5.2L4.5 15.1"}]
-       [:polyline {:points "4.5 19.6 4.5 15.1 9 15.1"}]]
-
-      :drop
-      [:svg attrs
-       [:path {:d "M12 3.5c3.1 3.8 6 6.8 6 9.9a6 6 0 0 1-12 0c0-3.1 2.9-6.1 6-9.9z"}]]
-
-      :pulse
-      [:svg attrs
-       [:polyline {:points "3 12 8 12 10.5 5 14 19 16.5 12 21 12"}]]
-
-      :dumbbell
-      [:svg attrs
-       [:rect {:x "5.5" :y "7.5" :width "3" :height "9" :rx "1"}]
-       [:rect {:x "15.5" :y "7.5" :width "3" :height "9" :rx "1"}]
-       [:line {:x1 "8.5" :y1 "12" :x2 "15.5" :y2 "12"}]
-       [:line {:x1 "3" :y1 "9.5" :x2 "3" :y2 "14.5"}]
-       [:line {:x1 "21" :y1 "9.5" :x2 "21" :y2 "14.5"}]]
-
-      :calendar
-      [:svg attrs
-       [:rect {:x "4" :y "5.5" :width "16" :height "14.5" :rx "1.5"}]
-       [:line {:x1 "4" :y1 "10" :x2 "20" :y2 "10"}]
-       [:line {:x1 "9" :y1 "3" :x2 "9" :y2 "7"}]
-       [:line {:x1 "15" :y1 "3" :x2 "15" :y2 "7"}]]
-
-      [:svg attrs
-       [:circle {:cx "12" :cy "10" :r "6"}]
-       [:polyline {:points "7.5 14.5 12 21 16.5 14.5"}]])))
 
 (defn- user-zone
   [ctx]
@@ -404,7 +315,7 @@
      [:div.grid.grid-cols-1.md:grid-cols-3.gap-3
       (for [{:keys [id href entity-str label start elapsed]} timers
             :let [meta (type-meta entity-str)
-                  {:keys [icon-key code]} meta
+                  {:keys [code]} meta
                   type-label (:label meta)]]
         [:a.block.relative.overflow-hidden.rounded-lg.bg-dark-surface.px-4.py-3.no-underline.hover:bg-dark-light.transition-colors
          {:key (str id)
@@ -414,7 +325,7 @@
          [:div.flex.items-center.justify-between.gap-3
           [:div.flex.items-center.gap-3.min-w-0
            [:div.flex.h-8.w-8.shrink-0.items-center.justify-center.rounded-full.bg-dark.text-neon-cyan
-            (icon-svg icon-key 16)]
+            (icons/entity-icon entity-str {:class "w-4 h-4"})]
            [:div.min-w-0
             [:div.text-sm.font-semibold.text-white.truncate label]
             [:div.text-xs.text-gray-500.uppercase.tracking-wide
@@ -714,14 +625,13 @@
 
 (defn- timeline-node
   [{:keys [type status]}]
-  (let [{:keys [icon-key]} (type-meta type)
-        {:keys [ring shadow], icon-color :icon} (status-style status)]
+  (let [{:keys [ring shadow], icon-color :icon} (status-style status)]
     [:div.relative.z-10.flex.h-full.justify-center
      [:span.relative.mt-2.flex.h-8.w-8.items-center.justify-center.rounded-full.bg-dark
-      {:style {:border     (str "1.5px solid " ring)
+      {:style {:border     (str "1px solid " ring)
                :color      icon-color
                :box-shadow shadow}}
-      (icon-svg icon-key 15)]]))
+      (icons/entity-icon type {:class "w-4 h-4"})]]))
 
 (defn- render-status-badge
   [status]
@@ -785,9 +695,9 @@
      [:div.flex.flex-wrap.gap-2
       (for [etype (cons nil (concat ordered-types extra-types))
             :let [active? (nil? etype)
-                  {:keys [code icon-key]} (if etype
-                                            (type-meta etype)
-                                            {:code "ALL" :icon-key nil})
+                  {:keys [code]} (if etype
+                                   (type-meta etype)
+                                   {:code "ALL"})
                   count (if etype (get counts etype 0) total)]]
         [:button.inline-flex.items-center.gap-2.rounded-md.px-3.py-1.5.text-xs.font-semibold.uppercase.tracking-wide.transition-colors
          {:key              (or etype "all")
@@ -797,8 +707,8 @@
           :class            (if active?
                               "bg-dark-light text-white"
                               "bg-dark-surface text-gray-500 hover:text-white hover:bg-dark-light")}
-         (when icon-key
-           [:span.text-gray-400 (icon-svg icon-key 13)])
+         (when etype
+           [:span.text-gray-400 (icons/entity-icon etype {:class "w-4 h-4"})])
          [:span code]
          [:span.text-gray-600 count]])]
      [:script (biff/unsafe timeline-filter-script)]]))
@@ -869,7 +779,8 @@
     [:summary.flex.cursor-pointer.select-none.items-center.gap-3.py-3
      {:style {:list-style "none"}}
      [:span.flex.h-6.w-6.items-center.justify-center.rounded.bg-dark-surface.text-gray-500.transition-colors.hover:bg-dark-light.hover:text-white
-      [:span.text-sm.transition-transform.group-open:rotate-90 "›"]]
+      [:span.flex.transition-transform.group-open:rotate-90
+       (icons/chevron-right {:class "w-4 h-4"})]]
      [:div.text-sm.font-semibold.text-gray-200
       (if upcoming? "Upcoming" (group-label ctx date))]
      (when date-text
@@ -994,9 +905,7 @@
     [:div.h-5.w-24.rounded.bg-dark-surface.animate-pulse]
     [:div.h-px.flex-1.bg-dark-border]]
    (for [[i etype] (map-indexed vector skeleton-type-cycle)
-         :let [delay    {:animation-delay (str (* i 140) "ms")}
-               icon-key (:icon-key (type-meta etype))
-               {:keys [accent]} (accent-style etype)]]
+         :let [delay {:animation-delay (str (* i 140) "ms")}]]
      [:div.flex.items-stretch {:key i}
       [:div.w-20.shrink-0.py-3.pr-3.flex.justify-end
        [:div.h-3.w-10.rounded.bg-dark-light.animate-pulse {:style delay}]]
@@ -1004,10 +913,10 @@
        [:div.absolute.top-0.bottom-0.left-0.right-0.mx-auto.w-px.bg-dark-border]
        [:div.relative.z-10.flex.justify-center
         [:span.relative.mt-2.flex.h-8.w-8.items-center.justify-center.rounded-full.bg-dark.animate-pulse
-         {:style (merge delay {:border "1.5px solid #2a3140"
-                               :color accent
+         {:style (merge delay {:border "1px solid #2a3140"
+                               :color (get-in status-styles [:normal :icon])
                                :opacity 0.75})}
-         (icon-svg icon-key 15)]]]
+         (icons/entity-icon etype {:class "w-4 h-4"})]]]
       [:div.flex-1.min-w-0.py-3.pr-4.space-y-2
        [:div.h-3.rounded.bg-dark-light.animate-pulse
         {:style delay :class "w-1/2"}]

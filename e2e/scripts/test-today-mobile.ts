@@ -76,7 +76,7 @@ async function createTestTask(page: Page, label: string, email: string, opts: {
 
 async function addTaskToToday(page: Page, taskLabel: string) {
   const taskRow = page.locator('.bg-dark-surface', { has: page.locator(`a:has-text("${taskLabel}")`) });
-  const todayButton = taskRow.locator('button:has-text("Today")').first();
+  const todayButton = taskRow.locator('form[action$="/focus-today"] button').first();
 
   if (await todayButton.isVisible()) {
     await todayButton.click();

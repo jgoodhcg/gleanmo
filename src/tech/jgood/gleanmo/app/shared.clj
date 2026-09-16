@@ -3,6 +3,7 @@
    [clojure.string :as str]
    [com.biffweb    :as biff]
    [tech.jgood.gleanmo.db.queries :as query]
+   [tech.jgood.gleanmo.ui.icons :as icons]
    [tick.core      :as t])
   (:import
    [java.time ZoneId]
@@ -53,7 +54,8 @@
       {:style {:box-shadow "0 0 8px rgba(236, 72, 153, 0.2)"}}
       [:div.flex.items-center.justify-between
        [:div.flex.items-center.gap-2
-        [:span.font-medium.text-md.text-neon-pink "🔒 Sensitive"]]]])))
+        (icons/lock {:class "w-4 h-4 text-neon-pink"})
+        [:span.font-medium.text-md.text-neon-pink "Sensitive"]]]])))
 
 (defn turn-off-archived-button
   "Show a button to turn off archived display when archived mode is enabled.
@@ -68,7 +70,8 @@
       {:style {:box-shadow "0 0 8px rgba(6, 182, 212, 0.2)"}}
       [:div.flex.items-center.justify-between
        [:div.flex.items-center.gap-2
-        [:span.font-medium.text-md.text-neon-cyan "📦 Archived"]]]])))
+        (icons/archive {:class "w-4 h-4 text-neon-cyan"})
+        [:span.font-medium.text-md.text-neon-cyan "Archived"]]]])))
 
 (defn turn-off-bm-logs-button
   "Show a button to hide BM logs in overview, sidebar, and dashboards when visible."
@@ -83,9 +86,9 @@
                :box-shadow   "0 0 8px rgba(14, 165, 233, 0.2)"}}
       [:div.flex.items-center.justify-between
        [:div.flex.items-center.gap-2
-        [:span.font-medium.text-md
-         {:style {:color "#0ea5e9"}}
-         "🧻 BM logs"]]]])))
+        {:style {:color "#0ea5e9"}}
+        (icons/entity-icon :bm-log)
+        [:span.font-medium.text-md "BM logs"]]]])))
 
 (def quick-action-items
   "Logging destinations ordered by measured use (28-day Plausible sample — see
@@ -94,23 +97,45 @@
 
    `:lead?` marks the timer workspace, which the sidebar renders among the
    primary surfaces rather than in this list; `:bm?` marks the entry gated
-   behind the show-bm-logs setting."
-  [{:label "⏱️ timers", :href "/app/timers", :lead? true}
-   {:label "habit log", :href "/app/crud/form/habit-log/new"}
-   {:label "project log", :href "/app/crud/form/project-log/new"}
+   behind the show-bm-logs setting. `:entity` names the entity whose registry
+   icon the entry wears; the timer workspace has none (see
+   `quick-action-icon`)."
+  [{:label "timers", :href "/app/timers", :lead? true}
+   {:label "habit log", :href "/app/crud/form/habit-log/new", :entity :habit-log}
+   {:label "project log",
+    :href  "/app/crud/form/project-log/new",
+    :entity :project-log}
    {:label "medication log",
-    :href  "/app/crud/form/medication-log/new"}
+    :href  "/app/crud/form/medication-log/new",
+    :entity :medication-log}
    {:label "bm log",
     :href  "/app/crud/form/bm-log/new",
+    :entity :bm-log,
     :bm?   true}
-   {:label "workout", :href "/app/exercise/session"}
-   {:label "bouldering", :href "/app/boulder/session"}
-   {:label "symptom log", :href "/app/crud/form/symptom-log/new"}
-   {:label "mood log", :href "/app/crud/form/mood-log/new"}
-   {:label "meditation log", :href "/app/crud/form/meditation-log/new"}
-   {:label "reading log", :href "/app/crud/form/reading-log/new"}
-   {:label "calendar event", :href "/app/crud/form/calendar-event/new"}
-   {:label "task (full form)", :href "/app/crud/form/task/new"}])
+   {:label "workout", :href "/app/exercise/session", :entity :exercise-session}
+   {:label "bouldering", :href "/app/boulder/session", :entity :boulder-session}
+   {:label "symptom log",
+    :href  "/app/crud/form/symptom-log/new",
+    :entity :symptom-log}
+   {:label "mood log", :href "/app/crud/form/mood-log/new", :entity :mood-log}
+   {:label "meditation log",
+    :href  "/app/crud/form/meditation-log/new",
+    :entity :meditation-log}
+   {:label "reading log",
+    :href  "/app/crud/form/reading-log/new",
+    :entity :reading-log}
+   {:label "calendar event",
+    :href  "/app/crud/form/calendar-event/new",
+    :entity :calendar-event}
+   {:label "task (full form)", :href "/app/crud/form/task/new", :entity :task}])
+
+(defn quick-action-icon
+  "The icon for a `quick-action-items` entry: its entity's registry icon, or
+   the timer glyph for the entity-less timer workspace."
+  [{:keys [entity]} opts]
+  (if entity
+    (icons/entity-icon entity opts)
+    (icons/timer opts)))
 
 (defn visible-quick-actions
   "Quick action items with the bm-log entry dropped unless the user has bm
@@ -123,10 +148,10 @@
    from, grouped by intent rather than by implementation. Everything else is
    reachable *through* these rather than sitting beside them in a flat list.
    Shared by the desktop sidebar and the mobile tab bar so the two agree."
-  [{:label "home",   :icon "🏠", :href "/app"}
-   {:label "timers", :icon "⏱️", :href "/app/timers"}
-   {:label "log",    :icon "➕", :href "/app/log"}
-   {:label "today",  :icon "✅", :href "/app/task/today"}])
+  [{:label "home",   :icon icons/house, :href "/app"}
+   {:label "timers", :icon icons/timer, :href "/app/timers"}
+   {:label "log",    :icon icons/plus,  :href "/app/log"}
+   {:label "today",  :icon icons/check, :href "/app/task/today"}])
 
 (defn- surface-active?
   "Whether `href` is the surface the current request is on. Home is matched
@@ -159,7 +184,7 @@
                               "py-2 flex-1 no-underline transition-colors "
                               (if active? "text-neon-cyan" "text-gray-400"))}
            active? (assoc :aria-current "page"))
-         [:span.text-lg.leading-none icon]
+         (icon {:class "w-5 h-5"})
          [:span.text-xs.tracking-wide label]])
       [:button
        {:type "button"
@@ -175,8 +200,13 @@
         "document.getElementById('sidebar').classList.toggle('hidden');
          document.getElementById('sidebar').classList.toggle('flex');
          document.getElementById('side-bar-page-content').classList.toggle('hidden');"}
-       [:span.text-lg.leading-none "☰"]
+       (icons/menu {:class "w-5 h-5"})
        [:span.text-xs.tracking-wide "more"]]]]))
+
+(defn- sidebar-link
+  "A sidebar navigation link: icon beside its label."
+  [href icon label]
+  [:a.link.flex.items-center.gap-2 {:href href} icon [:span label]])
 
 (defn side-bar
   [{:keys [session] :as ctx} & content]
@@ -203,7 +233,7 @@
       ;; without this the only way out is to navigate somewhere.
       [:div.mb-2.flex.items-center.justify-between.gap-3
        (gleanmo-wordmark)
-       [:button.md:hidden.text-2xl.leading-none.text-gray-400.bg-transparent.border-none.cursor-pointer
+       [:button.md:hidden.leading-none.text-gray-400.bg-transparent.border-none.cursor-pointer
         {:type "button"
          :aria-label "Close navigation menu"
          :aria-controls "sidebar"
@@ -211,7 +241,7 @@
          "document.getElementById('sidebar').classList.toggle('hidden');
           document.getElementById('sidebar').classList.toggle('flex');
           document.getElementById('side-bar-page-content').classList.toggle('hidden');"}
-        "✕"]]
+        (icons/x {:class "w-6 h-6"})]]
       ;; Turn off sensitive button (when sensitive mode is on)
       (turn-off-sensitive-button show-sensitive user-id)
       ;; Turn off archived button (when archived mode is on)
@@ -221,34 +251,40 @@
 
       ;; Layer 1 — primary surfaces, same set as the mobile tab bar.
       (for [{:keys [label icon href]} primary-surfaces]
-        [:a.link.font-semibold {:key href, :href href} (str icon " " label)])
+        [:a.link.font-semibold.flex.items-center.gap-2 {:key href, :href href}
+         (icon)
+         [:span label]])
       [:hr.border-dark]
 
       ;; Layer 2 — log something. Ordered by measured use (28-day Plausible
       ;; sample, see roadmap/063-qol-quick-actions.md item 1); the order lives in
       ;; `quick-action-items`, shared with the home strip and the /app/log hub.
       [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Log Something"]
-      (for [{:keys [label href]} (remove :lead? (visible-quick-actions
-                                                 show-bm-logs))]
-        [:a.link {:key href, :href href} label])
+      (for [{:keys [label href] :as item} (remove :lead? (visible-quick-actions
+                                                          show-bm-logs))]
+        [:a.link.flex.items-center.gap-2 {:key href, :href href}
+         (quick-action-icon item nil)
+         [:span label]])
       [:hr.border-dark]
 
       ;; Layer 3 — look back at what was logged.
       [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Review"]
-      [:a.link {:href "/app/goals"} "🏁 goals"]
-      [:a.link {:href "/app/calendar/year"} "📅 calendar (year)"]
-      [:a.link {:href "/app/dashboards/stats"} "📊 stats & charts"]
-      [:a.link {:href "/app/stats/medication-history"} "💊 medication history"]
-      [:a.link {:href "/app/dashboards/activity-logs"} "📋 activity logs"]
+      (sidebar-link "/app/goals" (icons/entity-icon :goal) "goals")
+      (sidebar-link "/app/calendar/year" (icons/calendar-days) "calendar (year)")
+      (sidebar-link "/app/dashboards/stats" (icons/chart-column) "stats & charts")
+      (sidebar-link "/app/stats/medication-history"
+                    (icons/entity-icon :medication-log)
+                    "medication history")
+      (sidebar-link "/app/dashboards/activity-logs" (icons/list-checks) "activity logs")
       [:hr.border-dark]
 
       ;; Layer 4 — manage the data and the account behind it all.
       [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Manage"]
-      [:a.link {:href "/app/dashboards/entities"} "📦 manage entities"]
-      [:a.link {:href "/app/task/focus"} "🎯 task focus"]
-      [:a.link {:href account-url} "⚙️ account"]
+      (sidebar-link "/app/dashboards/entities" (icons/boxes) "manage entities")
+      (sidebar-link "/app/task/focus" (icons/target) "task focus")
+      (sidebar-link account-url (icons/settings) "account")
       (when super-user?
-        [:a.link {:href "/app/monitoring/performance"} "🛡️ monitoring"])
+        (sidebar-link "/app/monitoring/performance" (icons/shield) "monitoring"))
 
       ;; Subtle Sign out button
       (biff/form

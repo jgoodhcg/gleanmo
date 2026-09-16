@@ -1,6 +1,6 @@
 ---
 title: "Lucide icon consolidation"
-status: ready
+status: active
 description: "One inline-Lucide icon system, one icon per entity type, replacing emoji, hand-drawn SVGs, and stray Heroicons in three phases"
 created: 2026-09-16
 updated: 2026-09-16
@@ -134,20 +134,20 @@ Phosphor, and Iconify: Lucide-first, inline SVG, no webfont, no JS icon runtime.
 
 Per phase:
 
-- [ ] `just lint-fast` on every touched `.clj` file; `just check` after the batch
-- [ ] `just e2e-shot-series` baseline before edits and another tick after
-- [ ] `just e2e-test-all` passes (smoke covers the dashboards; today-mobile captures the mobile Today layout)
+- [x] `just lint-fast` on every touched `.clj` file; `just check` after the batch
+- [x] `just e2e-shot-series` baseline before edits and another tick after
+- [x] `just e2e-test-all` passes (smoke covers the dashboards; today-mobile captures the mobile Today layout)
 
 Phase-specific:
 
-- [ ] Phase 1: `formatting_test.clj` updated for the Lucide check/x and passing; grep finds
+- [x] Phase 1: `formatting_test.clj` updated for the Lucide check/x and passing; grep finds
   no `[:svg` outside `ui/icons.clj` and `home.clj`
-- [ ] Phase 2: tab bar and sidebar checked at mobile width; SVG icons render beside labels without serialized hiccup text.
-- [ ] Phase 2: `just e2e-test today-toggle` and `just e2e-test today-filter` pass with selectors independent of icon text.
-- [ ] Phase 2: no emoji left in `shared.clj`, `timers.clj`, `timer/routes.clj`, or `task_*.clj`, except `timer-entities`' three entity icons in `timers.clj`.
+- [x] Phase 2: tab bar and sidebar checked at mobile width; SVG icons render beside labels without serialized hiccup text.
+- [x] Phase 2: `just e2e-test today-toggle` and `just e2e-test today-filter` pass with selectors independent of icon text.
+- [x] Phase 2: no emoji left in `shared.clj`, `timers.clj`, `timer/routes.clj`, or `task_*.clj`, except `timer-entities`' three entity icons in `timers.clj`.
   Those entries remain until Phase 3 replaces them through the registry.
-- [ ] Phase 3: no entity-to-icon mapping outside the registry (grep `icon-key`, `:icon "`)
-- [ ] Phase 3: no emoji remain in `timers.clj`, including `timer-entities`.
+- [x] Phase 3: no entity-to-icon mapping outside the registry (grep `icon-key`, `:icon "`)
+- [x] Phase 3: no emoji remain in `timers.clj`, including `timer-entities`.
 
 Done when a repo-wide emoji grep over `src/` returns only allowlisted text:
 
@@ -193,6 +193,34 @@ Allowlist: inline typographic ✓ in `goals.clj` status text ("Reached ✓", "�
     `task_focus.clj`, `app.clj` and `calendar.clj` (✕ close).
 - Copy workflow: lucide.dev → icon → Copy SVG → paste the path children into a new
   `defn` wrapping them in the `lucide` helper.
+
+## Implementation record (2026-09-16)
+
+All three phases landed together on `dev`.
+
+- Path data copied from the `lucide-react` 0.525.0 package sources (ISC), not from
+  memory. Every proposed Lucide name existed; no substitutions.
+- `repeat` is exposed as `icons/repeat-icon` to avoid shadowing `clojure.core/repeat`.
+- `:medit` decision: the custom two-ring glyph (outer ring r 8, inner r 2.5) at stroke 2.
+  Tabler `yoga` was not available offline to compare; revisit on screenshot if the rings
+  read poorly.
+- The `lucide` wrapper now sets `aria-hidden="true"` — every current use is decorative
+  beside a label or inside an `aria-label`ed button.
+- Overview pixel sizes mapped to Tailwind classes: 13/15px → `w-3.5 h-3.5`, 16px →
+  `w-4 h-4`. No `:size` opt was needed.
+- `entity-icon` accepts keyword or string keys (the overview passes entity strings); the
+  fallback is `map-pin`.
+- Sidebar Quick Add reads the registry via an `:entity` key on each `quick-action-items`
+  entry, rendered through `shared/quick-action-icon`; the entity-less timer workspace gets
+  `timer`. The `/app/log` hub shares the same helper.
+- `dashboard-card` takes an entity key (registry lookup) or an icon function (non-entity
+  cards), called at `w-6 h-6` and tinted with the card's `text-<accent>` class.
+- Beyond the two named specs, `test-today-canceled`, `test-today-mobile`, and
+  `test-today-reorder` also selected the Today button by text; all now use the
+  `form[action$="/focus-today"]` selector.
+- Found, not fixed (out of scope — no colour changes): `neon-yellow` is not defined in
+  `resources/tailwind.config.js`, so the Projects cards' icons and the timer start buttons
+  render untinted.
 
 ## Notes
 
