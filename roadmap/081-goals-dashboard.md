@@ -377,6 +377,30 @@ Resolve each item, or move it to another work unit, before archiving this unit.
   Outline: read the registry; predict `calc/numeric-progress` output in the REPL; inspect real `dashboard/dashboard` data; review the completed "count today" change and its boundary tests.
 - [x] Time zone default.
   It works as designed; the account had an unexpected time zone set.
+- [ ] Multi-habit goals count logs, not habit check-offs.
+  User, verbatim: "on a multi habit goal does it count entries of only one habit? do we want it to be configurable."
+  A log scores one when it names one or more of the selected habits, so a log naming three selected habits counts one, not three, and a log naming only one selected habit still counts.
+  A weekly target of 21 for three habits therefore reaches at most 7 with one log per day.
+  The editor states the rule ("A log counts once even when several selected habits match it"), but the target a user naturally types assumes per-habit counting.
+  No switch exists. The registry is the extension point: a "Habit check-offs" measurement counting the selected habits named on each log, or a per-goal toggle.
+  Open question for a new measurement: an unscoped goal means "every log" today; counting every habit on each log would change that meaning.
+  Workaround with no code change: one goal per habit.
+- [ ] Weekly goals default their start date to Monday, which reads as a stale date.
+  User, verbatim: "Why does goal start date always default to 9/14? Or why does it seem to?"
+  2026-09-14 is the Monday of the week containing 2026-09-16, so a weekly goal created on any day that week shows 9/14 and an end date of 9/20.
+  This is the documented complete-calendar-week default ("default creation to complete calendar weeks"), implemented in `app/goal_editor.clj` and asserted in `e2e/scripts/test-goals.ts`.
+  A dated goal defaults to today, so the survey found no defect: the date follows the timing, and it holds until the week rolls over on Monday.
+  Side effects to weigh: a goal created on Wednesday already counts Monday and Tuesday, and the first week is complete rather than partial.
+  Changing the default to "today" flips the first week to partial, which the dashboard marks.
+- [ ] Weekly goals show a pace and a projection the user cannot act on.
+  User, verbatim: "the weekly reset goal might need a diffferent graph or option. I was thinking about brushing teeth and I don't want to see a projection. I can't make up missed times. I just want to see how I'm doing and the gap and a streak."
+  A weekly numeric goal currently renders the "Even pace" dashed line, the violet "Required at day start" line, a chart marker labelled "Projection start", a "Required" table column, a ratio column, a pace column, and the "Required from today" and "Next threshold" statistics.
+  The app contradicts that elsewhere: the weekly chart readout says "Each week stands on its own · no carry-forward", and this document states "Weekly totals reset Monday, with no surplus carry-forward".
+  So the projection conflicts with the documented no-catch-up rule; for a habit done at a fixed cadence, such as brushing teeth twice a day, a required daily rate and a catch-up line have no meaning.
+  Requested shape: how am I doing, the gap to the target, and a streak.
+  No goal streak exists. The only streak in the codebase is the demo heatmap on the home page, computed from synthetic data.
+  The 84-day activity strip lets a person count a run by eye; the app does not count it.
+  Disposition: the graph/projection question and the streak are separate follow-ups; neither is implemented.
 
 ## Code review findings (Codex, 2026-09-14)
 
