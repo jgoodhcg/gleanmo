@@ -837,4 +837,34 @@ function toggleTaskRow(rowId) {
   }
 
   document.addEventListener('DOMContentLoaded', function () { initGoalsTable(document); });
+
+  // Delegation also handles activity strips replaced by goal selection through HTMX.
+  document.addEventListener('focusin', function (e) {
+    var cell = e.target.closest('[data-activity-cell]');
+    if (!cell) return;
+    var panel = cell.closest('[data-goal-activity]');
+    if (!panel) return;
+    panel.querySelectorAll('[data-activity-cell]').forEach(function (other) {
+      other.tabIndex = other === cell ? 0 : -1;
+    });
+    panel.querySelector('[data-activity-readout]').textContent = cell.getAttribute('aria-label');
+  });
+
+  document.addEventListener('keydown', function (e) {
+    var cell = e.target.closest('[data-activity-cell]');
+    if (!cell || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    var panel = cell.closest('[data-goal-activity]');
+    if (!panel) return;
+    var cells = Array.prototype.slice.call(panel.querySelectorAll('[data-activity-cell]'));
+    var index = cells.indexOf(cell);
+    switch (e.key) {
+      case 'ArrowLeft': index = Math.max(0, index - 1); break;
+      case 'ArrowRight': index = Math.min(cells.length - 1, index + 1); break;
+      case 'Home': index = 0; break;
+      case 'End': index = cells.length - 1; break;
+      default: return;
+    }
+    e.preventDefault();
+    cells[index].focus();
+  });
 })();

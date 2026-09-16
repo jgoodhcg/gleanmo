@@ -75,7 +75,8 @@ PWA notification scaffolding does not establish working reminder delivery.
 - [066-unified-timer-page.md](./066-unified-timer-page.md) - One timer workspace: all running timers, search-to-start, one-tap start/stop without form bounces (implemented 2026-07-27; e2e/screenshot validation pending)
 - [071-timer-running-flag.md](./071-timer-running-flag.md) - Replace the two-full-scan set difference behind active timers with an indexed flag derived at write time, reconciled daily (built and tested 2026-08-04; deploy + m007 backfill, prod confirmation pending)
 - [081-goals-dashboard.md](./081-goals-dashboard.md) - Core dashboard and review fixes implemented; sampled user testing reported working.
-  Query profiling and full E2E remain before shipping; comparisons, activity keyboard navigation, and per-row editing remain follow-ups.
+  Activity keyboard navigation and per-row editing are implemented.
+  Query profiling and full E2E remain before shipping; historical comparisons remain a feature follow-up.
 
 ### Ready
 

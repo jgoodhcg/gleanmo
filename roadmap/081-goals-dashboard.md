@@ -32,8 +32,8 @@ The unit remains active until final verification and follow-up disposition are c
 
 - [ ] Historical comparisons: coverage entry, prior-year chart series, and year-selection controls.
   Known-coverage calculations and rendering already have fixture coverage.
-- [ ] Keyboard navigation between activity cells.
-- [ ] Edit controls in individual goal table rows.
+- [x] Keyboard navigation between activity cells.
+- [x] Edit controls in individual goal table rows.
 - [ ] Resolve or separately track the remaining dogfood feedback before archiving this work unit.
   Duplicate merging already belongs to [042](./042-entity-merge.md).
   Grouped selects elsewhere and hands-on familiarization exercises remain optional follow-ups.
@@ -306,7 +306,7 @@ Checked items reflect the recorded implementation validation below, not a new te
 - [x] E2E: create/edit/archive a goal, change its source data, verify the redirected dashboard, filter/select goals, and persist book preferences.
 - [x] Add `/app/goals` to `e2e/scripts/manifest.ts` and smoke navigation coverage.
 - [x] Capture before/after desktop and mobile screenshots; compare against version 10 and inspect chart labels and table overflow.
-- [ ] Implement and validate activity-cell keyboard navigation.
+- [x] Implement and validate activity-cell keyboard navigation.
 - [x] Run relevant namespace tests, `just validate`, reading/goals E2E, and required visual-series captures before requesting an implementation commit.
 
 ## Development test coverage (2026-09-15)
@@ -358,7 +358,7 @@ Resolve each item, or move it to another work unit, before archiving this unit.
 
 - [x] Edit placement.
   Edit, Archive, and Delete now share the selected-goal card's top-right header on desktop and mobile.
-  A per-row edit control remains later work.
+  Each table row also provides an Edit link beside its goal name.
 - [x] Count today.
   Totals and charts include today's eligible records through one captured request instant.
   Rates retain the completed-day cutoff in each goal's saved zone.
@@ -616,3 +616,57 @@ Validation:
 - The full unrelated E2E suite and query profiling were not run for this scoped change.
 - Final series: `e2e/screenshots/series/2026-09-15T21-25-18Z/`, 64/64 frames.
 - `git diff --check` passed.
+
+## Activity keyboard navigation and row editing (2026-09-15)
+
+Each goal table row provides an Edit link beside its name, including unselected goals.
+The existing selected-goal header actions remain available.
+
+The activity strip has one Tab stop, initially on its latest day.
+Left/Right move one day; Home/End select the first/last day.
+Navigation stops at the strip boundaries.
+Focused cells show an outline and a visible date/value readout.
+Delegated event handlers continue working after HTMX replaces the selected goal.
+
+Clicking a day focuses it directly, without traversing the page's Tab order.
+User review identified that pointer focus lacked a visible indicator.
+The focus outline now appears for both pointer and keyboard input; bars also show a pointer cursor.
+The initial readout prompts the user to click a day.
+
+Validation:
+
+- `just lint-fast src/tech/jgood/gleanmo/app/goals.clj`, `just check`, and `just validate` passed.
+  Full validation ran 158 tests with 1,349 assertions and no failures or errors.
+  Lint retained 24 existing warnings outside the changed file.
+- Goals E2E passed before and after the change.
+  New checks cover book and numeric row links, unselected-row editing, keyboard boundaries, Tab exit/reentry, and navigation after HTMX selection.
+  Mobile checks verify the Edit link, keyboard navigation, and absence of page-level horizontal overflow.
+- Baseline series: `e2e/screenshots/series/2026-09-15T22-26-34Z/`, 64/64 frames from a clean tree.
+- Desktop and mobile after screenshots were visually reviewed.
+- `node --check resources/public/js/main.js` and `git diff --check` passed.
+- Query profiling and the full unrelated E2E suite were not run for this usability change.
+  Historical comparison controls remain open.
+
+Click-focus follow-up validation:
+
+- The expanded browser check reproduced the missing outline after clicking a day.
+  After the style fix, goals E2E passed on desktop and mobile, including click-to-focus followed by Left/Right navigation.
+  The test also verifies the clicked date/value readout and repeats navigation after HTMX goal selection.
+- `just lint-fast src/tech/jgood/gleanmo/app/goals.clj`, `just check`, and `git diff --check` passed.
+  Full unit validation was not repeated for this style/copy change.
+- Dirty baseline series: `e2e/screenshots/series/2026-09-16T02-39-28Z/`, 64/64 frames.
+  This capture included the preceding uncommitted goals changes.
+- Before committing, `just validate` passed again: 158 tests, 1,349 assertions, no failures or errors.
+- Final series: `e2e/screenshots/series/2026-09-16T03-24-01Z/`, 64/64 frames.
+
+Commit-readiness review (2026-09-16):
+
+- Reviewed the pending activity navigation and row-edit changes; no additional code fixes were needed.
+- `just validate` passed: 159 tests, 1,355 assertions, no failures or errors.
+  Full lint retained 24 existing warnings; the changed Clojure file passed `just lint-fast` without warnings.
+- `env SCREENSHOT_PHASE=after just e2e-test goals` passed.
+  Desktop and mobile screenshots were visually reviewed.
+- `node --check resources/public/js/main.js` passed.
+- Query profiling and the full unrelated E2E suite remain outside this usability commit.
+- Final series: `e2e/screenshots/series/2026-09-16T04-43-30Z/`, 64/64 frames from the pending changes.
+- The five candidate files passed sensitive-content review and `git diff --check`.

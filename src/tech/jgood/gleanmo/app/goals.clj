@@ -171,7 +171,12 @@
 (defn- name-cell
   [{:keys [goal] :as entry}]
   [:td {:class "px-4 py-3 text-left align-top"}
-   (goal-link goal (:goal/label goal))
+   [:div.flex.items-baseline.justify-between.gap-3
+    (goal-link goal (:goal/label goal))
+    [:a.link.text-xs.shrink-0
+     {:href (str "/app/goal/" (:xt/id goal) "/edit")
+      :aria-label (str "Edit " (:goal/label goal))}
+     "Edit"]]
    [:span.block.text-xs.text-gray-400.mt-1
     (source-line entry) [:span.text-gray-300 (str " · " (timing-text goal))]]])
 
@@ -629,7 +634,7 @@
         first* (:date (first cells))
         last*  (:date (last cells))
         mid    (:date (nth cells (quot (count cells) 2) nil))]
-    [:section.min-w-0.p-4.sm:p-6
+    [:section.min-w-0.p-4.sm:p-6 {:data-goal-activity true}
      [:div.mb-3.flex.items-baseline.justify-between.gap-3
       [:div
        [:h3.text-sm.font-semibold.text-white "Keep coming back"]
@@ -637,15 +642,22 @@
         (str (short-date first*) " – " (short-date last*) " · one column per day")]]
       [:span.text-xs.text-gray-400 "12 WEEKS"]]
      [:div {:class "grid gap-px grid-cols-[repeat(84,minmax(0,1fr))]"
-            :role "list" :aria-label (str (:goal/label goal) " daily activity")}
+            :role "list" :aria-label (str (:goal/label goal) " daily activity")
+            :aria-describedby "goal-activity-help"}
       (for [{:keys [date value]} cells]
         (let [txt (str (short-date date) ": "
                        (if (and value (pos? value)) (amount m value) "no log"))]
           [:span {:key (str date) :role "listitem" :title txt :aria-label txt
-                  :class (str "h-5 rounded-sm "
+                  :data-activity-cell true
+                  :tabindex (if (= date last*) "0" "-1")
+                  :class (str "h-5 cursor-pointer rounded-sm focus:outline-none focus:ring-2 focus:ring-neon-cyan focus:z-10 "
                               (if (and value (pos? value)) "bg-neon-cyan opacity-75" "bg-dark"))}]))]
      [:div.mt-1.flex.justify-between.text-xs.text-gray-500
       [:span (short-date first*)] [:span (short-date mid)] [:span (short-date last*)]]
+     [:p.mt-2.text-xs.text-gray-300 {:data-activity-readout true}
+      "Click a day to see its activity."]
+     [:p.mt-1.text-xs.text-gray-400 {:id "goal-activity-help"}
+      "Use Left/Right to move between days, or Home/End to jump to the first/last day."]
      [:p.mt-2.text-xs.text-gray-400
       (if book-progress
         "Reading-session time for this book, in any format."

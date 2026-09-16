@@ -106,6 +106,45 @@ async function refreshField(page: Page, select: Locator, value: string) {
   await page.waitForTimeout(400);
 }
 
+async function checkActivityKeyboard(page: Page) {
+  const panel = page.locator('[data-goal-activity]');
+  const cells = panel.locator('[data-activity-cell]');
+  await expect(cells).toHaveCount(84);
+  await expect(panel.locator('[data-activity-cell][tabindex="0"]')).toHaveCount(1);
+  // Start with a pointer click, without relying on the page's Tab order.
+  await cells.nth(40).click();
+  await expect(cells.nth(40)).toBeFocused();
+  await expect(cells.nth(40)).toHaveAttribute('tabindex', '0');
+  await expect(panel.locator('[data-activity-readout]'))
+    .toHaveText((await cells.nth(40).getAttribute('aria-label'))!);
+  await expect(cells.nth(40)).not.toHaveCSS('box-shadow', 'none');
+  await page.keyboard.press('ArrowRight');
+  await expect(cells.nth(41)).toBeFocused();
+  await page.keyboard.press('ArrowLeft');
+  await expect(cells.nth(40)).toBeFocused();
+  await cells.last().click();
+  await expect(cells.last()).toBeFocused();
+  await page.keyboard.press('ArrowLeft');
+  await expect(cells.nth(82)).toBeFocused();
+  await expect(panel.locator('[data-activity-readout]'))
+    .toHaveText((await cells.nth(82).getAttribute('aria-label'))!);
+  await page.keyboard.press('Home');
+  await expect(cells.first()).toBeFocused();
+  await page.keyboard.press('ArrowLeft');
+  await expect(cells.first()).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(cells.nth(1)).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(cells.last()).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(cells.last()).toBeFocused();
+  await expect(panel.locator('[data-activity-cell][tabindex="0"]')).toHaveCount(1);
+  await page.keyboard.press('Tab');
+  await expect(cells.last()).not.toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(cells.last()).toBeFocused();
+}
+
 async function main() {
   console.log('\n=== Goals Dashboard Test ===\n');
 
@@ -215,6 +254,7 @@ async function main() {
     await expect(page.locator('#goal-detail button[value="chapters"]'))
       .toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('#goal-detail')).toContainText('Latest chapters');
+    await checkActivityKeyboard(page);
     console.log('  [+] Chapters preference persisted across reload');
 
     // ── 6. Table filters, search, and selection ──
@@ -236,6 +276,7 @@ async function main() {
     await page.locator('tr[data-goal-row]', { hasText: 'Reading time' }).locator('td').nth(2).click();
     await expect(page.locator('#goal-detail')).toContainText('Average per completed day', { timeout: 10000 });
     await expect(page).toHaveURL(/goal=/);
+    await checkActivityKeyboard(page);
     console.log('  [+] Filters, search, sort, and row selection work');
     await captureScreenshot(page, '03-dashboard');
 
@@ -243,6 +284,13 @@ async function main() {
     console.log('\n6. Editing the goal and adding a log...');
     const goalUrl = new URL(page.url());
     const goalId = goalUrl.searchParams.get('goal');
+    // Edit an unselected book directly from its row, then return to the numeric goal.
+    await page.getByRole('link', { name: 'Edit Finish The Odyssey', exact: true }).click();
+    await expect(page.locator('#goal-editor-form [name="label"]')).toHaveValue('Finish The Odyssey');
+    await page.goBack();
+    await page.getByRole('link', { name: 'Edit Reading time', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/app/goal/${goalId}/edit`));
+    await page.goBack();
     await detail.locator('header a', { hasText: 'Edit' }).click();
     await expect(page).toHaveURL(new RegExp(`/app/goal/${goalId}/edit`));
     form = page.locator('#goal-editor-form');
@@ -390,6 +438,8 @@ async function main() {
     await page.goto(`${BASE_URL}/app/goals?goal=${goalId}`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(800);
+    await expect(page.getByRole('link', { name: 'Edit Reading time', exact: true })).toBeVisible();
+    await checkActivityKeyboard(page);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     if (overflow > 1) throw new Error(`Page scrolls horizontally on mobile by ${overflow}px`);
     const mobileActions = (await detail.locator('header [data-goal-actions]').boundingBox())!;
