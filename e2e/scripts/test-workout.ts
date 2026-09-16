@@ -199,9 +199,13 @@ async function main() {
     await expect(crudDuration).toHaveValue('0');
     await expect(crudForm.locator('[name="exercise-line/notes"]')).toHaveValue('Retain this correction');
     await crudDuration.fill('');
-    await crudForm.getByRole('button', { name: 'Save Changes', exact: true }).click();
-    await page.waitForLoadState('networkidle');
-    await page.reload();
+    // A successful htmx save answers with HX-Redirect back to this edit page.
+    // Wait for that full load: reloading while it is in flight aborts one of
+    // the two navigations.
+    await Promise.all([
+      page.waitForEvent('load'),
+      crudForm.getByRole('button', { name: 'Save Changes', exact: true }).click(),
+    ]);
     await expect(crudDuration).toHaveValue('');
     await expect(crudForm.locator('[name="exercise-line/notes"]')).toHaveValue('Retain this correction');
     await page.goto(`${BASE_URL}/app/exercise/session`, { waitUntil: 'networkidle' });
