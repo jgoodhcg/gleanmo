@@ -3,7 +3,7 @@ title: "Goals dashboard"
 status: active
 description: "Implement the approved dashboard with reusable numeric types, reading positions, goal storage, and scoped progress queries."
 created: 2026-09-12
-updated: 2026-09-15
+updated: 2026-09-16
 tags: [goals, visualization, schema, reading]
 priority: medium
 ---
@@ -222,6 +222,10 @@ Label averages "per completed day" and explain the completed-day baseline for re
 Unknown coverage continues to suppress unsupported pace estimates.
 
 The chart's partial-day endpoint uses the captured local time, rather than tomorrow's boundary.
+Label the midnight marker "Projection start" when a required-pace projection exists.
+Mark the captured refresh time as "Now" in the goal's saved time zone.
+Place these labels at opposite chart edges so they remain distinct near midnight.
+Book charts use "Now" until completion, then retain their "Finished" marker.
 Activity strips and recent panels include today within their existing 84-day and 28-day bounds.
 Weekly progress resets at local Monday midnight; a goal becomes active on its start date.
 Ended numeric goals remain clipped to their goal period, while book goals retain late completion.

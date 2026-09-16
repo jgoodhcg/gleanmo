@@ -246,7 +246,7 @@
         m (registry/measurement goal)
         records [{:at (at "2026-07-02T10:00") :duration 80}
                  {:at (at "2026-07-03T10:00") :duration 90}]
-        entry {:goal goal :measurement m
+        entry {:goal goal :measurement m :now (at "2026-07-05T00:00")
                :progress (calc/numeric-progress goal m records cutoff)
                :history (calc/history goal m records cutoff 84)
                :recent (calc/recent-activity goal m records cutoff 28)}
@@ -263,6 +263,30 @@
           html (rum/render-static-markup (goals-page/goal-detail dated cutoff))]
       (is (str/includes? html "vs 2025"))
       (is (str/includes? html "+12.5%")))))
+
+(deftest chart-clock-markers-test
+  (let [goal {:goal/source :habit-log :goal/measure :records :goal/aggregation :total
+              :goal/target 7 :goal/timing :weekly :goal/time-zone "America/Detroit"
+              :goal/starts-on (LocalDate/parse "2026-09-14")}
+        m (registry/measurement goal)
+        chart (fn [g instant]
+                (#'goals-page/numeric-chart
+                 {:goal g :measurement m :now instant
+                  :progress (calc/numeric-progress g m [] instant)}
+                 (calc/local-date instant (calc/zone-of g))))
+        markers (fn [cfg] (get-in cfg [:series 0 :markLine :data]))
+        late (chart goal (at "2026-09-16T03:25"))]
+    (is (= ["2026-09-15T23:25" "2026-09-15"] (mapv :xAxis (markers late))))
+    (is (= ["Now" "Projection start"] (mapv #(get-in % [:label :formatter]) (markers late))))
+    (is (= (get-in late [:series 0 :data 2 0]) (:xAxis (first (markers late))))
+        "Now matches the partial-day endpoint in the goal's zone")
+    (is (= ["2026-09-16T00:00" "2026-09-16"]
+           (mapv :xAxis (markers (chart goal (at "2026-09-16T04:00"))))))
+    (is (= 1 (count (markers (chart (assoc goal :goal/timing :open-ended)
+                                    (at "2026-09-16T03:25"))))))
+    (is (nil? (markers (chart (assoc goal :goal/timing :dated
+                                     :goal/ends-on (LocalDate/parse "2026-09-14"))
+                              (at "2026-09-16T03:25")))))))
 
 (deftest dashboard-counts-today-test
   (with-open [node (test-xtdb-node [])]

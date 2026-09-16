@@ -372,15 +372,15 @@
   {:name name :type "line" :data data :showSymbol false :silent true
    :lineStyle {:color color :type type :width width} :itemStyle {:color color}})
 
-(defn- today-line
-  [cutoff-date]
+(defn- date-line
+  [date label]
   {:silent true :symbol ["none" "none"]
    :lineStyle {:color "#45515d" :type "dashed"}
-   :label {:formatter "Today" :color muted :fontSize 10}
-   :data [{:xAxis (str cutoff-date)}]})
+   :label {:formatter label :color muted :fontSize 10}
+   :data [{:xAxis (str date)}]})
 
 (defn- numeric-chart
-  [{:keys [goal measurement progress]} cutoff-date]
+  [{:keys [goal measurement progress now]} cutoff-date]
   (let [{:keys [window series target required completed-logged]} progress
         {:keys [start end]} window
         m      measurement
@@ -390,7 +390,16 @@
         x-end  (if (and end (not open?)) (calc/plus-days end 1)
                    (calc/plus-days cutoff-date 1))
         t      (chart-value m target)
-        now?   (not (.isAfter ^LocalDate cutoff-date x-end))]
+        local-now (.toLocalDateTime (.atZone ^Instant now (calc/zone-of goal)))
+        now?   (and (not (.isBefore local-now (.atStartOfDay ^LocalDate start)))
+                    (.isBefore local-now (.atStartOfDay ^LocalDate x-end)))
+        markers (assoc (date-line local-now "Now")
+                       :data (cond-> [{:xAxis (str local-now)
+                                       :label {:formatter "Now" :position "insideStartTop" :rotate 0}
+                                       :lineStyle {:color cyan}}]
+                               (and paced? required)
+                               (conj {:xAxis (str cutoff-date)
+                                      :label {:formatter "Projection start"}})))]
     (-> (base-chart (chart-unit m))
         (assoc :xAxis (merge axis-style {:type "time" :min (str start) :max (str x-end)
                                          :splitLine {:show false}})
@@ -404,7 +413,7 @@
                                  :itemStyle {:color cyan}}
                           best?       (assoc :step "end")
                           (not best?) (assoc :areaStyle {:color cyan :opacity 0.06})
-                          now?        (assoc :markLine (today-line cutoff-date)))]
+                          now?        (assoc :markLine markers))]
                  paced? (conj (dashed "Even pace" "#6b7785"
                                       [[(str start) 0] [(str x-end) t]]))
                  (and paced? required)
@@ -415,7 +424,7 @@
                  (conj (dashed "Target" violet [[(str start) t] [(str x-end) t]])))))))
 
 (defn- book-chart
-  [{:keys [goal book-progress]} measure cutoff-date]
+  [{:keys [goal book-progress now]} measure cutoff-date]
   (let [{:keys [measures completion]} book-progress
         {:keys [points segments total]} (get measures measure)
         start   (:goal/starts-on goal)
@@ -465,11 +474,12 @@
                  true
                  (conj {:name "marker" :type "line" :data [] :silent true
                         :markLine (if completion
-                                    (assoc (today-line (:date completion))
+                                    (assoc (date-line (:date completion) "Finished")
                                            :lineStyle {:color green :type "dashed"}
                                            :label {:formatter "Finished" :color green
                                                    :fontSize 10})
-                                    (today-line cutoff-date))}))
+                                    (date-line (.toLocalDateTime (.atZone ^Instant now (calc/zone-of goal)))
+                                               "Now"))}))
                :legend {:top 0 :right 0 :itemWidth 16 :itemHeight 2
                         :textStyle {:color muted :fontSize 10}
                         :data (cond-> ["Recorded position"] guide? (conj "Even-pace guide"))}))))

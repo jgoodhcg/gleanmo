@@ -179,6 +179,8 @@ async function main() {
     const initialChart = JSON.parse((await page.locator('#goal-chart-data').textContent())!);
     expect(initialChart.series.map((series: { name: string }) => series.name))
       .toEqual(expect.arrayContaining(['Even pace', 'Required at day start']));
+    const initialMarkers = initialChart.series[0].markLine.data;
+    expect(initialMarkers.find((marker: { label: { formatter: string } }) => marker.label.formatter === 'Projection start').xAxis).toBe(today);
     console.log('  [+] Dashboard shows 1.5 h logged with a chart');
 
     // ── 4. Book completion goal ──
@@ -324,6 +326,10 @@ async function main() {
     const logged = chart.series.find((series: { name: string }) => series.name === 'Logged');
     expect(logged.data.at(-1)[1]).toBeCloseTo(3 + secondsToday / 3600, 5);
     expect(logged.data.at(-1)[0]).toContain(currentDay);
+    const nowMarker = logged.markLine.data.find((marker: { label: { formatter: string } }) => marker.label.formatter === 'Now');
+    const projectionMarker = logged.markLine.data.find((marker: { label: { formatter: string } }) => marker.label.formatter === 'Projection start');
+    expect(nowMarker.xAxis).toBe(logged.data.at(-1)[0]);
+    expect(projectionMarker).toBeUndefined(); // Reached goals have no required-pace projection.
     expect(new Date(logged.data.at(-1)[0]).getTime()).toBeLessThanOrEqual(new Date(chart.xAxis.max).getTime());
     expect(chart.series.some((series: { name: string }) => series.name === 'Even pace')).toBe(true);
     await expect(page.getByText('Totals include today · rates use completed days · each goal uses its saved time zone')).toBeVisible();
