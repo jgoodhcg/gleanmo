@@ -72,6 +72,8 @@ Phosphor, and Iconify: Lucide-first, inline SVG, no webfont, no JS icon runtime.
 
 - Mobile tab bar, `shared.clj` `primary-surfaces`: 🏠 → `house`, ⏱️ → `timer`,
   ➕ → `plus`, ✅ → `check`.
+- Render each primary surface's icon and label as separate hiccup children in both navigation renderers.
+  Replace the sidebar's `(str icon " " label)` so SVG hiccup renders as an element instead of serialized data.
 - Sidebar (`shared.clj`): ⏱️ timers → `timer`, 🏁 goals → `flag`, 📅 calendar →
   `calendar-days`, 📊 stats → `chart-column`, 💊 medication history → `pill`,
   📋 activity logs → `list-checks`, 📦 manage entities → `boxes`, 🎯 task focus → `target`,
@@ -85,6 +87,10 @@ Phosphor, and Iconify: Lucide-first, inline SVG, no webfont, no JS icon runtime.
 - Location markers 📍 in `timers.clj` and `timer/routes.clj` → `map-pin`.
 - Task screens: 📌 Today (`task_focus.clj`) → `pin`; ✨ empty state (`task_today.clj`) →
   `sparkles`; the hover ✓ complete button (`task_today.clj`) → `check`.
+- Replace the ✓ in the selected "✓ Today" button (`task_focus.clj`) with `check`, keeping the "Today" label.
+- Update `e2e/scripts/test-today-toggle.ts` and `e2e/scripts/test-today-filter.ts` to select Today actions independently of icon text.
+  Use the containing form's action suffix (`/focus-today` or `/remove-from-today`) within the task row.
+  Keep assertions that verify both toggle transitions and the resulting filter behavior.
 
 ### Phase 3 — one icon per entity type
 
@@ -130,19 +136,23 @@ Per phase:
 
 - [ ] `just lint-fast` on every touched `.clj` file; `just check` after the batch
 - [ ] `just e2e-shot-series` baseline before edits and another tick after
-- [ ] `just e2e-test-all` passes (smoke covers the dashboards; today-mobile covers the tab bar)
+- [ ] `just e2e-test-all` passes (smoke covers the dashboards; today-mobile captures the mobile Today layout)
 
 Phase-specific:
 
 - [ ] Phase 1: `formatting_test.clj` updated for the Lucide check/x and passing; grep finds
   no `[:svg` outside `ui/icons.clj` and `home.clj`
-- [ ] Phase 2: tab bar and sidebar checked at mobile width; no emoji left in `shared.clj`, `timers.clj`, `timer/routes.clj`, `task_*.clj`
+- [ ] Phase 2: tab bar and sidebar checked at mobile width; SVG icons render beside labels without serialized hiccup text.
+- [ ] Phase 2: `just e2e-test today-toggle` and `just e2e-test today-filter` pass with selectors independent of icon text.
+- [ ] Phase 2: no emoji left in `shared.clj`, `timers.clj`, `timer/routes.clj`, or `task_*.clj`, except `timer-entities`' three entity icons in `timers.clj`.
+  Those entries remain until Phase 3 replaces them through the registry.
 - [ ] Phase 3: no entity-to-icon mapping outside the registry (grep `icon-key`, `:icon "`)
+- [ ] Phase 3: no emoji remain in `timers.clj`, including `timer-entities`.
 
 Done when a repo-wide emoji grep over `src/` returns only allowlisted text:
 
 ```sh
-rg -n '[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}\x{2B00}-\x{2BFF}]' src --glob '!home.clj'
+rg -n '[\x{1F300}-\x{1FAFF}\x{2300}-\x{23FF}\x{2600}-\x{27BF}\x{2B00}-\x{2BFF}]' src --glob '!home.clj'
 ```
 
 Allowlist: inline typographic ✓ in `goals.clj` status text ("Reached ✓", "✓ Completed").
