@@ -16,7 +16,7 @@ Implement the approved goals dashboard using actual user records.
 Support duration totals, counts, best performances, and explicit book completion.
 This document is the implementation handoff; the planning session must not implement it.
 
-## Current status (2026-09-15)
+## Current status (2026-09-16)
 
 The core dashboard and code-review fixes are implemented.
 The user tested a sample of features and reported that everything tried appeared to work.
@@ -25,7 +25,9 @@ The unit remains active until final verification and follow-up disposition are c
 
 ### Remaining verification
 
-- [ ] Inspect query plans and measure latency with production-sized local test fixtures.
+- [x] Inspect query plans and measure latency with production-sized local test fixtures.
+  The synthetic audit below is complete; ten-year windows need a performance follow-up.
+- [ ] Reduce repeated relationship-schema extraction and document work for long goal windows, then repeat the benchmark.
 - [ ] Run the full E2E suite before shipping.
 
 ### Feature and usability follow-ups
@@ -298,7 +300,8 @@ Checked items reflect the recorded implementation validation below, not a new te
 - [x] Book completion: 100% without finished remains incomplete; finished below total completes; corrections recalculate; late completion remains visible.
 - [x] Book charts: latest rather than maximum, missing values/totals, solid versus dotted links, unchanged point counts, and independent measures.
 - [x] Queries: owner isolation, visibility, parent scope, and bounded chart/history requests.
-- [ ] Inspect representative query plans and measure latency using production-sized local test fixtures.
+- [x] Inspect representative query plans and measure latency using production-sized local test fixtures.
+  See the 2026-09-16 synthetic audit below.
 - [x] Comparisons: unknown coverage shows unavailable; known fixtures exercise calendar alignment and comparison rendering.
 - [ ] Validate prior-year chart series and year-selection controls after implementing those follow-ups.
 - [x] Register new unit namespaces in `test/tech/jgood/gleanmo/test.clj`.
@@ -670,3 +673,107 @@ Commit-readiness review (2026-09-16):
 - Query profiling and the full unrelated E2E suite remain outside this usability commit.
 - Final series: `e2e/screenshots/series/2026-09-16T04-43-30Z/`, 64/64 frames from the pending changes.
 - The five candidate files passed sensitive-content review and `git diff --check`.
+
+
+## Synthetic performance verification (2026-09-16)
+
+The audit is complete, with a long-window performance finding still open.
+No application implementation, personal data, or production database was changed.
+
+Reproduction instructions: [benchmark README](../dev/benchmarks/README.md).
+Harness: [goals.clj](../dev/benchmarks/goals.clj).
+Recorded measurements: [JSON results](../dev/benchmarks/goals-2026-09-16.json).
+Application revision: `cfef5dc`; OpenJDK 25.0.2; XTDB 1.23.1; 3 GB maximum heap.
+
+### Workload and limits
+
+Two isolated in-memory fixtures contain 18,236 and 90,236 synthetic documents.
+Each has two users, eight source types, exercise-set ancestors, 100 books per user, and all 13 registered measurements.
+The larger fixture has 40,000 source records per user plus related documents.
+These are production-scale assumptions; actual production cardinality was not queried.
+
+Source reads cover 84 days and verify expected counts and ownership.
+Book reads verify the selected book's history.
+Dashboard cases cover annual and ten-year ranges, plus repeated goals to check batching behavior.
+The 39-goal and ten-year cases preload goals but retain real source queries and calculations.
+An additional preloaded 13-goal annual case provides the goal-count comparison baseline.
+
+Each latency case has two warmups and nine measured samples after its first invocation.
+Debug logging and diagnostic instrumentation run separately from latency sampling.
+The recorded sample p95 is the maximum of nine samples, not a production tail-latency estimate.
+Fixtures share a JVM within each run, so scale comparisons also include JIT and cache effects.
+Storage, HTTP, browser rendering, and production network costs are excluded.
+
+### Measurements
+
+Median milliseconds, rounded:
+
+| Case | 18,236 documents | 90,236 documents |
+|---|---:|---:|
+| List 13 goals | 1.79 | 0.42 |
+| Boulder attempts, 84 days | 33.77 | 26.97 |
+| Boulder sessions, 84 days | 17.11 | 10.74 |
+| Exercise lines with ancestors, 84 days | 22.84 | 43.80 |
+| Exercise sessions, 84 days | 13.82 | 8.76 |
+| Habit logs, 84 days | 5.37 | 10.26 |
+| Meditation logs, 84 days | 16.54 | 17.62 |
+| Project logs, 84 days | 14.43 | 12.85 |
+| Reading logs, 84 days | 19.87 | 23.15 |
+| One book's history | 1.02 | 5.24 |
+| Annual dashboard, 13 goals | 245.04 | 441.07 |
+| Annual dashboard, 13 preloaded goals | 247.98 | 481.05 |
+| Annual dashboard, 39 preloaded goals | 244.02 | 473.33 |
+| Ten-year dashboard, 13 preloaded goals | 786.49 | 4,893.24 |
+
+The larger annual dashboard's sample maximum was 515 ms; the ten-year case reached 5,323 ms.
+Tripling equivalent goals did not produce a proportional increase in latency.
+The ten-year case is slow enough to warrant follow-up; this audit is not an unconditional performance sign-off.
+
+### Query-plan findings
+
+The separate 90,236-document plan run confirmed:
+
+| Query family | Observed join order | Finding |
+|---|---|---|
+| Goal list | `[:goal user-id ?e ?sort]` | Type and owner bound the scan before reading the sort key. |
+| Point-window scans | `[since until ?t ?e ?scan-user]` | Time uses `:ave`; the range drives the scan. |
+| Interval overlap scans | `[since until ?end ?e ?t ?scan-user]` | End uses `:ave`; beginning is a per-entity `:aev` check. |
+| Exercise-line lookup | `[?s ?l]` | Set IDs drive an `:ave` lookup; no user-wide line scan. |
+| Book history | `[book-id user-id ?e]` | Book and owner equality clauses bound the result. |
+| Batch document pulls | `[?e self-join_?e_...]` | Supplied IDs drive the lookup after statistics settle. |
+| Attribute projections | `[?e ?v]` | Supplied IDs bound attribute reads. |
+
+Point and overlap scans still inspect every user's matching window before retaining the requested owner's rows.
+The foreign-user fixture confirmed output isolation, but throughput still depends on aggregate activity inside the window.
+This is the existing range-driven query tradeoff, not a user-specific compound index.
+
+The annual request made 43 database query calls and extracted relationship schemas 16,832 times.
+The ten-year request made 41 calls and extracted relationship schemas 160,256 times.
+The latter omits the two goal-list calls because its goals are preloaded.
+All eight sources use one combined window per annual request.
+The request count stays bounded, while candidate documents and repeated ancestor processing increase with the time window.
+
+`visible-rows` repeatedly derives relationship fields while discovering ancestors and checking each candidate's visibility.
+It also pulls complete documents before producing measurement projections.
+Measurement attributes are subsequently queried again despite being present on those pulled documents.
+These are concrete optimization candidates; their individual latency contributions have not been isolated.
+
+Follow-up scope: reuse relationship definitions within each request, reduce repeated ancestor/document work, and rerun this harness.
+Preserve ownership, visibility, deletion, interval, and book-completion semantics.
+Require equivalent results and before/after timings; do not introduce stored aggregates or engine-specific domain fields.
+
+### Benchmark correction and validation
+
+Initial runs queried immediately after transaction indexing, before background planner statistics had settled.
+The goal-list pull cached an unbounded self-join plan and appeared to grow with unrelated history.
+The harness now waits for complete attribute statistics before creating its measured snapshot.
+After that correction, the large fixture's goal-list median dropped from about 380 ms to 0.42 ms.
+The initial timings are excluded from the recorded results; no corresponding application defect was established.
+
+- Both latency scales completed with all fixture correctness checks passing.
+- The separate large-fixture plan run completed, including annual and ten-year query diagnostics.
+- `just lint-fast dev/benchmarks/goals.clj` and `just check` passed.
+  Full lint retained 24 existing warnings and reported no errors.
+- `git diff --check` passed.
+- Unit and browser suites were not rerun because application behavior was unchanged.
+  Full E2E remains a separate pre-shipping requirement.

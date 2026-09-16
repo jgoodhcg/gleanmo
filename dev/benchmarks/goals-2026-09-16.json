@@ -1,0 +1,228 @@
+{
+  "date": "2026-09-16",
+  "application_revision": "cfef5dc",
+  "java": "OpenJDK 25.0.2",
+  "xtdb": "1.23.1",
+  "storage": "in-memory test node",
+  "max_heap": "3g",
+  "users": 2,
+  "warmups": 2,
+  "statistics_settled": true,
+  "debug_logging": false,
+  "notes": [
+    "Synthetic data; production cardinality was not queried.",
+    "Sample p95 equals the maximum for nine samples.",
+    "Preloaded and decade cases omit the goal-list read.",
+    "No HTTP, rendering, RocksDB, PostgreSQL, or network costs."
+  ],
+  "runs": [
+    {
+      "records_per_source_per_user": 1000,
+      "documents": 18236,
+      "measurements": [
+        {
+          "case": "goal-list",
+          "first_ms": 4.807458,
+          "median_ms": 1.791666,
+          "sample_p95_ms": 4.177417,
+          "samples": 9
+        },
+        {
+          "case": "boulder-attempt",
+          "first_ms": 87.903417,
+          "median_ms": 33.772709,
+          "sample_p95_ms": 60.424583,
+          "samples": 9
+        },
+        {
+          "case": "boulder-session",
+          "first_ms": 29.275625,
+          "median_ms": 17.109417,
+          "sample_p95_ms": 18.376875,
+          "samples": 9
+        },
+        {
+          "case": "exercise-line",
+          "first_ms": 38.351917,
+          "median_ms": 22.841583,
+          "sample_p95_ms": 41.876833,
+          "samples": 9
+        },
+        {
+          "case": "exercise-session",
+          "first_ms": 22.028167,
+          "median_ms": 13.819834,
+          "sample_p95_ms": 14.534709,
+          "samples": 9
+        },
+        {
+          "case": "habit-log",
+          "first_ms": 9.075542,
+          "median_ms": 5.368166,
+          "sample_p95_ms": 5.512167,
+          "samples": 9
+        },
+        {
+          "case": "meditation-log",
+          "first_ms": 24.009833,
+          "median_ms": 16.537583,
+          "sample_p95_ms": 35.835875,
+          "samples": 9
+        },
+        {
+          "case": "project-log",
+          "first_ms": 22.545917,
+          "median_ms": 14.425292,
+          "sample_p95_ms": 15.288333,
+          "samples": 9
+        },
+        {
+          "case": "reading-log",
+          "first_ms": 30.316667,
+          "median_ms": 19.869125,
+          "sample_p95_ms": 37.873416,
+          "samples": 9
+        },
+        {
+          "case": "book-history",
+          "first_ms": 3.027458,
+          "median_ms": 1.015917,
+          "sample_p95_ms": 1.152291,
+          "samples": 9
+        },
+        {
+          "case": "dashboard-13-year",
+          "first_ms": 296.001791,
+          "median_ms": 245.039208,
+          "sample_p95_ms": 251.100959,
+          "samples": 9
+        },
+        {
+          "case": "dashboard-13-year-preloaded",
+          "first_ms": 246.434625,
+          "median_ms": 247.98425,
+          "sample_p95_ms": 302.362208,
+          "samples": 9
+        },
+        {
+          "case": "dashboard-39-year",
+          "first_ms": 264.355292,
+          "median_ms": 244.016166,
+          "sample_p95_ms": 265.758292,
+          "samples": 9
+        },
+        {
+          "case": "dashboard-13-decade",
+          "first_ms": 910.951834,
+          "median_ms": 786.492959,
+          "sample_p95_ms": 823.876375,
+          "samples": 9
+        }
+      ]
+    },
+    {
+      "records_per_source_per_user": 5000,
+      "documents": 90236,
+      "measurements": [
+        {
+          "case": "goal-list",
+          "first_ms": 0.927333,
+          "median_ms": 0.423042,
+          "sample_p95_ms": 0.523792,
+          "samples": 9
+        },
+        {
+          "case": "boulder-attempt",
+          "first_ms": 81.734208,
+          "median_ms": 26.968542,
+          "sample_p95_ms": 48.057459,
+          "samples": 9
+        },
+        {
+          "case": "boulder-session",
+          "first_ms": 15.263042,
+          "median_ms": 10.740209,
+          "sample_p95_ms": 11.662417,
+          "samples": 9
+        },
+        {
+          "case": "exercise-line",
+          "first_ms": 57.577208,
+          "median_ms": 43.798042,
+          "sample_p95_ms": 48.685,
+          "samples": 9
+        },
+        {
+          "case": "exercise-session",
+          "first_ms": 12.298042,
+          "median_ms": 8.757375,
+          "sample_p95_ms": 10.469875,
+          "samples": 9
+        },
+        {
+          "case": "habit-log",
+          "first_ms": 13.320208,
+          "median_ms": 10.263875,
+          "sample_p95_ms": 14.981041,
+          "samples": 9
+        },
+        {
+          "case": "meditation-log",
+          "first_ms": 21.697833,
+          "median_ms": 17.615958,
+          "sample_p95_ms": 19.857167,
+          "samples": 9
+        },
+        {
+          "case": "project-log",
+          "first_ms": 17.403083,
+          "median_ms": 12.84975,
+          "sample_p95_ms": 32.910875,
+          "samples": 9
+        },
+        {
+          "case": "reading-log",
+          "first_ms": 27.971167,
+          "median_ms": 23.146833,
+          "sample_p95_ms": 40.88225,
+          "samples": 9
+        },
+        {
+          "case": "book-history",
+          "first_ms": 7.187666,
+          "median_ms": 5.2385,
+          "sample_p95_ms": 5.459417,
+          "samples": 9
+        },
+        {
+          "case": "dashboard-13-year",
+          "first_ms": 557.866333,
+          "median_ms": 441.069542,
+          "sample_p95_ms": 515.0565,
+          "samples": 9
+        },
+        {
+          "case": "dashboard-13-year-preloaded",
+          "first_ms": 424.251208,
+          "median_ms": 481.046541,
+          "sample_p95_ms": 507.915833,
+          "samples": 9
+        },
+        {
+          "case": "dashboard-39-year",
+          "first_ms": 641.870417,
+          "median_ms": 473.325708,
+          "sample_p95_ms": 540.829209,
+          "samples": 9
+        },
+        {
+          "case": "dashboard-13-decade",
+          "first_ms": 4828.22225,
+          "median_ms": 4893.235708,
+          "sample_p95_ms": 5323.329084,
+          "samples": 9
+        }
+      ]
+    }
+  ]
+}

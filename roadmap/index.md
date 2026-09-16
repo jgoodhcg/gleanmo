@@ -76,7 +76,8 @@ PWA notification scaffolding does not establish working reminder delivery.
 - [071-timer-running-flag.md](./071-timer-running-flag.md) - Replace the two-full-scan set difference behind active timers with an indexed flag derived at write time, reconciled daily (built and tested 2026-08-04; deploy + m007 backfill, prod confirmation pending)
 - [081-goals-dashboard.md](./081-goals-dashboard.md) - Core dashboard and review fixes implemented; sampled user testing reported working.
   Activity keyboard navigation and per-row editing are implemented.
-  Query profiling and full E2E remain before shipping; historical comparisons remain a feature follow-up.
+  Synthetic query profiling is complete; ten-year windows need a performance follow-up.
+  Full E2E remains before shipping; historical comparisons remain a feature follow-up.
 
 ### Ready
 
