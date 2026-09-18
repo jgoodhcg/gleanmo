@@ -4,7 +4,8 @@
    [clojure.test             :as test]
    [com.biffweb.tasks        :as biff-tasks]
    [tasks.airtable           :as airtable]
-   [tasks.migrate            :as migrate]))
+   [tasks.migrate            :as migrate]
+   [tasks.task-entities      :as task-entities]))
 
 (defn hello
   "Says 'Hello'"
@@ -77,6 +78,8 @@
   {"hello"              #'hello
    "download-airtable"  #'airtable/download-all-records
    "migrate"            #'migrate/run
+   "export-tasks"       #'task-entities/export-tasks
+   "apply-task-changes" #'task-entities/apply-task-changes!
    "test"               #'run-tests
    "notebook"           #'notebook})
 

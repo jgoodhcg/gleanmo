@@ -1045,6 +1045,15 @@
        0
        0))
 
+(defn user-id-by-email
+  "The id of the user with `email`, or nil."
+  [db email]
+  (ffirst (q db
+             '{:find  [user]
+               :where [[user :user/email email]]
+               :in    [email]}
+             email)))
+
 (defn entity-history-desc
   "Full entity history for a document, newest first, with docs."
   [db doc-id]
