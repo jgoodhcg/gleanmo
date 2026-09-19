@@ -5,7 +5,7 @@ description: "Minor improvements without full work-unit docs"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-09-18
+updated: 2026-09-19
 ---
 
 # Backlog
@@ -124,6 +124,19 @@ Left in place deliberately — the marketing page was out of scope for the
 timeline change. Either drop the classes as dead code, or treat it as the
 motivating case for reworking the iOS overflow fix, since a pinned header is
 more clearly wanted there than on the timeline.
+
+### Canceled Tasks Highlighted as Actionable on Home Timeline
+Canceled tasks on the home timeline get the amber "actionable" highlight (ring,
+icon, badge) when their due date is today or later, even though they're no
+longer actionable.
+- **Cause**: `entity-status` in `src/tech/jgood/gleanmo/app/overview.clj`
+  (lines 614-618) marks a task `:actionable` when `:task/state` is `:now` or
+  when `:task/due-on` / `:task/focus-date` is today-or-later — with no check
+  for terminal states.
+- **Fix**: exclude terminal task states (`:canceled`, and check `:done` while
+  there — a done task with a future due date likely highlights too) from the
+  `:actionable` branch. `task_focus.clj` already has the concept
+  (`actionable-states`, `terminal-states`) to reuse.
 
 ## Performance / Queries
 
