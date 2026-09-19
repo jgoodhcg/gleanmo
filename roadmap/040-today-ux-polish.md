@@ -5,10 +5,12 @@ description: "Improve task completion feedback and add project selection to quic
 tags: [area/frontend, area/ux, type/improvement]
 priority: high
 created: 2026-02-16
-updated: 2026-03-09
+updated: 2026-09-18
 ---
 
 # Today Page UX Polish
+
+> Folds into [087-essential-information-redesign.md](./087-essential-information-redesign.md) when the today page comes up there.
 
 ## Intent
 

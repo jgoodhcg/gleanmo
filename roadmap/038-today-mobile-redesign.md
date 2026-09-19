@@ -3,12 +3,14 @@ title: "Today Page Mobile Redesign"
 status: draft
 description: "Redesign the today task page for better mobile ergonomics and responsiveness"
 created: 2026-02-09
-updated: 2026-02-09
+updated: 2026-09-18
 tags: [ui, mobile, ergonomics]
 priority: medium
 ---
 
 # Today Page Mobile Redesign
+
+> Folds into [087-essential-information-redesign.md](./087-essential-information-redesign.md) when the today page comes up there.
 
 ## Intent
 
