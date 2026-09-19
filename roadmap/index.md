@@ -93,6 +93,9 @@ PWA notification scaffolding does not establish working reminder delivery.
 
 ### Draft
 
+- [084-symptom-blood-glucose.md](./084-symptom-blood-glucose.md) - Record blood glucose alongside the other vitals on symptom-log, and allow a vitals-only log
+- [086-recurring-tasks.md](./086-recurring-tasks.md) - Tasks that repeat on a schedule, fixed-date or from completion, so recurring chores need no separate reminders app
+- [085-dream-log.md](./085-dream-log.md) - A dream-log entity, so dreams can later be mined for recurring themes
 - [082-exercise-effort.md](./082-exercise-effort.md) - Record on each exercise line whether a set reached failure or how many reps were left
 - [078-data-export.md](./078-data-export.md) - Export page, generic per-entity exporter, and the composite registry, in Markdown/CSV/JSON; interim to the full ai-assistance API/CLI/MCP
 - [076-performance-regression-tracking.md](./076-performance-regression-tracking.md) - Make performance comparable across deploys — scheduled snapshots, cross-instance aggregation, per-SHA grouping, and a synthetic benchmark so low traffic still yields data

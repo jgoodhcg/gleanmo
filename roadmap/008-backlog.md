@@ -5,7 +5,7 @@ description: "Minor improvements without full work-unit docs"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-08-11
+updated: 2026-09-18
 ---
 
 # Backlog
@@ -188,3 +188,17 @@ Timer page stats do not account for currently active timers (project-logs with n
 The medication history page hides the injection site column (and notes) on mobile via `hidden.md:table-cell` — `medication_history.clj:159-160,167-170`.
 - **Issue**: Injection site is one of the most relevant fields on a medication log entry, but it's invisible on mobile viewports (<768px). The dosage timeline chart gets mobile-specific rendering while the table data is truncated with no mobile-aware fallback.
 - **Suggestion**: Render injection site inline with the dosage column on mobile (e.g. `"5 mg — Left Thigh"` or a separate row within the same card), or promote it to always-visible and hide a less critical column instead.
+
+### Workout Sessions Left Open
+Sessions get left open because ending one is easy to forget, so the recorded
+length runs on until someone notices.
+- **Idea**: nudge rather than auto-close — flag a session with no new line for
+  some idle window (e.g. an hour) on the workout screen and the timer
+  workspace, with one-tap "end at last line" that sets `end` to the last line's
+  time instead of now.
+- **Open questions**: what idle window reads as "forgotten"; whether the
+  nudge belongs on home as well; whether "end at last line" should also close
+  an open set.
+- **Related, already resolved**: mis-tapping "edit set" when the intent
+  was to fix a line. Lines now edit inline from the session screen
+  (`line/:id/edit` fragment in `app/workout.clj`), so this needs nothing more.
