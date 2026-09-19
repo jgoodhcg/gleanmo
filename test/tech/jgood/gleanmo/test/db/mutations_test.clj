@@ -125,6 +125,31 @@
         (is (= ["A" "B"] (mapv :task/label tasks)))
         (is (= [] (mutations/update-entities! ctx [])))))))
 
+(deftest write-entities-test
+  (testing "write-entities! creates and updates in one batch"
+    (with-open [node (test-xtdb-node [])]
+      (let [ctx        (get-context node)
+            user-id    (UUID/randomUUID)
+            [task-id]  (mutations/create-entities!
+                        ctx
+                        [{:entity-key :task
+                          :data {:user/id user-id :task/label "A" :task/state :now}}])
+            project-id (UUID/randomUUID)
+            result     (mutations/write-entities!
+                        ctx
+                        {:creates [{:entity-key :project
+                                    :data {:xt/id project-id :user/id user-id
+                                           :project/label "P"}}]
+                         :updates [{:entity-key :task
+                                    :entity-id  task-id
+                                    :data       {:task/project-id project-id}}]})
+            db         (xt/db node)]
+        (is (= {:created [project-id] :updated [task-id]} result))
+        (is (= "P" (:project/label (xt/entity db project-id))))
+        (is (= project-id (:task/project-id (xt/entity db task-id))))
+        (is (= {:created [] :updated []}
+               (mutations/write-entities! ctx {})))))))
+
 (deftest soft-delete-entity-test
   (testing "soft-delete-entity!"
     (with-open [node (test-xtdb-node [])]

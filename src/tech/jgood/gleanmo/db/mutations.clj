@@ -151,23 +151,29 @@
                             doc)])
     (:xt/id doc)))
 
+(defn- create-tx-ops
+  "Check write rules for, and build, the put docs for `entity-specs`. A spec's
+   `data` may carry its own `:xt/id`; otherwise one is generated."
+  [ctx entity-specs]
+  (let [docs (mapv (fn [{:keys [entity-key data]}]
+                     [entity-key (entity-doc entity-key data)])
+                   entity-specs)]
+    (doseq [[entity-key doc] docs]
+      (when (rules/needs-check? entity-key doc)
+        (enforce-write-rules! ctx entity-key doc)))
+    (mapv (fn [[entity-key doc]]
+            (merge {:db/doc-type entity-key
+                    :xt/id       (:xt/id doc)}
+                   doc))
+          docs)))
+
 (defn create-entities!
   "Create multiple entities in one transaction and return their IDs in input order."
   [ctx entity-specs]
-  (let [docs    (mapv (fn [{:keys [entity-key data]}]
-                        [entity-key (entity-doc entity-key data)])
-                      entity-specs)
-        _       (doseq [[entity-key doc] docs]
-                  (when (rules/needs-check? entity-key doc)
-                    (enforce-write-rules! ctx entity-key doc)))
-        tx-docs (mapv (fn [[entity-key doc]]
-                        (merge {:db/doc-type entity-key
-                                :xt/id       (:xt/id doc)}
-                               doc))
-                      docs)]
+  (let [tx-docs (create-tx-ops ctx entity-specs)]
     (when (seq tx-docs)
       (biff/submit-tx ctx tx-docs))
-    (mapv (comp :xt/id second) docs)))
+    (mapv :xt/id tx-docs)))
 
 (defn- update-tx-op
   "Check write rules for, and build, the `:update` op for one entity."
@@ -200,6 +206,19 @@
     (when (seq tx-ops)
       (biff/submit-tx ctx tx-ops))
     (mapv :entity-id entity-specs)))
+
+(defn write-entities!
+  "Create and update entities in one transaction, so a batch lands whole or
+   not at all. `creates` take the `create-entities!` spec shape and `updates`
+   the `update-entities!` one. Creates may preset `:xt/id` in `data`, which lets
+   an update or another create in the same batch refer to them."
+  [ctx {:keys [creates updates]}]
+  (let [create-docs (create-tx-ops ctx creates)
+        tx-ops      (into create-docs (map #(update-tx-op ctx %)) updates)]
+    (when (seq tx-ops)
+      (biff/submit-tx ctx tx-ops))
+    {:created (mapv :xt/id create-docs)
+     :updated (mapv :entity-id updates)}))
 
 (defn soft-delete-entity!
   "Soft-delete an entity by setting its deleted-at timestamp."

@@ -9,11 +9,18 @@
 
         [{:id #uuid \"…\" :label \"Renew passport\" :op :update
           :set {:task/state :done}}
-         {:id #uuid \"…\" :label \"Old idea\" :op :delete}]
+         {:id #uuid \"…\" :label \"Old idea\" :op :delete}
+         {:op :create :type :project :ref :errands
+          :set {:project/label \"errands\"}}
+         {:op :create :set {:task/label \"Buy stamps\" :task/state :later
+                            :task/project-id :errands}}]
 
       `:label` is optional and checked against the stored task, so a pasted id
       that points at the wrong task fails instead of editing it. `:set` merges
       into the task; `:db/dissoc` removes a field. `:delete` soft-deletes.
+      `:create` makes a task (or, with `:type :project`, a project) from `:set`;
+      a project's `:ref` keyword stands in for its id in any `:task/project-id`
+      of the plan. Creating a project whose label already exists is an error.
    3. `apply-task-changes` validates the whole plan and prints every change.
       Nothing is written without `--commit`, and with it the plan lands in one
       transaction or not at all.
@@ -32,6 +39,7 @@
    [clojure.java.io :as io]
    [clojure.pprint :as pprint]
    [clojure.set :as set]
+   [clojure.string :as str]
    [clojure.tools.cli :refer [parse-opts]]
    [clojure.walk :as walk]
    [malli.core :as m]
@@ -188,6 +196,14 @@
   #{:task/done-at :task/snooze-count :task/state-change-count
     :task/last-state-change-at})
 
+(def ^:private creatable-types
+  #{:task :project})
+
+;; Relation fields whose value may name a project created earlier in the same
+;; plan by its `:ref` keyword instead of a uuid.
+(def ^:private ref-keys
+  #{:task/project-id})
+
 (defn- merged
   [stored data]
   (reduce-kv (fn [doc k v]
@@ -195,24 +211,78 @@
              stored
              data))
 
+(defn- entry-type
+  [{:keys [op type]}]
+  (if (= :create op) (or type :task) :task))
+
 (defn- op-errors
   "Problems with one plan entry that are visible without the database."
-  [{:keys [id op], changes :set, :as entry}]
-  (cond-> []
-    (not (uuid? id))
-    (conj ":id must be a uuid")
-    (not (#{:update :delete} op))
-    (conj ":op must be :update or :delete")
-    (and (= :update op) (not (and (map? changes) (seq changes))))
-    (conj ":update needs a non-empty :set map")
-    (and (= :delete op) (contains? entry :set))
-    (conj ":delete takes no :set")
-    (and (map? changes) (seq (remove #(= "task" (namespace %)) (keys changes))))
-    (conj (str ":set may only hold :task/* keys, got "
-               (pr-str (remove #(= "task" (namespace %)) (keys changes)))))
-    (and (map? changes) (seq (set/intersection system-keys (set (keys changes)))))
-    (conj (str ":set may not hold system-managed keys "
-               (pr-str (set/intersection system-keys (set (keys changes))))))))
+  [{:keys [id op ref], changes :set, :as entry}]
+  (let [etype       (entry-type entry)
+        foreign     (when (map? changes)
+                      (seq (remove #(= (name etype) (namespace %))
+                                   (keys changes))))
+        system-set  (when (map? changes)
+                      (seq (set/intersection system-keys (set (keys changes)))))]
+    (cond-> []
+      (not (#{:update :delete :create} op))
+      (conj ":op must be :update, :delete or :create")
+      (and (#{:update :delete} op) (not (uuid? id)))
+      (conj ":id must be a uuid")
+      (and (= :create op) (contains? entry :id))
+      (conj ":create takes no :id; one is generated")
+      (and (= :create op) (not (creatable-types etype)))
+      (conj (str ":type must be one of " (pr-str creatable-types)))
+      (and (= :create op) (some? ref) (not (keyword? ref)))
+      (conj ":ref must be a keyword")
+      (and (#{:update :create} op) (not (and (map? changes) (seq changes))))
+      (conj (str (pr-str op) " needs a non-empty :set map"))
+      (and (= :delete op) (contains? entry :set))
+      (conj ":delete takes no :set")
+      foreign
+      (conj (str ":set may only hold :" (name etype) "/* keys, got "
+                 (pr-str foreign)))
+      system-set
+      (conj (str ":set may not hold system-managed keys " (pr-str system-set))))))
+
+(defn plan-errors
+  "Problems with the plan as a whole that are visible without the database:
+   malformed entries, duplicate ids or refs, and refs that name no project
+   created in the plan. Returns a seq of strings; empty when the plan is
+   well-formed."
+  [plan]
+  (let [entry-errors (keep-indexed
+                      (fn [i entry]
+                        (when-let [es (seq (op-errors entry))]
+                          (str "Entry " i " " (pr-str entry) ": "
+                               (str/join "; " es))))
+                      plan)
+        dupes        (fn [xs] (keep (fn [[x n]] (when (< 1 n) x))
+                                    (frequencies (remove nil? xs))))
+        project-refs (set (keep #(when (and (= :create (:op %))
+                                            (= :project (entry-type %)))
+                                   (:ref %))
+                                plan))
+        dangling     (for [entry plan
+                           [k v] (:set entry)
+                           :when (and (ref-keys k) (keyword? v)
+                                      (not= :db/dissoc v)
+                                      (not (project-refs v)))]
+                       (str "Unknown project ref " v " in " (pr-str entry)))]
+    (concat entry-errors
+            (map #(str "Duplicate id in plan: " %) (dupes (map :id plan)))
+            (map #(str "Duplicate ref in plan: " %) (dupes (map :ref plan)))
+            dangling)))
+
+(defn- resolve-refs
+  [changes refs]
+  (reduce (fn [m k]
+            (let [v (get m k)]
+              (if (and (keyword? v) (not= :db/dissoc v))
+                (assoc m k (get refs v))
+                m)))
+          changes
+          (filter #(contains? changes %) ref-keys)))
 
 (defn- update-data
   [stored changes now]
@@ -225,10 +295,40 @@
       (and (= :done new-state) (not= :done (:task/state stored)))
       (assoc :task/done-at now))))
 
-(defn- resolve-entry
-  "Check one plan entry against the stored task. Returns
-   {:entry :stored :data :errors}."
-  [db user-id now {:keys [id op label], changes :set, :as entry}]
+(defn- normalize-label
+  [s]
+  (str/lower-case (str/trim (or s ""))))
+
+(defn- project-errors
+  "A task pointing at a project that neither exists nor is created in the
+   plan would validate as a uuid and silently orphan."
+  [doc known-project-ids]
+  (let [pid (:task/project-id doc)]
+    (when (and pid (not (known-project-ids pid)))
+      [(str "unknown project id " pid)])))
+
+(defn- resolve-create
+  [{:keys [user-id now refs known-project-ids existing-labels]}
+   {:keys [ref], changes :set, :as entry}]
+  (let [etype  (entry-type entry)
+        id     (if ref (get refs ref) (random-uuid))
+        data   (cond-> (assoc (resolve-refs changes refs)
+                              :xt/id id
+                              :user/id user-id)
+                 (= :done (:task/state changes)) (assoc :task/done-at now))
+        doc    (mutations/entity-doc etype data)
+        schema (some-> (m/explain etype doc main/malli-opts) me/humanize)
+        errors (cond-> (vec (project-errors doc known-project-ids))
+                 (and (= :project etype)
+                      (existing-labels (normalize-label (:project/label doc))))
+                 (conj (str "a project labelled "
+                            (pr-str (:project/label doc)) " already exists"))
+                 schema (conj (str "schema: " (pr-str schema))))]
+    {:entry entry, :entity-key etype, :id id, :data data, :errors errors}))
+
+(defn- resolve-existing
+  [{:keys [db user-id now refs known-project-ids]}
+   {:keys [id op label], changes :set, :as entry}]
   (let [stored (queries/get-entity-by-id db id)
         errors (cond
                  (nil? stored)                    ["no such entity"]
@@ -240,30 +340,78 @@
                  :else                            [])
         data   (when (empty? errors)
                  (case op
-                   :update (update-data stored changes now)
+                   :update (update-data stored (resolve-refs changes refs) now)
                    :delete {::sm/deleted-at now}))
-        schema-errors (when (and data (= :update op))
-                        (some-> (m/explain :task (merged stored data)
-                                           main/malli-opts)
-                                me/humanize))]
-    {:entry  entry
-     :stored stored
-     :data   data
-     :errors (cond-> errors
-               schema-errors (conj (str "schema: " (pr-str schema-errors))))}))
+        doc    (when (and data (= :update op)) (merged stored data))
+        schema (when doc
+                 (some-> (m/explain :task doc main/malli-opts) me/humanize))]
+    {:entry      entry
+     :entity-key :task
+     :id         id
+     :stored     stored
+     :data       data
+     :errors     (cond-> errors
+                   doc    (into (project-errors doc known-project-ids))
+                   schema (conj (str "schema: " (pr-str schema))))}))
+
+(defn resolve-plan
+  "Check every entry of a well-formed plan against the database. Returns one
+   `{:entry :entity-key :id :stored :data :errors}` per entry, in plan order;
+   creates get fresh ids, and refs to projects created in the plan resolve to
+   theirs."
+  [db user-id now plan]
+  (let [projects (queries/projects-for-user
+                  db user-id
+                  :user-settings {:show-sensitive true, :show-archived true})
+        refs     (into {}
+                       (keep #(when (and (= :create (:op %)) (:ref %))
+                                [(:ref %) (random-uuid)]))
+                       plan)
+        env      {:db                db
+                  :user-id           user-id
+                  :now               now
+                  :refs              refs
+                  :known-project-ids (into (set (map :xt/id projects))
+                                           (keep #(when (and (= :create (:op %))
+                                                             (= :project (entry-type %)))
+                                                    (get refs (:ref %))))
+                                           plan)
+                  :existing-labels   (set (map (comp normalize-label :project/label)
+                                               projects))}]
+    (mapv #(if (= :create (:op %))
+             (resolve-create env %)
+             (resolve-existing env %))
+          plan)))
+
+(defn commit-plan!
+  "Write a resolved plan with no errors in one transaction."
+  [ctx resolved]
+  (let [by-op (group-by (comp :op :entry) resolved)]
+    (mutations/write-entities!
+     ctx
+     {:creates (mapv (fn [{:keys [entity-key data]}]
+                       {:entity-key entity-key, :data data})
+                     (:create by-op))
+      :updates (mapv (fn [{:keys [entity-key id data]}]
+                       {:entity-key entity-key, :entity-id id, :data data})
+                     (concat (:update by-op) (:delete by-op)))})))
 
 (defn- print-entry
-  [{:keys [entry stored data errors]}]
-  (let [title (or (:task/label stored) (:label entry) "?")
-        head  (str (name (:op entry)) "  " (:id entry) "  " (pr-str title))]
+  [{:keys [entry entity-key id stored data errors]}]
+  (let [op    (:op entry)
+        title (or (:task/label stored) (:task/label data) (:project/label data)
+                  (:label entry) "?")
+        head  (str (name op)
+                   (when (= :create op) (str " " (name entity-key)))
+                   "  " id "  " (pr-str title))]
     (if (seq errors)
       (do (u/print-red (str "✗ " head))
           (doseq [e errors] (u/print-red (str "    " e))))
       (do (println (str "✓ " head))
-          (when (= :update (:op entry))
-            (doseq [[k v] (sort-by key data)]
+          (when (#{:update :create} op)
+            (doseq [[k v] (sort-by key (dissoc data :xt/id :user/id))]
               (println (str "    " k "  "
-                            (pr-str (get stored k)) " → "
+                            (if (= :create op) "" (str (pr-str (get stored k)) " → "))
                             (if (= :db/dissoc v) "(removed)" (pr-str v))))))))))
 
 (defn apply-task-changes!
@@ -278,28 +426,19 @@
     (when-not (sequential? plan)
       (u/print-red "Plan must be a vector of change maps.")
       (System/exit 1))
-    (let [shape-errors (keep-indexed (fn [i entry]
-                                       (when-let [es (seq (op-errors entry))]
-                                         [i entry es]))
-                                     plan)
-          dupes        (->> (map :id plan) frequencies
-                            (keep (fn [[id n]] (when (< 1 n) id))))]
-      (when (or (seq shape-errors) (seq dupes))
-        (doseq [[i entry es] shape-errors]
-          (u/print-red (str "Entry " i ": " (pr-str entry)))
-          (doseq [e es] (u/print-red (str "    " e))))
-        (doseq [id dupes] (u/print-red (str "Duplicate id in plan: " id)))
-        (System/exit 1)))
+    (when-let [errors (seq (plan-errors plan))]
+      (doseq [e errors] (u/print-red e))
+      (System/exit 1))
     (with-user-ctx
       target email
       (fn [{:keys [biff/db], :as ctx} user-id]
-        (let [now      (java.time.Instant/now)
-              resolved (mapv #(resolve-entry db user-id now %) plan)
+        (let [resolved (resolve-plan db user-id (java.time.Instant/now) plan)
               failed   (filter (comp seq :errors) resolved)
               counts   (frequencies (map (comp :op :entry) resolved))]
           (run! print-entry resolved)
           (println)
           (println (str (count plan) " change(s): "
+                        (get counts :create 0) " create, "
                         (get counts :update 0) " update, "
                         (get counts :delete 0) " delete"))
           (cond
@@ -313,12 +452,6 @@
 
             :else
             (do
-              (mutations/update-entities!
-               ctx
-               (mapv (fn [{:keys [entry data]}]
-                       {:entity-key :task
-                        :entity-id  (:id entry)
-                        :data       data})
-                     resolved))
+              (commit-plan! ctx resolved)
               (u/print-green (str "Committed " (count resolved)
                                   " change(s) in one transaction.")))))))))
