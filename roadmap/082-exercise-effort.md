@@ -3,7 +3,7 @@ title: "Exercise effort: failure and reps in reserve"
 status: draft
 description: "Record whether a set reached failure, or how many reps were left, on each exercise line"
 created: 2026-09-14
-updated: 2026-09-14
+updated: 2026-09-19
 tags: [exercise, schema, workout]
 priority: medium
 ---
@@ -78,3 +78,23 @@ Alternatives to decide between:
 ## Notes
 
 - Keep the default path fast: logging a set without effort must cost no extra taps.
+
+## Session-use note (2026-09-19)
+
+Raised again from a real session, phrased as a **"failure check on set lines"**
+— a checkbox on the line, not a scale. That is signal on two of the open
+questions above:
+
+- The wanted unit is per **line**, as this draft already assumes.
+- The wanted control is a single tap with a binary meaning ("this one went to
+  failure"), not a stepper or a 6–10 RPE select. A boolean
+  `:exercise-line/failed` (past-tense state word, no `?` suffix, per AGENTS.md)
+  satisfies that directly; reps-in-reserve would need a control that still
+  costs one tap for the common case.
+- Undecided: whether an optional reps-in-reserve number rides alongside the
+  check for the times one or two reps were clearly left, or whether the check
+  alone is the whole feature. Shipping the check first loses nothing — it can
+  be read as "reps in reserve = 0" later.
+
+See also the 2026-09-19 feedback block in
+[015-exercise.md](./015-exercise.md).

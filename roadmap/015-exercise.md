@@ -5,7 +5,7 @@ description: "Exercise tracking with superset support and Airtable backfill"
 tags: []
 priority: high
 created: 2026-02-02
-updated: 2026-08-01
+updated: 2026-09-19
 ---
 
 # Exercise Tracking Requirements
@@ -231,3 +231,61 @@ adding a fourth state:
   not fixed. `edit` on a set card still opens the `exercise-set` CRUD form
   with a ~2,563-option Session select. See
   [069-crud-relation-select-scale.md](./069-crud-relation-select-scale.md).
+
+## Session-use feedback (2026-09-19)
+
+Four notes from using the workout screen in a real session. None is a bug in
+the data model; all four are about what the screen says and shows while a
+session is running.
+
+### Cool-down timer and in-session stats
+
+While a session runs, the screen shows the session clock and the running set,
+but nothing about **rest**. Wanted: a cool-down / rest timer between sets —
+how long since the last set ended — plus a few relevant stats for the session
+so far (sets done, total volume or working time, time per set, maybe last
+set's rest).
+
+- The rest interval is already derivable: it's `now` minus the newest set's
+  `end`, so the idle and stopped states both have what they need with no new
+  entity.
+- Rendering must tick on the client, not server-side — the same
+  `data-epoch-ms` / `data-fmt` mechanism the session clock already uses.
+- Open: does rest belong in the idle ("Start set") panel only, or also
+  alongside the stopped-set card? Which stats earn the space on a phone?
+- Related: the home page has the inverse problem — its timers don't tick at
+  all (see `008-backlog.md`, "Home Page Active Timers Don't Tick").
+
+### "Skip — start next set" doesn't explain itself
+
+The stopped state's secondary button reads `Skip — start next set`, and in use
+it wasn't clear what gets skipped (describing the set? the rest? the set
+itself?). The semantics are documented in `app/workout.clj` — it leaves the
+bare set undescribed in the history and starts a new one — but the label
+carries none of that.
+
+- Consider wording that names the consequence, e.g. "Start next set — leave
+  this one blank", or a short helper line under the button.
+- Same question applies to `Stop timer` vs `End session` at a glance.
+
+### Notes: set or line, and how to edit them
+
+`exercise-set/notes` and `exercise-line/notes` both exist (and
+`exercise-session/notes`, and `exercise/notes`), and it's not obvious from the
+screen which one a note lands on or where it shows up afterward.
+
+- Decide which level is the one the workout screen writes to. A note in
+  practice is usually about *what happened on that exercise* (form felt off,
+  dropped weight), which argues for the line; a note about the block of work
+  (interrupted, shared the rack) argues for the set.
+- Whichever it is, it needs an affordance on the recording/stopped card rather
+  than only through the CRUD form, and notes already written need to be
+  **visible** on the set/line rows — today they aren't surfaced there at all.
+- The other levels stay in the schema; this is about which one the fast path
+  writes and reads.
+
+### Failure check on set lines
+
+Confirms [082-exercise-effort.md](./082-exercise-effort.md) and nudges it
+toward a simple **check** on the line rather than a numeric scale. Recorded
+there.
