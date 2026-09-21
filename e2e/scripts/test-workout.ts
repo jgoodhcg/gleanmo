@@ -77,7 +77,9 @@ async function main() {
     await expect(page.locator('[data-fmt="session"]')).toHaveText('1 min');
     await sessionAdjust.getByRole('button', { name: 'Subtract one minute' }).click();
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('[data-fmt="session"]')).toHaveText('0 min');
+    // Sub-minute renders as seconds and keeps ticking, so match the shape
+    // rather than a frozen string (same as the set-timer assertions below).
+    await expect(page.locator('[data-fmt="session"]')).toHaveText(/^\d+s$/);
 
     // One running set covers timer adjustment/restart and three-digit reps.
     await page.getByRole('button', { name: 'Start set', exact: true }).click();

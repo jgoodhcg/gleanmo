@@ -206,24 +206,11 @@
   (let [candidate (.minusSeconds beginning (long delta-seconds))]
     (if (t/> candidate latest-beginning) latest-beginning candidate)))
 
-;; Timers tick client-side: elements carrying data-epoch-ms get their text
-;; recomputed every second from the wall clock, so the page needs no reloads
-;; while a set runs. Default fmt is a stopwatch 'm:ss'; data-fmt "session"
-;; renders '12 min' / '1h 5m'.
-(def ^:private tick-script
-  "document.querySelectorAll('[data-epoch-ms]').forEach(function (el) {
-     function render() {
-       var s = Math.max(0, Math.floor((Date.now() - Number(el.dataset.epochMs)) / 1000));
-       var m = Math.floor(s / 60);
-       el.textContent = el.dataset.fmt === 'session'
-         ? (m < 60 ? m + ' min' : Math.floor(m / 60) + 'h ' + (m % 60) + 'm')
-         : m + ':' + String(s % 60).padStart(2, '0');
-     }
-     render();
-     setInterval(render, 1000);
-   });")
+;; Timers tick client-side off data-epoch-ms; the script and the formatter
+;; are shared with the bouldering screen and the home overview.
+(def ^:private tick-script shared/tick-script)
 
-(defn- epoch-ms [instant] (str (t/millis (t/between (t/epoch) instant))))
+(def ^:private epoch-ms shared/epoch-ms)
 
 ;; Defaults used only for an exercise the user has never logged; once logged,
 ;; exercise-memory prefills what they did last time.

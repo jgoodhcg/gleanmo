@@ -401,3 +401,30 @@
                      " with zone ID: " zone-id
                      ". Error: "       (.getMessage e))
                 e))))))
+
+;; Live timers tick client-side: any element carrying data-epoch-ms gets its
+;; text recomputed every second from the wall clock, so a page showing a
+;; running interval needs no reloads. Default fmt is a stopwatch 'm:ss';
+;; data-fmt "session" renders '45s' / '12 min' / '1h 5m'.
+;;
+;; Shared because three screens render running timers — the workout session,
+;; the bouldering session, and the home overview's "Running now" strip — and
+;; they should agree on the format.
+(def tick-script
+  "document.querySelectorAll('[data-epoch-ms]').forEach(function (el) {
+     function render() {
+       var s = Math.max(0, Math.floor((Date.now() - Number(el.dataset.epochMs)) / 1000));
+       var m = Math.floor(s / 60);
+       el.textContent = el.dataset.fmt === 'session'
+         ? (s < 60 ? s + 's' : m < 60 ? m + ' min' : Math.floor(m / 60) + 'h ' + (m % 60) + 'm')
+         : m + ':' + String(s % 60).padStart(2, '0');
+     }
+     render();
+     setInterval(render, 1000);
+   });")
+
+(defn epoch-ms
+  "An instant as a millisecond epoch string, for a data-epoch-ms attribute."
+  [instant]
+  (when instant
+    (str (t/millis (t/between (t/epoch) instant)))))

@@ -18,6 +18,7 @@
    [clojure.string :as str]
    [com.biffweb :as biff]
    [tech.jgood.gleanmo.app.layout :as layout]
+   [tech.jgood.gleanmo.app.shared :as shared]
    [tech.jgood.gleanmo.db.mutations :as mutations]
    [tech.jgood.gleanmo.db.queries :as queries]
    [tech.jgood.gleanmo.ui :as ui]
@@ -114,21 +115,11 @@
     (if (seq parts) (str/join " · " parts) "attempt")))
 
 ;; Same client-side ticking as the workout screen: session duration renders
-;; from the wall clock so the page needs no reloads.
-(def ^:private tick-script
-  "document.querySelectorAll('[data-epoch-ms]').forEach(function (el) {
-     function render() {
-       var s = Math.max(0, Math.floor((Date.now() - Number(el.dataset.epochMs)) / 1000));
-       var m = Math.floor(s / 60);
-       el.textContent = el.dataset.fmt === 'session'
-         ? (m < 60 ? m + ' min' : Math.floor(m / 60) + 'h ' + (m % 60) + 'm')
-         : m + ':' + String(s % 60).padStart(2, '0');
-     }
-     render();
-     setInterval(render, 1000);
-   });")
+;; from the wall clock so the page needs no reloads. Shared script and
+;; formatter live in app.shared.
+(def ^:private tick-script shared/tick-script)
 
-(defn- epoch-ms [instant] (str (t/millis (t/between (t/epoch) instant))))
+(def ^:private epoch-ms shared/epoch-ms)
 
 ;; Wires the attempt form. The problem picker is a collapsed row showing the
 ;; current selection; tapping it expands the card list (wall chips filter
