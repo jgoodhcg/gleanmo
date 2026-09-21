@@ -128,7 +128,12 @@
   (ui/page
    ctx
    [:div.lp-landing.min-h-screen.font-mono.text-slate-200.lp-hero-glow
-    [:header.sticky.top-0.z-10.border-b.border-lp-rule.lp-header-blur
+    ;; Not sticky: `overflow-x: hidden` on html/body (an iOS Safari fix in
+    ;; resources/tailwind.css) makes body the scroll container, which renders
+    ;; `position: sticky` inert app-wide. The classes were here for years and
+    ;; never pinned anything — dropped rather than kept as dead code. See the
+    ;; timeline day-heading entry in roadmap/008-backlog.md.
+    [:header.border-b.border-lp-rule.lp-header-blur
      [:div.max-w-6xl.mx-auto.px-8.py-4.flex.items-center.justify-between.gap-4
       [:div.flex.items-center.gap-2
        [:span.block.w-4.h-4.rounded.bg-lp-accent]
