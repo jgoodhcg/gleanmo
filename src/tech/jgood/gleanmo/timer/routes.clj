@@ -155,14 +155,19 @@
        (reduce + 0)))
 
 (defn- today-logs
-  "Fetch completed logs that overlap today. Each log is clamped to today's window."
+  "Fetch logs that overlap today, each clamped to today's window.
+
+   A still-running log (a beginning with no end) counts up to now, so time
+   spent on an in-progress timer shows in the day's stats instead of being
+   invisible until it is stopped."
   [ctx {:keys [entity-query beginning-key end-key]}]
-  (let [{:keys [start end]} (today-window ctx)]
+  (let [{:keys [start end]} (today-window ctx)
+        now                 (t/instant (t/now))]
     (->> (queries/all-for-user-query entity-query ctx)
          (keep (fn [log]
                  (let [log-start (get log beginning-key)
-                       log-end   (get log end-key)
-                       interval  (when (and log-start log-end)
+                       log-end   (or (get log end-key) now)
+                       interval  (when log-start
                                    (clamp-interval-to-window log-start
                                                              log-end
                                                              start
@@ -221,7 +226,7 @@
            [:span.text-sm.text-gray-300 label]
            [:span.text-sm.text-neon-cyan (format-duration seconds)]])])
      (when-not (seq logs)
-       [:p.text-sm.text-gray-400 "No completed logs for today."])]))
+       [:p.text-sm.text-gray-400 "No logged time for today."])]))
 
 (defn- recent-logs-section
   "Render a list of recent completed logs as edit links."

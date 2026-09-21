@@ -2,6 +2,7 @@
 (ns tech.jgood.gleanmo.test.timer.routes-test
   (:require
    [clojure.test :refer [deftest is testing]]
+   [tech.jgood.gleanmo.app.shared :as shared]
    [tech.jgood.gleanmo.db.mutations :as mutations]
    [tech.jgood.gleanmo.db.queries :as queries]
    [tech.jgood.gleanmo.schema.utils :as schema-utils]
@@ -199,3 +200,44 @@
     (testing "a running timer with no beginning can't date a double submit and
               must not block the start"
       (is (= 1 (count (:creates (run [{:xt/id (random-uuid)}]))))))))
+
+(deftest today-logs-includes-running-timer-test
+  (let [today-logs  #'timer-routes/today-logs
+        config      {:entity-query  {:entity-type-str "project-log"}
+                     :beginning-key :project-log/beginning
+                     :end-key       :project-log/end}
+        ctx         {}
+        now         (t/instant (t/now))
+        zone        (java.time.ZoneId/of "UTC")
+        day-start   (-> (java.time.ZonedDateTime/ofInstant now zone)
+                        (.toLocalDate)
+                        (.atStartOfDay zone)
+                        (.toInstant))
+        ;; Anchored inside today's window so the test can't straddle midnight.
+        ago         (fn [hours]
+                      (let [i (t/<< now (t/new-duration hours :hours))]
+                        (if (.isBefore i day-start) day-start i)))
+        running-at  (ago 1)
+        logs        [{:xt/id                 :completed
+                      :project-log/beginning (ago 3)
+                      :project-log/end       (ago 2)}
+                     {:xt/id                 :running
+                      :project-log/beginning running-at}
+                     {:xt/id                 :no-beginning
+                      :project-log/end       now}]]
+    (with-redefs [queries/all-for-user-query (fn [_ _] logs)
+                  shared/get-user-time-zone  (constantly "UTC")]
+      (let [by-id (into {} (map (juxt :xt/id :timer/day-interval))
+                        (today-logs ctx config))]
+        (testing "a running log counts up to now instead of being dropped"
+          (is (contains? by-id :running))
+          (let [[start end] (:running by-id)]
+            (is (= running-at start))
+            ;; `now` is recomputed inside today-logs, so allow a small delta.
+            (is (< (abs (t/millis (t/between end now))) 5000))))
+
+        (testing "completed logs are still included"
+          (is (contains? by-id :completed)))
+
+        (testing "a log with no beginning is skipped"
+          (is (not (contains? by-id :no-beginning))))))))
