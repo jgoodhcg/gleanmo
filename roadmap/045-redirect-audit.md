@@ -3,7 +3,7 @@ title: "Redirect Audit"
 status: draft
 description: "Audit all actions to implement intuitive redirects with query parameter support"
 created: 2026-03-09
-updated: 2026-03-09
+updated: 2026-09-21
 tags: [ux, navigation]
 priority: medium
 ---
@@ -72,3 +72,22 @@ The redirect pattern was implemented piecemeal. Key files:
 ## Notes
 
 Search for `:headers {"location"` or `:headers {"HX-Redirect"` to find all redirect responses, then cross-reference with handlers that accept POST requests.
+
+## Observed issues
+
+### Focus/today task edit doesn't return to the referring page (2026-09-21)
+
+User-observed: editing an individual task from the focus today page and saving
+keeps you on the edit form instead of returning to the page you came from.
+
+- **Cause**: the task edit links on the focus page
+  (`src/tech/jgood/gleanmo/app/task_focus.clj:265`) and today page
+  (`src/tech/jgood/gleanmo/app/task_today.clj:157`) point at
+  `/app/crud/form/task/edit/<id>` with no `redirect` query parameter. The CRUD
+  update handler (`src/tech/jgood/gleanmo/crud/handlers.clj:216-217`) already
+  honors a `redirect` param but defaults to the edit form itself.
+- **Fix pattern already exists**: the home overview's `edit-form-url`
+  (`src/tech/jgood/gleanmo/app/overview.clj:115-118`) appends
+  `?redirect=<url-encoded return path>` — replicate that on the focus/today
+  edit links, pointing back at the referring page (including any query string
+  the focus page was rendered with).
