@@ -28,7 +28,8 @@
     "test:boulder-problems": "tsx scripts/test-boulder-problems.ts",
     "test:field-suggestions": "tsx scripts/test-field-suggestions.ts",
     "test:workout": "tsx scripts/test-workout.ts",
-    "test:timer-double-submit": "tsx scripts/test-timer-double-submit.ts"
+    "test:timer-double-submit": "tsx scripts/test-timer-double-submit.ts",
+    "test:home-running-timer": "tsx scripts/test-home-running-timer.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.40.0",

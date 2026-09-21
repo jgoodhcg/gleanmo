@@ -57,3 +57,28 @@
       (is (= (str "/app/crud/form/reading-log/edit/" entity-id
                   "?redirect=%2Fapp")
              (#'overview/edit-form-url "reading-log" entity-id))))))
+
+(deftest entity-status-test
+  (let [entity-status #'overview/entity-status
+        today         (t/date (t/in (t/now) (t/zone "UTC")))
+        past          (t/<< (t/now) (t/new-duration 2 :hours))
+        task          (fn [state extra]
+                        (merge {::sm/type                :task
+                                ::overview/activity-time {:instant past}
+                                :task/state              state}
+                               extra))]
+    (testing "an open task due today or earlier is actionable"
+      (is (= :actionable (entity-status ctx (task :later {:task/due-on today}))))
+      (is (= :actionable (entity-status ctx (task :now {})))))
+
+    (testing "a done or canceled task is never actionable"
+      (is (= :normal (entity-status ctx (task :done {:task/due-on today}))))
+      (is (= :normal (entity-status ctx (task :canceled {:task/due-on today}))))
+      ;; :now is the strongest actionable signal — a terminal state still wins.
+      (is (= :normal (entity-status ctx (task :canceled {:task/state :canceled
+                                                         :task/focus-date today})))))
+
+    (testing "a running interval is running, not normal"
+      (is (= :running
+             (entity-status ctx {::sm/type                :meditation-log
+                                 ::overview/activity-time {:instant past}}))))))

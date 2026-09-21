@@ -274,11 +274,6 @@
 
 (declare timeline-time)
 
-(defn- elapsed-duration
-  [start]
-  (when start
-    (crud-views/format-duration start (t/now))))
-
 (defn- active-timer-summaries
   [ctx]
   ;; Sequential on purpose: these overlap the dashboard cascade via a future,
@@ -298,8 +293,7 @@
                 :type      display-name
                 :label     (or (rel/relationship-label ctx parent-id)
                                "Active timer")
-                :start     start
-                :elapsed   (elapsed-duration start)})))))
+                :start     start})))))
        (apply concat)))
 
 (defn- render-active-timers
@@ -313,7 +307,7 @@
       [:div.h-px.flex-1.bg-dark-border]
       [:div.text-xs.text-gray-500 (str (count timers) " active")]]
      [:div.grid.grid-cols-1.md:grid-cols-3.gap-3
-      (for [{:keys [id href entity-str label start elapsed]} timers
+      (for [{:keys [id href entity-str label start]} timers
             :let [meta (type-meta entity-str)
                   {:keys [code]} meta
                   type-label (:label meta)]]
@@ -331,8 +325,14 @@
             [:div.text-xs.text-gray-500.uppercase.tracking-wide
              (or type-label code)]]]
           [:div.text-right.shrink-0
-           [:div.text-sm.font-semibold.text-neon-cyan elapsed]
-           [:div.text-xs.text-gray-500 (str "started " (or (timeline-time ctx start) ""))]]]])]]))
+           ;; Elapsed ticks client-side off data-epoch-ms rather than freezing
+           ;; at whatever it was when the fragment rendered.
+           [:div.text-sm.font-semibold.text-neon-cyan
+            {:data-epoch-ms (shared/epoch-ms start)
+             :data-fmt      "session"}
+            "…"]
+           [:div.text-xs.text-gray-500 (str "started " (or (timeline-time ctx start) ""))]]]])]
+     [:script (biff/unsafe shared/tick-script)]]))
 
 (defn- timeline-date
   [ctx instant]
@@ -596,6 +596,10 @@
    [:span.text-gray-600.whitespace-nowrap label]
    [:span.truncate node]])
 
+(def ^:private terminal-task-states
+  "Task states past which nothing is left to do."
+  #{:done :canceled})
+
 (defn- entity-status
   [ctx entity]
   (let [etype   (some-> entity ::sm/type name)
@@ -612,6 +616,10 @@
       future? :scheduled
 
       (and (= etype "task")
+           ;; A done or canceled task is never actionable, whatever its due
+           ;; or focus date says — without this, finished work keeps the amber
+           ;; "do this" ring on the timeline.
+           (not (terminal-task-states (:task/state entity)))
            (or (= :now (:task/state entity))
                (some->> (:task/due-on entity) (t/>= today))
                (some->> (:task/focus-date entity) (t/>= today))))
