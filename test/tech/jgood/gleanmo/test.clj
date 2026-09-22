@@ -20,6 +20,7 @@
    [tech.jgood.gleanmo.test.goals.calc-test]
    [tech.jgood.gleanmo.test.goals.dashboard-test]
    [tech.jgood.gleanmo.test.goals.measurements-test]
+   [tech.jgood.gleanmo.test.goals.suggest-test]
    [tech.jgood.gleanmo.test.goals.validation-test]
    [tech.jgood.gleanmo.test.middleware-test]
    [tech.jgood.gleanmo.test.tasks.task-entities-test]

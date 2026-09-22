@@ -16,9 +16,11 @@
    [tech.jgood.gleanmo.db.mutations :as mutations]
    [tech.jgood.gleanmo.db.queries :as queries]
    [tech.jgood.gleanmo.goals.registry :as registry]
-   [tech.jgood.gleanmo.ui :as ui])
+   [tech.jgood.gleanmo.goals.suggest :as suggest]
+   [tech.jgood.gleanmo.ui :as ui]
+   [tech.jgood.gleanmo.ui.icons :as icons])
   (:import
-   [java.time DayOfWeek LocalDate ZoneId]
+   [java.time DayOfWeek Instant LocalDate ZoneId]
    [java.time.temporal TemporalAdjusters]))
 
 ;; ---------------------------------------------------------------------------
@@ -282,6 +284,15 @@
                       :value (:threshold-step form),
                       :help "Milestones every this much; defaults to about a tenth of the target."})
          (field-errors errors :goal/threshold-step)]])
+     (when-not completion
+       ;; Loads after render and on any form change, so the page itself never
+       ;; waits on a history read.
+       [:div#goal-suggestion
+        {:hx-get     "/app/goals/suggestion"
+         :hx-include "#goal-editor-form"
+         :hx-trigger "load, change from:#goal-editor-form"
+         :hx-sync    "this:replace"
+         :hx-swap    "innerHTML"}])
      (timing-select m form)
      (field-errors errors :goal/timing)
      [:div.grid.grid-cols-1.sm:grid-cols-2.gap-4
@@ -348,8 +359,10 @@
          {:role "alert"}
          "The goal was not saved. Fix the highlighted fields below."])
       (biff/form
+       ;; autocomplete off stops Firefox from restoring the selects on
+       ;; reload, which would leave them out of step with the rendered fields.
        {:action action, :method "post", :id "goal-editor-form",
-        :class  "space-y-6"}
+        :class  "space-y-6", :autocomplete "off"}
        (when goal-id [:input {:type "hidden", :name "goal-id", :value (str goal-id)}])
        [:div
         (text-input {:id "label", :label "Name", :value (:label form),
@@ -404,6 +417,102 @@
                (assoc :starts-on (:starts-on (new-form ctx params))))]
     (editor-page ctx {:form    form
                       :goal-id (some-> (:goal-id params) parse-uuid)})))
+
+(defn- show-num
+  "A number for display, with thousands separators and no stray .0."
+  [x]
+  (if (== x (Math/rint x))
+    (format "%,d" (long x))
+    (format "%,.1f" (double x))))
+
+(defn- excluded-note
+  [goal]
+  (if (= :weekly (:goal/timing goal))
+    "This week does not count."
+    "Today does not count."))
+
+(defn- suggestion-body
+  [{:keys [kind display amount days period-days hits weeks assumed-ends-on]} m goal]
+  (let [unit   (get-in m [:input-unit :label])
+        factor (double (get-in m [:input-unit :factor] 1))
+        value  (if (== display (Math/rint display)) (str (long display)) (str display))]
+    ;; A thin violet rule marks this as advice about the target, not a field.
+    ;; Dismiss removes the element, so it stays gone until the measurement or
+    ;; timing re-renders the fields.
+    [:div.flex.items-start.justify-between.gap-3.border-l-2.border-neon-violet.pl-3
+     [:div.min-w-0
+      [:p.text-sm.text-gray-300
+       "Suggested target: "
+       [:span.font-semibold.text-neon-violet (str (show-num display) " " unit)]]
+      [:p.form-help
+       (str
+        (case kind
+          :dated  (str "Last " days " days: " (show-num (/ amount factor)) " " unit
+                       ". This is that rate over " period-days " days, plus 15%."
+                       (when assumed-ends-on
+                         (str " With no end date yet, this assumes the goal ends on "
+                              assumed-ends-on "; Use sets that date.")))
+          :weekly (str "You reached this in " hits " of your last " weeks
+                       (if (= 1 weeks) " week." " weeks."))
+          :best   (str "Your best in the last " days " days: "
+                       (show-num (/ amount factor)) " " unit ". This is about 5% more."))
+        " " (excluded-note goal))]
+      [:button.form-button-secondary.text-sm.mt-2
+       {:type    "button"
+        ;; Fills the assumed end date only while the field is still empty, so
+        ;; a date the user has typed is never overwritten.
+        :onclick (str "var t=document.getElementById('target');t.value='" value
+                      "';t.dispatchEvent(new Event('input',{bubbles:true}));"
+                      (when assumed-ends-on
+                        (str "var e=document.getElementById('ends-on');"
+                             "if(e&&!e.value){e.value='" assumed-ends-on "';"
+                             "e.dispatchEvent(new Event('input',{bubbles:true}));"
+                             "e.dispatchEvent(new Event('change',{bubbles:true}));}")))}
+       "Use"]]
+     [:button.shrink-0.text-gray-500.hover:text-white
+      {:type       "button"
+       :aria-label "Dismiss suggestion"
+       :onclick    "this.closest('#goal-suggestion').remove()"}
+      (icons/x {:class "h-4 w-4"})]]))
+
+(defn suggestion-fragment
+  "GET /app/goals/suggestion — a target suggested from the user's history
+   for the submitted form. Empty when the goal has no suggestion. Never
+   writes."
+  [{:keys [biff/db session params] :as ctx}]
+  (let [form      (params->form params)
+        [attrs _] (form->goal form)
+        m         (registry/string->measurement (:measurement form))
+        goal      (update attrs :goal/time-zone
+                          #(or (not-empty %) (shared/get-user-time-zone ctx)))
+        now       (Instant/now)
+        supported (and m (suggest/supported? goal m))
+        s         (when supported
+                    (let [{:keys [since until]} (suggest/history-window goal now)
+                          rel-key (get-in m [:relation :key])]
+                      (suggest/suggestion
+                       goal m
+                       (queries/goal-source-records
+                        db (:uid session)
+                        {:source        (:source m)
+                         :since         since
+                         :until         until
+                         :relation-ids  (seq (get goal rel-key))
+                         :user-settings (queries/resolve-user-settings ctx)
+                         :overlap?      (= :duration (:kind m))})
+                       now)))]
+    {:status  200
+     :headers {"content-type" "text/html"}
+     :body    (ui/fragment
+               ctx
+               (cond
+                 s         (suggestion-body s m goal)
+                 supported [:p.form-help
+                            (str "No suggestion: too little activity in the last "
+                                 (if (= :weekly (:goal/timing goal))
+                                   (str suggest/history-weeks " whole weeks")
+                                   (str suggest/history-days " days"))
+                                 ". " (excluded-note goal))]))}))
 
 (defn- save!
   [form write!]

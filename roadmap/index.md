@@ -80,6 +80,8 @@ PWA notification scaffolding does not establish working reminder delivery.
   Synthetic query profiling is complete; ten-year windows need a performance follow-up.
   Full E2E remains before shipping; historical comparisons remain a feature follow-up.
 
+- [089-goal-target-suggestion.md](./089-goal-target-suggestion.md) - Goal editor suggests a slight-stretch target from the user's own history (built and tested 2026-09-22; user check pending)
+
 ### Ready
 
 - [075-exercise-export.md](./075-exercise-export.md) - The exercise composite export (session → set → line as nested Markdown or JSON, denormalized to CSV); depends on 078-data-export.md

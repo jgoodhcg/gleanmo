@@ -998,7 +998,8 @@
    ["/goals" {}
     ["" {:get goals-page, :post editor/create!}]
     ["/new" {:get editor/new-page}]
-    ["/editor" {:get editor/refresh}]]
+    ["/editor" {:get editor/refresh}]
+    ["/suggestion" {:get editor/suggestion-fragment}]]
    ["/goal/:id" {}
     ["" {:post editor/update!}]
     ["/edit" {:get editor/edit-page}]

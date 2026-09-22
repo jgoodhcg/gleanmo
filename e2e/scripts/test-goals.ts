@@ -452,6 +452,41 @@ async function main() {
     await captureScreenshot(page, '06-mobile-card');
     console.log('  [+] No page-level horizontal scroll; table scrolls inside its panel');
 
+    // ── 11. Suggested target ──
+    console.log('\n10. Suggested target from history...');
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await createReadingLog(page, {
+      book, beginning: `${shiftDate(today, -40)}T09:00`, end: `${shiftDate(today, -40)}T09:30`,
+    });
+    form = await openEditor(page);
+    const suggestion = page.locator('#goal-suggestion');
+    await expect(suggestion).toContainText('Suggested target', { timeout: 10000 });
+    await expect(suggestion).toContainText('plus 15%');
+    await expect(suggestion).toContainText('With no end date yet');
+    const suggested = (await suggestion.textContent())!.match(/Suggested target: ([\d.,]+) hours/)![1];
+    const endsOn = form.locator('[name="ends-on"]');
+    const start = await form.locator('[name="starts-on"]').inputValue();
+    await captureScreenshot(page, '08-suggestion');
+    await suggestion.getByRole('button', { name: 'Use', exact: true }).click();
+    await expect(form.locator('[name="target"]')).toHaveValue(suggested.replace(/,/g, ''));
+    await expect(endsOn).toHaveValue(shiftDate(start, 364));
+    await expect(suggestion).not.toContainText('With no end date yet', { timeout: 10000 });
+    // A typed end date is never overwritten by Use.
+    await endsOn.fill(shiftDate(start, 89));
+    await endsOn.dispatchEvent('change');
+    await expect(suggestion).toContainText('over 90 days', { timeout: 10000 });
+    await suggestion.getByRole('button', { name: 'Use', exact: true }).click();
+    await expect(endsOn).toHaveValue(shiftDate(start, 89));
+    await refreshField(page, form.locator('select[name="measurement"]'),
+      'reading-log/book-completion-completion');
+    await expect(suggestion).toHaveCount(0);
+    await refreshField(page, form.locator('select[name="measurement"]'),
+      'reading-log/duration-total');
+    await expect(suggestion).toContainText('Suggested target', { timeout: 10000 });
+    await suggestion.getByRole('button', { name: 'Dismiss suggestion' }).click();
+    await expect(suggestion).toHaveCount(0);
+    console.log(`  [+] Editor suggests ${suggested} hours; Use fills the target and only an empty end date; dismiss removes it`);
+
     if (errors.length) throw new Error(`Page errors: ${errors.join('; ')}`);
     console.log('\n=== Test Passed ===\n');
   } catch (error) {
