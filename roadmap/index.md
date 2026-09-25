@@ -95,6 +95,9 @@ PWA notification scaffolding does not establish working reminder delivery.
 
 ### Draft
 
+- [090-goal-live-today.md](./090-goal-live-today.md) - Goal averages and required rates react to today's logs beside the completed-day baseline, with a projection at the current rate; weekly goals drop their projection
+- [091-pinned-goals.md](./091-pinned-goals.md) - Pin goals so they lead the goals page and show as compact progress cards on the home screen
+- [092-goal-comparisons-records.md](./092-goal-comparisons-records.md) - Compare a goal with last week and last year, show best and worst periods of all time, and count weekly streaks; blocked on how history coverage is established
 - [088-timer-cross-device-staleness.md](./088-timer-cross-device-staleness.md) - A running timer on the home page keeps ticking after it is stopped on another device; pick a pushed invalidation or a long-interval poll
 - [084-symptom-blood-glucose.md](./084-symptom-blood-glucose.md) - Record blood glucose alongside the other vitals on symptom-log, and allow a vitals-only log
 - [087-essential-information-redesign.md](./087-essential-information-redesign.md) - Reduce every page to its essential information, then decide a holistic minimal redesign (hierarchy, space, phone and desktop ergonomics) in Claude Design; umbrella for 038, 040, and the backlog CRUD redesign

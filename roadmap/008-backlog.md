@@ -5,7 +5,7 @@ description: "Minor improvements without full work-unit docs"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-09-21
+updated: 2026-09-25
 ---
 
 # Backlog
@@ -194,6 +194,18 @@ whatever it was when the fragment was rendered.
   `088-timer-cross-device-staleness.md` for the adjacent problem this brought
   into focus — nothing invalidates the tick, so a timer stopped on another
   device keeps counting up on the home page indefinitely.
+
+### Running Workouts Missing From Home
+Dogfood note (2026-09-25): "Workout running on Home Screen?"
+The home "Running now" strip (`active-timer-summaries` in `app/overview.clj`)
+loops over `timer-entities` in `app/timers.clj` — project, meditation, and
+reading logs only — so a running exercise or bouldering session never shows.
+- **Fix**: add `exercise-session` and `boulder-session` to the home strip,
+  linking to `/app/exercise/session` and `/app/boulder/session`, without
+  adding them to the Timers page.
+- Both schemas already declare `<entity>/running`, so
+  `active-timers-for-user` is the cheap indexed lookup, not a history scan.
+- Check the home active-timer count in `dashboard-stats` includes them too.
 
 ## Testing
 

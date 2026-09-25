@@ -3,7 +3,7 @@ title: "Goals dashboard"
 status: active
 description: "Implement the approved dashboard with reusable numeric types, reading positions, goal storage, and scoped progress queries."
 created: 2026-09-12
-updated: 2026-09-16
+updated: 2026-09-25
 tags: [goals, visualization, schema, reading]
 priority: medium
 ---
@@ -34,6 +34,7 @@ The unit remains active until final verification and follow-up disposition are c
 
 - [ ] Historical comparisons: coverage entry, prior-year chart series, and year-selection controls.
   Known-coverage calculations and rendering already have fixture coverage.
+  Moved to [092](./092-goal-comparisons-records.md) (2026-09-25).
 - [x] Keyboard navigation between activity cells.
 - [x] Edit controls in individual goal table rows.
 - [ ] Resolve or separately track the remaining dogfood feedback before archiving this work unit.
@@ -401,6 +402,12 @@ Resolve each item, or move it to another work unit, before archiving this unit.
   No goal streak exists. The only streak in the codebase is the demo heatmap on the home page, computed from synthetic data.
   The 84-day activity strip lets a person count a run by eye; the app does not count it.
   Disposition: the graph/projection question and the streak are separate follow-ups; neither is implemented.
+  Moved (2026-09-25): removing the weekly projection and pace to [090](./090-goal-live-today.md); the streak to [092](./092-goal-comparisons-records.md).
+- [ ] Dogfood notes, 2026-09-25, moved to new work units:
+  live average and required rates including today, what today changed, and a projection at the current rate to [090](./090-goal-live-today.md);
+  pinning goals, a home-screen goal card, and the list/graph layout question to [091](./091-pinned-goals.md);
+  comparisons with last week and last year and best/worst of all time to [092](./092-goal-comparisons-records.md);
+  a running workout on the home screen to [008](./008-backlog.md) ("Running Workouts Missing From Home").
 
 ## Code review findings (Codex, 2026-09-14)
 
