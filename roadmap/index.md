@@ -81,6 +81,7 @@ PWA notification scaffolding does not establish working reminder delivery.
   Full E2E remains before shipping; historical comparisons remain a feature follow-up.
 
 - [089-goal-target-suggestion.md](./089-goal-target-suggestion.md) - Goal editor suggests a slight-stretch target from the user's own history (built and tested 2026-09-22; user check pending)
+- [090-goal-live-today.md](./090-goal-live-today.md) - Live today values on goals beside the completed-day baseline, projections at the live average and the last 14 days' pace; weekly goals drop pace and projection (built and tested 2026-09-25; user check pending)
 
 ### Ready
 
@@ -95,7 +96,6 @@ PWA notification scaffolding does not establish working reminder delivery.
 
 ### Draft
 
-- [090-goal-live-today.md](./090-goal-live-today.md) - Goal averages and required rates react to today's logs beside the completed-day baseline, with a projection at the current rate; weekly goals drop their projection
 - [091-pinned-goals.md](./091-pinned-goals.md) - Pin goals so they lead the goals page and show as compact progress cards on the home screen
 - [092-goal-comparisons-records.md](./092-goal-comparisons-records.md) - Compare a goal with last week and last year, show best and worst periods of all time, and count weekly streaks; blocked on how history coverage is established
 - [088-timer-cross-device-staleness.md](./088-timer-cross-device-staleness.md) - A running timer on the home page keeps ticking after it is stopped on another device; pick a pushed invalidation or a long-interval poll

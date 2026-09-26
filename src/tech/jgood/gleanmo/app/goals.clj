@@ -90,7 +90,7 @@
   (cond
     (nil? v)            "—"
     (duration-total? m) (let [h (/ (double v) 3600)]
-                          (if (and (pos? h) (< h 1))
+                          (if (< h 1)
                             (str (fmt-num (/ (double v) 60)) " min")
                             (str (fmt-num h) " h")))
     (= :seconds (:unit m)) (str (fmt-num v) " s")
@@ -104,6 +104,15 @@
     (duration-total? m) (str (fmt-small (/ (double per-day) 60)) " min/day")
     :else               (str (fmt-small per-day) " "
                              (get registry/unit-labels (:unit m)) "/day")))
+
+(defn- rate-change
+  "A signed change in a daily rate, e.g. \" (+0.6)\" or \" (−1.2)\", in the
+   units `rate` shows; nil when it rounds to zero."
+  [m delta]
+  (let [v   (if (duration-total? m) (/ (double delta) 60) (double delta))
+        txt (fmt-small (Math/abs v))]
+    (when-not (re-matches #"[0.]+" txt)
+      (str " (" (if (neg? v) "−" "+") txt ")"))))
 
 (defn- pace-text
   [days]
@@ -149,12 +158,17 @@
           :aria-hidden "true"
           :style       {:left (str (min 100.0 (* 100.0 tick)) "%")}}])])
 
+(defn- data-attrs
+  "`<prefix><key>` attributes for the non-nil values of `m`."
+  [prefix m]
+  (into {}
+        (keep (fn [[k v]] (when (some? v) [(keyword (str prefix (name k))) (str v)])))
+        m))
+
 (defn- sort-attrs
   "data-sort-* attributes; absent values sort last client-side."
   [m]
-  (into {}
-        (keep (fn [[k v]] (when (some? v) [(keyword (str "data-sort-" (name k))) (str v)])))
-        m))
+  (data-attrs "data-sort-" m))
 
 (defn- goal-link
   [goal & body]
@@ -386,11 +400,13 @@
 
 (defn- numeric-chart
   [{:keys [goal measurement progress now]} cutoff-date]
-  (let [{:keys [window series target required completed-logged]} progress
+  (let [{:keys [window series target required completed-logged logged
+                projection recent-projection]} progress
         {:keys [start end]} window
         m      measurement
         best?  (= :best (:aggregation m))
         open?  (= :open-ended (:goal/timing goal))
+        weekly? (= :weekly (:goal/timing goal))
         paced? (and (not best?) (not open?) (some? (:even-pace progress)))
         x-end  (if (and end (not open?)) (calc/plus-days end 1)
                    (calc/plus-days cutoff-date 1))
@@ -425,7 +441,17 @@
                  (conj (dashed "Required at day start" violet
                                [[(str cutoff-date) (chart-value m completed-logged)] [(str x-end) t]]
                                :width 2))
-                 (or best? open?)
+                 (and now? projection)
+                 (conj (dashed "At this rate" cyan
+                               [[(str local-now) (chart-value m logged)]
+                                [(str x-end) (chart-value m (:total projection))]]
+                               :type "dotted" :width 2))
+                 (and now? recent-projection)
+                 (conj (dashed (str "Last " calc/recent-pace-days " days' pace") green
+                               [[(str local-now) (chart-value m logged)]
+                                [(str x-end) (chart-value m (:total recent-projection))]]
+                               :type "dotted" :width 2))
+                 (or best? open? weekly?)
                  (conj (dashed "Target" violet [[(str start) t] [(str x-end) t]])))))))
 
 (defn- book-chart
@@ -548,13 +574,48 @@
       (str (date-span start end) (when partial? " · partial week"))
       :else (str (if best? "best within " "by ") (long-date end)))))
 
+(defn- today-line
+  "The live statistic under the headline total: today's amount against the
+   required rate (dated), against the average (open-ended), or alone
+   (weekly). Numeric data attributes carry the raw values for tests."
+  [goal m {:keys [today-amount needed-today required average live-average
+                  required-after-today above-average?]}]
+  (when today-amount
+    (let [ahead? (and needed-today (<= needed-today 0))]
+      [:p (merge {:data-goal-live true
+                  :class          (str "mt-3 text-sm tabular-nums "
+                                       (if ahead? "text-neon-lime" "text-white"))}
+                 (data-attrs "data-" {:today-amount   today-amount
+                                      :needed-today   needed-today
+                                      :average        average
+                                      :live-average   live-average
+                                      :required-after required-after-today}))
+       (str "Today: " (amount m today-amount)
+            (cond
+              ahead?
+              (str " · ✓ " (amount m (- needed-today)) " ahead")
+              needed-today
+              (str " of " (amount m required) " · " (amount m needed-today)
+                   " to stay on pace")
+              (and (= :open-ended (:goal/timing goal)) average)
+              (str (if above-average? " · above " " · below ")
+                   "your average of " (amount m average))))])))
+
 (defn- numeric-summary
   [{:keys [goal measurement progress] :as entry}]
   (let [m      measurement
-        {:keys [logged target average required ratio next remaining window]} progress
+        {:keys [logged target average required ratio next remaining window
+                live-average required-after-today required-change today-amount]} progress
         best?  (= :best (:aggregation m))
         open?  (= :open-ended (:goal/timing goal))
-        {:keys [completed-days remaining-days status]} window]
+        weekly? (= :weekly (:goal/timing goal))
+        {:keys [completed-days remaining-days status]} window
+        average-note (fn [prefix]
+                       (str prefix
+                            (when live-average
+                              (str " · with today " (rate m live-average)
+                                   (when average
+                                     (rate-change m (- live-average average)))))))]
     [:div {:class "grid gap-6 p-4 sm:p-6 lg:grid-cols-[1.35fr_2fr]"}
      [:div
       [:p.mt-1.text-xs.text-gray-400
@@ -568,16 +629,26 @@
       [:p.mt-1.text-xs.text-gray-400
        (str (when-let [fraction (:progress progress)]
               (str (fmt-num (* 100 fraction)) "% " (if best? "of target" "recorded") " · "))
-            (window-caption goal progress best?))]]
+            (window-caption goal progress best?))]
+      (today-line goal m progress)]
      [:div {:class "grid grid-cols-1 gap-4 border-t border-dark pt-4 sm:grid-cols-3 lg:border-t-0 lg:pt-0 lg:items-center"}
       (cond
         (and open? (not best?))
         [:<>
          (stat "Still to go" (amount m remaining) "No deadline")
          (stat "Average per completed day" (rate m average)
-               (str "Since " (short-date (:goal/starts-on goal)) " · "
-                    completed-days " completed days"))
+               (average-note (str "Since " (short-date (:goal/starts-on goal)) " · "
+                                  completed-days " completed days")))
          (stat "Next milestone" (if next (amount m (- next (or logged 0))) "—")
+               (when next (str "to " (amount m next))))]
+
+        (and weekly? (not best?))
+        [:<>
+         (stat "Still to go this week" (amount m remaining)
+               (if (:reached? progress) "Target reached this week" "Resets Monday"))
+         (stat "Today" (if today-amount (amount m today-amount) "—")
+               (str "This week so far: " (amount m (or logged 0))))
+         (stat "Next threshold" (if next (amount m (- next (or logged 0))) "—")
                (when next (str "to " (amount m next))))]
 
         best?
@@ -589,10 +660,15 @@
 
         :else
         [:<>
-         (stat "Average per completed day" (rate m average) (str completed-days " completed days"))
+         (stat "Average per completed day" (rate m average)
+               (average-note (str completed-days " completed days")))
          (if required
            (stat "Required from today" (rate m required)
-                 (str remaining-days " days left · based on completed days"
+                 (str remaining-days " days left"
+                      (if required-after-today
+                        (str " · after today " (rate m required-after-today)
+                             (rate-change m (- required-change)))
+                        " · based on completed days")
                       (when ratio (format " · %.2f× your average" (double ratio))))
                  (if (and ratio (> ratio 1)) "text-neon-amber" "text-neon-lime"))
            (stat "Required from today" "—"
@@ -615,17 +691,34 @@
       (str "This calendar week · " (date-span start end))
       :else (str "Cumulative progress · " (date-span start end)))))
 
+(defn- projection-text
+  "Where a projection lands: the date it reaches the target, or the total and
+   share of target at the end of the period."
+  [m {:keys [total progress reaches-on]}]
+  (if reaches-on
+    (str "target on " (short-date reaches-on))
+    (str (amount m total) ", " (fmt-num (* 100 progress)) "% of target")))
+
 (defn- chart-readout
   [{:keys [goal measurement progress]}]
-  (cond
-    (= :best (:aggregation measurement)) "Best recorded within the goal period"
-    (= :open-ended (:goal/timing goal)) "Progress keeps accumulating · no reset or required pace"
-    (= :weekly (:goal/timing goal)) "Each week stands on its own · no carry-forward"
-    (:pace-days progress)
-    (let [d (:pace-days progress)]
-      (str (fmt-num (Math/abs (double d))) " days " (if (neg? d) "behind" "ahead of")
-           " even pace · completed days"))
-    :else ""))
+  (let [{:keys [projection recent-projection pace-days reached?]} progress]
+    (cond
+      (= :best (:aggregation measurement)) "Best recorded within the goal period"
+      (= :open-ended (:goal/timing goal)) "Progress keeps accumulating · no reset or required pace"
+      (= :weekly (:goal/timing goal)) "Each week stands on its own · no carry-forward"
+      :else
+      (str/join
+       " · "
+       (cond-> []
+         (and projection (not reached?))
+         (conj (str "At this rate: " (projection-text measurement projection)))
+         (and recent-projection (not reached?))
+         (conj (str "At the last " calc/recent-pace-days " days' pace: "
+                    (projection-text measurement recent-projection)))
+         pace-days
+         (conj (str (fmt-num (Math/abs (double pace-days))) " days "
+                    (if (neg? pace-days) "behind" "ahead of")
+                    " even pace · completed days")))))))
 
 (defn- history-panel
   [{:keys [goal measurement history book-progress]}]
@@ -743,9 +836,9 @@
            (str " The goal period is " (long-date (:goal/starts-on goal)) " – "
                 (long-date (:goal/ends-on goal)) ", inclusive."))
          " Totals and charts include today's eligible records through this page's refresh in "
-         (:goal/time-zone goal) ". Rates use completed days through "
+         (:goal/time-zone goal) ". Baseline rates use completed days through "
          (long-date (calc/plus-days cutoff-date -1))
-         "; today's activity is excluded from pace calculations."
+         ". Live values beside them count today as a whole day."
          " Intervals must have ended by the relevant cutoff before clipping to the goal period."
          " Open timers, future-ending intervals, deleted logs, and hidden logs are excluded.")]
    extra])
@@ -933,7 +1026,7 @@
         :subtitle "A little closer, every time."
         :actions  [:a.form-button-primary {:href "/app/goals/new"} "+ New goal"]})
       [:p.text-xs.text-gray-400
-       "Totals include today · rates use completed days · each goal uses its saved time zone"]
+       "Totals include today · baseline rates use completed days, live values add today · each goal uses its saved time zone"]
       (if (empty? entries)
         (layout/empty-state
          {:message "No goals yet. A goal counts what you already log — time, sessions, reps, or finishing a book."

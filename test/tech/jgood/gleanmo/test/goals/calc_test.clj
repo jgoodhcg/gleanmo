@@ -418,3 +418,112 @@
     (is (= 3.0 (:logged la)))
     (is (= 0.0 (:completed-logged la)))
     (is (= 0.0 (:average la)))))
+
+(deftest live-today-test
+  ;; Jul 1–10, 10 h target. At noon Jul 5: four completed days hold 4 h, so
+  ;; six days remain and the required rate at day start is 1 h/day.
+  (let [ms       (m :reading-log :duration :total)
+        g        (goal {:goal/ends-on (date "2026-07-10") :goal/target 36000.0})
+        baseline [(interval-record "2026-07-01T10:00" "2026-07-01T12:00")
+                  (interval-record "2026-07-02T10:00" "2026-07-02T12:00")]
+        now      (at "2026-07-05T12:00")
+        today    (fn [end] (calc/numeric-progress
+                            g ms (conj baseline (interval-record "2026-07-05T09:00" end)) now))
+        close?   (fn [a b] (< (Math/abs (- (double a) (double b))) 1e-6))]
+    (testing "behind: today's amount is short of the required rate"
+      (let [p (today "2026-07-05T09:30")]
+        (is (= 3600.0 (:average p)) "the completed-day baseline does not move")
+        (is (= 3600.0 (:required p)))
+        (is (= 1800.0 (:today-amount p)))
+        (is (= 1800.0 (:needed-today p)))
+        (is (= 3240.0 (:live-average p)) "logged ÷ (completed days + 1)")
+        (is (= 3960.0 (:required-after-today p)))
+        (is (= -360.0 (:required-change p)) "falling short raises the required rate")
+        (is (false? (:above-average? p)))
+        (is (= 32400.0 (get-in p [:projection :total])) "live average × period days")
+        (is (close? 0.9 (get-in p [:projection :progress])))
+        (is (nil? (get-in p [:projection :reaches-on])) "not reached within the period")))
+    (testing "exactly on pace"
+      (let [p (today "2026-07-05T10:00")]
+        (is (= 0.0 (:needed-today p)))
+        (is (= 3600.0 (:live-average p)))
+        (is (= 3600.0 (:required-after-today p)))
+        (is (= 0.0 (:required-change p)))))
+    (testing "ahead: needed today is negative and the required rate falls"
+      (let [p (today "2026-07-05T11:00")]
+        (is (= -3600.0 (:needed-today p)))
+        (is (= 2880.0 (:required-after-today p)))
+        (is (= 720.0 (:required-change p)))
+        (is (true? (:above-average? p)))
+        (is (= 43200.0 (get-in p [:projection :total])))
+        (is (= (date "2026-07-09") (get-in p [:projection :reaches-on])))))
+    (testing "without a log today the live values match the baseline"
+      (let [p (calc/numeric-progress g ms baseline now)]
+        (is (= 0.0 (:today-amount p)))
+        (is (= 3600.0 (:needed-today p)))
+        (is (= (/ 14400.0 5) (:live-average p)))))
+    (testing "the last day has no rate after today"
+      (let [p (calc/numeric-progress g ms baseline (at "2026-07-10T12:00"))]
+        (is (= 1 (get-in p [:window :remaining-days])))
+        (is (= 21600.0 (:required p)))
+        (is (nil? (:required-after-today p)))
+        (is (nil? (:required-change p)))
+        (is (= 21600.0 (:needed-today p)))))
+    (testing "reaching the target today clears the required values"
+      (let [p (calc/numeric-progress (assoc g :goal/target 16200.0) ms
+                                     (conj baseline (interval-record "2026-07-05T09:00"
+                                                                     "2026-07-05T10:00"))
+                                     now)]
+        (is (true? (:reached? p)))
+        (is (every? nil? (map p [:required :needed-today :required-after-today
+                                 :required-change :projection :recent-projection])))))
+    (testing "zero completed days: the live average is today alone"
+      (let [p (calc/numeric-progress (assoc g :goal/starts-on (date "2026-07-05")) ms
+                                     [(interval-record "2026-07-05T09:00" "2026-07-05T10:00")]
+                                     now)]
+        (is (nil? (:average p)))
+        (is (nil? (:above-average? p)))
+        (is (= 3600.0 (:live-average p)))
+        (is (= 6000.0 (:required p)))
+        (is (= 2400.0 (:needed-today p)))))
+    (testing "the recent-pace projection needs a full window of completed days"
+      (is (nil? (:recent-projection (today "2026-07-05T09:30"))))
+      ;; Jul 1–31. 5 h early in the month, then 2 h on Jul 15: the last 14
+      ;; days (Jul 7–20) hold 2 h, so the recent pace is well below average.
+      (let [p (calc/numeric-progress
+               (goal {:goal/ends-on (date "2026-07-31") :goal/target 36000.0}) ms
+               (conj (mapv #(interval-record (str "2026-07-0" % "T10:00")
+                                             (str "2026-07-0" % "T11:00"))
+                           (range 1 6))
+                     (interval-record "2026-07-15T10:00" "2026-07-15T12:00"))
+               (at "2026-07-20T12:00"))
+            recent (/ 7200.0 calc/recent-pace-days)]
+        (is (= 1260.0 (:live-average p)))
+        (is (close? recent (get-in p [:recent-projection :rate])))
+        (is (close? (+ 25200.0 (* 11 recent)) (get-in p [:recent-projection :total])))
+        (is (= (* 1260.0 31) (get-in p [:projection :total])))))))
+
+(deftest live-today-weekly-and-open-ended-test
+  (let [ms  (m :reading-log :duration :total)
+        now (at "2026-09-16T12:00")
+        records [(interval-record "2026-09-14T10:00" "2026-09-14T11:00")
+                 (interval-record "2026-09-16T09:00" "2026-09-16T09:30")]]
+    (testing "weekly goals keep amounts but drop every pace value"
+      (let [p (calc/numeric-progress
+               (goal {:goal/timing :weekly :goal/ends-on nil :goal/target 7200.0})
+               ms records now)]
+        (is (= 5400.0 (:logged p)))
+        (is (= 1800.0 (:remaining p)))
+        (is (= 1800.0 (:today-amount p)))
+        (is (every? nil? (map p [:required :ratio :pace-days :even-pace :needed-today
+                                 :required-after-today :live-average :projection
+                                 :recent-projection])))))
+    (testing "open-ended goals get a live average but no required rate or projection"
+      (let [p (calc/numeric-progress
+               (goal {:goal/timing :open-ended :goal/ends-on nil
+                      :goal/starts-on (date "2026-09-14")})
+               ms records now)]
+        (is (= 1800.0 (:average p)))
+        (is (= 1800.0 (:live-average p)) "5400 over two completed days plus today")
+        (is (false? (:above-average? p)))
+        (is (every? nil? (map p [:required :needed-today :projection])))))))

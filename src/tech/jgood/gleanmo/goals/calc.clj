@@ -264,13 +264,42 @@
     (some->> (vals daily) seq (apply max) double)
     (double (reduce + 0 (vals daily)))))
 
+(def recent-pace-days
+  "Days in the recent-pace projection window, today included. 14 is a chosen
+   default (roadmap/090-goal-live-today.md), not a derived value."
+  14)
+
+(defn- projection
+  "Where `rate` per day, held from tomorrow through `end`, takes `amount`.
+   `:reaches-on` is the day the target would be reached, when that happens
+   within the period and the target is not already reached."
+  [amount rate target ^LocalDate today ^LocalDate end]
+  (when (and rate end)
+    (let [days  (max 0 (days-between today end))
+          total (+ amount (* rate days))
+          short (- target amount)]
+      {:rate       rate
+       :total      total
+       :progress   (/ total target)
+       :reaches-on (when (and (pos? short) (pos? rate))
+                     (let [on (plus-days today (long (Math/ceil (/ short rate))))]
+                       (when-not (.isAfter on end) on)))})))
+
 (defn numeric-progress
   "Progress through as-of, an Instant or a date-only midnight snapshot.
    Totals and charts include today's eligible activity. Pace uses records
    completed by local midnight, attributed only to completed days.
    Required pace and even-pace difference use that same completed-day amount.
    Logged data is authoritative; days without logs contribute zero.
-   Best goals have no rates and remain unset until a performance is recorded."
+   Best goals have no rates and remain unset until a performance is recorded.
+
+   Live values sit beside that baseline so a log made today moves them
+   (roadmap/090-goal-live-today.md). `:today-amount` is what today added to
+   the total. The live average counts today as a whole day, so it only rises
+   as the day goes on. `:needed-today` is the required rate at day start less
+   today's amount; negative means ahead. Only dated goals have a required
+   rate, even pace, or projection: a weekly goal resets on Monday with no
+   carry-forward, so a catch-up rate cannot be acted on."
   [goal m records as-of]
   (let [zone (zone-of goal)
         {:keys [now today midnight]} (accounting-clock goal as-of)
@@ -292,12 +321,27 @@
         amount (or logged 0.0)
         completed-amount (or completed-logged 0.0)
         reached? (>= amount target)
-        paced? (and (not best?) (not= :open-ended (:goal/timing goal)))
+        timing (:goal/timing goal)
+        paced? (and (not best?) (= :dated timing))
+        active? (= :active status)
         average (when (and (not best?) (pos? completed-days))
                   (/ completed-amount completed-days))
-        required (when (and paced? (= :active status) (not reached?)
+        required (when (and paced? active? (not reached?)
                             (pos? (or remaining-days 0)))
                    (/ (max 0.0 (- target completed-amount)) remaining-days))
+        today-amount (when (and (not best?) active?)
+                       (max 0.0 (- amount completed-amount)))
+        live-average (when (and today-amount (not= :weekly timing))
+                       (/ amount (inc completed-days)))
+        required-after (when (and required (> remaining-days 1))
+                         (/ (- target amount) (dec remaining-days)))
+        recent-average (when (and paced? active? (not reached?)
+                                  (>= completed-days recent-pace-days))
+                         (/ (reduce + 0.0
+                                    (vals (subseq daily
+                                                  >= (plus-days today (- 1 recent-pace-days))
+                                                  <= today)))
+                            recent-pace-days))
         step (threshold-step goal m)
         series (progress-series daily start through (or best? (nil? logged)))
         partial-today? (and (not (.isBefore today start))
@@ -314,6 +358,16 @@
      :reached? reached?
      :average average
      :required required
+     :today-amount today-amount
+     :live-average live-average
+     :above-average? (when (and today-amount average) (> today-amount average))
+     :needed-today (when required (- required today-amount))
+     :required-after-today required-after
+     :required-change (when required-after (- required required-after))
+     :projection (when (and paced? active? live-average (not reached?))
+                   (projection amount live-average target today end))
+     :recent-projection (when recent-average
+                          (projection amount recent-average target today end))
      :ratio (when (and required average (pos? average)) (/ required average))
      :pace-days (when (and paced? total-days (pos? completed-days))
                   (- (* (/ completed-amount target) total-days) completed-days))

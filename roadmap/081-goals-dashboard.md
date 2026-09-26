@@ -403,6 +403,8 @@ Resolve each item, or move it to another work unit, before archiving this unit.
   The 84-day activity strip lets a person count a run by eye; the app does not count it.
   Disposition: the graph/projection question and the streak are separate follow-ups; neither is implemented.
   Moved (2026-09-25): removing the weekly projection and pace to [090](./090-goal-live-today.md); the streak to [092](./092-goal-comparisons-records.md).
+  Pace half done (2026-09-25, [090](./090-goal-live-today.md)): weekly goals show this week, the gap, and today, with no pace line, required line, projection marker, or pace statistics.
+  The streak half stays open in 092.
 - [ ] Dogfood notes, 2026-09-25, moved to new work units:
   live average and required rates including today, what today changed, and a projection at the current rate to [090](./090-goal-live-today.md);
   pinning goals, a home-screen goal card, and the list/graph layout question to [091](./091-pinned-goals.md);

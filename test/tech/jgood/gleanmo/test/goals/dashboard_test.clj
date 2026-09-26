@@ -266,8 +266,9 @@
 
 (deftest chart-clock-markers-test
   (let [goal {:goal/source :habit-log :goal/measure :records :goal/aggregation :total
-              :goal/target 7 :goal/timing :weekly :goal/time-zone "America/Detroit"
-              :goal/starts-on (LocalDate/parse "2026-09-14")}
+              :goal/target 7 :goal/timing :dated :goal/time-zone "America/Detroit"
+              :goal/starts-on (LocalDate/parse "2026-09-14")
+              :goal/ends-on (LocalDate/parse "2026-09-30")}
         m (registry/measurement goal)
         chart (fn [g instant]
                 (#'goals-page/numeric-chart
@@ -284,6 +285,10 @@
            (mapv :xAxis (markers (chart goal (at "2026-09-16T04:00"))))))
     (is (= 1 (count (markers (chart (assoc goal :goal/timing :open-ended)
                                     (at "2026-09-16T03:25"))))))
+    (is (= ["Now"] (mapv #(get-in % [:label :formatter])
+                         (markers (chart (assoc goal :goal/timing :weekly)
+                                         (at "2026-09-16T03:25")))))
+        "weekly goals have no projection start (roadmap/090)")
     (is (nil? (markers (chart (assoc goal :goal/timing :dated
                                      :goal/ends-on (LocalDate/parse "2026-09-14"))
                               (at "2026-09-16T03:25")))))))

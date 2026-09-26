@@ -11,6 +11,8 @@
 // 7. Rejects an invalid goal without writing it
 // 8. Archives and restores a goal
 // 9. Captures desktop and mobile screenshots
+// 10. Suggests a target from history
+// 11. Moves the live values when today is logged; weekly goals drop pace
 
 import { chromium, Page, Locator, expect } from '@playwright/test';
 import { authenticateForDev } from './auth.js';
@@ -380,7 +382,7 @@ async function main() {
     expect(projectionMarker).toBeUndefined(); // Reached goals have no required-pace projection.
     expect(new Date(logged.data.at(-1)[0]).getTime()).toBeLessThanOrEqual(new Date(chart.xAxis.max).getTime());
     expect(chart.series.some((series: { name: string }) => series.name === 'Even pace')).toBe(true);
-    await expect(page.getByText('Totals include today · rates use completed days · each goal uses its saved time zone')).toBeVisible();
+    await expect(page.getByText('Totals include today · baseline rates use completed days, live values add today · each goal uses its saved time zone')).toBeVisible();
     await expect(detail).toContainText('Average per completed day');
     await expect(detail).not.toContainText('pace estimates are unavailable');
     await expect(detail).not.toContainText('Coverage unknown');
@@ -486,6 +488,73 @@ async function main() {
     await suggestion.getByRole('button', { name: 'Dismiss suggestion' }).click();
     await expect(suggestion).toHaveCount(0);
     console.log(`  [+] Editor suggests ${suggested} hours; Use fills the target and only an empty end date; dismiss removes it`);
+
+    // ── 12. Live today values (roadmap/090-goal-live-today.md) ──
+    console.log('\n11. Live values move when today is logged...');
+    form = await openEditor(page, `/app/goal/${goalId}/edit`);
+    await form.locator('[name="target"]').fill('40');
+    await form.locator('[name="starts-on"]').fill(shiftDate(today, -7));
+    await form.locator('[name="ends-on"]').fill(shiftDate(today, 30));
+    await submitForm(form, `/app/goal/${goalId}`);
+    const live = page.locator('#goal-detail [data-goal-live]');
+    await expect(live).toBeVisible();
+    await expect(live).toContainText('to stay on pace');
+    const readLive = async () => {
+      const n = async (attr: string) => Number(await live.getAttribute(`data-${attr}`));
+      const liveChart = JSON.parse((await page.locator('#goal-chart-data').textContent())!);
+      const projected = liveChart.series.find((series: { name: string }) => series.name === 'At this rate');
+      return {
+        todayAmount: await n('today-amount'), needed: await n('needed-today'),
+        average: await n('average'), liveAverage: await n('live-average'),
+        requiredAfter: await n('required-after'), projected: projected.data.at(-1)[1],
+      };
+    };
+    const before = await readLive();
+    await expect(detail).toContainText('At this rate:');
+    // Minute precision: datetime-local rejects seconds without a step attribute.
+    const liveEnd = new Date(Math.floor(Date.now() / 60000) * 60000);
+    const liveDayStart = Date.parse(`${liveEnd.toISOString().slice(0, 10)}T00:00:00Z`);
+    const liveStart = new Date(Math.max(liveDayStart, liveEnd.getTime() - 10 * 60000));
+    if (liveStart.getTime() === liveEnd.getTime()) {
+      console.log('  [i] First minute of a UTC day: no room for a log today, skipping');
+    } else {
+      await createReadingLog(page, {
+        book, beginning: liveStart.toISOString().slice(0, 16), end: liveEnd.toISOString().slice(0, 16),
+      });
+      await page.goto(`${BASE_URL}/app/goals?goal=${goalId}`);
+      await page.waitForLoadState('networkidle');
+      const after = await readLive();
+      console.log(`  [i] before ${JSON.stringify(before)}`);
+      console.log(`  [i] after  ${JSON.stringify(after)}`);
+      expect(after.todayAmount).toBeGreaterThan(before.todayAmount);
+      expect(after.needed).toBeLessThan(before.needed);
+      expect(after.liveAverage).toBeGreaterThan(before.liveAverage);
+      expect(after.requiredAfter).toBeLessThan(before.requiredAfter);
+      expect(after.projected).toBeGreaterThan(before.projected);
+      expect(after.average).toBe(before.average); // The completed-day baseline waits for midnight.
+      console.log('  [+] Needed today, live average, required after today, and projection moved');
+    }
+    await captureScreenshot(page, '09-live-today', true);
+
+    form = await openEditor(page, `/app/goal/${goalId}/edit`);
+    await refreshField(page, form.locator('[name="timing"]'), 'weekly');
+    await submitForm(form, `/app/goal/${goalId}`);
+    await expect(detail).toContainText('Weekly reset');
+    const weeklyChart = JSON.parse((await page.locator('#goal-chart-data').textContent())!);
+    const weeklySeries = weeklyChart.series.map((series: { name: string }) => series.name);
+    for (const name of ['Even pace', 'Required at day start', 'At this rate']) {
+      expect(weeklySeries).not.toContain(name);
+    }
+    expect(weeklySeries).toContain('Target');
+    const weeklyMarkers = weeklyChart.series[0].markLine?.data ?? [];
+    expect(weeklyMarkers.some((marker: { label: { formatter: string } }) =>
+      marker.label.formatter === 'Projection start')).toBe(false);
+    await expect(detail).not.toContainText('Required from today');
+    await expect(detail).toContainText('Still to go this week');
+    await expect(live).toContainText('Today:');
+    await expect(live).not.toContainText('to stay on pace');
+    await captureScreenshot(page, '10-weekly');
+    console.log('  [+] Weekly goals show this week, the gap, and today, with no pace or projection');
 
     if (errors.length) throw new Error(`Page errors: ${errors.join('; ')}`);
     console.log('\n=== Test Passed ===\n');

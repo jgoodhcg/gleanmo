@@ -1,6 +1,6 @@
 ---
 title: "Live today on goals"
-status: draft
+status: active
 description: "Goal pace statistics react to today's logs beside the completed-day baseline, with a projection at the current rate"
 created: 2026-09-25
 updated: 2026-09-25
@@ -38,12 +38,17 @@ Add these to `numeric-progress`, leaving the existing completed-day values uncha
 
 Counting today as a whole day means the live average only rises as the day goes on; it never drifts down with the clock.
 
+"Today's logged amount" is what today added to the total (logged − completed-day amount), so needed today reaches zero exactly when the required rate after today equals the rate at day start.
+
 Dashboard:
 
 - The summary shows "Needed today" as the primary live statistic, e.g. "25 of 40 min · 15 to stay on pace", or "✓ 10 min ahead".
 - Average and required show both values: the completed-day baseline and the live value, with the change today brought.
 - The chart adds a dashed projection from Now to the end date at the live average, with a readout of where it lands ("At this rate: 34 h, 85% of target") or the date the target would be reached.
-- The goals table's rate column may gain the live value; keep the table scannable on mobile.
+- A second projection runs at recent pace: the total over the last 14 days, today included, divided by 14.
+  It shows speeding up or slowing down, and appears only once 14 days have completed, because a shorter window equals the live average.
+  14 is a chosen default (`calc/recent-pace-days`), not a derived value; change it there.
+- The goals table is unchanged; the live values are on the selected goal's card.
 
 ### Open-ended totals
 
@@ -62,11 +67,23 @@ Unchanged.
 
 ## Validation
 
-- [ ] Calc tests: live average, needed today (behind, exactly on pace, ahead), required after today on the last day and after reaching the target, zero completed days.
-- [ ] Logging a record today changes needed today, live average, and required after today; completed-day values stay the same until local midnight.
-- [ ] Weekly goals render no projection, pace line, or required statistics.
-- [ ] Extend `e2e/scripts/test-goals.ts`: log today, reload, and assert the live values moved.
-- [ ] Before/after series capture per AGENTS.md.
+- [x] Calc tests: live average, needed today (behind, exactly on pace, ahead), required after today on the last day and after reaching the target, zero completed days.
+  `live-today-test` and `live-today-weekly-and-open-ended-test` in `test/tech/jgood/gleanmo/test/goals/calc_test.clj`.
+- [x] Logging a record today changes needed today, live average, and required after today; completed-day values stay the same until local midnight.
+- [x] Weekly goals render no projection, pace line, or required statistics.
+  `chart-clock-markers-test` now asserts a weekly chart has only the Now marker.
+- [x] Extend `e2e/scripts/test-goals.ts`: log today, reload, and assert the live values moved.
+  Step 11 also asserts the unchanged completed-day average and the weekly card.
+- [x] Before/after series capture per AGENTS.md (2026-09-26T01-20-03Z baseline, 2026-09-26T01-40-27Z after).
+  The series account has no goals, so those frames show only the page subtitle; `goals-09-live-today` and `goals-10-weekly` from the e2e run show the cards.
+
+## Implementation notes (2026-09-25)
+
+- `goals/calc.clj` `numeric-progress` adds `:today-amount`, `:live-average`, `:above-average?`, `:needed-today`, `:required-after-today`, `:required-change`, `:projection`, and `:recent-projection`.
+  Pace values (`:required`, `:ratio`, `:pace-days`, `:even-pace`) now apply to dated goals only.
+- Projections are hidden once the target is reached; a recent-pace line can otherwise dwarf the whole chart.
+- `app/goals.clj`: `today-line` under the headline total carries `data-*` attributes with the raw values for tests.
+  Weekly goals show "Still to go this week", "Today", and "Next threshold", and their chart shows a target line instead of the pace lines.
 
 ## Scope
 
@@ -79,9 +96,3 @@ Comparisons and records belong to [092](./092-goal-comparisons-records.md); pinn
 - `src/tech/jgood/gleanmo/goals/calc.clj` `numeric-progress` (completed-day average and required around line 296).
 - `src/tech/jgood/gleanmo/app/goals.clj` `numeric-summary`, `numeric-chart`, `numeric-row`.
 - The completed-day rule is specified in [081](./081-goals-dashboard.md) §4; this unit adds live values beside it rather than replacing it.
-
-## Open Questions (draft only)
-
-- Whole-day vs. pro-rated today in the live average. Proposed: whole day (above).
-- "Fitting the curve": a linear fit on a cumulative total is close to the average rate, and higher-order fits extrapolate wildly on a few weeks of data.
-  Proposed instead: a second projection at recent pace (last 7 or 14 days), which shows speeding up or slowing down. Confirm, and pick the window.
