@@ -213,14 +213,18 @@
                         (.toLocalDate)
                         (.atStartOfDay zone)
                         (.toInstant))
-        ;; Anchored inside today's window so the test can't straddle midnight.
-        ago         (fn [hours]
-                      (let [i (t/<< now (t/new-duration hours :hours))]
-                        (if (.isBefore i day-start) day-start i)))
-        running-at  (ago 1)
+        ;; Placed at fractions of the time since midnight, so each fixture is
+        ;; inside today's window with a non-zero length at any time of day.
+        ;; Fixed hour offsets clamped to midnight gave the completed log zero
+        ;; length in the first hours of a UTC day, and it was dropped.
+        since-start (t/millis (t/between day-start now))
+        ago         (fn [fraction]
+                      (t/<< now (t/new-duration (long (* fraction since-start))
+                                                :millis)))
+        running-at  (ago 1/4)
         logs        [{:xt/id                 :completed
-                      :project-log/beginning (ago 3)
-                      :project-log/end       (ago 2)}
+                      :project-log/beginning (ago 3/4)
+                      :project-log/end       (ago 1/2)}
                      {:xt/id                 :running
                       :project-log/beginning running-at}
                      {:xt/id                 :no-beginning
