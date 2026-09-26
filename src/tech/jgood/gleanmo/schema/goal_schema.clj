@@ -43,6 +43,10 @@
    [:goal/even-pace-enabled {:optional true, :crud/label "Even-pace guide"}
     :boolean]
    [:goal/archived {:optional true} :boolean]
+   ;; Present and true while pinned to the top of the goals page and the home
+   ;; screen; dissoc'd on unpin, never stored false, so the home lookup reads
+   ;; a sparse flag. :hide keeps it out of the generic CRUD form.
+   [:goal/pinned {:optional true :hide true} :boolean]
    ;; Relation filters. Absent means every eligible record of the source; an
    ;; explicitly empty set is rejected rather than silently meaning "all".
    [:goal/project-ids {:optional true, :crud/label "Projects"} [:set :project/id]]

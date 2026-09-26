@@ -341,3 +341,36 @@
       (let [after (read-dashboard)]
         (is (= 3600.0 (get-in after [numeric :progress :logged])))
         (is (nil? (get-in after [completion :book-progress :completion])))))))
+
+(deftest pinned-goals-test
+  (with-open [node (test-xtdb-node [])]
+    (let [user    (random-uuid)
+          other   (random-uuid)
+          base    {:goal/time-zone "UTC" :goal/starts-on (LocalDate/parse "2026-07-01")
+                   :goal/timing :open-ended :goal/source :habit-log :goal/measure :records
+                   :goal/aggregation :total :goal/target 10}
+          goal!   (fn [owner label extra]
+                    (create! node :goal (merge base {:user/id owner :goal/label label} extra)))
+          beta    (goal! user "beta" {:goal/pinned true})
+          alpha   (goal! user "Alpha" {:goal/pinned true})
+          _plain  (goal! user "plain" {})
+          gone    (goal! user "deleted" {:goal/pinned true})
+          _theirs (goal! other "theirs" {:goal/pinned true})
+          _       (mutations/soft-delete-entity! (ctx node) {:entity-key :goal :entity-id gone})
+          db      (xt/db node)
+          pinned  (queries/pinned-goals-for-user db user)]
+      (testing "the query returns live pinned goals of this user in label order"
+        (is (= [alpha beta] (mapv :xt/id pinned))))
+      (testing ":goals limits the dashboard to the given goals"
+        (let [data (dashboard/dashboard db user {:now (at "2026-07-03T12:00")
+                                                 :user-settings visible
+                                                 :goals pinned})]
+          (is (= #{alpha beta} (set (map #(get-in % [:goal :xt/id]) (:active data)))))))
+      (testing "unpinning dissocs the flag"
+        (mutations/update-entity! (ctx node) {:entity-key :goal :entity-id beta
+                                              :data {:goal/pinned :db/dissoc}})
+        (let [db (xt/db node)]
+          (is (= [alpha] (mapv :xt/id (queries/pinned-goals-for-user db user))))
+          (is (not (contains? (queries/get-entity-by-id db beta) :goal/pinned)))))
+      (testing "no pinned goals renders no home section"
+        (is (nil? (goals-page/pinned-goal-cards [])))))))

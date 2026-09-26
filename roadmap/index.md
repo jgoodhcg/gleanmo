@@ -82,6 +82,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 
 - [089-goal-target-suggestion.md](./089-goal-target-suggestion.md) - Goal editor suggests a slight-stretch target from the user's own history (built and tested 2026-09-22; user check pending)
 - [090-goal-live-today.md](./090-goal-live-today.md) - Live today values on goals beside the completed-day baseline, projections at the live average and the last 14 days' pace; weekly goals drop pace and projection (built and tested 2026-09-25; user check pending)
+- [091-pinned-goals.md](./091-pinned-goals.md) - Pinned goals lead the goals page and show as compact cards on the home screen (built and tested 2026-09-25; latency with several real pins and user check pending)
 
 ### Ready
 
@@ -96,7 +97,6 @@ PWA notification scaffolding does not establish working reminder delivery.
 
 ### Draft
 
-- [091-pinned-goals.md](./091-pinned-goals.md) - Pin goals so they lead the goals page and show as compact progress cards on the home screen
 - [092-goal-comparisons-records.md](./092-goal-comparisons-records.md) - Compare a goal with last week and last year, show best and worst periods of all time, and count weekly streaks; blocked on how history coverage is established
 - [088-timer-cross-device-staleness.md](./088-timer-cross-device-staleness.md) - A running timer on the home page keeps ticking after it is stopped on another device; pick a pushed invalidation or a long-interval poll
 - [084-symptom-blood-glucose.md](./084-symptom-blood-glucose.md) - Record blood glucose alongside the other vitals on symptom-log, and allow a vitals-only log

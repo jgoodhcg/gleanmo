@@ -137,10 +137,14 @@
 
    Returns `{:active [entry] :archived [goal] :hidden-count n}`. Goals whose
    selected records the user's visibility settings hide are left out of both
-   lists and counted instead."
-  [db user-id {:keys [now user-settings]}]
+   lists and counted instead.
+
+   `:goals`, when given, replaces reading every goal: only those goals are
+   computed, and only their sources are read. The home card passes the
+   pinned goals this way."
+  [db user-id {:keys [now user-settings goals]}]
   {:pre [(instance? Instant now) (map? user-settings)]}
-  (let [goals    (queries/goals-for-user db user-id)
+  (let [goals    (or goals (queries/goals-for-user db user-id))
         related  (related-entities db user-id goals)
         settings user-settings
         visible? (fn [g]

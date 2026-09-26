@@ -929,6 +929,12 @@
     [:div#overview-recent
      [:div.space-y-5
       (render-active-timers ctx timers)
+      ;; Pinned goal cards load after this fragment rather than beside it, so
+      ;; goal computation never overlaps the timeline's queries and an empty
+      ;; response removes the placeholder (roadmap/091-pinned-goals.md).
+      [:div {:hx-get     "/app/goals/pinned"
+             :hx-trigger "load"
+             :hx-swap    "outerHTML"}]
       (render-activity-feed ctx timeline-items)
       [:div.opacity-70
        (stats-strip stats)]]]))

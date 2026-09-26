@@ -13,6 +13,7 @@
 // 9. Captures desktop and mobile screenshots
 // 10. Suggests a target from history
 // 11. Moves the live values when today is logged; weekly goals drop pace
+// 12. Pins a goal: it leads the page and shows on home until archived or unpinned
 
 import { chromium, Page, Locator, expect } from '@playwright/test';
 import { authenticateForDev } from './auth.js';
@@ -555,6 +556,93 @@ async function main() {
     await expect(live).not.toContainText('to stay on pace');
     await captureScreenshot(page, '10-weekly');
     console.log('  [+] Weekly goals show this week, the gap, and today, with no pace or projection');
+
+    // ── 13. Pinned goals (roadmap/091-pinned-goals.md) ──
+    console.log('\n12. Pinning a goal to the top and to home...');
+    const homeGoals = page.locator('[data-home-goals]');
+    const loadHome = async () => {
+      await page.goto(`${BASE_URL}/app`);
+      await page.waitForLoadState('networkidle');
+      await expect(page.locator('#overview-recent')).toBeVisible({ timeout: 15000 });
+      await expect(page.locator('text=Activity timeline').first()).toBeVisible({ timeout: 15000 });
+      await page.waitForLoadState('networkidle');
+    };
+    await loadHome();
+    await expect(homeGoals).toHaveCount(0);
+    console.log('  [+] Home has no Goals section without pins');
+
+    await page.goto(`${BASE_URL}/app/goals`);
+    await page.waitForLoadState('networkidle');
+    // Unpinned, the default selection is the first goal by label.
+    await expect(detail.locator('h2')).toHaveText('Finish The Odyssey');
+    await page.goto(`${BASE_URL}/app/goals?goal=${goalId}`);
+    await page.waitForLoadState('networkidle');
+    await Promise.all([
+      page.waitForLoadState('networkidle'),
+      detail.locator('[data-goal-pin]').click(),
+    ]);
+    await expect(page).toHaveURL(new RegExp(`goal=${goalId}`));
+    await expect(detail.locator('[data-goal-pin]')).toHaveText('Unpin');
+    await page.reload();
+    await expect(detail.locator('[data-goal-pin]')).toHaveText('Unpin');
+    await page.goto(`${BASE_URL}/app/goals`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('tr[data-goal-row]').first()).toContainText('Reading time');
+    await expect(page.locator('tr[data-goal-row]').first().locator('[data-goal-pinned]')).toBeVisible();
+    await expect(detail.locator('h2')).toHaveText('Reading time');
+    console.log('  [+] Pin persists; the pinned goal sorts first and is the default selection');
+
+    await loadHome();
+    await expect(homeGoals).toBeVisible({ timeout: 10000 });
+    const card = homeGoals.locator(`[data-home-goal="${goalId}"]`);
+    await expect(card).toContainText('Reading time');
+    await expect(homeGoals.locator('[data-home-goal]')).toHaveCount(1);
+    const cardText = (await card.textContent())!;
+    const headline = cardText.match(/([\d.,]+ (?:h|min)) of ([\d.,]+ (?:h|min))/)!;
+    const gap = cardText.match(/([\d.,]+ (?:h|min)) to go this week/)!;
+    await captureScreenshot(page, '11-home-pinned');
+    await card.click();
+    await page.waitForLoadState('networkidle');
+    await expect(page).toHaveURL(new RegExp(`/app/goals\\?goal=${goalId}`));
+    await expect(detail.locator('h2')).toHaveText('Reading time');
+    await expect(detail).toContainText(headline[1]);
+    await expect(detail).toContainText(`of ${headline[2]}`);
+    await expect(detail).toContainText(gap[1]);
+    console.log(`  [+] Home card (${headline[0]}, ${gap[0]}) matches the goals page and links to it`);
+
+    await Promise.all([
+      page.waitForLoadState('networkidle'),
+      detail.locator('button:has-text("Archive")').click(),
+    ]);
+    await loadHome();
+    await expect(homeGoals).toHaveCount(0);
+    await page.goto(`${BASE_URL}/app/goals`);
+    await page.locator('summary:has-text("Archived goals")').click();
+    await Promise.all([
+      page.waitForLoadState('networkidle'),
+      page.locator('button:has-text("Restore")').click(),
+    ]);
+    await expect(detail.locator('[data-goal-pin]')).toHaveText('Unpin');
+    console.log('  [+] An archived pin is hidden from home; archiving keeps the pin');
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await loadHome();
+    await expect(homeGoals).toBeVisible({ timeout: 10000 });
+    const homeOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    if (homeOverflow > 1) throw new Error(`Home scrolls horizontally on mobile by ${homeOverflow}px`);
+    await captureScreenshot(page, '12-home-pinned-mobile');
+    await page.setViewportSize({ width: 1440, height: 900 });
+
+    await page.goto(`${BASE_URL}/app/goals?goal=${goalId}`);
+    await page.waitForLoadState('networkidle');
+    await Promise.all([
+      page.waitForLoadState('networkidle'),
+      detail.locator('[data-goal-pin]').click(),
+    ]);
+    await expect(detail.locator('[data-goal-pin]')).toHaveText('Pin');
+    await loadHome();
+    await expect(homeGoals).toHaveCount(0);
+    console.log('  [+] Unpinning removes the home card');
 
     if (errors.length) throw new Error(`Page errors: ${errors.join('; ')}`);
     console.log('\n=== Test Passed ===\n');

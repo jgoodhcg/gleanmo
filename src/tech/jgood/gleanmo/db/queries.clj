@@ -1347,6 +1347,27 @@
                          :order-key       ::sm/created-at
                          :order-direction :desc))
 
+(defnp pinned-goals-for-user
+  "The user's live pinned goals in label order, archived ones included; the
+   caller decides whether an archived pin shows.
+
+   Reads the sparse `:goal/pinned` flag, so the scan is proportional to the
+   number of pinned goals, not to every goal the user has written, and the
+   home page pays one near-empty lookup when nothing is pinned."
+  [db user-id]
+  (let [ids (into []
+                  (map first)
+                  (q db
+                     {:find  '[?e]
+                      :where [['?e :user/id 'user-id]
+                              ['?e :goal/pinned true]]
+                      :in    '[user-id]}
+                     user-id))]
+    (->> (fetch-entities-by-ids db ids)
+         (remove ::sm/deleted-at)
+         (sort-by (comp str/lower-case str :goal/label))
+         vec)))
+
 (def ^:private goal-source-shapes
   "The attribute that dates each goal source's records, its interval end when
    it has one, and the extra attributes measurements read."

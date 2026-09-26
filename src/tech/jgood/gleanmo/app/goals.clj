@@ -139,6 +139,8 @@
 
 (defn- kind-of [{:keys [measurement]}] (name (:kind measurement)))
 
+(defn- pinned? [goal] (true? (:goal/pinned goal)))
+
 (defn- timing-key
   [goal]
   (case (:goal/timing goal) :open-ended "open" :weekly "weekly" "dated"))
@@ -186,7 +188,11 @@
   [{:keys [goal] :as entry}]
   [:td {:class "px-4 py-3 text-left align-top"}
    [:div.flex.items-baseline.justify-between.gap-3
-    (goal-link goal (:goal/label goal))
+    (goal-link goal (:goal/label goal)
+               (when (pinned? goal)
+                 [:span {:class "ml-2 text-xs font-normal text-neon-cyan"
+                         :data-goal-pinned true}
+                  "Pinned"]))
     [:a.link.text-xs.shrink-0
      {:href (str "/app/goal/" (:xt/id goal) "/edit")
       :aria-label (str "Edit " (:goal/label goal))}
@@ -552,6 +558,12 @@
   [:div {:class "flex flex-wrap justify-end items-center gap-3 text-xs"
          :data-goal-actions true}
    [:a.link {:href (str "/app/goal/" (:xt/id goal) "/edit")} "Edit"]
+   (biff/form {:action (str "/app/goal/" (:xt/id goal) "/pin") :method "post"
+               :class "inline"}
+              [:input {:type "hidden" :name "pinned"
+                       :value (str (not (pinned? goal)))}]
+              [:button.link {:type "submit" :data-goal-pin true}
+               (if (pinned? goal) "Unpin" "Pin")])
    (biff/form {:action (str "/app/goal/" (:xt/id goal) "/archive") :method "post"
                :class "inline"}
               [:input {:type "hidden" :name "archived" :value "true"}]
@@ -1003,6 +1015,96 @@
                      [:button.link {:type "submit"} "Restore"])]])]]))
 
 ;; ---------------------------------------------------------------------------
+;; Home screen cards (roadmap/091-pinned-goals.md)
+;; ---------------------------------------------------------------------------
+
+(defn- card-figures
+  "`[fraction headline status-line status-class]` for one pinned goal, from
+   the same progress values and formatting the goals page uses."
+  [{:keys [goal measurement progress book-progress] :as entry}]
+  (if book-progress
+    (let [measure (chart-measure entry)
+          {:keys [latest total percent]} (get-in book-progress [:measures measure])]
+      (case (book-state entry)
+        :completed [1.0 "Finished" "✓ Completed" "text-neon-lime"]
+        :overdue   [percent (str (measure-labels measure) " " (position-text measure (:value latest))
+                                 (when total (str " / " (position-text measure total))))
+                    "Overdue" "text-neon-amber"]
+        [percent (str (measure-labels measure) " " (position-text measure (:value latest))
+                      (when total (str " / " (position-text measure total))))
+         "In progress" "text-gray-400"]))
+    (let [m measurement
+          {:keys [logged target remaining reached? needed-today today-amount window]} progress
+          best?     (= :best (:aggregation m))
+          headline  (str (if (nil? logged) "—" (amount m logged)) " of " (amount m target))]
+      (into [(:progress progress) headline]
+            (cond
+              reached?                         ["Target reached ✓" "text-neon-lime"]
+              (= :not-started (:status window)) [(str "Starts " (short-date (:start window)))
+                                                 "text-gray-400"]
+              (= :ended (:status window))      [(str "Ended " (short-date (:goal/ends-on goal)))
+                                                "text-gray-400"]
+              (and needed-today (<= needed-today 0))
+              [(str "✓ " (amount m (- needed-today)) " ahead today") "text-neon-lime"]
+              needed-today                     [(str (amount m needed-today) " to stay on pace today")
+                                                "text-white"]
+              (= :weekly (:goal/timing goal))  [(str (amount m remaining) " to go this week")
+                                                "text-white"]
+              best?                            [(str (amount m remaining) " to go") "text-white"]
+              :else                            [(str "Today: " (amount m (or today-amount 0)))
+                                                "text-white"])))))
+
+(defn- pinned-goal-card
+  [{:keys [goal] :as entry}]
+  (let [[fraction headline status status-class] (card-figures entry)]
+    [:a {:key          (str (:xt/id goal))
+         :href         (str "/app/goals?goal=" (:xt/id goal))
+         :data-home-goal (str (:xt/id goal))
+         :class        "block rounded-lg bg-dark-surface px-4 py-3 no-underline transition-colors hover:bg-dark-light"
+         :style        {:border "1px solid #1e2430"}}
+     [:div.flex.items-baseline.justify-between.gap-3
+      [:div.min-w-0.truncate.text-sm.font-semibold.text-white (:goal/label goal)]
+      [:div.shrink-0.text-xs.tabular-nums.text-gray-400 headline]]
+     [:div {:class "mt-2 h-1.5 w-full rounded-full bg-dark"}
+      (when (some? fraction)
+        [:span {:class "block h-full rounded-full bg-neon-cyan"
+                :style {:width (str (min 100.0 (* 100.0 (max 0.0 fraction))) "%")}}])]
+     [:div {:class (str "mt-2 text-xs tabular-nums " status-class)} status]]))
+
+(defn pinned-goal-cards
+  "The home screen's Goals section: one compact card per pinned goal, or
+   nothing when no goal is pinned."
+  [entries]
+  (when (seq entries)
+    [:section.space-y-3 {:data-home-goals true :aria-label "Pinned goals"}
+     [:div.flex.items-center.gap-3
+      [:div.text-xs.font-semibold.uppercase.tracking-wide.text-gray-300 "Goals"]
+      [:div.h-px.flex-1.bg-dark-border]
+      [:a.text-xs.text-gray-500.no-underline.hover:text-neon-cyan {:href "/app/goals"}
+       "All goals"]]
+     [:div.grid.grid-cols-1.md:grid-cols-3.gap-3
+      (map pinned-goal-card entries)]]))
+
+(defn pinned-goals-fragment
+  "GET /app/goals/pinned — lazy home-screen fragment. Computes only the
+   pinned, unarchived goals; with none pinned it costs one sparse-flag lookup
+   and renders nothing."
+  [{:keys [session biff/db] :as ctx}]
+  (let [user-id (:uid session)
+        pinned  (remove #(true? (:goal/archived %))
+                        (queries/pinned-goals-for-user db user-id))
+        entries (when (seq pinned)
+                  (->> (dashboard/dashboard db user-id
+                                            {:now           (Instant/now)
+                                             :user-settings (queries/resolve-user-settings ctx)
+                                             :goals         pinned})
+                       :active
+                       (sort-by (comp str/lower-case :goal/label :goal))))]
+    {:status  200
+     :headers {"content-type" "text/html"}
+     :body    (ui/fragment ctx (pinned-goal-cards entries))}))
+
+;; ---------------------------------------------------------------------------
 ;; Handlers
 ;; ---------------------------------------------------------------------------
 
@@ -1013,7 +1115,11 @@
         data     (dashboard/dashboard db (:uid session)
                                       {:now           now
                                        :user-settings (queries/resolve-user-settings ctx)})
-        entries  (sort-by (comp str/lower-case :goal/label :goal) (:active data))
+        ;; Pinned goals lead, so the first pinned goal is also the default
+        ;; selection when no ?goal= is given.
+        entries  (sort-by (juxt (comp not pinned? :goal)
+                                (comp str/lower-case :goal/label :goal))
+                          (:active data))
         want     (some-> (:goal params) parse-uuid)
         selected (or (some #(when (= want (get-in % [:goal :xt/id])) %) entries)
                      (first entries))]
@@ -1076,6 +1182,17 @@
       (back-to (when-not archived? goal)))
     (back-to nil)))
 
+(defn set-pinned!
+  "POST /app/goal/:id/pin — pinning leads the goals page and adds a home
+   card. Unpinning dissocs the flag rather than storing false."
+  [{:keys [params] :as ctx}]
+  (if-let [goal (owned-goal ctx)]
+    (let [pin? (shared/param-true? (:pinned params))]
+      (mutations/update-entity! ctx {:entity-key :goal :entity-id (:xt/id goal)
+                                     :data {:goal/pinned (if pin? true :db/dissoc)}})
+      (back-to goal))
+    (back-to nil)))
+
 (defn delete!
   "POST /app/goal/:id/delete — soft delete; logs are untouched."
   [ctx]
@@ -1092,10 +1209,12 @@
     ["" {:get goals-page, :post editor/create!}]
     ["/new" {:get editor/new-page}]
     ["/editor" {:get editor/refresh}]
-    ["/suggestion" {:get editor/suggestion-fragment}]]
+    ["/suggestion" {:get editor/suggestion-fragment}]
+    ["/pinned" {:get pinned-goals-fragment}]]
    ["/goal/:id" {}
     ["" {:post editor/update!}]
     ["/edit" {:get editor/edit-page}]
     ["/preferences" {:post save-preferences!}]
+    ["/pin" {:post set-pinned!}]
     ["/archive" {:post set-archived!}]
     ["/delete" {:post delete!}]]])

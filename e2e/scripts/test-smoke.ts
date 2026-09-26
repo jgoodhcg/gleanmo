@@ -87,6 +87,10 @@ async function main() {
       { timeout: 15000 }
     );
     console.log('  + HTMX fragments loaded');
+    // Loaded by #overview-recent; empty for a user with no pinned goals.
+    const pinnedGoals = await page.request.get(`${BASE_URL}/app/goals/pinned`);
+    expect(pinnedGoals.status()).toBe(200);
+    console.log('  + Pinned goals fragment: 200');
     await captureScreenshot(page, '01-home');
 
     // ── 2. Today page ──
