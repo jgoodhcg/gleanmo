@@ -195,17 +195,25 @@ whatever it was when the fragment was rendered.
   into focus — nothing invalidates the tick, so a timer stopped on another
   device keeps counting up on the home page indefinitely.
 
-### Running Workouts Missing From Home
+### ~~Running Workouts Missing From Home~~ — FIXED 2026-09-25
 Dogfood note (2026-09-25): "Workout running on Home Screen?"
 The home "Running now" strip (`active-timer-summaries` in `app/overview.clj`)
-loops over `timer-entities` in `app/timers.clj` — project, meditation, and
-reading logs only — so a running exercise or bouldering session never shows.
-- **Fix**: add `exercise-session` and `boulder-session` to the home strip,
-  linking to `/app/exercise/session` and `/app/boulder/session`, without
-  adding them to the Timers page.
-- Both schemas already declare `<entity>/running`, so
-  `active-timers-for-user` is the cheap indexed lookup, not a history scan.
-- Check the home active-timer count in `dashboard-stats` includes them too.
+looped over `timer-entities` in `app/timers.clj` — project, meditation, and
+reading logs only — so a running exercise or bouldering session never showed.
+- **Fix**: `session-entities` and `running-session-summaries` in
+  `app/overview.clj` add running exercise and bouldering sessions to the strip.
+  The cards link to `/app/exercise/session` and `/app/boulder/session`,
+  and the label is the session label, then its location or gym.
+  `timer-entities` is unchanged, so the Timers page does not list them.
+- Both schemas declare `<entity>/running`, so the read is
+  `active-timers-for-user`, the indexed lookup, not a history scan.
+- `dashboard-stats` counts the same summaries, so "Active timers" includes them.
+- **Also**: `entity-status` gave the LIVE badge to the three timer types only.
+  Open exercise and bouldering sessions on the timeline now get it too
+  (`entity-status-test`).
+- Covered by steps 5–7 of `e2e/scripts/test-home-running-timer.ts`:
+  both cards show, the workout card opens the running session,
+  and the Timers page does not list either.
 
 ## Testing
 

@@ -96,6 +96,52 @@ async function main() {
     console.log('  [✓] Elapsed time advanced');
     await captureScreenshot(page, '02-after-tick');
 
+    // Workout and bouldering sessions have their own screens rather than a
+    // Timers page section, so the strip has to find them separately
+    // (roadmap/008-backlog.md, "Running Workouts Missing From Home").
+    console.log('\n5. Starting a workout and a bouldering session...');
+    const stamp = Date.now();
+    const workoutLocation = `Home Strip Gym ${stamp}`;
+    const boulderGym = `Home Strip Wall ${stamp}`;
+    await page.goto(`${BASE_URL}/app/exercise/session`, { waitUntil: 'networkidle' });
+    await page.locator('[name="location"]').fill(workoutLocation);
+    await page.getByRole('button', { name: 'Start session', exact: true }).click();
+    await page.waitForLoadState('networkidle');
+    await page.goto(`${BASE_URL}/app/boulder/session`, { waitUntil: 'networkidle' });
+    await page.locator('[name="gym"]').fill(boulderGym);
+    await page.getByRole('button', { name: 'Start session', exact: true }).click();
+    await page.waitForLoadState('networkidle');
+
+    console.log('\n6. Checking both sessions on the home strip...');
+    await page.goto(`${BASE_URL}/app`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('text=Running now').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('text=3 active').first()).toBeVisible({ timeout: 10000 });
+    const workoutCard = page.locator('a[href="/app/exercise/session"]', { hasText: workoutLocation });
+    const boulderCard = page.locator('a[href="/app/boulder/session"]', { hasText: boulderGym });
+    await expect(workoutCard).toBeVisible({ timeout: 10000 });
+    await expect(boulderCard).toBeVisible({ timeout: 10000 });
+    console.log('  [✓] Workout and bouldering sessions shown, linking to their screens');
+    await captureScreenshot(page, '03-sessions');
+
+    await workoutCard.click();
+    await page.waitForLoadState('networkidle');
+    if (!page.url().includes('/app/exercise/session')) {
+      throw new Error(`Workout card led to ${page.url()}, not the workout screen.`);
+    }
+    await expect(page.getByText(workoutLocation, { exact: true })).toBeVisible();
+    console.log('  [✓] Workout card opens the running session');
+
+    console.log('\n7. Checking the Timers page does not list them...');
+    await page.goto(`${BASE_URL}/app/timers`, { waitUntil: 'networkidle' });
+    await expect(page.locator(`text=${projectLabel}`).first()).toBeVisible({ timeout: 10000 });
+    for (const text of [workoutLocation, boulderGym]) {
+      if (await page.locator(`text=${text}`).count() > 0) {
+        throw new Error(`Timers page lists "${text}"; sessions belong only on home.`);
+      }
+    }
+    console.log('  [✓] Timers page unchanged');
+
     console.log('\n=== Test Passed ===\n');
   } catch (error) {
     console.error('\n=== Test Failed ===');

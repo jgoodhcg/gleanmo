@@ -274,27 +274,63 @@
 
 (declare timeline-time)
 
+(def ^:private session-entities
+  "Session types with their own live screen instead of a Timers page section.
+   They show on the Running now strip and link to that screen; they are not
+   in `timers-app/timer-entities`, so the Timers page stays unchanged."
+  [{:entity-key    :exercise-session
+    :entity-str    "exercise-session"
+    :href          "/app/exercise/session"
+    :label-keys    [:exercise-session/label :exercise-session/location]
+    :default-label "Workout"}
+   {:entity-key    :boulder-session
+    :entity-str    "boulder-session"
+    :href          "/app/boulder/session"
+    :label-keys    [:boulder-session/label :boulder-session/gym]
+    :default-label "Bouldering"}])
+
+(defn- running-session-summaries
+  [ctx]
+  (let [user-id       (-> ctx :session :uid)
+        user-settings (db/resolve-user-settings ctx)]
+    (doall
+     (for [{:keys [entity-key entity-str href label-keys default-label]}
+           session-entities
+           :let [beginning-key (keyword entity-str "beginning")]
+           session (db/active-timers-for-user
+                    (:biff/db ctx) user-id entity-key
+                    beginning-key (keyword entity-str "end")
+                    :user-settings user-settings)]
+       {:id         (:xt/id session)
+        :href       href
+        :entity-str entity-str
+        :label      (or (some #(not-empty (get session %)) label-keys)
+                        default-label)
+        :start      (get session beginning-key)}))))
+
 (defn- active-timer-summaries
   [ctx]
   ;; Sequential on purpose: these overlap the dashboard cascade via a future,
   ;; and total in-flight queries are kept low to avoid thrashing the small
   ;; prod box (see roadmap/013-dashboard-performance.md).
-  (->> @timers-app/timer-entity-configs
-       (map
-        (fn [{:keys [entity-str display-name config]}]
-          (let [{:keys [relationship-key beginning-key]} config]
-            (doall
-             (for [timer (timer-routes/fetch-active-timers ctx config)
-                   :let [start     (get timer beginning-key)
-                         parent-id (get timer relationship-key)]]
-               {:id        (:xt/id timer)
-                :href      (edit-form-url entity-str (:xt/id timer))
-                :entity-str entity-str
-                :type      display-name
-                :label     (or (rel/relationship-label ctx parent-id)
-                               "Active timer")
-                :start     start})))))
-       (apply concat)))
+  (concat
+   (->> @timers-app/timer-entity-configs
+        (map
+         (fn [{:keys [entity-str display-name config]}]
+           (let [{:keys [relationship-key beginning-key]} config]
+             (doall
+              (for [timer (timer-routes/fetch-active-timers ctx config)
+                    :let [start     (get timer beginning-key)
+                          parent-id (get timer relationship-key)]]
+                {:id        (:xt/id timer)
+                 :href      (edit-form-url entity-str (:xt/id timer))
+                 :entity-str entity-str
+                 :type      display-name
+                 :label     (or (rel/relationship-label ctx parent-id)
+                                "Active timer")
+                 :start     start})))))
+        (apply concat))
+   (running-session-summaries ctx)))
 
 (defn- render-active-timers
   [ctx timers]
@@ -610,7 +646,8 @@
     (cond
       (and start
            (nil? end)
-           (#{"project-log" "reading-log" "meditation-log"} etype))
+           (#{"project-log" "reading-log" "meditation-log"
+              "exercise-session" "boulder-session"} etype))
       :running
 
       future? :scheduled

@@ -81,4 +81,14 @@
     (testing "a running interval is running, not normal"
       (is (= :running
              (entity-status ctx {::sm/type                :meditation-log
-                                 ::overview/activity-time {:instant past}}))))))
+                                 ::overview/activity-time {:instant past}})))
+      (doseq [etype [:exercise-session :boulder-session]]
+        (is (= :running
+               (entity-status ctx {::sm/type                etype
+                                   ::overview/activity-time {:instant past}}))
+            (str etype " is live while open"))
+        (is (= :normal
+               (entity-status ctx {::sm/type                etype
+                                   ::overview/activity-time {:instant     past
+                                                             :end-instant (t/now)}}))
+            (str etype " is not live once ended"))))))
