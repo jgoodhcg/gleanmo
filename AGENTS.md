@@ -1,10 +1,10 @@
 # AGENTS
 
-Follows `AGENT_BLUEPRINT.md` (version: 2026-09-08.1)
+Follows `AGENT_BLUEPRINT.md` (version: 2026-09-24)
 
 ## Session Start
 
-- Herdr tab naming `[BP-WF-HERDR]`: before other task work, when `HERDR_ENV=1` and `HERDR_TAB_ID` is set, run once `herdr tab rename "$HERDR_TAB_ID" "<label>"` (`<label>` = one relevant emoji + at most five words naming the primary task); on failure, continue silently without retry.
+- Herdr tab naming `[BP-WF-HERDR]`: before other task work, when `HERDR_ENV=1` and `HERDR_TAB_ID` is set, run `herdr tab rename "$HERDR_TAB_ID" "<label>"` (`<label>` = one relevant emoji + at most five words naming the primary task); on sandbox permission error, retry once with elevated permissions (Codex: `sandbox_permissions: "require_escalated"`); if elevation is unavailable or denied, or the retry fails, continue without comment.
 
 ## Project Overview
 
@@ -103,6 +103,8 @@ AI-Provider: [AI_PROVIDER]
 AI-Product: [AI_PRODUCT_LINE]
 AI-Model: [AI_MODEL]
 ```
+
+`[AI_MODEL]` is the exact runtime model ID (for example, `gpt-5.6-sol`), never a family label such as `GPT-5`.
 
 ## Validation Commands
 
@@ -259,6 +261,7 @@ Production access, migrations, and changes to personal accounts are not covered 
 - Installing or upgrading dependencies
 - Running unfamiliar scripts
 - `(require ... :reload)` in nREPL
+- Before using a vendor-hosted feature (for example, Claude Artifacts), confirm with the user unless they asked for it. Apply `AGENT_BLUEPRINT.md` `[BP-VENDOR]`.
 
 ## User Shell Aliases
 

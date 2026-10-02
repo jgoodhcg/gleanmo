@@ -33,11 +33,20 @@ Derive `Co-authored-by` from the **model name**, not the tool. Use this resoluti
   - Claude Code → `claude`
   - Gemini CLI → `gemini`
   - OpenCode → `opencode` (regardless of underlying provider/model, including z.ai)
+- `AI-Model` must be the exact model ID that the tool sends to the provider (for example, `gpt-5.6-sol`, `claude-opus-5`).
+- Never use a family or marketing label (for example, `GPT-5`, `GPT-6`, `Claude`).
+- Do not use the model's own statement of its identity. Models often know only their family name.
 - Determine `AI-Provider` and `AI-Model` from the most specific authoritative source, in order:
-  1. active session/runtime metadata exposed by the tool
-  2. tool-owned local config that controls the current session
-  3. visible UI labels, only if no better source is available
-- Do not down-convert a specific runtime model to a marketing label. Example: if Codex Desktop shows `GPT-5` in the UI but `~/.codex/config.toml` for the active session contains `model = "gpt-5.4"`, use `AI-Model: gpt-5.4`.
+  1. session metadata that the tool exposes (for example, a system prompt that states the model ID)
+  2. launch overrides for the current session (model flag, selected profile)
+  3. tool-owned local config that controls the current session
+  4. visible UI labels, only if they show an exact model ID
+- If no source gives an exact model ID, ask the user. Do not guess.
+- Per-tool lookup:
+  - Codex: `-m`/`--model` or `-c model=...` flag, then `model` in the active `[profiles.<name>]` section, then top-level `model` in `$CODEX_HOME/config.toml` (default `~/.codex/config.toml`).
+  - Claude Code: the model ID stated in the system prompt, then `/model` output.
+  - Other tools: the launch model flag, then the model setting in the tool config file.
+- Example: if Codex Desktop shows `GPT-5` in the UI but `~/.codex/config.toml` contains `model = "gpt-5.4"`, use `AI-Model: gpt-5.4`.
 - Trailers when committing:
   - `Co-authored-by: [resolved name] <[resolved email]>`
   - `AI-Provider: [runtime provider name]` (optional; include only if known)

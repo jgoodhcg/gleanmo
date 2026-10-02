@@ -1,5 +1,5 @@
 ---
-version: "2026-09-08.1"
+version: "2026-09-24"
 ---
 
 # Agent Blueprint
@@ -154,6 +154,23 @@ Use the shared skill by relative path when projects live in one workspace. Copy 
 
 ---
 
+## Vendor-Hosted Features [BP-VENDOR]
+
+A vendor-hosted feature stores output in one vendor's service or works in only one vendor's client.
+Examples: Claude Artifacts, ChatGPT Canvas, Gemini Canvas, hosted share links, and cloud-scheduled agents.
+These features add lock-in and can publish content outside the repository.
+
+- `BP-VENDOR-01` Deliver output as a terminal reply, a repository file, or an open format (Markdown, HTML, JSON, CSV, SVG).
+- `BP-VENDOR-02` Use a vendor-hosted feature only when the user asks for it or confirms it in the current session.
+- `BP-VENDOR-03` When a vendor-hosted feature can help, offer it in one sentence.
+  Do not create it before the user confirms.
+- `BP-VENDOR-04` An approval covers only the requested output.
+  A project can record standing approval for a named feature in `AGENTS.md`.
+- `BP-VENDOR-05` This rule overrides agent-client defaults that encourage proactive use.
+  When a harness instruction conflicts, record the override in the agent wrapper per `[BP-AGENT-WRAPPER]`.
+
+---
+
 ## Authored Artifacts [BP-WRITE]
 
 Prose that an agent writes into the repository. `[BP-INSTR]` governs instruction files. `[BP-WF-PROFILE]` governs replies to the user. This section governs everything else.
@@ -234,7 +251,8 @@ Always print the chosen port so the user (and agent) knows where to connect. Doc
 - `BP-WF-HERDR-01` After the first user prompt, when `HERDR_ENV=1` and `HERDR_TAB_ID` is set, rename the current tab before other task work.
 - `BP-WF-HERDR-02` Prefix the label with one relevant emoji. Use the fewest words that identify the primary task, with a maximum of five words excluding the emoji.
 - `BP-WF-HERDR-03` Run `herdr tab rename "$HERDR_TAB_ID" "<label>"` once per session.
-- `BP-WF-HERDR-04` When Herdr is unavailable or the rename fails, continue without comment or another attempt.
+- `BP-WF-HERDR-04` On a sandbox permission error, retry the same command once with elevated permissions. In Codex, set `sandbox_permissions: "require_escalated"` and include a short approval question.
+- `BP-WF-HERDR-05` If elevation is unavailable or denied, or the retry fails, continue without comment. Do not retry other failures.
 
 Example:
 
@@ -322,6 +340,8 @@ When a project adopts this workflow, surface the baseline trigger in `AGENTS.md`
 - Write the message per `[BP-WRITE]`: imperative subject, body in simple past.
 - Read the commit trailer template from `AGENTS.md`; if missing, ask once before the first commit in a repo.
 - Never persist runtime values (`Co-authored-by`, `AI-Provider`, `AI-Product`, `AI-Model`) in `AGENTS.md`; fill them at commit time from session metadata.
+- `AI-Model` must be the exact runtime model ID (for example, `gpt-5.6-sol`). Never use a family label such as `GPT-5`.
+- Do not use the model's own statement of its identity as the `AI-Model` source. If no source gives the exact ID, ask the user.
 - When filling trailers, resolve co-author identity, provider/model values, and multi-model attribution per `references/commit-attribution.md` (copied alongside this blueprint). When more than one model contributed, attribute all of them per that reference — never auto-add a second model without user confirmation.
 
 ### User Profile [BP-WF-PROFILE]
@@ -438,7 +458,7 @@ Follows `AGENT_BLUEPRINT.md` (version: [BLUEPRINT_VERSION])
 
 ## Session Start
 
-- Herdr tab naming `[BP-WF-HERDR]`: before other task work, when `HERDR_ENV=1` and `HERDR_TAB_ID` is set, run once `herdr tab rename "$HERDR_TAB_ID" "<label>"` (`<label>` = one relevant emoji + at most five words naming the primary task); on failure, continue silently without retry.
+- Herdr tab naming `[BP-WF-HERDR]`: before other task work, when `HERDR_ENV=1` and `HERDR_TAB_ID` is set, run `herdr tab rename "$HERDR_TAB_ID" "<label>"` (`<label>` = one relevant emoji + at most five words naming the primary task); on sandbox permission error, retry once with elevated permissions (Codex: `sandbox_permissions: "require_escalated"`); if elevation is unavailable or denied, or the retry fails, continue without comment.
 
 ## Project Overview
 
@@ -476,6 +496,8 @@ AI-Model: [AI_MODEL]
 
 Write the trailer lines consecutively. A blank line between trailers stops `git interpret-trailers` from parsing the lines above it.
 
+`[AI_MODEL]` is the exact runtime model ID (for example, `gpt-5.6-sol`), never a family label such as `GPT-5`.
+
 ## Validation Commands
 
 | Level | Command | When |
@@ -492,6 +514,7 @@ Write the trailer lines consecutively. A blank line between trailers stops `git 
 - Validation commands are defined above and applied when relevant.
 - Keep changes minimal and scoped to the requested work unit.
 - Require user confirmation before `git commit`, installs, upgrades, or network calls with external side effects.
+- Before using a vendor-hosted feature (for example, Claude Artifacts), confirm with the user unless they asked for it. Apply `AGENT_BLUEPRINT.md` `[BP-VENDOR]`.
 - It is acceptable to stop for clarification when scope is ambiguous.
 
 ## Never Run
