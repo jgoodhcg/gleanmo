@@ -53,7 +53,7 @@ This sequence does not reorder the infrastructure priorities above.
 
 1. Deliver scoped agent access for conversational cleanup, next-action selection, and approved batch updates in [061-ai-assistance.md](./061-ai-assistance.md).
 2. Evaluate one week of normal use for voluntary return, useful task choices, and reduced review effort.
-3. Address observed daily friction through [012-daily-focus.md](./012-daily-focus.md), including a proposed review of automatic carry-forward.
+3. Address observed daily friction through [012-daily-focus.md](./012-daily-focus.md), including a proposed review of automatic carry-forward; the direction for today is now [094-today-plan.md](./094-today-plan.md).
 4. Add [inbox quick capture](./093-inbox-quick-capture.md) so Reminders stops being a capture queue, then [offline task capture](./043-pwa-experience.md#offline-task-capture-proposed-follow-up) once the workflow proves useful.
 
 Defer Things-style tags, project headings, recurrence, and additional statistics until use establishes their value.
@@ -98,6 +98,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 
 ### Draft
 
+- [094-today-plan.md](./094-today-plan.md) - Today as one short daily plan: chosen tasks, habit/goal targets, and lightweight day items that inflate neither tasks nor habits; mockups first
 - [093-inbox-quick-capture.md](./093-inbox-quick-capture.md) - A capture screen as light as today's quick-add that puts tasks into the inbox, with optional project and notes, so Reminders stops being a capture queue
 - [092-goal-comparisons-records.md](./092-goal-comparisons-records.md) - Compare a goal with last week and last year, show best and worst periods of all time, and count weekly streaks; blocked on how history coverage is established
 - [088-timer-cross-device-staleness.md](./088-timer-cross-device-staleness.md) - A running timer on the home page keeps ticking after it is stopped on another device; pick a pushed invalidation or a long-interval poll

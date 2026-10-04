@@ -5,7 +5,7 @@ description: "Existing daily task workflow; evaluate a manageable chosen list af
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-09-07
+updated: 2026-10-04
 ---
 
 # Daily Focus
@@ -15,6 +15,13 @@ updated: 2026-09-07
 - Constraints: Must be smooth and fun or it won't get used. Minimize friction (single-click actions). Build incrementally.
 - Implemented approach: Added `focus-date` to tasks. Dedicated "Today" page with progress stats, ordered list, and satisfying completion feedback. Unfinished tasks carry forward automatically with a visual indicator.
 - Current State: V1 (Core Loop) and V2 (Polish/Drag-and-Drop) are complete.
+
+## Successor Direction (2026-10-04)
+
+The next step for today is [094-today-plan.md](./094-today-plan.md).
+It turns today into one daily plan that combines chosen tasks, habit and goal targets for the day,
+and lightweight day items that are neither tasks nor habits.
+It starts with mockups.
 
 ## Next Direction (2026-09-07)
 

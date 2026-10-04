@@ -5,7 +5,7 @@ description: "Lifetime view with years as rows and weeks as cells"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-07
+updated: 2026-10-04
 ---
 
 # Life Chart Calendar Requirements
@@ -40,7 +40,7 @@ A life visualization calendar where each row represents a year of life and each 
 ```clojure
 :life-period/id           :uuid
 :life-period/label        :string          ; "High School", "Google Job", "Marriage to X"
-:life-period/category     [:enum :education :work :relationship :residence :project :health :other]
+:life-period/category     [:enum :education :work :relationship :residence :project :health :travel :other]
 :life-period/start-date   :instant         ; Period beginning
 :life-period/end-date     {:optional true} :instant ; Period end (nil = ongoing)
 :life-period/color        {:optional true} :string  ; Hex color for visualization
@@ -90,6 +90,17 @@ A life visualization calendar where each row represents a year of life and each 
 - Hobbies with defined timeframes
 - Creative endeavors
 - Business ventures
+
+### Travel Periods (Vacations)
+- Vacations and trips, each spanning the weeks it covered
+- Camping trips, road trips, visits to family
+- Short and frequent, so they show as small bright patches across the years.
+  Most other periods are long bands.
+  Seeing every vacation at once answers questions like "how often do I actually get away?"
+  and "which years had none?"
+- Added 2026-10-04 from a task-backlog idea.
+  Open question: are vacations `:life-period`s with `:travel`, or calendar events carrying `:event/life-category :travel`?
+  Multi-day trips suggest periods.
 
 ### Health/Life Phase Periods
 - Major health conditions
