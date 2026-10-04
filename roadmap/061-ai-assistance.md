@@ -3,9 +3,9 @@ title: "AI Assistance Integration"
 status: draft
 description: "Restore task use through conversational backlog cleanup and daily planning, starting with scoped agent access and approved batch changes"
 created: 2026-07-11
-updated: 2026-09-07
+updated: 2026-10-04
 tags: [integration, ai, mcp, api, security, llm-context]
-priority: medium
+priority: high
 ---
 
 # AI Assistance Integration
@@ -101,6 +101,36 @@ Duplicate detection produces suggestions; record merging and deletion are outsid
 Deliver task reads and approved updates before broader exercise access or optional CLI packaging.
 Select one initial integration surface; a second transport is not required to test task adoption.
 Keep token authorization and sensitivity controls in the first delivery.
+
+### Interim CLI Workflow and Priority (2026-10-04)
+
+Priority raised from medium to high on 2026-10-04.
+The backlog-cleanup flow this unit describes is already in use as a dev-only stopgap.
+That stopgap works, but it now has two uses and still needs friction this unit would remove.
+
+The stopgap is `dev/tasks/task_entities.clj`, registered in `dev/tasks.clj` as two Biff tasks:
+
+- `export-tasks` writes the user's open tasks to `tmp/task-export-<target>.edn`.
+- `apply-task-changes` validates an EDN plan of `:update`, `:delete`, and `:create` entries.
+  It prints a dry run, and with `--commit` it writes the whole plan in one transaction.
+
+Uses so far:
+
+1. 2026-09-18: three rounds of label cleanup, plus moving one-off Apple Reminders into tasks.
+2. 2026-10-04: another Reminders cleanup and task refresh.
+
+The workflow already proves the shape of the first vertical slice: export, discuss, preview the batch, apply only what was approved.
+Its friction is what this unit removes:
+
+- It needs a JVM, the repo, and a hand-copied prod `XTDB_JDBC_URL` in local `config.env`.
+- Prod runs connect straight to the database from the developer's machine, with no token scoping or sensitivity boundary.
+- The agent writes plan files by hand, and the user runs each step.
+
+Carry its safety checks into the API's batch contract.
+The label check rejects an id that points at the wrong task.
+State-change signals are derived the same way the app derives them.
+A plan with any invalid entry writes nothing.
+These checks are a concrete starting point for the open question on stale-change rejection.
 
 ### Adoption Check
 

@@ -13,6 +13,7 @@ goal: "Get off Neon/Hikari pain and Airtable dependency while keeping Gleanmo fa
 - [039-local-dev-db-locking.md](./039-local-dev-db-locking.md) - RocksDB file lock prevents running REPL and CLI migrations concurrently
 - [078-data-export.md](./078-data-export.md) - One `/app/export` page: generic per-entity exports plus named composite exports, feeding the health-coach agent by copy-paste (interim to 061-ai-assistance.md)
 - [075-exercise-export.md](./075-exercise-export.md) - The exercise composite (session → set → line) registered in the data-export page
+- [061-ai-assistance.md](./061-ai-assistance.md) - Priority raised to high 2026-10-04: the dev-only `export-tasks` / `apply-task-changes` stopgap has now been used twice for task cleanup
 
 ## Prioritization Lens
 
@@ -53,7 +54,7 @@ This sequence does not reorder the infrastructure priorities above.
 1. Deliver scoped agent access for conversational cleanup, next-action selection, and approved batch updates in [061-ai-assistance.md](./061-ai-assistance.md).
 2. Evaluate one week of normal use for voluntary return, useful task choices, and reduced review effort.
 3. Address observed daily friction through [012-daily-focus.md](./012-daily-focus.md), including a proposed review of automatic carry-forward.
-4. Add [offline task capture](./043-pwa-experience.md#offline-task-capture-proposed-follow-up) once the workflow proves useful.
+4. Add [inbox quick capture](./093-inbox-quick-capture.md) so Reminders stops being a capture queue, then [offline task capture](./043-pwa-experience.md#offline-task-capture-proposed-follow-up) once the workflow proves useful.
 
 Defer Things-style tags, project headings, recurrence, and additional statistics until use establishes their value.
 Existing task polish drafts remain candidates; they do not precede the adoption check unless a defect blocks that trial.
@@ -97,6 +98,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 
 ### Draft
 
+- [093-inbox-quick-capture.md](./093-inbox-quick-capture.md) - A capture screen as light as today's quick-add that puts tasks into the inbox, with optional project and notes, so Reminders stops being a capture queue
 - [092-goal-comparisons-records.md](./092-goal-comparisons-records.md) - Compare a goal with last week and last year, show best and worst periods of all time, and count weekly streaks; blocked on how history coverage is established
 - [088-timer-cross-device-staleness.md](./088-timer-cross-device-staleness.md) - A running timer on the home page keeps ticking after it is stopped on another device; pick a pushed invalidation or a long-interval poll
 - [084-symptom-blood-glucose.md](./084-symptom-blood-glucose.md) - Record blood glucose alongside the other vitals on symptom-log, and allow a vitals-only log
@@ -131,7 +133,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 - [023-reading-airtable-spec.md](./023-reading-airtable-spec.md) - Airtable schema reference for reading migration
 - [026-roam-integration.md](./026-roam-integration.md) - Project timers shipped; Roam metrics integration pending
 - [034-today-reorder-performance.md](./034-today-reorder-performance.md) - Fix slow response when reordering items on the today page
-- [043-pwa-experience.md](./043-pwa-experience.md) - Verify PWA scaffolding; offline task capture follows the task adoption check
+- [043-pwa-experience.md](./043-pwa-experience.md) - Verify PWA scaffolding; show paths and offer copy-link / open-in-browser in standalone mode; offline task capture follows the task adoption check
 - [064-timer-dashboard-inline-create.md](./064-timer-dashboard-inline-create.md) - True inline parent creation on timer dashboards (follow-up to 048-inline-entity-creation.md)
 - [041-ui-juice.md](./041-ui-juice.md) - Micro-interactions, animations, and haptic feedback for delight
 - [067-global-action-modal.md](./067-global-action-modal.md) - One shared HTMX modal shell for confirm-and-act prompts, replacing per-page overlays and inline prompt slots
@@ -147,7 +149,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 - [040-today-ux-polish.md](./040-today-ux-polish.md) - Improve task completion feedback and add project selection to quick-add
 - [046-exercise-insights.md](./046-exercise-insights.md) - Visual daily exercise summary with muscle heatmap and session stats
 - [056-cronometer-integration.md](./056-cronometer-integration.md) - Pull nutrition and body composition from Cronometer: reverse-engineered mobile API for recent days, CSV import for the backfill (phase 0 session-safety check gates the API path)
-- [061-ai-assistance.md](./061-ai-assistance.md) - Restore task use through conversational cleanup, scoped agent access, and approved batch changes
+- [061-ai-assistance.md](./061-ai-assistance.md) - Restore task use through conversational cleanup, scoped agent access, and approved batch changes (priority high since 2026-10-04)
 - [080-relation-defaults.md](./080-relation-defaults.md) - Curated per-relation defaults that prefill log fields from the related entity (meditation position first; medication dose, book format, exercise unit to follow)
 
 ### Dropped

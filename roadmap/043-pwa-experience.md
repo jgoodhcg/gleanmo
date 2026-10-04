@@ -3,7 +3,7 @@ title: "PWA Experience"
 status: draft
 description: "Verify existing PWA support and plan offline task capture after task adoption improves"
 created: 2026-03-01
-updated: 2026-09-07
+updated: 2026-10-04
 tags: [pwa, mobile, ios, android, ux]
 priority: medium
 ---
@@ -76,6 +76,26 @@ Notification delivery and task reminders are separate work.
 - Should capture default to Inbox or Today?
 - Which phones and browsers must support the first release?
 - How should logout, device retention, and unsynchronized sensitive text be handled?
+
+### Visible Paths in Standalone Mode (Proposed, 2026-10-04)
+
+The installed PWA should be the normal way to use Gleanmo.
+Standalone mode hides the address bar, which hides the current path.
+The user still wants paths, for two reasons:
+
+- To name routes and endpoints when discussing the app, including with agents.
+- To open a few pages as browser tabs when multitasking on desktop.
+
+Proposed shape, to be refined:
+
+- When `display-mode: standalone` is active, show the current path somewhere unobtrusive.
+  Candidates are the page shell footer, a long-press on the page title, or a small info control.
+- Provide **Copy link** for the full URL.
+- Provide **Open in browser**, which opens the current URL outside the installed app.
+  Platform behavior varies here, especially on iOS, so verify it on each device.
+- The regular browser tab keeps working as it does today.
+
+`isStandalone` detection already exists in `resources/public/js/main.js`.
 
 ### 1. Web App Manifest (manifest.json)
 
