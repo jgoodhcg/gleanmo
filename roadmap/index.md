@@ -84,7 +84,7 @@ PWA notification scaffolding does not establish working reminder delivery.
   Full E2E remains before shipping; historical comparisons remain a feature follow-up.
 
 - [089-goal-target-suggestion.md](./089-goal-target-suggestion.md) - Goal editor suggests a slight-stretch target from the user's own history (built and tested 2026-09-22; user check pending)
-- [090-goal-live-today.md](./090-goal-live-today.md) - Live today values on goals beside the completed-day baseline, projections at the live average and the last 14 days' pace; weekly goals drop pace and projection (built and tested 2026-09-25; user check 2026-10-04: "Needed today" went unnoticed — needs prominence)
+- [090-goal-live-today.md](./090-goal-live-today.md) - Live today values on goals beside the completed-day baseline, projections at the live average and the last 14 days' pace; weekly goals drop pace and projection (built and tested 2026-09-25; user check 2026-10-04: "Needed today" went unnoticed — needs prominence; 2026-10-05: card text cluttered, wants a catch-up amount and nearer thresholds)
 - [091-pinned-goals.md](./091-pinned-goals.md) - Pinned goals lead the goals page and show as compact cards on the home screen (built and tested 2026-09-25; latency with several real pins and user check pending; met-pace home chips intent recorded 2026-10-04, mockups first)
 
 ### Ready

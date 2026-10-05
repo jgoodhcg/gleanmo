@@ -3,7 +3,7 @@ title: "Live today on goals"
 status: active
 description: "Goal pace statistics react to today's logs beside the completed-day baseline, with a projection at the current rate"
 created: 2026-09-25
-updated: 2026-10-04
+updated: 2026-10-05
 tags: [goals, visualization]
 priority: medium
 ---
@@ -96,6 +96,47 @@ Interpretation: a discoverability and hierarchy problem, not a missing calculati
 The line sits under the headline total as one of several statistics, and the answer to "what do I do today" should be the first thing read on the card.
 Candidates to mock up and review: lead the card with the needed-today sentence; give it its own visual weight (neon accent, larger type); repeat it on the pinned home card and the met-pace chips in [091](./091-pinned-goals.md); check it is visible without scrolling on mobile (see the mobile item in [081](./081-goals-dashboard.md)).
 Keep this unit active until a revised placement is something the user notices unprompted.
+
+## Dogfood notes (2026-10-05): clutter, catch-up amount, nearer thresholds
+
+Observed in production on a dated rep goal (Exercise lines · Pullup · Reps): 245 of 5,000 reps by September 16, 2027; 19 elapsed days at 12.9 reps/day; 13.7 reps/day required from today with 347 days left; "Next threshold 255 reps to 500 reps"; today 0 reps.
+Nothing on `dev` had changed this card since production when the note was filed.
+
+User, verbatim: "feels like cluttered text and I'm scanning for the revelant number. I can easily detect the pace needed from today onward. That's cool. I can also see what my pace is for "completed" (should soon say elapsed) days."
+
+User, verbatim: "how many reps do I need to do to make my elapsed day average equal my ongoing pace needed? In other words I want to know how many it would take to make up for my gap."
+
+User, verbatim: "at least for the two rep goals I have the next thresholds feel too far away to be motivating. In this example I think it would be better to see like ~5 more reps to 260. Not sure how to programmatically dervie something like that in a an abstract sense."
+
+### Interpretation
+
+**Clutter.** The headline number and "Required from today" are read at a glance; the secondary lines under each statistic are not ("19 completed days · with today 12.3 reps/day (-0.64)", "347 days left · after today 13.7 reps/day (+0.04) · 1.06× your average").
+Every statistic carries a sub-sentence of mixed numbers, so the eye has no single place to land.
+This is the same hierarchy problem as the 2026-10-04 note above (needed today going unnoticed), from the other side: too many equal-weight numbers.
+Candidates to mock up: one number per statistic with its sub-line cut to a label; live deltas ("with today", "after today", the ratio) moved behind a disclosure or dropped where they rarely change; a single sentence that leads the card.
+
+**Catch-up amount (new value).** The gap between where the user is and where they would be at the pace they now need.
+Candidate definition: catch-up = required rate × elapsed days − amount logged before today.
+In the example: 13.7 × 19 − 245 ≈ 15 reps.
+A nearly equivalent and simpler definition: the deficit against the even-pace line (target ÷ total days × elapsed days − logged), here 5,000 ÷ 366 × 19 − 245 ≈ 15 reps.
+The two differ in general (logging changes the required rate), so pick one and state it; the even-pace deficit is stable through the day and already drawn on the chart as "Even pace".
+Negative means ahead; show "N ahead of pace" then.
+It answers a different question from "Needed today": needed today is today's share; catch-up is the accumulated debt.
+Weekly and open-ended goals have no pace, so no catch-up.
+
+**Nearer thresholds.** `goals/calc.clj` `threshold-step` defaults to a nice 1/2/5 step near a tenth of the target, so a 5,000-rep goal steps by 500, roughly 36 days of work at the current pace.
+A motivating threshold should be a short distance away in days of effort, not a fixed fraction of the target.
+Candidate derivations to evaluate:
+
+1. Scale the step to the pace: a nice step near a few days of required rate (13.7 × 7 ≈ 96 → 100; × 3 ≈ 41 → 50), so the next threshold is always days, not weeks, away.
+2. The even-pace line itself: the next threshold is "back on pace", which in the example is ≈ 260 — the user's own example — and merges with the catch-up amount.
+3. The next nice round number above the total at a finer granularity (nice step of the remaining distance ÷ ~10, or of the daily rate) — 245 → 250 → 260.
+
+Option 2 coincides with the user's "~5 more reps to 260" only loosely (the gap is ≈ 15); option 1 or 3 gives a "~5 to 250"-style line.
+A user-set `goal/threshold-step` still wins over any default.
+Decide by mocking up the card with each and checking which one the user reads unprompted.
+
+Approach: mock up and review before specifying, together with the needed-today placement above and the "elapsed days" wording in [081](./081-goals-dashboard.md).
 
 ## Scope
 
