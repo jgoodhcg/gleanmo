@@ -1,10 +1,19 @@
 # AGENTS
 
-Follows `AGENT_BLUEPRINT.md` (version: 2026-09-24)
+Follows `AGENT_BLUEPRINT.md` (version: 2026-10-04)
 
 ## Session Start
 
-- Herdr tab naming `[BP-WF-HERDR]`: before other task work, when `HERDR_ENV=1` and `HERDR_TAB_ID` is set, run `herdr tab rename "$HERDR_TAB_ID" "<label>"` (`<label>` = one relevant emoji + at most five words naming the primary task); on sandbox permission error, retry once with elevated permissions (Codex: `sandbox_permissions: "require_escalated"`); if elevation is unavailable or denied, or the retry fails, continue without comment.
+- Herdr tab naming `[BP-WF-HERDR]`: when `HERDR_ENV=1`, run `herdr pane current --current` before other task work.
+  Read the returned pane's `tab_id`, then run `herdr tab rename "<resolved-tab-id>" "<label>"`.
+  Use one relevant emoji and at most five task words for `<label>`.
+  On sandbox denial, retry once with elevated permissions (Codex: `sandbox_permissions: "require_escalated"`).
+  On `pane_not_found` or `tab_not_found`, run `herdr pane list` without a workspace filter.
+  Match a unique session identity or task title; cross-check agent kind and working directory.
+  Retry once with that pane's returned `tab_id`; never guess from focus or directory alone.
+  Inspect the rename response; approval or an attempted command does not count as success.
+  If resolution or recovery fails, report the reason briefly and continue the task.
+  Follow `AGENT_BLUEPRINT.md` `[BP-WF-HERDR]` for the full procedure.
 
 ## Project Overview
 
