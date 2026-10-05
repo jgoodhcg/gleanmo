@@ -3,7 +3,7 @@ title: "Goals dashboard"
 status: active
 description: "Implement the approved dashboard with reusable numeric types, reading positions, goal storage, and scoped progress queries."
 created: 2026-09-12
-updated: 2026-09-25
+updated: 2026-10-04
 tags: [goals, visualization, schema, reading]
 priority: medium
 ---
@@ -410,6 +410,34 @@ Resolve each item, or move it to another work unit, before archiving this unit.
   pinning goals, a home-screen goal card, and the list/graph layout question to [091](./091-pinned-goals.md);
   comparisons with last week and last year and best/worst of all time to [092](./092-goal-comparisons-records.md);
   a running workout on the home screen to [008](./008-backlog.md) ("Running Workouts Missing From Home").
+- [ ] Say "elapsed days", not "completed days", in UI, docs, and code (2026-10-04).
+  User, verbatim (dogfood list): "Change completed days to elapsed days".
+  Clarified in conversation: "completed sounds like the user actively did something to close the day but really we are just looking at days that have already happened."
+  Interpretation: a wording change, not a calculation change. The baseline stays "days in the goal window that ended before today, in the goal's saved zone"; only its name changes.
+  Scope is everything that says it, so the vocabulary does not drift back:
+  UI copy in `app/goals.clj` ("Average per completed day", "N completed days", "based on completed days", "baseline rates use completed days");
+  identifiers and data keys in `goals/calc.clj`, `goals/dashboard.clj`, `goals/suggest.clj`, and `app/goals.clj` (e.g. `completed-days`);
+  `test/.../goals/calc_test.clj`, `dashboard_test.clj`, and `e2e/scripts/test-goals.ts`;
+  and the roadmap prose in this unit, [089](./089-goal-target-suggestion.md), [090](./090-goal-live-today.md), and [008](./008-backlog.md).
+  About 55 matches across 7 source/test files as of 2026-10-04 (`grep -rni "completed.day\|completed-day" src test e2e/scripts`).
+  Watch the neighbouring word: book goals use "completed" for finishing a book, which is correct and stays.
+- [ ] The goals page is hard to use on mobile (2026-10-04).
+  User, verbatim: "It's hard to use the goals page on mobile".
+  No specific failure named yet; needs a mobile walkthrough to find what is hard.
+  Likely candidates: the goal table sits above the selected goal's card and chart, so reaching the chart means scrolling past every row;
+  the table scrolls horizontally inside its own container; the chart is small at phone width.
+  This is the same open question [091](./091-pinned-goals.md) left under Notes ("Do I want the graph and goal picker to be on the same page?"), whose options were the selected card above the table on mobile, or a compact goal select replacing the table on small screens.
+  Approach: capture the current mobile screens, mock up options, review with the user before building.
+  Folds into [087](./087-essential-information-redesign.md) if that redesign reaches goals first.
+- [ ] Log from a goal's view (2026-10-04).
+  User, verbatim: "I should make it easy to log from the view of a goal. It's often what I want to do after I look at it. Inline?"
+  Interpretation: the selected-goal card gains a log action for the goal's measurement, so the look → log → see the needle move loop from [090](./090-goal-live-today.md) happens on one page.
+  The goal already knows the entity type and filter (habit, exercise, project, book), which can prefill the related field.
+  Open: inline form fragment on the card versus a link to the entity's form with `?redirect=` back to the goal;
+  what "log" means for a timer-backed measurement (start a timer, or enter a finished interval);
+  which goals have several candidate entities (multi-habit, multi-exercise) and need a choice.
+  Writing must follow the AGENTS.md rule: post and 303 back to `/app/goals?goal=<id>` rather than render from the request's snapshot.
+  Same intent may later apply to the pinned home cards in [091](./091-pinned-goals.md).
 
 ## Code review findings (Codex, 2026-09-14)
 

@@ -3,7 +3,7 @@ title: "Global Action Modal"
 status: draft
 description: "One shared HTMX modal shell for confirm-and-act prompts, replacing per-page overlays and inline prompt slots"
 created: 2026-07-28
-updated: 2026-07-28
+updated: 2026-10-04
 tags: [ux, htmx, components, layout]
 priority: medium
 ---
@@ -82,8 +82,17 @@ affirmative already used by the relocate confirm.
    copies of the `hx-on` dismiss string onto the shared shell. Proves the
    component handles a form-bearing modal, not just a confirm.
 
-A third consumer is *not* required to justify the work, but delete-confirm
-in CRUD views is the obvious next one.
+3. **CRUD delete-confirm** — promoted from "obvious next one" by a dogfood
+   note (2026-10-04), verbatim: "Delete model on bouldering isn't styled".
+   Every generic CRUD delete confirms with the browser's native `confirm()`
+   (`crud/forms.clj:180`; `crud/views.clj` table, card, and list views), so
+   the unstyled dialog shows up wherever a CRUD form is reached — bouldering
+   is just where it was noticed, because its edits route through those forms
+   (see [009](./009-bouldering.md), "Gym-use feedback"). The delete button
+   targets `#action-modal` with a "Delete <entity>?" panel and a red
+   destructive action; the four `onclick` `confirm()` strings disappear.
+   The workout screen's "Delete line" posts with no confirmation at all;
+   decide whether it joins or stays one-tap.
 
 ### Non-goals for the shell
 
@@ -103,6 +112,8 @@ own markup rather than growing the shell.
       returns to the trigger. Cross-check `060-keyboard-navigation.md`.
 - [ ] Mobile screenshot: panel clears the fixed tab bar and is readable at
       375px-class widths.
+- [ ] Deleting from a CRUD form and from each list view opens the shared
+      panel, not a native dialog (`grep -rn "confirm('" src` returns nothing).
 - [ ] No page-local modal containers remain (`grep -r 'bc-modal\|relocate-prompt'`
       returns nothing).
 

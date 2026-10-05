@@ -3,7 +3,7 @@ title: "Live today on goals"
 status: active
 description: "Goal pace statistics react to today's logs beside the completed-day baseline, with a projection at the current rate"
 created: 2026-09-25
-updated: 2026-09-25
+updated: 2026-10-04
 tags: [goals, visualization]
 priority: medium
 ---
@@ -84,6 +84,18 @@ Unchanged.
 - Projections are hidden once the target is reached; a recent-pace line can otherwise dwarf the whole chart.
 - `app/goals.clj`: `today-line` under the headline total carries `data-*` attributes with the raw values for tests.
   Weekly goals show "Still to go this week", "Today", and "Next threshold", and their chart shows a target line instead of the pace lines.
+
+## Dogfood notes (2026-10-04): the shipped line went unnoticed
+
+User, verbatim (dogfood list, written after this unit was built): "On a goal I want to know what I have to do today to get to the pace that finishes the goal".
+That is exactly "Needed today" above, already on the selected goal's card.
+Asked about it, the user said: "I did not notice 090".
+
+So the user check this unit is waiting on has its first result: the feature exists but does not register.
+Interpretation: a discoverability and hierarchy problem, not a missing calculation.
+The line sits under the headline total as one of several statistics, and the answer to "what do I do today" should be the first thing read on the card.
+Candidates to mock up and review: lead the card with the needed-today sentence; give it its own visual weight (neon accent, larger type); repeat it on the pinned home card and the met-pace chips in [091](./091-pinned-goals.md); check it is visible without scrolling on mobile (see the mobile item in [081](./081-goals-dashboard.md)).
+Keep this unit active until a revised placement is something the user notices unprompted.
 
 ## Scope
 

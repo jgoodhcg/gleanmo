@@ -3,7 +3,7 @@ title: "Pinned goals on the home screen"
 status: active
 description: "Pin goals so they lead the goals page and show as compact progress cards on the home screen"
 created: 2026-09-25
-updated: 2026-09-25
+updated: 2026-10-04
 tags: [goals, dashboard]
 priority: medium
 ---
@@ -70,6 +70,22 @@ Dogfood note, verbatim (2026-09-25):
   The table and chart already share `/app/goals`, and a row click swaps the selected card.
   If the note was about scrolling past the table on mobile to reach the chart, the options are the selected card above the table on mobile, or a compact goal select replacing the table on small screens.
   Pinned-first ordering and default selection shorten that scroll for pinned goals; the layout itself is left as it was until the user decides.
+
+## Dogfood notes (2026-10-04): met-pace chips on home
+
+User, verbatim (dogfood list): "Home page should have little chips for goals that just say if I met or exceeded my pace for the day".
+On follow-up: "not sure we need to mock them up and do some review iterations just record the intent".
+
+Intent: a glanceable yes/no per goal for today, smaller than the pinned cards above — did today's logging reach the pace, or beat it.
+The data exists: "needed today" from [090](./090-goal-live-today.md) is zero or negative exactly when today met or exceeded pace.
+Not decided, and for the mockup round to settle:
+
+- Which goals get a chip: pinned only, or every active goal.
+- Whether chips replace the pinned cards, sit above them, or appear only when nothing is pinned.
+- What a weekly or open-ended goal's chip says, since neither has a daily pace.
+- Whether a not-yet-met chip shows the remaining amount or only a neutral state.
+
+Approach: mock up options, iterate with the user, then specify. Same fragment and query cost constraints as the home card above.
 
 ## Scope
 

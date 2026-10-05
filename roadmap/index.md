@@ -66,7 +66,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 
 - [017-infrastructure.md](./017-infrastructure.md) - Database migration from Neon to DigitalOcean
 - [014-data-migration-status.md](./014-data-migration-status.md) - Tracker for Airtable backfills and remaining imports
-- [015-exercise.md](./015-exercise.md) - Exercise tracking with superset support and Airtable backfill
+- [015-exercise.md](./015-exercise.md) - Exercise tracking with superset support and Airtable backfill; notes on sets and lines in the workout view re-requested 2026-10-04
 - [021-performance.md](./021-performance.md) - Performance monitoring and profiling dashboard
 - [013-dashboard-performance.md](./013-dashboard-performance.md) - Home page dashboard performance improvements
 - [012-daily-focus.md](./012-daily-focus.md) - Existing daily task workflow; further changes depend on the AI-assisted adoption check
@@ -77,13 +77,14 @@ PWA notification scaffolding does not establish working reminder delivery.
 - [066-unified-timer-page.md](./066-unified-timer-page.md) - One timer workspace: all running timers, search-to-start, one-tap start/stop without form bounces (implemented 2026-07-27; e2e/screenshot validation pending)
 - [071-timer-running-flag.md](./071-timer-running-flag.md) - Replace the two-full-scan set difference behind active timers with an indexed flag derived at write time, reconciled daily (built and tested 2026-08-04; deploy + m007 backfill, prod confirmation pending)
 - [081-goals-dashboard.md](./081-goals-dashboard.md) - Core dashboard and review fixes implemented; sampled user testing reported working.
+  Dogfood 2026-10-04: rename "completed days" to "elapsed days" across UI, docs, and code; mobile usability; log from a goal's view.
   Activity keyboard navigation and per-row editing are implemented.
   Synthetic query profiling is complete; ten-year windows need a performance follow-up.
   Full E2E remains before shipping; historical comparisons remain a feature follow-up.
 
 - [089-goal-target-suggestion.md](./089-goal-target-suggestion.md) - Goal editor suggests a slight-stretch target from the user's own history (built and tested 2026-09-22; user check pending)
-- [090-goal-live-today.md](./090-goal-live-today.md) - Live today values on goals beside the completed-day baseline, projections at the live average and the last 14 days' pace; weekly goals drop pace and projection (built and tested 2026-09-25; user check pending)
-- [091-pinned-goals.md](./091-pinned-goals.md) - Pinned goals lead the goals page and show as compact cards on the home screen (built and tested 2026-09-25; latency with several real pins and user check pending)
+- [090-goal-live-today.md](./090-goal-live-today.md) - Live today values on goals beside the completed-day baseline, projections at the live average and the last 14 days' pace; weekly goals drop pace and projection (built and tested 2026-09-25; user check 2026-10-04: "Needed today" went unnoticed — needs prominence)
+- [091-pinned-goals.md](./091-pinned-goals.md) - Pinned goals lead the goals page and show as compact cards on the home screen (built and tested 2026-09-25; latency with several real pins and user check pending; met-pace home chips intent recorded 2026-10-04, mockups first)
 
 ### Ready
 
@@ -94,7 +95,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 - [059-heatmap-performance.md](./059-heatmap-performance.md) - Heatmap viz page perf via year-bounded projection scans, shared rel-cache, parallel lazy-loaded year cards
 - [027-screenshot-runner.md](./027-screenshot-runner.md) - Manifest-driven series capture for the visual timeline (manifest + runner + agent policy shipped; Biff-task glue + CI archive pending)
 - [069-crud-relation-select-scale.md](./069-crud-relation-select-scale.md) - Relationship selects render every related entity; ~10k options froze the exercise-line edit form on mobile
-- [079-htmx-navigation-consistency.md](./079-htmx-navigation-consistency.md) - One navigation model: boost all 42 native form POSTs through htmx, delete the hand-rolled double-submit guard in favor of hx-sync, drop the two unused vendor scripts
+- [079-htmx-navigation-consistency.md](./079-htmx-navigation-consistency.md) - One navigation model: boost all 42 native form POSTs through htmx, delete the hand-rolled double-submit guard in favor of hx-sync, drop the two unused vendor scripts; start buttons need unmistakable in-flight feedback (dogfood 2026-10-04)
 
 ### Draft
 
@@ -112,7 +113,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 - [077-scheduled-work-multi-instance.md](./077-scheduled-work-multi-instance.md) - Scheduled tasks, tx listeners and queues all run per-container with no singleton guarantee — make them safe before the app ever scales past one instance
 - [070-screenshot-series-heartbeat.md](./070-screenshot-series-heartbeat.md) - Capture the visual timeline in CI against a fixed fixture, published to an orphan branch
 - [020-mood.md](./020-mood.md) - Structured mood logging with Airtable backfill
-- [009-bouldering.md](./009-bouldering.md) - Climbing sessions and problem attempts with Airtable backfill
+- [009-bouldering.md](./009-bouldering.md) - Climbing sessions and problem attempts; screen is built — gym-use feedback 2026-10-04: stop/resume and discard a running attempt, visual identity distinct from workout
 - [039-local-dev-db-locking.md](./039-local-dev-db-locking.md) - RocksDB file lock prevents running REPL and CLI migrations concurrently
 - [049-schema-consistency.md](./049-schema-consistency.md) - Audit and standardize all Malli schemas for naming, field ordering, and conventions
 - [042-entity-merge.md](./042-entity-merge.md) - Combine duplicate entities by repointing every schema-declared reference, goal filters included (first need: Pullup/Pullups)
@@ -125,7 +126,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 - [052-activity-timeline.md](./052-activity-timeline.md) - Chronological timeline view with day separation and quick edit access
 - [073-home-timeline-interval-times.md](./073-home-timeline-interval-times.md) - Render an interval's stop time alongside its start time in the home activity timeline, so a row shows its full span
 - [032-task-activity-logs.md](./032-task-activity-logs.md) - Spawn time logs from tasks and link habits/calendar events to tasks
-- [035-workflow-optimization.md](./035-workflow-optimization.md) - Dashboard quick reference, minimize clicks for logging, and motivating stats
+- [035-workflow-optimization.md](./035-workflow-optimization.md) - Dashboard quick reference, minimize clicks for logging, and a stats page (generic min/max/median/mean/quartiles/pace, computed on request)
 - [054-bm-log-bloating.md](./054-bm-log-bloating.md) - Add bloating tracking to bm-log schema with flexible modeling options
 - [050-config-cleanup.md](./050-config-cleanup.md) - Audit and consolidate configuration files to remove legacy artifacts
 - [060-keyboard-navigation.md](./060-keyboard-navigation.md) - Audit of keyboard accessibility across forms and index views, with phased remediation roadmap
@@ -137,7 +138,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 - [043-pwa-experience.md](./043-pwa-experience.md) - Verify PWA scaffolding; show paths and offer copy-link / open-in-browser in standalone mode; offline task capture follows the task adoption check
 - [064-timer-dashboard-inline-create.md](./064-timer-dashboard-inline-create.md) - True inline parent creation on timer dashboards (follow-up to 048-inline-entity-creation.md)
 - [041-ui-juice.md](./041-ui-juice.md) - Micro-interactions, animations, and haptic feedback for delight
-- [067-global-action-modal.md](./067-global-action-modal.md) - One shared HTMX modal shell for confirm-and-act prompts, replacing per-page overlays and inline prompt slots
+- [067-global-action-modal.md](./067-global-action-modal.md) - One shared HTMX modal shell for confirm-and-act prompts, replacing per-page overlays, inline prompt slots, and the native `confirm()` on CRUD deletes
 - [022-plausible-user-identification.md](./022-plausible-user-identification.md) - Add user identifiers to Plausible analytics to distinguish individuals
 - [018-life-chart.md](./018-life-chart.md) - Lifetime view with years as rows and weeks as cells
 - [019-memento-mori.md](./019-memento-mori.md) - Finite-time visualization anchored to calendar data
@@ -147,7 +148,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 - [033-today-navigation.md](./033-today-navigation.md) - Page through dates on today view and richer focus date filtering
 - [058-task-focus-last-edited-filter.md](./058-task-focus-last-edited-filter.md) - Add sort and filter controls for last-edited tasks on the focus page
 - [038-today-mobile-redesign.md](./038-today-mobile-redesign.md) - Redesign the today task page for better mobile ergonomics and responsiveness
-- [040-today-ux-polish.md](./040-today-ux-polish.md) - Improve task completion feedback and add project selection to quick-add
+- [040-today-ux-polish.md](./040-today-ux-polish.md) - Improve task completion feedback, add project selection to quick-add, and default the other fields so a quick-added task feels complete
 - [046-exercise-insights.md](./046-exercise-insights.md) - Visual daily exercise summary with muscle heatmap and session stats
 - [056-cronometer-integration.md](./056-cronometer-integration.md) - Pull nutrition and body composition from Cronometer: reverse-engineered mobile API for recent days, CSV import for the backfill (phase 0 session-safety check gates the API path)
 - [061-ai-assistance.md](./061-ai-assistance.md) - Restore task use through conversational cleanup, scoped agent access, and approved batch changes (priority high since 2026-10-04)

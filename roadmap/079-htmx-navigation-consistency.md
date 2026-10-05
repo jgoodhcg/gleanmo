@@ -3,7 +3,7 @@ title: "One navigation model: boost every form through htmx, delete the double-s
 status: ready
 description: "Route all 42 native form POSTs through htmx so pages stop fully reloading, replace the hand-rolled double-submit guard with hx-sync, and drop the two unused vendor scripts"
 created: 2026-08-29
-updated: 2026-08-29
+updated: 2026-10-04
 tags: [frontend, htmx, performance, forms, navigation]
 priority: high
 ---
@@ -269,6 +269,15 @@ being deleted.
 **Why the guard existed:** timer Start had no feedback on a slow round trip. The
 tap looked unregistered, a second tap followed, and two timers were created. Any
 replacement must preserve visible in-flight feedback, which `htmx-request` does.
+
+**Current feedback is not strong enough (dogfood, 2026-10-04).** Verbatim:
+"There needs to be better indication between pressing the "start set" or
+session button and the timer starting". The guard's `.is-submitting` dimming
+(opacity 0.55) already runs on those buttons and still went unnoticed. So
+"preserve" is the floor, not the target: the `htmx-request` styling should be
+unmistakable on the start buttons — workout Start set / Start session,
+bouldering Start attempt / Start session, timer Start — e.g. a "Starting…"
+label or spinner. Details in [015](./015-exercise.md).
 
 **Version note:** `hx-sync`, `hx-disabled-elt`, and `hx-on` all landed in htmx
 1.9.0 — the exact pin at `ui.clj:50`. `hx-on` is confirmed working in this

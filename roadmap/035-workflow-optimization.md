@@ -5,7 +5,7 @@ description: "Minimize clicks for common logging actions, fast landing page, and
 tags: [area/frontend, area/ux, type/improvement]
 priority: high
 created: 2026-02-06
-updated: 2026-07-26
+updated: 2026-10-04
 ---
 
 # Workflow Optimization
@@ -88,6 +88,22 @@ with one tap" generalization in Notes below.
 - Comparisons: this week vs. last week, this month vs. last month.
 - Visual: charts and progress indicators that make consistency feel rewarding.
 - Could include per-entity stats (meditation minutes this month, drawing sessions this week) alongside aggregate views.
+
+#### Dogfood notes (2026-10-04): generic descriptive stats
+
+Dogfood list, verbatim: "I want some stats page for generic stuff",
+with the note: "Min, max, median, mean, quartiles?, pace. What would be better than writing these on events and if they don't exist creating them on request in terms of server load/demand and page load times?"
+
+Interpretation: a page that, for any loggable entity (and a filter, as goals already have), shows the distribution of a numeric measure over a window — count, min, max, median, mean, quartiles — plus pace (per day or week over the window).
+"Generic" means driven by the schema/measurement registry, not hand-built per entity; the goals measurement registry (`goals/` and [081](./081-goals-dashboard.md)) already defines which numeric values each entity has and how to scope them, so reuse it rather than inventing a second one.
+Overlaps: [016](./016-generic-viz.md) (generic charts over the same entities) and [092](./092-goal-comparisons-records.md) (best/worst periods are order statistics over the same series). Build the stats computation once and let all three read it.
+
+On the load question — recorded answer to revisit when building, not a decision:
+
+- **Don't write stats onto events.** Stored aggregates go stale on every edit, soft delete, sensitivity or time-zone change, and need a backfill and invalidation story per statistic. 081's performance follow-up rules the same way for goals ("do not introduce stored aggregates").
+- **The arithmetic is not the cost; the read is.** Median and quartiles over a few thousand numbers is microseconds. What costs is fetching documents, so the query should project only `[?e ?t ?value]` (index-only scan, scan-then-pull rules in AGENTS.md) rather than pulling whole documents.
+- **Compute on request, lazily per section**, like the home overview fragments — the stats page is browsed intentionally, so a few hundred ms per card is acceptable and nothing blocks first paint.
+- **Measure before caching.** If a window proves slow (the 081 benchmark already found ten-year windows heavy), the next steps in order are: narrower projections, a per-request or short-TTL cache keyed by user + entity + filter + window, then precomputed daily rollups. Rollups are the only stored form worth considering, since a day's bucket is small to recompute when one of its events changes — and [077](./077-scheduled-work-multi-instance.md) applies to anything recomputed in the background.
 
 ## Open Questions
 

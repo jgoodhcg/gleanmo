@@ -5,7 +5,7 @@ description: "Exercise tracking with superset support and Airtable backfill"
 tags: []
 priority: high
 created: 2026-02-02
-updated: 2026-09-19
+updated: 2026-10-04
 ---
 
 # Exercise Tracking Requirements
@@ -283,6 +283,32 @@ screen which one a note lands on or where it shows up afterward.
   **visible** on the set/line rows — today they aren't surfaced there at all.
 - The other levels stay in the schema; this is about which one the fast path
   writes and reads.
+- **Raised again (2026-10-04)**, dogfood list, verbatim: "I need to be able
+  to take notes on workout sets and exercise lines in the workout view".
+  That answers the "which level" question for now: **both**. Sets and lines
+  each get a note affordance on the workout screen, and their notes show on
+  the set card and line row. Second report of the same need, so it should
+  move up ahead of the other session-use notes.
+
+### Start set gives no sign it registered (2026-10-04)
+
+Dogfood list, verbatim: "There needs to be better indication between pressing
+the "start set" or session button and the timer starting".
+
+`Start set` and `Start session` are native form posts that reload the page.
+The double-submit guard in `main.js` already marks the tapped button
+`.is-submitting` (`tailwind.css:754`: opacity 0.55, wait cursor) until the
+reload, so feedback exists; it is too faint to read as "starting" on a bright
+neon-cyan button in a gym. The timer starts only when the new page renders,
+which is the gap the user feels.
+
+That is the same failure [079](./079-htmx-navigation-consistency.md) records
+for timer Start ("the tap looked unregistered, a second tap followed"); 079
+requires visible in-flight feedback when it replaces the guard, and now names
+this note as the bar that feedback has to clear. Candidates: label swap
+("Starting…"), a spinner or pulse on the button, or showing the running clock
+from the tap and reconciling on response. Applies to the bouldering screen's
+Start attempt / Start session too.
 
 ### Failure check on set lines
 

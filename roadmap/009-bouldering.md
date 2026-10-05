@@ -5,7 +5,7 @@ description: "Climbing sessions and problem attempts with Airtable backfill"
 tags: []
 priority: high
 created: 2026-02-02
-updated: 2026-05-16
+updated: 2026-10-04
 ---
 
 # Bouldering Log Roadmap
@@ -63,3 +63,44 @@ Capture climbing sessions and problem attempts (grades, gyms, attempts, sends) w
 - Do we also track hangboard/campus workouts here or separately?
 - Should non-send attempts include per-try timestamps, or is aggregated count enough?
 - Any shared taxonomy with exercise timers (locations, RPE scales) worth reusing?
+
+## Gym-use feedback (2026-10-04)
+
+Dogfood notes from using the bouldering session screen at the gym.
+The screen is built (`app/boulder.clj`, `/app/boulder/session`) even though the plan above predates it;
+the data model it shipped with is the session → attempt → problem library described in that namespace's docstring, not the sketch above.
+
+### Stop and cancel a running attempt
+
+User, verbatim:
+
+- "Bouldering needs a stop timer too"
+- "Need a cancel/reset on bouldering"
+
+Treated as one item because both are about getting out of a running attempt without logging it.
+Today an attempt interval can only close by being logged: the routes are `start-attempt!` and `add-attempt!`, with no stop, resume, or discard (`boulder.clj` routes near line 754).
+The only Cancel on the screen closes the "log without a start time" backfill form; it does nothing to a running attempt.
+
+"Stop timer too" points at the workout screen, which has exactly this (see [015](./015-exercise.md), "Second pass, same day: stopping the clock is a first-class path"):
+`Stop timer` freezes the clock with nothing recorded and keeps the log form in place, `Resume timer` reopens it if stopped a beat early.
+Mirroring that gives bouldering a `stopped` state: the attempt keeps its honest duration while the result (sent, falls, problem) is entered after climbing down.
+
+"Cancel/reset" is a separate need: an attempt started by mistake, or on the wrong problem, should be discardable without leaving a bogus zero-result attempt in the session.
+Open: discard means soft-delete the running attempt, versus resetting its beginning to now (restart the clock); possibly both, as "Discard" and "Restart".
+Session-level reset (discard a whole session started by mistake) is not clearly asked for; confirm before adding.
+
+### Visual differentiation from the workout screen
+
+User, verbatim: "Need more visual differentiation between bouldering and workout".
+
+The bouldering screen deliberately "mirrors the workout screen's state machine and visual language" (`boulder.clj` docstring), down to the same neon-cyan primary buttons and toggles.
+At a glance, with a session running, the two read as the same screen.
+Interpretation: keep the shared interaction model, give each activity its own identity — an accent color (the entities dashboard already gives bouldering neon-lime per [063](./063-qol-quick-actions.md)), header icon, and title treatment.
+Approach: mock up and review with the user before changing; check against [087](./087-essential-information-redesign.md) so the redesign does not undo it.
+
+### Delete confirmation is unstyled
+
+User, verbatim: "Delete model on bouldering isn't styled" (read as "modal").
+
+Bouldering edits (attempts, sessions, problems) go through the generic CRUD forms, whose delete uses the browser's native `confirm()` (`crud/forms.clj:180`, and three places in `crud/views.clj`).
+So this is app-wide, not bouldering-specific, and it is tracked in [067](./067-global-action-modal.md), which now lists CRUD delete-confirm as a first consumer.

@@ -5,7 +5,7 @@ description: "Minor improvements without full work-unit docs"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-09-25
+updated: 2026-10-04
 ---
 
 # Backlog
@@ -249,6 +249,23 @@ Reduce O(n) request patterns when fetching habit labels. Target a single query (
 - Update AGENTS.md with linting commands
 - Establish linting rules for codebase consistency
 - Pre-commit hooks for automated linting
+
+## Task Today
+
+### Editing a Task From Today Lands Elsewhere
+Dogfood list (2026-10-04), verbatim: "Editing a task from today doesn't go back to today page".
+- **Cause**: the expanded today card's `edit` link is
+  `/app/crud/form/task/edit/<id>` with no `redirect` param
+  (`src/tech/jgood/gleanmo/app/task_today.clj:157`). The CRUD form already
+  carries `redirect` through as a hidden field (`crud/forms.clj:115-117`), so
+  saving returns to the default CRUD destination only because nothing asks
+  otherwise.
+- **Fix**: append `?redirect=/app/task/today` (URL-encoded) to the link. Check
+  the focus page's identical link (`task_focus.clj:265`) for the same gap,
+  and that delete from that form also honors the param.
+- **Broader**: this is one concrete instance of
+  [045-redirect-audit.md](./045-redirect-audit.md); fix it now rather than
+  waiting on the audit.
 
 ## Task Focus Search
 

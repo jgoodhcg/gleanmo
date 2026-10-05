@@ -5,7 +5,7 @@ description: "Improve task completion feedback and add project selection to quic
 tags: [area/frontend, area/ux, type/improvement]
 priority: high
 created: 2026-02-16
-updated: 2026-09-18
+updated: 2026-10-04
 ---
 
 # Today Page UX Polish
@@ -45,6 +45,24 @@ The today page has two friction points that hurt the user experience:
 - Should default to "no project" for fast entry
 - Must not slow down the quick-add flow for users who don't need project assignment
 - Consider: Tab-navigable, fuzzy search if many projects
+
+#### Dogfood notes (2026-10-04): friction stops capture entirely
+
+Dogfood list, verbatim:
+"There is enough friction to adding projects to tasks that I don't want to add them on today screen event" (likely "even"),
+with the note: "Can we make it easy to add a project and have sane defaults on the other attributes so I can just add stuff without hesitation? I don't like adding stuff and feeling like it's incomplete."
+
+Interpretation: two needs, and the second is the new one.
+
+1. **Project in quick-add** — the item above, confirmed by use. Use a Choices.js select per the UI rules, not a hand-rolled picker.
+   Remember the last-used project between adds, as [093](./093-inbox-quick-capture.md) proposes for capture.
+2. **No "incomplete" feeling** — a quick-added task should be a whole task, not a stub awaiting the full form.
+   That means every other attribute gets a deliberate default at creation (state, focus date, domain, sensitivity, effort, and whatever else the task form shows as empty), chosen so the result reads as finished rather than unfilled.
+   Possibly defaults derived from the chosen project, along the lines of [080](./080-relation-defaults.md) (per-relation prefills).
+   Open: which fields the user actually reads as "missing" when a quick-added task is opened; inventory the task form against a quick-added task before choosing defaults.
+
+Coordinate with [093](./093-inbox-quick-capture.md) (same optional-project capture, but to the inbox) so the two quick-add forms share the project field and default rules,
+and with [094](./094-today-plan.md), whose lightweight day items deliberately have no project — the quick-add must stay clearly a *task* add.
 
 ## Validation
 
