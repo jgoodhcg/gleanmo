@@ -3,7 +3,7 @@ title: "Goals dashboard"
 status: active
 description: "Implement the approved dashboard with reusable numeric types, reading positions, goal storage, and scoped progress queries."
 created: 2026-09-12
-updated: 2026-10-04
+updated: 2026-10-05
 tags: [goals, visualization, schema, reading]
 priority: medium
 ---
@@ -429,6 +429,9 @@ Resolve each item, or move it to another work unit, before archiving this unit.
   This is the same open question [091](./091-pinned-goals.md) left under Notes ("Do I want the graph and goal picker to be on the same page?"), whose options were the selected card above the table on mobile, or a compact goal select replacing the table on small screens.
   Approach: capture the current mobile screens, mock up options, review with the user before building.
   Folds into [087](./087-essential-information-redesign.md) if that redesign reaches goals first.
+  2026-10-05, asked whether goals are mostly checked on the phone, user, verbatim: "I don't now because they look bad on mobile."
+  So mobile use is suppressed by the layout, not absent; its value is higher than current usage suggests.
+  Decision: design the goal card redesign in [090](./090-goal-live-today.md) (2026-10-05 notes) mobile-first, so this item is solved with it rather than after it.
 - [ ] Log from a goal's view (2026-10-04).
   User, verbatim: "I should make it easy to log from the view of a goal. It's often what I want to do after I look at it. Inline?"
   Interpretation: the selected-goal card gains a log action for the goal's measurement, so the look → log → see the needle move loop from [090](./090-goal-live-today.md) happens on one page.
