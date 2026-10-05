@@ -3,7 +3,7 @@ title: "AI Assistance Integration"
 status: draft
 description: "Restore task use through conversational backlog cleanup and daily planning, starting with scoped agent access and approved batch changes"
 created: 2026-07-11
-updated: 2026-10-04
+updated: 2026-10-05
 tags: [integration, ai, mcp, api, security, llm-context]
 priority: high
 ---
@@ -143,7 +143,7 @@ If use stops again, identify the remaining friction before expanding task featur
 Defer Things-style tags, project headings, recurrence, and additional statistics until use demonstrates a need.
 Prioritize fast capture, easy deferral, and a manageable daily list within the existing model.
 Evaluate carry-forward through [012-daily-focus.md](./012-daily-focus.md).
-Consider [offline capture](./043-pwa-experience.md#offline-task-capture-proposed-follow-up) after the daily workflow proves useful.
+Offline capture is now part of [093-inbox-quick-capture.md](./093-inbox-quick-capture.md), built offline-first (decided 2026-10-05).
 
 ### Sensitivity Model
 

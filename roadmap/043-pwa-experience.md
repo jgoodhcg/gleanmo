@@ -1,9 +1,9 @@
 ---
 title: "PWA Experience"
 status: draft
-description: "Verify existing PWA support and plan offline task capture after task adoption improves"
+description: "Verify existing PWA support, show paths in standalone mode, and plan push delivery for reminders; offline capture moved to 093"
 created: 2026-03-01
-updated: 2026-10-04
+updated: 2026-10-05
 tags: [pwa, mobile, ios, android, ux]
 priority: medium
 ---
@@ -33,49 +33,29 @@ The worker has no page caching or offline submission queue.
 Treat the original installation checklist below as verification work against existing source.
 Device behavior still needs manual verification.
 
-### Offline Task Capture (Proposed Follow-up)
+### Offline Task Capture (moved to 093, 2026-10-05)
 
-Prioritize [conversational task cleanup](./061-ai-assistance.md#task-adoption-sequence-2026-09-07) and its adoption check before this work.
-Offline capture addresses losing a thought without cell service.
-It does not resolve backlog overwhelm.
+The offline capture design now lives in [093-inbox-quick-capture.md](./093-inbox-quick-capture.md).
+The user chose to build the capture page offline-first from the start, because a page served from the cache also opens instantly when online.
+That unit also answers the old open question here: captures default to Inbox.
 
-Keep the existing server architecture and add a small capture page that works after an initial online visit.
-The proposed flow is:
+### Reminders and Notifications (decided 2026-10-05)
 
-1. Cache the capture page and required static assets during an online visit.
-2. Save new tasks locally in IndexedDB before attempting delivery.
-3. Show whether each task is saved on the device, awaiting login, or synchronized.
-4. Retry delivery when the app opens or reconnects.
-5. Remove pending entries only after the server acknowledges successful storage.
+Replacing Apple Reminders' scheduled alerts is planned in three milestones, recorded in [086-recurring-tasks.md](./086-recurring-tasks.md#reminder-milestones-2026-10-05).
+Push notifications are the third milestone, not the first.
+The user checks the app daily, so in-app reminders come first.
 
-Use stable submission identifiers and server-side duplicate prevention when retrying requests.
-Retain pending entries across reloads and interrupted requests.
-Handle expired sessions before retrying; do not replay stale authentication or anti-forgery tokens.
-Keep pending entries associated with the originating account.
-Do not submit them to a different account after a login change.
-Background synchronization is an optional enhancement, not a requirement for reliable foreground retries.
+When push is built, it needs:
 
-Limit the first slice to creating tasks and reviewing pending captures.
-Full offline backlog browsing, editing existing tasks, and cross-device conflict resolution remain outside this slice.
-Notification delivery and task reminders are separate work.
+- A time-of-day on tasks (a new attribute, since `task/due-on` is a date).
+- VAPID keys as App Platform environment variables, a subscribe step started by a user tap (iOS requires that), and a stored subscription per device.
+- A Java web-push library and a chime job that sends due reminders once each.
+  Chime runs per container. That is acceptable while production is one App Platform instance; [077-scheduled-work-multi-instance.md](./077-scheduled-work-multi-instance.md) applies before scaling out.
+- iOS and Android both. On iOS, web push only reaches PWAs installed on the home screen, and it cannot use Time Sensitive or Critical alerts.
 
-#### Validation for Offline Capture
-
-- [ ] After an online setup visit, capture works when the app opens without network access.
-- [ ] A pending capture survives reload and application closure on supported target devices.
-- [ ] Reconnection delivers each capture once, including when the server response was lost after a successful write.
-- [ ] Expired sessions retain pending captures and resume delivery after the original account authenticates.
-- [ ] Account changes cannot expose or deliver another account's pending captures.
-- [ ] Storage failures leave input recoverable and never report a successful local save.
-- [ ] Service worker updates preserve pending captures.
-- [ ] Foreground retries work without browser background synchronization support.
-
-#### Decisions Before Implementation
-
-- Which capture fields are necessary beyond the label?
-- Should capture default to Inbox or Today?
-- Which phones and browsers must support the first release?
-- How should logout, device retention, and unsynchronized sensitive text be handled?
+**Geofences are on hold.**
+A PWA has no background location or geofencing.
+The single location-based reminder stays in Apple Reminders.
 
 ### Visible Paths in Standalone Mode (Proposed, 2026-10-04)
 
@@ -151,8 +131,8 @@ Notification subscriptions, server delivery, and reminder scheduling need separa
 
 ## Open Questions
 
-- Resolve the offline capture decisions above after the task adoption check.
-- What push notification use cases should we prioritize? (medication reminders, habit prompts, etc.)
+- Offline capture decisions now live in [093-inbox-quick-capture.md](./093-inbox-quick-capture.md).
+- What push notification use cases should we prioritize beyond task reminders? (medication reminders, habit prompts, etc.)
 - Do we need a separate icon set for iOS vs Android, or can we use a single set?
 - Should the home screen prompt be dismissible permanently or show again after a period?
 

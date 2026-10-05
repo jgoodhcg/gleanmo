@@ -3,7 +3,7 @@ title: "Today as a Daily Plan"
 status: draft
 description: "One short list for the day that brings together chosen tasks, today's habit and goal targets, and lightweight day items that belong to neither"
 created: 2026-10-04
-updated: 2026-10-04
+updated: 2026-10-05
 tags: [tasks, habits, goals, today, ux, design]
 priority: medium
 ---
@@ -76,6 +76,8 @@ Not included:
 
 - Recurring tasks ([086-recurring-tasks.md](./086-recurring-tasks.md)) and inbox capture ([093-inbox-quick-capture.md](./093-inbox-quick-capture.md)).
   They are related, but they are separate entry points.
+  However, the first reminder milestone in [086-recurring-tasks.md](./086-recurring-tasks.md#reminder-milestones-2026-10-05) shows due reminders on today.
+  The composed view should leave room for them.
 - Calendar events on today. They are a likely later addition, not part of the first slice.
 - Agent-built daily plans ([061-ai-assistance.md](./061-ai-assistance.md)).
   An agent could later propose a day's plan through the same view.

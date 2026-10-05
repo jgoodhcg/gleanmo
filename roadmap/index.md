@@ -54,9 +54,10 @@ This sequence does not reorder the infrastructure priorities above.
 1. Deliver scoped agent access for conversational cleanup, next-action selection, and approved batch updates in [061-ai-assistance.md](./061-ai-assistance.md).
 2. Evaluate one week of normal use for voluntary return, useful task choices, and reduced review effort.
 3. Address observed daily friction through [012-daily-focus.md](./012-daily-focus.md), including a proposed review of automatic carry-forward; the direction for today is now [094-today-plan.md](./094-today-plan.md).
-4. Add [inbox quick capture](./093-inbox-quick-capture.md) so Reminders stops being a capture queue, then [offline task capture](./043-pwa-experience.md#offline-task-capture-proposed-follow-up) once the workflow proves useful.
+4. Add [inbox quick capture](./093-inbox-quick-capture.md) so Reminders stops being a capture queue. Decided 2026-10-05: build it offline-first from the start, since a cached page also opens instantly.
+5. Replace Reminders' scheduled alerts in three milestones ([086-recurring-tasks.md](./086-recurring-tasks.md#reminder-milestones-2026-10-05)): in-app date reminders on today, then recurrence, then push. Geofences are on hold because a PWA cannot geofence.
 
-Defer Things-style tags, project headings, recurrence, and additional statistics until use establishes their value.
+Defer Things-style tags, project headings, and additional statistics until use establishes their value. Recurrence is now step 5's second milestone.
 Existing task polish drafts remain candidates; they do not precede the adoption check unless a defect blocks that trial.
 PWA notification scaffolding does not establish working reminder delivery.
 
@@ -100,12 +101,12 @@ PWA notification scaffolding does not establish working reminder delivery.
 ### Draft
 
 - [094-today-plan.md](./094-today-plan.md) - Today as one short daily plan: chosen tasks, habit/goal targets, and lightweight day items that inflate neither tasks nor habits; mockups first
-- [093-inbox-quick-capture.md](./093-inbox-quick-capture.md) - A capture screen as light as today's quick-add that puts tasks into the inbox, with optional project and notes, so Reminders stops being a capture queue
+- [093-inbox-quick-capture.md](./093-inbox-quick-capture.md) - An offline-first capture page that opens instantly from the device cache and syncs tasks into the inbox, so Reminders stops being a capture queue
 - [092-goal-comparisons-records.md](./092-goal-comparisons-records.md) - Compare a goal with last week and last year, show best and worst periods of all time, and count weekly streaks; blocked on how history coverage is established
 - [088-timer-cross-device-staleness.md](./088-timer-cross-device-staleness.md) - A running timer on the home page keeps ticking after it is stopped on another device; pick a pushed invalidation or a long-interval poll
 - [084-symptom-blood-glucose.md](./084-symptom-blood-glucose.md) - Record blood glucose alongside the other vitals on symptom-log, and allow a vitals-only log
 - [087-essential-information-redesign.md](./087-essential-information-redesign.md) - Reduce every page to its essential information, then decide a holistic minimal redesign (hierarchy, space, phone and desktop ergonomics) in Claude Design; umbrella for 038, 040, and the backlog CRUD redesign
-- [086-recurring-tasks.md](./086-recurring-tasks.md) - Tasks that repeat on a schedule, fixed-date or from completion, so recurring chores need no separate reminders app
+- [086-recurring-tasks.md](./086-recurring-tasks.md) - Tasks that repeat on a schedule, plus the reminder plan: in-app date reminders, then recurrence, then push
 - [085-dream-log.md](./085-dream-log.md) - A dream-log entity, so dreams can later be mined for recurring themes
 - [082-exercise-effort.md](./082-exercise-effort.md) - Record on each exercise line whether a set reached failure or how many reps were left
 - [078-data-export.md](./078-data-export.md) - Export page, generic per-entity exporter, and the composite registry, in Markdown/CSV/JSON; interim to the full ai-assistance API/CLI/MCP
@@ -135,7 +136,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 - [023-reading-airtable-spec.md](./023-reading-airtable-spec.md) - Airtable schema reference for reading migration
 - [026-roam-integration.md](./026-roam-integration.md) - Project timers shipped; Roam metrics integration pending
 - [034-today-reorder-performance.md](./034-today-reorder-performance.md) - Fix slow response when reordering items on the today page
-- [043-pwa-experience.md](./043-pwa-experience.md) - Verify PWA scaffolding; show paths and offer copy-link / open-in-browser in standalone mode; offline task capture follows the task adoption check
+- [043-pwa-experience.md](./043-pwa-experience.md) - Verify PWA scaffolding; show paths and offer copy-link / open-in-browser in standalone mode; push delivery requirements for reminders (offline capture moved to 093)
 - [064-timer-dashboard-inline-create.md](./064-timer-dashboard-inline-create.md) - True inline parent creation on timer dashboards (follow-up to 048-inline-entity-creation.md)
 - [041-ui-juice.md](./041-ui-juice.md) - Micro-interactions, animations, and haptic feedback for delight
 - [067-global-action-modal.md](./067-global-action-modal.md) - One shared HTMX modal shell for confirm-and-act prompts, replacing per-page overlays, inline prompt slots, and the native `confirm()` on CRUD deletes
