@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Goal card · 04 Ruler, generic</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="goal-card.css">
+<style>
+  .pins { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 12px; padding-bottom: 2px; scrollbar-width: none; }
+  .pins .chip { cursor: pointer; }
+  .overall { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; font-size: 12px; }
+  .overall .bar { height: 8px; overflow: visible; }
+  .overall .zoom { position: absolute; top: -4px; bottom: -4px; border: 1px solid var(--white); border-radius: 3px; min-width: 4px; }
+  .zoom-note { font-size: 11px; color: var(--text-2); margin-top: 4px; text-align: center; }
+  .ruler { position: relative; height: 120px; margin: 22px 8px 0; }
+  .ruler .axis { position: absolute; left: 0; right: 0; top: 34px; height: 2px; background: var(--border); }
+  .ruler .minor { position: absolute; top: 30px; width: 1px; height: 10px; background: var(--border); }
+  .ruler .seg { position: absolute; top: 29px; height: 12px; border-radius: 3px; }
+  .ruler .m { position: absolute; top: 20px; width: 0; }
+  .ruler .m i { position: absolute; left: -1px; top: 4px; width: 2px; height: 22px; background: var(--text-2); }
+  .ruler .m > span { position: absolute; transform: translateX(-50%); white-space: nowrap; font-size: 11px; text-align: center; line-height: 1.3; }
+  .ruler .m.up > span { bottom: 6px; }
+  .ruler .m.down i { height: calc(22px + var(--lane, 0) * 40px); }
+  .ruler .m.down > span { top: calc(30px + var(--lane, 0) * 40px); }
+  .ruler .m.you i { background: var(--white); height: 30px; top: 0; }
+  .ruler .m.keep i { background: var(--amber); }
+  .ruler .m.even i { background: var(--gray-line); }
+  .ruler .m.round i { background: var(--cyan); }
+  .ruler .m.target i { background: var(--lime); }
+  .ruler .m.left > span { transform: none; left: -4px; }
+  .ruler .m.right > span { transform: translateX(-100%); left: 0; text-align: right; }
+  .ruler .m.off i { display: none; }
+  .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 8px; padding-top: 14px; border-top: 1px solid var(--border); }
+  .stats .v { font-size: 18px; font-weight: 700; color: var(--white); }
+  .foot { margin-top: 16px; }
+  @media (min-width: 760px) { .stats { grid-template-columns: repeat(4, 1fr); } }
+</style>
+</head>
+<body>
+<div class="mock-bar"><strong>Mockup 04 · Ruler, generic</strong> <a href="mockup-claude-code-00-index.html">← index</a></div>
+<div class="page"><div id="root"></div></div>
+<script>
+// Scenarios. Only "Pullup" is real (the 2026-10-05 screenshot); the rest are fictional stress cases.
+const SCENARIOS = [
+  { key: 'pullup', label: 'Pullup (yours)', unit: 'reps', dp: 0, target: 5000, totalDays: 366, elapsed: 19, before: 245, end: 'Sep 16, 2027', source: 'Exercise lines · Pullup · Reps' },
+  { key: 'behind', label: 'Far behind', unit: 'min', dp: 0, target: 6000, totalDays: 365, elapsed: 60, before: 400, end: 'Dec 31, 2026', source: 'Meditation · Duration' },
+  { key: 'ahead', label: 'Far ahead', unit: 'reps', dp: 0, target: 3000, totalDays: 365, elapsed: 100, before: 1400, end: 'Jun 26, 2027', source: 'Exercise lines · Pushup · Reps' },
+  { key: 'decimal', label: 'Decimals', unit: 'km', dp: 1, target: 1000, totalDays: 365, elapsed: 40, before: 95.5, end: 'Aug 26, 2027', source: 'Running · Distance' },
+  { key: 'finish', label: 'Near the end', unit: 'reps', dp: 0, target: 500, totalDays: 30, elapsed: 27, before: 470, end: 'Oct 7, 2026', source: 'Exercise lines · Dip · Reps' },
+];
+// Today's amount as a multiple of the required rate, so every scenario gets comparable states.
+const TODAY = [
+  { key: '0', label: 'None yet', f: 0 },
+  { key: '0.7', label: 'Some', f: 0.7 },
+  { key: '1', label: "A day's pace", f: 1 },
+  { key: '2.2', label: 'Double', f: 2.2 },
+];
+
+function niceStep(x) {
+  const p = Math.pow(10, Math.floor(Math.log10(x)));
+  const f = x / p;
+  return p * (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10);
+}
+
+function compute(s, f) {
+  const round = (n) => Math.round(n * 10 ** s.dp) / 10 ** s.dp;
+  const daysLeft = s.totalDays - s.elapsed; // includes today
+  const required = (s.target - s.before) / daysLeft;
+  const today = round(required * f);
+  const logged = round(s.before + today);
+  const evenRate = s.target / s.totalDays;
+  const evenStart = evenRate * s.elapsed;
+  const evenTonight = evenRate * (s.elapsed + 1);
+  const keep = s.before + required;
+  const D = required; // one day of the pace you need: the ruler's unit
+
+  // Window: one day of pace behind where today started, 2.5 days past where you are.
+  let lo = Math.max(0, s.before - D);
+  let hi = logged + 2.5 * D;
+  const major = niceStep(3 * D); // labelled round-number threshold
+  const nextMajor = (Math.floor(logged / major) + 1) * major;
+  // Pull nearby marks into view; anything further becomes an edge marker with its distance.
+  const near = 4 * D;
+  if (nextMajor - logged <= near) hi = Math.max(hi, nextMajor + 0.3 * D);
+  if (Math.abs(evenTonight - logged) <= near) {
+    hi = Math.max(hi, evenTonight + 0.3 * D);
+    lo = Math.max(0, Math.min(lo, evenTonight - 0.3 * D));
+  }
+  hi = Math.min(hi, s.target + 0.3 * D);
+  const minor = niceStep((hi - lo) / 8);
+
+  return { s, required, today, logged, evenRate, evenStart, evenTonight, keep, D, lo, hi, major, nextMajor, minor, daysLeft,
+    average: s.before / s.elapsed, gapStart: s.before - evenStart };
+}
+
+const fmt = (n, dp = 0) => Number(n).toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp });
+
+let scenario = 'pullup';
+let todayKey = '0';
+
+function render() {
+  const s = SCENARIOS.find((x) => x.key === scenario);
+  const v = compute(s, TODAY.find((t) => t.key === todayKey).f);
+  const dp = s.dp;
+  const u = s.unit;
+  const pos = (n) => ((n - v.lo) / (v.hi - v.lo)) * 100;
+  const delta = (n) => {
+    const d = n - v.logged;
+    const a = fmt(Math.abs(d), dp);
+    return d > 0 ? `${a} to go` : d < 0 ? `${a} past` : 'here';
+  };
+  const marks = [];
+  const add = (n, cls, name) => marks.push({ n, cls, name });
+  add(v.keep, 'keep', 'keep pace today');
+  add(v.evenTonight, 'even', 'even pace tonight');
+  // A round number that sits on top of a pace mark adds nothing; drop it.
+  const clash = (n) => Math.abs(n - v.keep) < 0.25 * v.D || Math.abs(n - v.evenTonight) < 0.25 * v.D;
+  if (v.nextMajor < s.target && !clash(v.nextMajor)) add(v.nextMajor, 'round', '');
+  if (s.target <= v.hi) add(s.target, 'target', 'target');
+
+  const ticks = [];
+  for (let n = Math.ceil(v.lo / v.minor) * v.minor; n <= v.hi; n += v.minor) ticks.push(`<span class="minor" style="left:${pos(n)}%"></span>`);
+
+  const markHTML = marks.sort((a, b) => a.n - b.n).map((m) => {
+    const label = `<span class="num ${m.cls === 'keep' ? 'amber' : m.cls === 'round' ? 'cyan' : m.cls === 'target' ? 'lime' : 'white'}">${m.cls === 'round' || m.cls === 'target' ? fmt(m.n, Number.isInteger(m.n) ? 0 : dp) : fmt(Math.ceil(m.n * 10 ** dp) / 10 ** dp, dp)}</span>${m.name ? ` <span class="muted">${m.name}</span>` : ''}<br><span class="muted num">${delta(m.n)}</span>`;
+    if (m.n < v.lo) return `<div class="m ${m.cls} down off left" style="left:0%"><i></i><span>← ${label}</span></div>`;
+    if (m.n > v.hi) return `<div class="m ${m.cls} down off right" style="left:100%"><i></i><span>${label} →</span></div>`;
+    const p = pos(m.n);
+    return `<div class="m ${m.cls} down${p > 85 ? ' right' : p < 15 ? ' left' : ''}" style="left:${p}%"><i></i><span>${label}</span></div>`;
+  }).join('');
+  const pY = pos(v.logged);
+  const you = `<div class="m you up${pY < 15 ? ' left' : pY > 85 ? ' right' : ''}" style="left:${pY}%"><i></i><span class="white"><b class="num">${fmt(v.logged, dp)}</b> <span class="muted">· +${fmt(v.today, dp)} today</span></span></div>`;
+  const segs = `<div class="seg" style="left:0;width:${pos(s.before)}%;background:var(--cyan)"></div>
+    <div class="seg" style="left:${pos(s.before)}%;width:${pos(v.logged) - pos(s.before)}%;background:var(--lime)"></div>`;
+
+  const pct = (n) => Math.min(100, (n / s.target) * 100);
+  const gap = v.gapStart;
+  document.getElementById('root').innerHTML = `
+    <div class="pins">
+      ${SCENARIOS.map((x) => `<span class="chip ${x.key === scenario ? 'on' : ''}" data-scn="${x.key}">${x.label.replace(' (yours)', '')}</span>`).join('')}
+      <span class="chip">All goals →</span>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div><h2>${s.label.replace(' (yours)', '')}</h2><div class="src">${s.source} · ${fmt(s.target)} ${u} by ${s.end}</div></div>
+        <div class="actions"><span>★ Pinned</span><span>Edit</span><span>⋯</span></div>
+      </div>
+      <div class="card-body">
+        <div class="overall">
+          <span class="white num"><b>${fmt(v.logged, dp)}</b></span>
+          <span class="bar"><span class="fill" style="width:${pct(v.logged)}%"></span>
+            <span class="zoom" style="left:${pct(v.lo)}%;width:${pct(v.hi) - pct(v.lo)}%"></span></span>
+          <span class="muted num">${fmt(s.target)} ${u}</span>
+        </div>
+        <div class="zoom-note">ruler below: ${fmt(v.lo, dp)}–${fmt(v.hi, dp)} ${u} (the outlined slice)</div>
+        <div class="ruler">
+          <div class="axis"></div>${ticks.join('')}${segs}${markHTML}${you}
+        </div>
+        <div class="stats">
+          <div><div class="eyebrow">Today</div><div class="v num">${fmt(v.today, dp)}</div></div>
+          <div><div class="eyebrow">Avg / elapsed day</div><div class="v num">${fmt(v.average, 1)}</div></div>
+          <div><div class="eyebrow">Pace needed</div><div class="v amber num">${fmt(v.required, 1)}</div></div>
+          <div><div class="eyebrow">Gap at day start</div><div class="v num">${gap < 0 ? '−' : '+'}${fmt(Math.abs(gap), dp)}</div></div>
+        </div>
+        <div class="foot"><button class="log-btn">＋ Log</button></div>
+      </div>
+      <details class="more"><summary><span>Details · chart</span></summary>
+        <div class="inner"><dl class="kv">
+          <dt>Days left (incl. today)</dt><dd class="num">${v.daysLeft}</dd>
+          <dt>Even pace</dt><dd class="num">${fmt(v.evenRate, 1)} ${u}/day</dd>
+          <dt>Ruler unit (one day of pace needed)</dt><dd class="num">${fmt(v.D, 1)} ${u}</dd>
+          <dt>Labelled round step (≈3 days)</dt><dd class="num">${fmt(v.major, dp)} ${u}</dd>
+          <dt>Minor ticks</dt><dd class="num">${fmt(v.minor, dp)} ${u}</dd>
+        </dl><p class="note">The cumulative chart stays here, unchanged from production.</p></div>
+      </details>
+    </div>`;
+
+  // Stack labels into lanes so close marks never overlap.
+  const placed = [];
+  document.querySelectorAll('.ruler .m.down').forEach((el) => {
+    const span = el.querySelector(':scope > span');
+    for (let lane = 0; lane < 5; lane++) {
+      el.style.setProperty('--lane', lane);
+      const r = span.getBoundingClientRect();
+      if (!placed.some((q) => q.lane === lane && r.left < q.right + 10 && r.right > q.left - 10)) {
+        placed.push({ lane, left: r.left, right: r.right });
+        break;
+      }
+    }
+  });
+  document.querySelector('.ruler').style.height = `${80 + Math.max(0, ...placed.map((q) => q.lane)) * 40}px`;
+
+  document.querySelectorAll('.mock-bar button').forEach((b) =>
+    b.setAttribute('aria-pressed', String(b.dataset.scn === scenario || b.dataset.today === todayKey)));
+}
+
+const bar = document.querySelector('.mock-bar');
+bar.insertAdjacentHTML('beforeend', `
+  <span class="group"><strong>Goal:</strong>${SCENARIOS.map((s) => `<button data-scn="${s.key}">${s.label}</button>`).join('')}</span>
+  <span class="group"><strong>Today:</strong>${TODAY.map((t) => `<button data-today="${t.key}">${t.label}</button>`).join('')}</span>`);
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-scn],[data-today]');
+  if (!b) return;
+  if (b.dataset.scn) scenario = b.dataset.scn;
+  if (b.dataset.today) todayKey = b.dataset.today;
+  render();
+});
+const params = new URLSearchParams(location.search);
+scenario = params.get('goal') || scenario;
+todayKey = params.get('today') || todayKey;
+render();
+</script>
+</body>
+</html>
