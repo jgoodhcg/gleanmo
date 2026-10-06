@@ -25,3 +25,5 @@ mockups/<yyyy-mm>-<topic>/<agent>/mockup-<agent>-<nn>-<slug>.html
     - Data proposal: `codex/goals-08-data-contract.md`
     - Browser checks: `codex/goals-08-validation.md`
   - Crit sheet: `claude/mockup-claude-crit-sheet.html` — every visualization from all four rounds, grouped by idea, each with a plate ID (A1, B3…) for comments. Screenshots in `claude/review-shots/`.
+- `2026-10-goal-card` — selected-goal card redesign, mobile-first: today's amount up front, the gap to even pace, nearer thresholds (roadmap 090, 2026-10-05 notes).
+  - Claude Code: `claude-code/mockup-claude-code-00-index.html`

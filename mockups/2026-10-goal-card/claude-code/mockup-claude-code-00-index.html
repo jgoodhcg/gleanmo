@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Goal card mockups</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="goal-card.css">
+<style>
+  .intro { max-width: 900px; }
+  .intro h1 { color: var(--white); font-size: 20px; margin: 0 0 8px; }
+  .intro p, .intro li { color: var(--text); font-size: 13px; }
+  .intro code { color: var(--cyan); }
+  section { margin-top: 28px; }
+  section h2 { color: var(--white); font-size: 16px; margin: 0 0 4px; }
+  section h2 a { color: inherit; }
+  section p { margin: 0 0 12px; color: var(--text-2); font-size: 12px; max-width: 900px; }
+  .frames { display: flex; gap: 20px; align-items: flex-start; overflow-x: auto; padding-bottom: 8px; }
+  .frame { flex: none; }
+  .frame .lbl { font-size: 11px; color: var(--text-2); margin-bottom: 4px; }
+  .frame iframe { display: block; border: 1px solid var(--border); border-radius: 14px; background: var(--bg); }
+  .phone iframe { width: 390px; height: 760px; }
+  .desk iframe { width: 1100px; height: 760px; }
+  .page { max-width: none; }
+</style>
+</head>
+<body>
+<div class="mock-bar"><strong>Goal card mockups · 2026-10</strong></div>
+<div class="page">
+  <div class="intro">
+    <h1>Goal card redesign</h1>
+    <p>From the 2026-10-05 dogfood notes in <code>roadmap/090-goal-live-today.md</code> and the mobile item in <code>081</code>.
+      Same Pullup goal as the screenshot: 245 of 5,000 reps, 19 elapsed days, 347 days left.
+      The controls above drive every frame below. Open "Details · chart" in any frame to see what moved out of the way.</p>
+    <ul>
+      <li><b>Keep pace</b> = today's share at the required rate (the shipped "needed today"): 13.7 → 14.</li>
+      <li><b>Gap</b> = how far behind the even-pace line you were at the start of today: 259.6 − 245 ≈ 15. Fixed for the day.</li>
+      <li><b>Closes the gap</b> = reps still needed today to be on the even-pace line by midnight: 273.2 − logged ≈ 29 at the start of the day.</li>
+      <li><b>Thresholds:</b> "round step" is a round number near 3 days at the required rate (50 here); "even-pace line" uses the gap-closed point (260); "both" shows whichever comes first, plus the other.</li>
+      <li>Common to all three: a compact goal select replaces the table above the card (pinned goals show as chips on wider screens), one number per rate, "elapsed" in place of "completed", a Log button, and the chart and secondary numbers behind a disclosure.</li>
+    </ul>
+  </div>
+
+  <section>
+    <h2><a href="mockup-claude-code-01-today-first.html">01 · Today first</a></h2>
+    <p>One big line answers "what do I do today". The total sits beside a bar zoomed to the current 500-rep stage, so 245 isn't a sliver of 5,000.</p>
+    <div class="frames">
+      <div class="frame phone"><div class="lbl">390 px</div><iframe data-src="mockup-claude-code-01-today-first.html"></iframe></div>
+      <div class="frame desk"><div class="lbl">1100 px</div><iframe data-src="mockup-claude-code-01-today-first.html"></iframe></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><a href="mockup-claude-code-02-three-numbers.html">02 · Three numbers</a></h2>
+    <p>Today, Gap, Next as three equal tiles with one label each. Avg and pace needed become two bars you can compare without reading.</p>
+    <div class="frames">
+      <div class="frame phone"><div class="lbl">390 px</div><iframe data-src="mockup-claude-code-02-three-numbers.html"></iframe></div>
+      <div class="frame desk"><div class="lbl">1100 px</div><iframe data-src="mockup-claude-code-02-three-numbers.html"></iframe></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><a href="mockup-claude-code-03-zoomed-ruler.html">03 · Zoomed ruler</a></h2>
+    <p>A number line zoomed to the next few dozen reps: where you are, the next round number, where the gap closes, and where even pace is at midnight. Thresholds become places on a line, not a sentence.</p>
+    <div class="frames">
+      <div class="frame phone"><div class="lbl">390 px</div><iframe data-src="mockup-claude-code-03-zoomed-ruler.html"></iframe></div>
+      <div class="frame desk"><div class="lbl">1100 px</div><iframe data-src="mockup-claude-code-03-zoomed-ruler.html"></iframe></div>
+    </div>
+  </section>
+</div>
+<script src="goal-card-model.js"></script>
+<script>
+  const frames = [...document.querySelectorAll('iframe')];
+  frames.forEach((f) => { f.src = f.dataset.src + '?embed=1'; });
+  // The index's own bar reuses the shared controls and forwards each change to every frame.
+  mountMock(() => {});
+  let state = 'start', rule = 'round';
+  document.querySelector('.mock-bar').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (b.dataset.state) state = b.dataset.state;
+    if (b.dataset.rule) rule = b.dataset.rule;
+    frames.forEach((f) => f.contentWindow.postMessage({ goalMock: true, state, rule }, '*'));
+  });
+</script>
+</body>
+</html>

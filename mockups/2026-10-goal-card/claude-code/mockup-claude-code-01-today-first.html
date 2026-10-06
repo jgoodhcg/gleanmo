@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Goal card · 01 Today first</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="goal-card.css">
+<style>
+  .lead { display: grid; gap: 4px; }
+  .lead .big { font-size: 34px; font-weight: 700; line-height: 1.1; }
+  .lead .big small { display: block; margin-top: 4px; font-size: 16px; font-weight: 400; color: var(--text); }
+  .lead .second { font-size: 14px; color: var(--text); }
+  .lead .second b { color: var(--white); }
+  .row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
+  .progress { margin-top: 22px; }
+  .progress .top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+  .progress .total { font-size: 20px; font-weight: 700; color: var(--white); }
+  .progress .next { font-size: 13px; text-align: right; }
+  .rates { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
+  .rates .v { font-size: 18px; font-weight: 700; color: var(--white); }
+  .rates .v.amber { color: var(--amber); }
+  @media (min-width: 760px) {
+    .lead .big { font-size: 44px; }
+    .split { display: grid; grid-template-columns: 1.2fr 1fr; gap: 32px; align-items: end; }
+    .progress { margin-top: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="mock-bar"><strong>Mockup 01 · Today first</strong> <a href="mockup-claude-code-00-index.html">← index</a></div>
+<div class="page">
+  <div id="root"></div>
+</div>
+<script src="goal-card-model.js"></script>
+<script>
+mountMock((v) => {
+  const u = v.g.unit;
+  const lead = v.caughtUp
+    ? `<div class="big lime">✓ On even pace <small>${fmt(-v.catchUp)} ${u} ahead</small></div>
+       <div class="second">Gap closed. Anything more today is banked.</div>`
+    : v.paceMet
+    ? `<div class="big lime">✓ Pace kept <small>for today</small></div>
+       <div class="second"><b class="num">${Math.ceil(v.catchUp)} more</b> closes your ${fmt(v.gap)}-${u.replace(/s$/, '')} gap</div>`
+    : `<div class="big amber num">${Math.ceil(v.keepPace)} ${u} <small>today to keep pace</small></div>
+       <div class="second"><b class="num">${Math.ceil(v.catchUp)}</b> closes your ${fmt(v.gap)}-${u.replace(/s$/, '')} gap · ${fmt(v.todayReps)} done so far</div>`;
+  const ticks = v.thresholds.map((t) =>
+    `<span class="tick ${t.label ? 'pace' : ''}" style="left:${v.inStage(t.value)}%"></span>`).join('');
+  document.getElementById('root').innerHTML = `
+    ${pickerHTML(v)}
+    <div class="card">
+      ${headHTML(v)}
+      <div class="card-body">
+        <div class="split">
+          <div>
+            <div class="lead">${lead}</div>
+            <div class="row"><button class="log-btn">＋ Log pullups</button><span class="note">opens a prefilled exercise line</span></div>
+          </div>
+          <div class="progress">
+            <div class="top">
+              <span class="total num">${fmt(v.logged)} <span class="muted" style="font-size:13px;font-weight:400">/ ${fmt(v.g.target)}</span></span>
+              <span class="next">${v.thresholds.map((t) => thresholdText(t, u)).join('<br>')}</span>
+            </div>
+            <div class="bar"><span class="fill" style="width:${v.inStage(v.before)}%"></span><span class="today" style="left:${v.inStage(v.before)}%;width:${v.inStage(v.logged) - v.inStage(v.before)}%"></span>${ticks}</div>
+            <div class="note" style="margin-top:6px;display:flex;justify-content:space-between"><span class="num">${fmt(v.stage.start)}</span><span>stage ${v.stage.n} of ${v.stage.of} · ${v.pct.toFixed(1)}% overall</span><span class="num">${fmt(v.stage.end)}</span></div>
+          </div>
+        </div>
+        <div class="rates">
+          <div><div class="eyebrow">Avg per elapsed day</div><div class="v num">${fmt1(v.average)}</div></div>
+          <div><div class="eyebrow">Pace needed</div><div class="v amber num">${fmt1(v.required)}</div></div>
+        </div>
+      </div>
+      ${detailsHTML(v)}
+    </div>`;
+});
+</script>
+</body>
+</html>

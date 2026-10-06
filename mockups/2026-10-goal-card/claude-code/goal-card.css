@@ -1,0 +1,124 @@
+/* Shared styles for the 2026-10 goal card mockups. Tokens mirror resources/tailwind.css. */
+:root {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface-2: #1c232c;
+  --border: #30363d;
+  --text: #c9d1d9;
+  --text-2: #8b949e;
+  --white: #f0f6fc;
+  --amber: #f59e0b;
+  --cyan: #06b6d4;
+  --lime: #32cd32;
+  --violet: #8b5cf6;
+  --pink: #ec4899;
+  --gray-line: #6b7785;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+.num { font-variant-numeric: tabular-nums; }
+.muted { color: var(--text-2); }
+.white { color: var(--white); }
+.amber { color: var(--amber); }
+.cyan { color: var(--cyan); }
+.lime { color: var(--lime); }
+.violet { color: var(--violet); }
+
+/* Mockup chrome: not part of the design */
+.mock-bar {
+  display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center;
+  padding: 10px 16px; border-bottom: 1px dashed #444c56;
+  background: repeating-linear-gradient(135deg, #12161c 0 8px, #141920 8px 16px);
+  font-size: 12px; color: var(--text-2);
+}
+.mock-bar strong { color: var(--text); font-weight: 700; }
+.mock-bar .group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.mock-bar button {
+  font: inherit; font-size: 12px; color: var(--text); background: #0d1117;
+  border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; cursor: pointer;
+}
+.mock-bar button[aria-pressed="true"] { border-color: var(--cyan); color: var(--cyan); }
+.mock-bar a { color: var(--cyan); }
+body.embed .mock-bar { display: none; }
+
+/* Page */
+.page { max-width: 1120px; margin: 0 auto; padding: 16px; }
+.page-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.page-head h1 { margin: 0; font-size: 18px; color: var(--white); }
+.page-head a { color: var(--text-2); font-size: 12px; text-decoration: none; }
+
+/* Compact goal picker (replaces the table above the card on small screens) */
+.picker {
+  display: flex; gap: 8px; align-items: center; margin-bottom: 12px;
+}
+.picker .select {
+  flex: 1; display: flex; justify-content: space-between; align-items: center;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 12px; color: var(--white);
+}
+.picker .select small { color: var(--text-2); }
+.picker .pins { display: none; gap: 6px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; font-size: 12px; color: var(--text-2);
+}
+.chip.on { border-color: var(--cyan); color: var(--white); }
+.chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-2); }
+.chip .dot.met { background: var(--lime); }
+.chip .dot.behind { background: var(--amber); }
+@media (min-width: 760px) {
+  .picker .select { flex: 0 0 auto; min-width: 220px; }
+  .picker .pins { display: flex; }
+}
+
+/* Card */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.card-head {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+  padding: 14px 16px 0;
+}
+.card-head h2 { margin: 0; font-size: 16px; color: var(--white); }
+.card-head .src { font-size: 11px; color: var(--text-2); margin-top: 2px; }
+.card-head .actions { display: flex; white-space: nowrap; gap: 12px; font-size: 12px; color: var(--text-2); }
+.card-head .actions span:first-child { color: var(--cyan); }
+.card-body { padding: 16px; }
+@media (min-width: 760px) { .card-body { padding: 20px 24px; } .card-head { padding: 18px 24px 0; } }
+
+.eyebrow { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); }
+
+/* Progress bar */
+.bar { position: relative; height: 10px; background: #0d1117; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+.bar .fill { position: absolute; inset: 0 auto 0 0; background: var(--cyan); }
+.bar .today { position: absolute; top: 0; bottom: 0; background: var(--lime); }
+.bar .tick { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--white); opacity: .8; }
+.bar .tick.pace { background: var(--gray-line); opacity: 1; }
+
+/* Details disclosure */
+details.more { border-top: 1px solid var(--border); }
+details.more summary {
+  cursor: pointer; list-style: none; padding: 12px 16px; font-size: 12px; color: var(--text-2);
+  display: flex; justify-content: space-between;
+}
+details.more summary::-webkit-details-marker { display: none; }
+details.more summary::after { content: "▾"; }
+details.more[open] summary::after { content: "▴"; }
+details.more .inner { padding: 0 16px 16px; }
+@media (min-width: 760px) { details.more summary, details.more .inner { padding-left: 24px; padding-right: 24px; } }
+.kv { display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; font-size: 12px; }
+.kv dt { color: var(--text-2); }
+.kv dd { margin: 0; text-align: right; color: var(--text); }
+.chart { width: 100%; height: auto; display: block; margin-top: 12px; }
+
+.log-btn {
+  display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 13px; font-weight: 700;
+  color: var(--bg); background: var(--cyan); border: 0; border-radius: 8px; padding: 8px 14px; cursor: pointer;
+}
+.note { font-size: 11px; color: var(--text-2); }

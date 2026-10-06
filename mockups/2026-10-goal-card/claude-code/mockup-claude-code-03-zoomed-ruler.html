@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Goal card · 03 Zoomed ruler</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="goal-card.css">
+<style>
+  .overall { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+  .overall .bar { flex: 1; height: 6px; }
+  .sentence { font-size: 18px; color: var(--white); margin: 18px 0 4px; line-height: 1.35; }
+  .sentence .amber, .sentence .lime { font-weight: 700; }
+  .ruler { position: relative; height: 120px; margin: 8px 6px 0; }
+  .ruler .axis { position: absolute; left: 0; right: 0; top: 34px; height: 2px; background: var(--border); }
+  .ruler .seg { position: absolute; top: 29px; height: 12px; border-radius: 3px; }
+  .ruler .m { position: absolute; top: 20px; width: 0; }
+  .ruler .m i { position: absolute; left: -1px; top: 4px; width: 2px; height: 22px; background: var(--text-2); }
+  .ruler .m > span { position: absolute; transform: translateX(-50%); white-space: nowrap; font-size: 11px; text-align: center; line-height: 1.25; }
+  .ruler .m.up > span { bottom: 6px; }
+  .ruler .m.down > span { top: 32px; }
+  .ruler .m.down i { height: calc(22px + var(--lane, 0) * 34px); }
+  .ruler .m.you i { background: var(--white); height: 30px; top: 0; }
+  .ruler .m.pace i { background: var(--gray-line); }
+  .ruler .m.round i { background: var(--cyan); }
+  .ruler .m.tonight i { background: var(--amber); }
+  .ruler .m.left > span { transform: none; left: -4px; }
+  .ruler .m.right > span { transform: translateX(-100%); }
+  .ruler .m.down > span { top: calc(30px + var(--lane, 0) * 34px); }
+  .foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 8px; font-size: 12px; }
+  @media (min-width: 760px) { .sentence { font-size: 22px; } }
+</style>
+</head>
+<body>
+<div class="mock-bar"><strong>Mockup 03 · Zoomed ruler</strong> <a href="mockup-claude-code-00-index.html">← index</a></div>
+<div class="page"><div id="root"></div></div>
+<script src="goal-card-model.js"></script>
+<script>
+mountMock((v) => {
+  const u = v.g.unit;
+  // Window: a little behind where the day started to a little past even pace tonight.
+  const lo = Math.floor((v.before - 15) / 10) * 10;
+  const hiRaw = Math.max(v.evenTonight, v.logged, ...v.thresholds.map((t) => t.value)) + 12;
+  const hi = Math.ceil(hiRaw / 10) * 10;
+  const pos = (n) => ((n - lo) / (hi - lo)) * 100;
+  const marks = [];
+  const showRound = v.thresholds.some((t) => !t.label);
+  if (showRound) {
+    for (let n = Math.ceil(lo / v.step) * v.step; n <= hi; n += v.step) {
+      if (n > v.logged) marks.push({ n, cls: 'round', text: `<span class="cyan num">${fmt(n)}</span><br><span class="muted">${fmt(n - v.logged)} to go</span>` });
+    }
+  }
+  // Pace marks always show on the ruler; the threshold rule only toggles the round marks.
+  {
+    if (v.evenAtStart > v.logged) marks.push({ n: v.evenAtStart, cls: 'pace', text: `<span class="num">${fmt(Math.ceil(v.evenAtStart))}</span><br><span class="muted">${fmt(Math.ceil(v.evenAtStart) - v.logged)} to go · gap closed</span>` });
+    marks.push({ n: v.evenTonight, cls: 'tonight', text: `<span class="amber num">${fmt(Math.ceil(v.evenTonight))}</span><br><span class="muted">${fmt(Math.ceil(v.evenTonight) - v.logged)} to go · even pace tonight</span>` });
+  }
+  // Alternate label sides by order so close marks don't collide; "you" always on top.
+  marks.sort((a, b) => a.n - b.n);
+  const markHTML = marks.map((m, i) => {
+    const p = pos(m.n);
+    const edge = p > 88 ? ' right' : '';
+    return ` <div class="m ${m.cls} down${edge}" style="left:${p}%"><i></i><span>${m.text}</span></div>`;
+  }).join('');
+  const you = `<div class="m you up${pos(v.logged) < 12 ? ' left' : ''}" style="left:${pos(v.logged)}%"><i></i><span class="white"><b class="num">${fmt(v.logged)}</b> you</span></div>`;
+  const segs = `<div class="seg" style="left:0;width:${pos(v.before)}%;background:var(--cyan)"></div>
+    <div class="seg" style="left:${pos(v.before)}%;width:${pos(v.logged) - pos(v.before)}%;background:var(--lime)"></div>`;
+  const sentence = v.caughtUp
+    ? `<span class="lime">✓ On even pace</span>, ${fmt(-v.catchUp)} ${u} ahead.`
+    : v.paceMet
+    ? `<span class="lime">✓ Pace kept.</span> <span class="num">${Math.ceil(v.catchUp)}</span> more closes the gap.`
+    : `<span class="amber num">${Math.ceil(v.keepPace)} ${u}</span> keeps pace today. <span class="num">${Math.ceil(v.catchUp)}</span> closes the gap.`;
+  document.getElementById('root').innerHTML = `
+    ${pickerHTML(v)}
+    <div class="card">
+      ${headHTML(v)}
+      <div class="card-body">
+        <div class="overall"><span class="white num"><b>${fmt(v.logged)}</b></span><span class="bar"><span class="fill" style="width:${v.pct}%"></span></span><span class="muted num">${fmt(v.g.target)}</span></div>
+        <p class="sentence">${sentence}</p>
+        <div class="ruler">
+          <div class="axis"></div>${segs}${markHTML}${you}
+        </div>
+        <div class="foot">
+          <span class="muted">Avg per elapsed day <b class="white num">${fmt1(v.average)}</b> · pace needed <b class="amber num">${fmt1(v.required)}</b></span>
+          <button class="log-btn">＋ Log pullups</button>
+        </div>
+      </div>
+      ${detailsHTML(v)}
+    </div>`;
+  const placed = [];
+  document.querySelectorAll('.ruler .m.down').forEach((el) => {
+    const span = el.querySelector('span');
+    for (let lane = 0; lane < 4; lane++) {
+      el.style.setProperty('--lane', lane);
+      const r = span.getBoundingClientRect();
+      if (!placed.some((q) => q.lane === lane && r.left < q.right + 8 && r.right > q.left - 8)) {
+        placed.push({ lane, left: r.left, right: r.right });
+        break;
+      }
+    }
+  });
+  const lanes = Math.max(0, ...placed.map((q) => q.lane));
+  document.querySelector('.ruler').style.height = `${90 + lanes * 34}px`;
+});
+</script>
+</body>
+</html>

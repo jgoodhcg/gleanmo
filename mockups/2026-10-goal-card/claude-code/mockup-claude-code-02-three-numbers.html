@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Goal card · 02 Three numbers</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="goal-card.css">
+<style>
+  .total-line { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .total-line .total { font-size: 28px; font-weight: 700; color: var(--white); }
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 16px; }
+  .tile { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px; min-width: 0; }
+  .tile .v { font-size: 26px; font-weight: 700; line-height: 1.1; margin-top: 4px; }
+  .tile .s { font-size: 11px; color: var(--text-2); margin-top: 2px; }
+  .tile.hot { border-color: var(--amber); }
+  .tile.done { border-color: var(--lime); }
+  .mini { height: 6px; margin-top: 8px; }
+  .compare { margin-top: 18px; display: grid; gap: 8px; font-size: 12px; }
+  .compare .r { display: grid; grid-template-columns: 9.5em 1fr 3.5em; gap: 8px; align-items: center; }
+  .compare .track { height: 8px; background: #0d1117; border-radius: 999px; overflow: hidden; }
+  .compare .track span { display: block; height: 100%; border-radius: 999px; }
+  .compare .r b { text-align: right; color: var(--white); }
+  @media (min-width: 760px) {
+    .tiles { gap: 12px; }
+    .tile { padding: 14px 16px; }
+    .tile .v { font-size: 34px; }
+    .tile .s { font-size: 12px; }
+    .body-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 28px; align-items: end; }
+  }
+</style>
+</head>
+<body>
+<div class="mock-bar"><strong>Mockup 02 · Three numbers</strong> <a href="mockup-claude-code-00-index.html">← index</a></div>
+<div class="page"><div id="root"></div></div>
+<script src="goal-card-model.js"></script>
+<script>
+mountMock((v) => {
+  const u = v.g.unit;
+  const next = v.thresholds[0];
+  const todayTile = v.paceMet
+    ? `<div class="tile done"><div class="eyebrow">Today</div><div class="v lime num">✓ ${fmt(v.todayReps)}</div><div class="s">pace kept</div></div>`
+    : `<div class="tile hot"><div class="eyebrow">Today</div><div class="v amber num">${Math.ceil(v.keepPace)}</div><div class="s">more to keep pace · ${fmt(v.todayReps)} done</div>
+        <div class="bar mini"><span class="fill" style="background:var(--amber);width:${Math.min(100, (v.todayReps / v.required) * 100)}%"></span></div></div>`;
+  const gapTile = v.caughtUp
+    ? `<div class="tile done"><div class="eyebrow">Gap</div><div class="v lime num">+${fmt(-v.catchUp)}</div><div class="s">ahead of even pace</div></div>`
+    : `<div class="tile"><div class="eyebrow">Gap</div><div class="v white num">${Math.ceil(v.catchUp)}</div><div class="s">more today closes the ${fmt(v.gap)} you're behind</div></div>`;
+  const nextTile = `<div class="tile"><div class="eyebrow">Next</div><div class="v cyan num">${fmt(next.away)}</div><div class="s">to ${fmt(next.value)}${next.label ? ` · ${next.label}` : ''}</div></div>`;
+  const maxRate = Math.max(v.average, v.required, v.liveAverage) * 1.15;
+  document.getElementById('root').innerHTML = `
+    ${pickerHTML(v)}
+    <div class="card">
+      ${headHTML(v)}
+      <div class="card-body">
+        <div class="total-line">
+          <span class="total num">${fmt(v.logged)}</span><span class="muted">of ${fmt(v.g.target)} ${u} · ${v.pct.toFixed(1)}%</span>
+        </div>
+        <div class="tiles">${todayTile}${gapTile}${nextTile}</div>
+        <div class="body-grid">
+          <div class="compare">
+            <div class="r"><span class="muted">Avg / elapsed day</span><span class="track"><span style="width:${(v.average / maxRate) * 100}%;background:var(--cyan)"></span></span><b class="num">${fmt1(v.average)}</b></div>
+            <div class="r"><span class="muted">Pace needed</span><span class="track"><span style="width:${(v.required / maxRate) * 100}%;background:var(--amber)"></span></span><b class="num">${fmt1(v.required)}</b></div>
+          </div>
+          <div style="margin-top:16px"><button class="log-btn">＋ Log pullups</button></div>
+        </div>
+      </div>
+      ${detailsHTML(v)}
+    </div>`;
+});
+</script>
+</body>
+</html>
