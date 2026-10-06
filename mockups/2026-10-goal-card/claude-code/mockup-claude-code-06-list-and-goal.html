@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Goals · 06 List and goal</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="goal-card.css">
+<style>
+  .section-title { color: var(--white); font-size: 15px; margin: 28px 0 4px; }
+  .section-note { color: var(--text-2); font-size: 12px; margin: 0 0 12px; max-width: 900px; }
+  .frames { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+  .frame { container-type: inline-size; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--bg); position: relative; }
+  .frame.phone { width: 390px; height: 820px; }
+  .frame.desk { width: 1240px; max-width: 100%; }
+  .lbl { font-size: 11px; color: var(--text-2); margin-bottom: 6px; }
+
+  /* App shell */
+  .shell { display: flex; min-height: 100%; }
+  .side { width: 232px; flex: none; background: var(--surface); border-right: 1px solid var(--border); padding: 16px; font-size: 13px; display: flex; flex-direction: column; gap: 6px; }
+  .side .word { color: var(--white); font-weight: 700; margin-bottom: 8px; display: flex; justify-content: space-between; }
+  .side .h { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); margin-top: 12px; }
+  .side a { color: var(--text); text-decoration: none; display: flex; justify-content: space-between; gap: 8px; }
+  .side a.primary { color: var(--white); font-weight: 700; }
+  .side a.cur { color: var(--cyan); }
+  .side .pin { padding-left: 14px; font-size: 12px; color: var(--text); cursor: pointer; }
+  .side .pin small { color: var(--text-2); font-size: 11px; }
+  .side .pin.cur { color: var(--cyan); }
+  .main { flex: 1; min-width: 0; padding: 20px 24px 40px; }
+  .phone .main { padding: 14px 16px 90px; }
+  .tabbar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-around; background: var(--surface); border-top: 1px solid var(--border); padding: 8px 0; font-size: 11px; color: var(--text-2); }
+  .tabbar span.on { color: var(--cyan); }
+  .phone .side { width: 100%; border-right: 0; height: 100%; font-size: 15px; gap: 10px; }
+  .phone .side .pin { font-size: 14px; }
+
+  .crumb { font-size: 12px; color: var(--text-2); margin-bottom: 6px; }
+  .crumb a { color: var(--text-2); }
+  .title-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .title-row h1 { margin: 0; font-size: 20px; color: var(--white); }
+  .title-row .actions { display: flex; gap: 14px; font-size: 12px; color: var(--text-2); white-space: nowrap; }
+  .title-row .actions .on { color: var(--cyan); }
+  .src { font-size: 11px; color: var(--text-2); margin-top: 2px; }
+
+  /* Goals list */
+  .list-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
+  .list-head h1 { margin: 0; font-size: 20px; color: var(--white); }
+  .list-head .new { color: var(--cyan); font-size: 13px; }
+  .group-h { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); margin: 18px 0 6px; }
+  .grow { display: grid; grid-template-columns: 1.4em 1fr; gap: 4px 10px; padding: 12px 0; border-top: 1px solid #21262d; cursor: pointer; align-items: center; }
+  .grow:hover .name { color: var(--cyan); }
+  .grow .star { color: var(--text-2); }
+  .grow .star.on { color: var(--cyan); }
+  .grow .name { color: var(--white); font-weight: 700; }
+  .grow .meta { font-size: 11px; color: var(--text-2); }
+  .grow .bar { height: 6px; margin-top: 6px; }
+  .grow > * { grid-column: 2; }
+  .grow > .star { grid-column: 1; grid-row: 1; }
+  .grow .nums { display: grid; grid-template-columns: repeat(3, max-content); gap: 0 18px; font-size: 12px; }
+  .grow .nums b { color: var(--white); }
+  .grow .nums span { color: var(--text-2); }
+  @container (min-width: 700px) {
+    .grow { grid-template-columns: 1.4em minmax(14em, 1.2fr) minmax(10em, 1fr) auto; gap: 0 20px; }
+    .grow > *, .grow > .star { grid-column: auto; grid-row: auto; }
+    .grow .bar { margin-top: 0; }
+  }
+  .soon { font-size: 11px; color: #6e7681; font-style: italic; }
+
+  /* Goal page: ruler card from 05, no card chrome */
+  .overall { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; font-size: 12px; margin-top: 18px; }
+  .overall .bar { height: 8px; overflow: visible; }
+  .overall .zoom { position: absolute; top: -4px; bottom: -4px; border: 1px solid var(--white); border-radius: 3px; min-width: 4px; }
+  .ruler { position: relative; height: 120px; margin: 26px 8px 0; }
+  .ruler .axis { position: absolute; left: 0; right: 0; top: 34px; height: 2px; background: var(--border); }
+  .ruler .minor { position: absolute; top: 30px; width: 1px; height: 10px; background: var(--border); }
+  .ruler .seg { position: absolute; top: 29px; height: 12px; border-radius: 3px; }
+  .ruler .m { position: absolute; top: 20px; width: 0; }
+  .ruler .m i { position: absolute; left: -1px; top: 4px; width: 2px; height: 22px; background: var(--text-2); }
+  .ruler .m > span { position: absolute; transform: translateX(-50%); white-space: nowrap; font-size: 11px; text-align: center; line-height: 1.3; }
+  .ruler .m.up > span { bottom: 6px; }
+  .ruler .m.down i { height: calc(22px + var(--lane, 0) * 40px); }
+  .ruler .m.down > span { top: calc(30px + var(--lane, 0) * 40px); }
+  .ruler .m.you i { background: var(--white); height: 30px; top: 0; }
+  .ruler .m.keep i { background: var(--amber); }
+  .ruler .m.even i { background: var(--gray-line); }
+  .ruler .m.round i { background: var(--cyan); }
+  .ruler .m.target i { background: var(--lime); }
+  .ruler .m.left > span { transform: none; left: -4px; text-align: left; }
+  .ruler .m.right > span { transform: translateX(-100%); left: 0; text-align: right; }
+  .ruler .m.off i { display: none; }
+  .info { display: grid; grid-template-areas: "key" "log" "extra"; gap: 16px; margin-top: 8px; }
+  .key { grid-area: key; display: grid; grid-template-columns: max-content max-content; gap: 2px 24px; font-size: 15px; margin: 0; }
+  .key dt { color: var(--text-2); }
+  .key dd { margin: 0; color: var(--white); font-weight: 700; text-align: right; }
+  .key dd.amber { color: var(--amber); }
+  .extra { grid-area: extra; display: grid; grid-template-columns: max-content max-content; gap: 1px 16px; font-size: 11px; color: #6e7681; align-content: start; margin: 0; }
+  .extra dd { margin: 0; text-align: right; }
+  .log { grid-area: log; }
+  @container (min-width: 700px) {
+    .info { grid-template-areas: "key extra" "key log"; grid-template-columns: auto 1fr; column-gap: 48px; }
+    .log { justify-self: end; align-self: end; }
+  }
+  .proj { margin-top: 28px; }
+  .proj .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 11px; color: var(--text-2); margin-top: 6px; }
+  .proj .legend b { font-weight: 400; color: var(--text); }
+  .proj svg { width: 100%; height: auto; display: block; }
+</style>
+</head>
+<body>
+<div class="mock-bar"><strong>Mockup 06 · List and goal</strong> <a href="mockup-claude-code-00-index.html">← index</a> <span>Click a goal in any list or sidebar to open it everywhere.</span></div>
+<div class="page" style="max-width:none">
+  <h2 class="section-title">Goals list</h2>
+  <p class="section-note">Its own page. Grouped by kind, so each goal only shows numbers that mean something for it. Pin toggles here and on the goal page.</p>
+  <div class="frames">
+    <div><div class="lbl">phone · 390 px</div><div class="frame phone" data-view="list"></div></div>
+    <div><div class="lbl">desktop · 1240 px</div><div class="frame desk" data-view="list"></div></div>
+  </div>
+
+  <h2 class="section-title">Goal page · cumulative with an end date</h2>
+  <p class="section-note">One goal per page. The ruler and the projection chart, nothing collapsed.</p>
+  <div class="frames">
+    <div><div class="lbl">phone · 390 px</div><div class="frame phone" data-view="goal" style="height:auto;min-height:820px"></div></div>
+    <div><div class="lbl">desktop · 1240 px</div><div class="frame desk" data-view="goal"></div></div>
+  </div>
+
+  <h2 class="section-title">Pinned goals in the sidebar · phone</h2>
+  <p class="section-note">On a phone the sidebar opens from "more" in the tab bar. Desktop shows it beside every page (above).</p>
+  <div class="frames">
+    <div><div class="lbl">phone · 390 px · "more" open</div><div class="frame phone" data-view="menu"></div></div>
+  </div>
+</div>
+<script>
+// Pullup is real (the 2026-10-05 screenshot). Pushup and Stretch are fictional stand-ins
+// for the other two production goals.
+const GOALS = [
+  { key: 'pullup', label: 'Pullup', kind: 'cumulative', pinned: true, unit: 'reps', dp: 0, target: 5000, totalDays: 366, elapsed: 19,
+    daily: [15, 0, 20, 12, 10, 0, 18, 14, 16, 0, 22, 10, 12, 15, 0, 20, 18, 13, 30],
+    start: 'Sep 16, 2026', end: 'Sep 16, 2027', source: 'Exercise lines · Pullup · Reps' },
+  { key: 'pushup', label: 'Pushup', kind: 'cumulative', pinned: true, unit: 'reps', dp: 0, target: 7300, totalDays: 365, elapsed: 19,
+    daily: [25, 30, 0, 22, 25, 30, 20, 0, 28, 25, 30, 22, 0, 26, 30, 25, 20, 28, 24],
+    start: 'Sep 16, 2026', end: 'Sep 15, 2027', source: 'Exercise lines · Pushup · Reps' },
+  { key: 'stretch', label: 'Stretch', kind: 'periodic', pinned: false, unit: 'logs', target: 5, period: 'week', thisWeek: 1,
+    weeks: [5, 4, 5, 3], source: 'Habit logs · Stretch' },
+];
+const TODAY = [
+  { key: '0', label: 'None yet', f: 0 },
+  { key: '0.7', label: 'Some', f: 0.7 },
+  { key: '1', label: "A day's pace", f: 1 },
+  { key: '2.2', label: 'Double', f: 2.2 },
+];
+let current = 'pullup';
+let todayKey = '0';
+
+const fmt = (n, dp = 0) => Number(n).toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp });
+function niceStep(x) {
+  const p = Math.pow(10, Math.floor(Math.log10(x)));
+  const f = x / p;
+  return p * (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10);
+}
+
+function compute(g, f) {
+  const before = g.daily.reduce((a, b) => a + b, 0);
+  const whole = (n) => (g.dp === 0 ? Math.max(1, Math.round(n)) : n);
+  const daysLeft = g.totalDays - g.elapsed;
+  const required = (g.target - before) / daysLeft;
+  const today = Math.round(required * f);
+  const logged = before + today;
+  const evenRate = g.target / g.totalDays;
+  const evenTonight = evenRate * (g.elapsed + 1);
+  const keep = before + required;
+  const D = required;
+  let lo = Math.max(0, before - D);
+  let hi = logged + 2.5 * D;
+  const major = whole(niceStep(3 * D));
+  const nextMajor = (Math.floor(logged / major) + 1) * major;
+  if (nextMajor - logged <= 4 * D) hi = Math.max(hi, nextMajor + 0.3 * D);
+  if (Math.abs(evenTonight - logged) <= 4 * D) {
+    hi = Math.max(hi, evenTonight + 0.3 * D);
+    lo = Math.max(0, Math.min(lo, evenTonight - 0.3 * D));
+  }
+  hi = Math.min(hi, g.target + 0.3 * D);
+  const minor = whole(niceStep((hi - lo) / 8));
+  const liveAverage = logged / (g.elapsed + 1);
+  const recent = (g.daily.slice(-13).reduce((a, b) => a + b, 0) + today) / 14;
+  return { g, before, required, today, logged, evenRate, evenTonight, keep, D, lo, hi, major, nextMajor, minor, daysLeft,
+    average: before / g.elapsed, liveAverage, recent, gapStart: before - evenRate * g.elapsed };
+}
+
+/* ---------- sidebar ---------- */
+function sideHTML(view, phone) {
+  const pins = GOALS.filter((g) => g.pinned).map((g) => {
+    const v = compute(g, TODAY.find((t) => t.key === todayKey).f);
+    const cur = view !== 'list' && g.key === current ? ' cur' : '';
+    return `<a class="pin${cur}" data-goal="${g.key}">${g.label}<small class="num">${fmt(v.today)}/${fmt(Math.ceil(v.required))}</small></a>`;
+  }).join('');
+  return `<nav class="side">
+    <div class="word">gleanmo ${phone ? '<span class="muted">✕</span>' : ''}</div>
+    <a class="primary">home</a><a class="primary">timers</a><a class="primary">log</a><a class="primary">today</a>
+    <div class="h">Log something</div>
+    <a>habit log</a><a>exercise</a><a>project log</a><a class="muted">…</a>
+    <div class="h">Review</div>
+    <a class="${view === 'list' ? 'cur' : ''}" data-list>goals</a>
+    ${pins}
+    <a>calendar (year)</a><a>stats &amp; charts</a><a>activity logs</a>
+    <div class="h">Manage</div>
+    <a>manage entities</a><a>account</a>
+  </nav>`;
+}
+
+/* ---------- list ---------- */
+function listHTML() {
+  const f = TODAY.find((t) => t.key === todayKey).f;
+  const row = (g) => {
+    const star = `<span class="star ${g.pinned ? 'on' : ''}" title="${g.pinned ? 'Unpin' : 'Pin'}">${g.pinned ? '★' : '☆'}</span>`;
+    if (g.kind === 'cumulative') {
+      const v = compute(g, f);
+      const gap = v.gapStart;
+      return `<div class="grow" data-goal="${g.key}">${star}
+        <div><div class="name">${g.label}</div><div class="meta">${g.source} · ends ${g.end}</div></div>
+        <div><div class="meta num">${fmt(v.logged)} / ${fmt(g.target)} ${g.unit}</div><div class="bar"><span class="fill" style="width:${(v.logged / g.target) * 100}%"></span></div></div>
+        <div class="nums num"><span>today <b>${fmt(v.today)}/${fmt(Math.ceil(v.required))}</b></span><span>gap <b>${gap < 0 ? '−' : '+'}${fmt(Math.abs(gap))}</b></span><span>${v.daysLeft} days left</span></div>
+      </div>`;
+    }
+    return `<div class="grow" data-goal="${g.key}">${star}
+      <div><div class="name">${g.label}</div><div class="meta">${g.source} · ${g.target} per ${g.period}, resets Monday</div></div>
+      <div><div class="meta num">${g.thisWeek} / ${g.target} this week</div><div class="bar"><span class="fill" style="width:${(g.thisWeek / g.target) * 100}%;background:var(--violet)"></span></div></div>
+      <div class="nums num"><span>last 4 weeks <b>${g.weeks.map((w) => (w >= g.target ? '■' : '□')).join('')}</b></span></div>
+    </div>`;
+  };
+  return `<div class="list-head"><h1>Goals</h1><span class="new">＋ New goal</span></div>
+    <div class="group-h">Cumulative · with an end date</div>
+    ${GOALS.filter((g) => g.kind === 'cumulative').map(row).join('')}
+    <div class="group-h">Periodic · each period stands alone</div>
+    ${GOALS.filter((g) => g.kind === 'periodic').map(row).join('')}
+    <div class="soon">The periodic goal page is a later mockup; its row shows only this period and recent periods.</div>
+    <div class="group-h" style="margin-top:28px">Archived · 0</div>`;
+}
+
+/* ---------- goal page ---------- */
+function rulerHTML(v) {
+  const g = v.g, dp = g.dp, u = g.unit;
+  const pos = (n) => ((n - v.lo) / (v.hi - v.lo)) * 100;
+  const delta = (n) => { const d = n - v.logged, a = fmt(Math.abs(d), dp); return d > 0 ? `${a} to go` : d < 0 ? `${a} past` : 'here'; };
+  const marks = [];
+  const add = (n, cls, name) => marks.push({ n, cls, name });
+  add(v.keep, 'keep', 'keep pace today');
+  add(v.evenTonight, 'even', 'even pace tonight');
+  const clash = (n) => Math.abs(n - v.keep) < 0.25 * v.D || Math.abs(n - v.evenTonight) < 0.25 * v.D;
+  if (v.nextMajor < g.target && !clash(v.nextMajor)) add(v.nextMajor, 'round', '');
+  if (g.target <= v.hi) add(g.target, 'target', 'target');
+  const color = { keep: 'amber', round: 'cyan', target: 'lime', even: 'white' };
+  const ticks = [];
+  for (let n = Math.ceil(v.lo / v.minor) * v.minor; n <= v.hi; n += v.minor) ticks.push(`<span class="minor" style="left:${pos(n)}%"></span>`);
+  const markHTML = marks.sort((a, b) => a.n - b.n).map((m) => {
+    const shown = m.cls === 'round' || m.cls === 'target' ? m.n : Math.ceil(m.n - 1e-9);
+    const label = `<span class="num ${color[m.cls]}">${fmt(shown)}</span>${m.name ? ` <span class="muted">${m.name}</span>` : ''}<br><span class="muted num">${delta(shown)}</span>`;
+    if (m.n < v.lo) return `<div class="m ${m.cls} down off left" style="left:0%"><i></i><span>← ${label}</span></div>`;
+    if (m.n > v.hi) return `<div class="m ${m.cls} down off right" style="left:100%"><i></i><span>${label} →</span></div>`;
+    const p = pos(m.n);
+    return `<div class="m ${m.cls} down${p > 85 ? ' right' : p < 15 ? ' left' : ''}" style="left:${p}%"><i></i><span>${label}</span></div>`;
+  }).join('');
+  const pY = pos(v.logged);
+  const you = `<div class="m you up${pY < 15 ? ' left' : pY > 85 ? ' right' : ''}" style="left:${pY}%"><i></i><span class="white"><b class="num">${fmt(v.logged)}</b> <span class="muted">+${fmt(v.today)} today</span></span></div>`;
+  const segs = `<div class="seg" style="left:0;width:${pos(v.before)}%;background:var(--cyan)"></div>
+    <div class="seg" style="left:${pos(v.before)}%;width:${pos(v.logged) - pos(v.before)}%;background:var(--lime)"></div>`;
+  return `<div class="ruler"><div class="axis"></div>${ticks.join('')}${segs}${markHTML}${you}</div>`;
+}
+
+function projectionSVG(v, w) {
+  const g = v.g;
+  const H = w < 500 ? 220 : 260;
+  const pad = { l: 44, r: 12, t: 12, b: 24 };
+  const atRate = v.logged + v.liveAverage * (v.daysLeft - 1);
+  const atRecent = v.logged + v.recent * (v.daysLeft - 1);
+  const yMax = Math.max(g.target, atRate, atRecent) * 1.05;
+  const X = (d) => pad.l + (d / g.totalDays) * (w - pad.l - pad.r);
+  const Y = (n) => H - pad.b - (n / yMax) * (H - pad.t - pad.b);
+  let cum = 0;
+  const pts = [[0, 0], ...g.daily.map((n, i) => [i + 1, (cum += n)]), [g.elapsed + 0.5, v.logged]];
+  const line = (a, b, color, dash) => `<path d="M${X(a[0])},${Y(a[1])} L${X(b[0])},${Y(b[1])}" stroke="${color}" stroke-width="1.5" ${dash ? 'stroke-dasharray="5 4"' : ''} fill="none"/>`;
+  const now = g.elapsed + 0.5;
+  const step = niceStep(yMax / 4);
+  const grid = [];
+  for (let n = 0; n <= yMax; n += step) grid.push(`<line x1="${pad.l}" x2="${w - pad.r}" y1="${Y(n)}" y2="${Y(n)}" stroke="#21262d"/><text x="${pad.l - 6}" y="${Y(n) + 3}" fill="#6e7681" font-size="10" text-anchor="end">${fmt(n)}</text>`);
+  const months = w < 500 ? ['Sep', 'Jan', 'May', 'Sep'] : ['Sep', 'Nov', 'Jan', 'Mar', 'May', 'Jul', 'Sep'];
+  const mx = months.map((m, i) => `<text x="${X((i / (months.length - 1)) * g.totalDays)}" y="${H - 6}" fill="#6e7681" font-size="10" text-anchor="${i === 0 ? 'start' : i === months.length - 1 ? 'end' : 'middle'}">${m}</text>`).join('');
+  return `<svg viewBox="0 0 ${w} ${H}" role="img" aria-label="Cumulative progress and projections">
+    ${grid.join('')}${mx}
+    <line x1="${X(0)}" x2="${X(g.totalDays)}" y1="${Y(g.target)}" y2="${Y(g.target)}" stroke="#32cd32" stroke-width="1" stroke-dasharray="2 3"/>
+    ${line([0, 0], [g.totalDays, g.target], '#6b7785', true)}
+    ${line([now, v.before], [g.totalDays, g.target], '#8b5cf6', true)}
+    ${line([now, v.logged], [g.totalDays, atRate], '#06b6d4', true)}
+    ${line([now, v.logged], [g.totalDays, atRecent], '#ec4899', true)}
+    <path d="${pts.map(([d, n], i) => `${i ? 'L' : 'M'}${X(d)},${Y(n)}`).join(' ')}" stroke="#06b6d4" stroke-width="2" fill="none"/>
+    <line x1="${X(now)}" x2="${X(now)}" y1="${pad.t}" y2="${H - pad.b}" stroke="#8b949e" stroke-dasharray="2 3"/>
+  </svg>
+  <div class="legend num">
+    <span><span class="cyan">━</span> logged</span>
+    <span><span style="color:#6b7785">┅</span> even pace</span>
+    <span><span class="violet">┅</span> needed from today</span>
+    <span><span class="cyan">┅</span> at your average <b>${fmt(atRate)}</b> (${fmt((atRate / g.target) * 100)}%)</span>
+    <span><span style="color:#ec4899">┅</span> at last 14 days <b>${fmt(atRecent)}</b> (${fmt((atRecent / g.target) * 100)}%)</span>
+    <span><span class="lime">┄</span> target ${fmt(g.target)}</span>
+  </div>`;
+}
+
+function goalHTML(width) {
+  const g = GOALS.find((x) => x.key === current);
+  if (g.kind !== 'cumulative') {
+    return `<div class="crumb"><a data-list>Goals</a> /</div><div class="title-row"><h1>${g.label}</h1></div>
+      <p class="soon" style="margin-top:20px">Periodic goal page: a later mockup.</p>`;
+  }
+  const v = compute(g, TODAY.find((t) => t.key === todayKey).f);
+  const pct = (n) => Math.min(100, (n / g.target) * 100);
+  const gap = v.gapStart;
+  return `<div class="crumb"><a data-list>Goals</a> /</div>
+    <div class="title-row"><h1>${g.label}</h1>
+      <div class="actions"><span class="${g.pinned ? 'on' : ''}">${g.pinned ? '★ Pinned' : '☆ Pin'}</span><span>Edit</span><span>⋯</span></div></div>
+    <div class="src">${g.source}</div>
+    <div class="overall">
+      <span class="white num"><b>${fmt(v.logged)}</b></span>
+      <span class="bar"><span class="fill" style="width:${pct(v.logged)}%"></span><span class="zoom" style="left:${pct(v.lo)}%;width:${Math.max(0, pct(v.hi) - pct(v.lo))}%"></span></span>
+      <span class="muted num">${fmt(g.target)} ${g.unit}</span>
+    </div>
+    ${rulerHTML(v)}
+    <div class="info">
+      <dl class="key num">
+        <dt>today</dt><dd>${fmt(v.today)}</dd>
+        <dt>avg / elapsed day</dt><dd>${fmt(v.average, 1)}</dd>
+        <dt>pace needed</dt><dd class="amber">${fmt(v.required, 1)}</dd>
+        <dt>gap at day start</dt><dd>${gap < 0 ? '−' : '+'}${fmt(Math.abs(gap))}</dd>
+      </dl>
+      <dl class="extra num">
+        <dt>period</dt><dd>${g.start} – ${g.end}</dd>
+        <dt>days left</dt><dd>${v.daysLeft}</dd>
+        <dt>even pace</dt><dd>${fmt(v.evenRate, 1)} ${g.unit}/day</dd>
+        <dt>with today</dt><dd>${fmt(v.liveAverage, 1)} ${g.unit}/day</dd>
+        <dt>ruler</dt><dd>${fmt(v.lo)}–${fmt(v.hi)} ${g.unit}</dd>
+      </dl>
+      <div class="log"><button class="log-btn">＋ Log</button></div>
+    </div>
+    <div class="proj">${projectionSVG(v, width)}</div>`;
+}
+
+/* ---------- render ---------- */
+function laneLabels(root) {
+  const placed = [];
+  root.querySelectorAll('.ruler .m.down').forEach((el) => {
+    const span = el.querySelector(':scope > span');
+    for (let lane = 0; lane < 5; lane++) {
+      el.style.setProperty('--lane', lane);
+      const r = span.getBoundingClientRect();
+      if (!placed.some((q) => q.lane === lane && r.left < q.right + 10 && r.right > q.left - 10)) { placed.push({ lane, left: r.left, right: r.right }); break; }
+    }
+  });
+  const ruler = root.querySelector('.ruler');
+  if (ruler) ruler.style.height = `${80 + Math.max(0, ...placed.map((q) => q.lane)) * 40}px`;
+}
+
+function render() {
+  document.querySelectorAll('.frame').forEach((frame) => {
+    const phone = frame.classList.contains('phone');
+    const view = frame.dataset.view;
+    const tabs = `<div class="tabbar"><span>home</span><span>timers</span><span>log</span><span>today</span><span class="${view === 'menu' ? 'on' : ''}">more</span></div>`;
+    if (view === 'menu') { frame.innerHTML = sideHTML('menu', true) + tabs; return; }
+    const mainW = phone ? 358 : 1240 - 232 - 48;
+    const body = view === 'list' ? listHTML() : goalHTML(mainW);
+    frame.innerHTML = phone
+      ? `<div class="main">${body}</div>${tabs}`
+      : `<div class="shell">${sideHTML(view, false)}<div class="main">${body}</div></div>`;
+    laneLabels(frame);
+  });
+  document.querySelectorAll('.mock-bar button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.today === todayKey)));
+}
+
+document.querySelector('.mock-bar').insertAdjacentHTML('beforeend',
+  `<span class="group"><strong>Today:</strong>${TODAY.map((t) => `<button data-today="${t.key}">${t.label}</button>`).join('')}</span>`);
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('[data-today],[data-goal]');
+  if (!t) return;
+  if (t.dataset.today) todayKey = t.dataset.today;
+  if (t.dataset.goal) current = t.dataset.goal;
+  render();
+});
+const params = new URLSearchParams(location.search);
+current = params.get('goal') || current;
+todayKey = params.get('today') || todayKey;
+render();
+</script>
+</body>
+</html>

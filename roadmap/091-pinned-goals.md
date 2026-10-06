@@ -3,7 +3,7 @@ title: "Pinned goals on the home screen"
 status: active
 description: "Pin goals so they lead the goals page and show as compact progress cards on the home screen"
 created: 2026-09-25
-updated: 2026-10-04
+updated: 2026-10-06
 tags: [goals, dashboard]
 priority: medium
 ---
@@ -86,6 +86,15 @@ Not decided, and for the mockup round to settle:
 - Whether a not-yet-met chip shows the remaining amount or only a neutral state.
 
 Approach: mock up options, iterate with the user, then specify. Same fragment and query cost constraints as the home card above.
+
+## Dogfood notes (2026-10-06): list and goal pages, pins in the sidebar
+
+User, verbatim: "I want to separate the list of goals from the visualization of the goal. Can we add a mock up of the list of goals. Then we can continue to mock up the selection of a goal."
+User, verbatim: "goals can be pinned to the sidebar so that I can quickly get to them directly without having to look at the list."
+
+This answers the open "graph and goal picker on the same page?" question above: no.
+Mockup `mockups/2026-10-goal-card/claude-code/mockup-claude-code-06-list-and-goal.html` shows a goals list grouped by family (cumulative / periodic), a page per goal, and pinned goals nested under "goals" in the sidebar with today's amount against the pace needed (e.g. `0/14`).
+Whether pins also stay on the home screen, and the met-pace chips above, are still open.
 
 ## Scope
 

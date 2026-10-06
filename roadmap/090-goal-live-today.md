@@ -3,7 +3,7 @@ title: "Live today on goals"
 status: active
 description: "Goal pace statistics react to today's logs beside the completed-day baseline, with a projection at the current rate"
 created: 2026-09-25
-updated: 2026-10-05
+updated: 2026-10-06
 tags: [goals, visualization]
 priority: medium
 ---
@@ -137,6 +137,23 @@ A user-set `goal/threshold-step` still wins over any default.
 Decide by mocking up the card with each and checking which one the user reads unprompted.
 
 Approach: mock up and review before specifying, together with the needed-today placement above and the "elapsed days" wording in [081](./081-goals-dashboard.md).
+
+## Design direction (2026-10-06): cumulative goals get the ruler
+
+Mockups: `mockups/2026-10-goal-card/claude-code/` (01–06). The user picked the zoomed ruler (03 → 04 → 05 → 06).
+
+User, verbatim: "I think we need to distinguish periodic from cumulative goals. We are working on a visualization just for cumulative goals and maybe those with end dates."
+User, verbatim: "i think this redesign will use only visualizations that are relevant to the type of goal."
+User, verbatim, on numbers over sentences: "I'm not sure I like the natural language assessment like \"✓ On even pace, 2 reps ahead.\" I kind of just want to see the relvant data and determine that myself."
+
+Decided so far:
+
+- **Two families.** Cumulative (a total over a dated window; extra today covers a missed day) and periodic (each day/week stands alone; hit rate and streaks matter, catch-up is meaningless). This redesign covers cumulative dated totals only; other goal types get their own views as the user reaches them. Streaks for periodic goals stay in [092](./092-goal-comparisons-records.md).
+- **Ruler.** Window in units of one day of the pace needed: from a day before this morning's total to 2.5 days past now, pulling in marks within 4 days; farther marks sit at the edge with their distance. Marks: keep pace today, even pace tonight, next round number (≈3 days of pace, whole numbers for counts), target when in range. The window always contains the current total, so logging slides and widens it.
+- **Full bar stays,** with the ruler's window outlined on it.
+- **No sentences, no divider, nothing collapsed.** Key numbers left, aligned like a let binding (today, avg / elapsed day, pace needed, gap at day start); quieter context beside them; Log bottom right (below the key numbers on phones).
+- **Projection chart stays,** shown in full below the numbers.
+- The "gap closed" mark was dropped: on long goals it sits a rep from "keep pace today", because the required rate spreads the gap over the remaining days.
 
 ## Scope
 
