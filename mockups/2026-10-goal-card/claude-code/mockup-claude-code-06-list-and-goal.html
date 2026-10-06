@@ -55,11 +55,13 @@
   .grow .bar { height: 6px; margin-top: 6px; }
   .grow > * { grid-column: 2; }
   .grow > .star { grid-column: 1; grid-row: 1; }
-  .grow .nums { display: grid; grid-template-columns: repeat(3, max-content); gap: 0 18px; font-size: 12px; }
+  .grow .nums { display: flex; flex-wrap: wrap; gap: 0 18px; font-size: 12px; }
   .grow .nums b { color: var(--white); }
   .grow .nums span { color: var(--text-2); }
   @container (min-width: 700px) {
-    .grow { grid-template-columns: 1.4em minmax(14em, 1.2fr) minmax(10em, 1fr) auto; gap: 0 20px; }
+    /* One fixed template for every row in every group, so columns line up across groups. */
+    .grow { grid-template-columns: 1.4em 26em 1fr 21em; gap: 0 24px; }
+    .grow .nums { justify-content: end; }
     .grow > *, .grow > .star { grid-column: auto; grid-row: auto; }
     .grow .bar { margin-top: 0; }
   }
@@ -223,7 +225,7 @@ function listHTML() {
     return `<div class="grow" data-goal="${g.key}">${star}
       <div><div class="name">${g.label}</div><div class="meta">${g.source} · ${g.target} per ${g.period}, resets Monday</div></div>
       <div><div class="meta num">${g.thisWeek} / ${g.target} this week</div><div class="bar"><span class="fill" style="width:${(g.thisWeek / g.target) * 100}%;background:var(--violet)"></span></div></div>
-      <div class="nums num"><span>last 4 weeks <b>${g.weeks.map((w) => (w >= g.target ? '■' : '□')).join('')}</b></span></div>
+      <div class="nums num"><span>last 4 weeks <b>${g.weeks.join(' ')}</b></span></div>
     </div>`;
   };
   return `<div class="list-head"><h1>Goals</h1><span class="new">＋ New goal</span></div>
