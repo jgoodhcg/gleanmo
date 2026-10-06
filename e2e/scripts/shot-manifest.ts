@@ -38,6 +38,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { authenticateTimelineForDev } from './auth.js';
+import { seedSeriesGoals } from './series-goals.js';
 import {
   DEFAULT_VIEWPORTS,
   MANIFEST_ROUTES,
@@ -176,6 +177,7 @@ async function main() {
 
   const results: CaptureResult[] = [];
   const browser = await chromium.launch({ headless: true });
+  let goalsSeeded = false;
 
   try {
     // One authenticated context per viewport — auth is paid once, then all
@@ -188,6 +190,11 @@ async function main() {
       });
       const page = await context.newPage();
       await authenticateTimelineForDev(page, EMAIL);
+      if (!goalsSeeded) {
+        const created = await seedSeriesGoals(page);
+        console.log(`  goals:  ${created.length ? `seeded ${created.join('; ')}` : 'already seeded'}`);
+        goalsSeeded = true;
+      }
       mkdirSync(outDir, { recursive: true });
       console.log(`\n— ${vp.name} (${vp.width}x${vp.height}) —`);
 

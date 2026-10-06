@@ -371,7 +371,11 @@
     :user/show-sensitive false
     :user/show-archived false
     :user/show-bm-logs true})
+  ;; Fill every missing day in the rolling window, not just today: ticks are
+  ;; sporadic, and a gap in the fixture reads as a gap in every viz frame.
   (let [today               (java.time.LocalDate/now demo-zone)
+        window              (mapv #(.minusDays today %)
+                                  (range (dec timeline-history-days) -1 -1))
         existing-parent-ids (existing-timeline-parent-ids ctx user-id)
         parent-ids          (or existing-parent-ids
                                 (->> timeline-parent-definitions
@@ -379,16 +383,14 @@
                                              {:entity-key entity-key
                                               :data data}))
                                      (create-many! ctx user-id)
-                                     parent-ids-from))]
-    (if (timeline-day-seeded? ctx user-id today)
-      parent-ids
-      (let [dates (if existing-parent-ids
-                    [today]
-                    (mapv #(.minusDays today %)
-                          (range (dec timeline-history-days) -1 -1)))]
-        (create-many! ctx user-id
-                      (mapcat #(timeline-day-specs % parent-ids) dates))
-        parent-ids))))
+                                     parent-ids-from))
+        dates               (if existing-parent-ids
+                              (remove #(timeline-day-seeded? ctx user-id %) window)
+                              window)]
+    (when (seq dates)
+      (create-many! ctx user-id
+                    (mapcat #(timeline-day-specs % parent-ids) dates)))
+    parent-ids))
 
 (defn e2e-login-handler
   "Dev-only endpoint that bypasses email verification.
