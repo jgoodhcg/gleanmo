@@ -121,6 +121,27 @@ async function pinGoal(page: Page, csrf: string, id: string): Promise<void> {
   }
 }
 
+/** Seeded records a manifest path can name as `{fixture}`. */
+export type SeriesFixture = 'dated-goal';
+
+/**
+ * Ids of the seeded records manifest paths refer to, read from the goal links
+ * on /app/goals. Call after seedSeriesGoals on an authenticated page. A
+ * fixture whose goal is missing (e.g. archived by hand) is left out, and its
+ * route is recorded as an error rather than aborting the tick.
+ */
+export async function seriesFixtureIds(page: Page): Promise<Partial<Record<SeriesFixture, string>>> {
+  const dated = goalSpecs(localToday()).find((g) => g.timing === 'dated')!;
+  await page.goto(`${BASE_URL}/app/goals`, { waitUntil: 'domcontentloaded' });
+  const href = await page
+    .locator('a[href*="/app/goal"]', { hasText: dated.label })
+    .first()
+    .getAttribute('href', { timeout: 5000 })
+    .catch(() => null);
+  const id = href?.match(/[0-9a-f]{8}-[0-9a-f-]{27}/)?.[0];
+  return id ? { 'dated-goal': id } : {};
+}
+
 /**
  * Ensure the series account has its goal fixtures. Call on an authenticated
  * page. Returns the labels created this run (empty when already seeded).

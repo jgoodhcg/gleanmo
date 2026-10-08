@@ -3,7 +3,7 @@ title: "Live today on goals"
 status: active
 description: "Goal pace statistics react to today's logs beside the elapsed-day baseline, with a projection at the current rate"
 created: 2026-09-25
-updated: 2026-10-06
+updated: 2026-10-08
 tags: [goals, visualization]
 priority: medium
 ---
@@ -191,6 +191,9 @@ Decided with the user (2026-10-06):
 - [x] Render tests: `goals-list-render-test` (group order, `0/14`, `−15`, `347 days left`), `cumulative-page-render-test` (12.9 / 13.7 / −15, Log to the workout screen, no sentences, nothing collapsed), `visible-goals-test`.
 - [x] `test-goals.ts` reworked: list groups and aligned columns, row navigation, the `?goal=` redirect, the ruler page's key numbers and marks, Log below the keys on a phone and beside them on desktop, day-start values holding while today moves, sidebar pins, and pin/unpin from the list.
 - [x] `test-smoke.ts`: a missing goal page redirects to the list.
+- [ ] Series manifest covers the goal page (2026-10-08).
+  `goal-page` in `e2e/scripts/manifest.ts` uses `/app/goal/{dated-goal}`; `shot-manifest.ts` fills the id from the series account's monthly goal (`seriesFixtureIds` in `series-goals.ts`).
+  Committed without a series run because the dev server was down. Check off once `just e2e-shot-series` captures `goal-page-mobile.png` and `goal-page-desktop.png` with status `ok`.
 - [ ] User check: the redesign reads at a glance on a real goal (the 2026-10-04 and 2026-10-05 notes above).
 
 ## Scope

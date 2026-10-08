@@ -38,7 +38,11 @@ export const DEFAULT_VIEWPORTS: ViewportSpec[] = [
 export interface ManifestRoute {
   /** Filename-safe identifier. Output: `<slug>-<viewport>.png`. */
   slug: string;
-  /** Route path under the app (must start with `/`). */
+  /** Route path under the app (must start with `/`). May contain one
+   *  `{fixture}` placeholder naming a seeded series record, e.g.
+   *  `/app/goal/{dated-goal}`; shot-manifest.ts fills in its id per tick, so a
+   *  page whose URL carries an id still gets a stable slot in the timeline.
+   *  Fixture names: see `SeriesFixture` in series-goals.ts. */
   path: string;
   /** Grouping label — used for logging and recorded in metadata. */
   group: 'surfaces' | 'dashboards' | 'viz' | 'stats' | 'flows' | 'forms' | 'lists';
@@ -67,6 +71,7 @@ export const MANIFEST_ROUTES: ManifestRoute[] = [
   { slug: 'dashboards-activity-logs', path: '/app/dashboards/activity-logs', group: 'dashboards', viewports: ['desktop'] },
   { slug: 'dashboards-stats',        path: '/app/dashboards/stats',        group: 'dashboards', viewports: ['desktop'] },
   { slug: 'goals',                   path: '/app/goals',                   group: 'dashboards', settleMs: 1500 },
+  { slug: 'goal-page',               path: '/app/goal/{dated-goal}',       group: 'dashboards', waitForSelector: '[data-goal-page]', settleMs: 1500 },
 
   // ── Visualizations (ECharts — highest timelapse value) ───────────────
   { slug: 'viz-habit-log',       path: '/app/viz/habit-log',       group: 'viz', settleMs: 1500 },

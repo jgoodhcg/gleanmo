@@ -38,7 +38,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { authenticateTimelineForDev } from './auth.js';
-import { seedSeriesGoals } from './series-goals.js';
+import { seedSeriesGoals, seriesFixtureIds } from './series-goals.js';
 import {
   DEFAULT_VIEWPORTS,
   MANIFEST_ROUTES,
@@ -108,11 +108,21 @@ interface CaptureResult {
   error?: string;
 }
 
+/** Fill a manifest path's `{fixture}` placeholder with that fixture's id. */
+function resolvePath(path: string, fixtures: Record<string, string>): string {
+  return path.replace(/\{([a-z-]+)\}/g, (_, name: string) => {
+    const id = fixtures[name];
+    if (!id) throw new Error(`No series fixture "${name}"`);
+    return id;
+  });
+}
+
 async function captureRoute(
   page: Page,
   route: ManifestRoute,
   viewport: ViewportName,
   outDir: string,
+  fixtures: Record<string, string>,
 ): Promise<CaptureResult> {
   const result: CaptureResult = {
     slug: route.slug,
@@ -123,7 +133,9 @@ async function captureRoute(
   };
   const file = join(outDir, `${route.slug}-${viewport}.png`);
   try {
-    const response = await page.goto(`${BASE_URL}${route.path}`, {
+    const path = resolvePath(route.path, fixtures);
+    result.path = path;
+    const response = await page.goto(`${BASE_URL}${path}`, {
       waitUntil: 'networkidle',
     });
     const status = response?.status() ?? 0;
@@ -178,6 +190,7 @@ async function main() {
   const results: CaptureResult[] = [];
   const browser = await chromium.launch({ headless: true });
   let goalsSeeded = false;
+  let fixtures: Record<string, string> = {};
 
   try {
     // One authenticated context per viewport — auth is paid once, then all
@@ -193,6 +206,7 @@ async function main() {
       if (!goalsSeeded) {
         const created = await seedSeriesGoals(page);
         console.log(`  goals:  ${created.length ? `seeded ${created.join('; ')}` : 'already seeded'}`);
+        fixtures = await seriesFixtureIds(page);
         goalsSeeded = true;
       }
       mkdirSync(outDir, { recursive: true });
@@ -203,7 +217,7 @@ async function main() {
         if (!viewports.includes(vp.name)) continue;
         // Ensure the page viewport matches (cheap, idempotent).
         await page.setViewportSize({ width: vp.width, height: vp.height });
-        results.push(await captureRoute(page, route, vp.name, outDir));
+        results.push(await captureRoute(page, route, vp.name, outDir, fixtures));
       }
       await context.close();
     }
