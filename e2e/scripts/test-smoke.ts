@@ -91,6 +91,12 @@ async function main() {
     const pinnedGoals = await page.request.get(`${BASE_URL}/app/goals/pinned`);
     expect(pinnedGoals.status()).toBe(200);
     console.log('  + Pinned goals fragment: 200');
+    // A goal page for a goal the user does not have falls back to the list.
+    const missingGoal = await page.request.get(`${BASE_URL}/app/goal/${crypto.randomUUID()}`,
+                                               { maxRedirects: 0 });
+    expect(missingGoal.status()).toBe(303);
+    expect(missingGoal.headers()['location']).toMatch(/\/app\/goals$/);
+    console.log('  + Missing goal page redirects to the list');
     await captureScreenshot(page, '01-home');
 
     // ── 2. Today page ──

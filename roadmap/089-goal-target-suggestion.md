@@ -3,7 +3,7 @@ title: "Suggested goal targets"
 status: active
 description: "The goal editor suggests a slight-stretch target from the user's own history"
 created: 2026-09-22
-updated: 2026-09-22
+updated: 2026-10-06
 tags: [goals]
 priority: medium
 ---
@@ -21,7 +21,7 @@ so no person or agent must read the history.
 The goal editor shows a suggested target below the target field.
 It uses the same daily calculation as goal progress
 (`goals/calc.clj` `daily-values`), with the selected relation filter.
-Only completed days count.
+Only elapsed days count.
 The editor says so: "Today does not count." (weekly: "This week does not count.")
 
 - Dated totals: the rate of the last 365 days

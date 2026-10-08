@@ -1,7 +1,7 @@
 ---
 title: "Live today on goals"
 status: active
-description: "Goal pace statistics react to today's logs beside the completed-day baseline, with a projection at the current rate"
+description: "Goal pace statistics react to today's logs beside the elapsed-day baseline, with a projection at the current rate"
 created: 2026-09-25
 updated: 2026-10-06
 tags: [goals, visualization]
@@ -13,8 +13,8 @@ priority: medium
 ## Intent
 
 The goals dashboard is checked right after logging something, and nothing but the total moves.
-Average, required rate, and ratio use completed days only (`goals/calc.clj` `numeric-progress`), so today's work is invisible to them until tomorrow.
-Keep the completed-day numbers as the stable baseline and add live values beside them, so the needle moves when something is logged.
+Average, required rate, and ratio use elapsed days only (`goals/calc.clj` `numeric-progress`), so today's work is invisible to them until tomorrow.
+Keep the elapsed-day numbers as the stable baseline and add live values beside them, so the needle moves when something is logged.
 
 Dogfood notes, verbatim (2026-09-25):
 
@@ -26,24 +26,24 @@ Dogfood notes, verbatim (2026-09-25):
 
 ### Dated totals
 
-Add these to `numeric-progress`, leaving the existing completed-day values unchanged:
+Add these to `numeric-progress`, leaving the existing elapsed-day values unchanged:
 
 | Value | Definition |
 |---|---|
-| Average including today | logged ÷ (completed days + 1); today counts as a whole day |
+| Average including today | logged ÷ (elapsed days + 1); today counts as a whole day |
 | Needed today | required at day start − today's logged amount; negative means ahead |
 | Required after today | (target − logged) ÷ (remaining days − 1); absent on the last day or once reached |
 | Required change | required at day start − required after today |
-| Above average today | today's logged amount compared with the completed-day average |
+| Above average today | today's logged amount compared with the elapsed-day average |
 
 Counting today as a whole day means the live average only rises as the day goes on; it never drifts down with the clock.
 
-"Today's logged amount" is what today added to the total (logged − completed-day amount), so needed today reaches zero exactly when the required rate after today equals the rate at day start.
+"Today's logged amount" is what today added to the total (logged − elapsed-day amount), so needed today reaches zero exactly when the required rate after today equals the rate at day start.
 
 Dashboard:
 
 - The summary shows "Needed today" as the primary live statistic, e.g. "25 of 40 min · 15 to stay on pace", or "✓ 10 min ahead".
-- Average and required show both values: the completed-day baseline and the live value, with the change today brought.
+- Average and required show both values: the elapsed-day baseline and the live value, with the change today brought.
 - The chart adds a dashed projection from Now to the end date at the live average, with a readout of where it lands ("At this rate: 34 h, 85% of target") or the date the target would be reached.
 - A second projection runs at recent pace: the total over the last 14 days, today included, divided by 14.
   It shows speeding up or slowing down, and appears only once 14 days have completed, because a shorter window equals the live average.
@@ -67,13 +67,13 @@ Unchanged.
 
 ## Validation
 
-- [x] Calc tests: live average, needed today (behind, exactly on pace, ahead), required after today on the last day and after reaching the target, zero completed days.
+- [x] Calc tests: live average, needed today (behind, exactly on pace, ahead), required after today on the last day and after reaching the target, zero elapsed days.
   `live-today-test` and `live-today-weekly-and-open-ended-test` in `test/tech/jgood/gleanmo/test/goals/calc_test.clj`.
-- [x] Logging a record today changes needed today, live average, and required after today; completed-day values stay the same until local midnight.
+- [x] Logging a record today changes needed today, live average, and required after today; elapsed-day values stay the same until local midnight.
 - [x] Weekly goals render no projection, pace line, or required statistics.
   `chart-clock-markers-test` now asserts a weekly chart has only the Now marker.
 - [x] Extend `e2e/scripts/test-goals.ts`: log today, reload, and assert the live values moved.
-  Step 11 also asserts the unchanged completed-day average and the weekly card.
+  Step 11 also asserts the unchanged elapsed-day average and the weekly card.
 - [x] Before/after series capture per AGENTS.md (2026-09-26T01-20-03Z baseline, 2026-09-26T01-40-27Z after).
   The series account has no goals, so those frames show only the page subtitle; `goals-09-live-today` and `goals-10-weekly` from the e2e run show the cards.
 
@@ -110,7 +110,7 @@ User, verbatim: "at least for the two rep goals I have the next thresholds feel 
 
 ### Interpretation
 
-**Clutter.** The headline number and "Required from today" are read at a glance; the secondary lines under each statistic are not ("19 completed days · with today 12.3 reps/day (-0.64)", "347 days left · after today 13.7 reps/day (+0.04) · 1.06× your average").
+**Clutter.** The headline number and "Required from today" are read at a glance; the secondary lines under each statistic are not ("19 elapsed days · with today 12.3 reps/day (-0.64)", "347 days left · after today 13.7 reps/day (+0.04) · 1.06× your average").
 Every statistic carries a sub-sentence of mixed numbers, so the eye has no single place to land.
 This is the same hierarchy problem as the 2026-10-04 note above (needed today going unnoticed), from the other side: too many equal-weight numbers.
 Candidates to mock up: one number per statistic with its sub-line cut to a label; live deltas ("with today", "after today", the ratio) moved behind a disclosure or dropped where they rarely change; a single sentence that leads the card.
@@ -155,6 +155,44 @@ Decided so far:
 - **Projection chart stays,** shown in full below the numbers.
 - The "gap closed" mark was dropped: on long goals it sits a rep from "keep pace today", because the required rate spreads the gap over the remaining days.
 
+## Implementation plan (2026-10-06, signed off)
+
+Target: mockup 06 (list, goal page, sidebar pins) with 05's decimal handling. Covers this unit's design direction, the list/page split and sidebar pins in [091](./091-pinned-goals.md), and the "elapsed days" item in [081](./081-goals-dashboard.md).
+
+1. **Calc** (`goals/calc.clj`, tests in `calc_test.clj`).
+   - Rename `completed-days`/`completed-logged`/`completed-amount` to `elapsed-*` everywhere (code, data keys, tests, e2e, UI copy, roadmap prose per 081). Book "completed" stays.
+   - Add `:gap-at-day-start` (elapsed amount − even rate × elapsed days; negative = behind) and `:even-tonight` to `numeric-progress` for dated totals.
+   - Add `ruler`: a pure function of a progress map returning `{:lo :hi :minor :major :next-major :marks [...]}` in canonical units, porting the mockup's `compute`/`rulerHTML` rules (window, 4-day pull-in, 0.3-day pad, clash rule, target cap, edge marks with distance). Integer measurements step by whole numbers; duration totals step in minutes. Tests cover the Pullup example, the 05 stress cases (tiny, far behind, far ahead, decimals, near the end), and reached/last-day guards.
+2. **Goals list** (`/app/goals`): no detail card. Groups "Cumulative · with an end date" (dated totals), "Periodic · each period stands alone" (weekly), and "Other" (open-ended, best, book) with the current kinds' headline values. One CSS grid template shared by every row so columns line up across groups; pin star per row; archived section stays. The table's sort/filter controls go.
+3. **Goal page** (one goal per page). Dated totals: crumb, title, source, Pin/Edit/⋯ actions; full bar with the ruler window outlined; ruler (server-rendered markup, small JS only for label lanes); key numbers `today`, `avg / elapsed day`, `pace needed`, `gap at day start` aligned as a `dl`; quiet context (period, days left, even pace, with today, ruler range); Log bottom right, below the keys on phones; the ECharts projection chart in full. No sentences, no divider, nothing collapsed. Every other goal type renders its current detail card on this page unchanged. `?goal=<id>` on `/app/goals` 303s to the goal page.
+4. **Sidebar pins**: pinned, unarchived goals nested under "goals" as plain links to their pages, from `pinned-goals-for-user` (one sparse-flag lookup, no progress computed). The mockup's `today/pace` figure beside each pin is dropped. Home pinned cards unchanged.
+5. **Tests**: calc tests above; `dashboard_test` updated for renamed keys; `test-goals.ts` reworked for list → page navigation and the new data attributes; smoke/manifest gain the goal page route.
+
+Decided with the user (2026-10-06):
+
+- Goal page URL: `/app/goal/:id`; `/app/goals?goal=<id>` 303s there.
+- Log opens the source's log screen, the same destination as its sidebar quick action.
+- Sidebar pins are links only. User, verbatim: "The pins should just be a query for a goal and it's a link to the goal id why do we have to do a progress computation to render teh sidebar?"
+
+## Implementation notes (2026-10-06)
+
+- `goals/calc.clj`: `ruler` (a pure port of mockup 05/06's `compute`/`rulerHTML`), `:even-rate`, `:even-tonight`, `:gap-at-day-start`, and `recent-weeks` for the periodic list rows. Tests: `gap-and-even-tonight-test`, `ruler-test` (the Pullup example worked by hand, a big day, near the end, target in reach, far-off marks, minutes), `recent-weeks-test`.
+- Ruler units are minutes for duration totals and the measurement's own unit otherwise; counts and minutes step by whole numbers. Key numbers use the same units, so a 100 h goal reads "pace needed 16.4" (minutes).
+- `app/goals.clj`: `goals-list` (cumulative, periodic, then "No deadline, best, and books" for every other kind, which renders the home card's figures), `cumulative-page`, and `goal-page` at `GET /app/goal/:id`. One grid template serves every row, so columns line up across groups. Old `/app/goals?goal=<id>` links 303 to the page; an archived, hidden, or missing goal 303s to the list.
+- The cumulative page shows exactly the mockup: title, bar, ruler, key numbers, quiet context, Log, projection chart. The activity strip, prior-year panel, and "What counts" details are not on it; they stay on the detail card the other kinds keep.
+- The projection chart's legend carries the landing values ("At your average · 34 h (85%)"), replacing the readout sentence under the chart. "Required at day start" is now "Needed from today".
+- Ruler label lanes are laid out client-side in `main.js` (`laneRulers`), as in the mockup; the server renders every position.
+- Sidebar pins (`shared/pinned-goal-links`) use `goals.dashboard/visible-goals`, so a goal over a sensitive habit stays out of the sidebar when sensitive mode is off. The current goal's link is lit.
+- Pin stars on list rows post `from=list` and return to the list.
+
+## Validation (2026-10-06 redesign)
+
+- [x] Calc tests for the ruler, gap, even tonight, and recent weeks.
+- [x] Render tests: `goals-list-render-test` (group order, `0/14`, `−15`, `347 days left`), `cumulative-page-render-test` (12.9 / 13.7 / −15, Log to the workout screen, no sentences, nothing collapsed), `visible-goals-test`.
+- [x] `test-goals.ts` reworked: list groups and aligned columns, row navigation, the `?goal=` redirect, the ruler page's key numbers and marks, Log below the keys on a phone and beside them on desktop, day-start values holding while today moves, sidebar pins, and pin/unpin from the list.
+- [x] `test-smoke.ts`: a missing goal page redirects to the list.
+- [ ] User check: the redesign reads at a glance on a real goal (the 2026-10-04 and 2026-10-05 notes above).
+
 ## Scope
 
 No stored progress values; everything stays computed per request.
@@ -163,6 +201,6 @@ Comparisons and records belong to [092](./092-goal-comparisons-records.md); pinn
 
 ## Context
 
-- `src/tech/jgood/gleanmo/goals/calc.clj` `numeric-progress` (completed-day average and required around line 296).
+- `src/tech/jgood/gleanmo/goals/calc.clj` `numeric-progress` (elapsed-day average and required around line 296).
 - `src/tech/jgood/gleanmo/app/goals.clj` `numeric-summary`, `numeric-chart`, `numeric-row`.
-- The completed-day rule is specified in [081](./081-goals-dashboard.md) §4; this unit adds live values beside it rather than replacing it.
+- The elapsed-day rule is specified in [081](./081-goals-dashboard.md) §4; this unit adds live values beside it rather than replacing it.

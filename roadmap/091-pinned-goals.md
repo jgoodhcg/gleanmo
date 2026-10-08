@@ -25,6 +25,7 @@ Dogfood note, verbatim (2026-09-25):
 - Add `[:goal/pinned {:optional true :hide true} :boolean]` to `schema/goal_schema.clj`; absent means unpinned, never stored `false`.
 - Pin/Unpin sits with Edit, Archive, and Delete in the selected-goal header, and posts through the validated goal mutation with a 303 back to the page.
 - Pinned goals sort first in the goals table and the first pinned goal is the default selection when no `?goal=` is given.
+  Superseded 2026-10-06: the list has no selection; pinned goals sort first within each group.
 - Archiving a goal leaves the flag alone; archived goals are excluded from the home card regardless.
 
 ### Home card
@@ -95,6 +96,12 @@ User, verbatim: "goals can be pinned to the sidebar so that I can quickly get to
 This answers the open "graph and goal picker on the same page?" question above: no.
 Mockup `mockups/2026-10-goal-card/claude-code/mockup-claude-code-06-list-and-goal.html` shows a goals list grouped by family (cumulative / periodic), a page per goal, and pinned goals nested under "goals" in the sidebar with today's amount against the pace needed (e.g. `0/14`).
 Whether pins also stay on the home screen, and the met-pace chips above, are still open.
+
+Built 2026-10-06 (plan and notes in [090](./090-goal-live-today.md)):
+
+- `/app/goals` is the list; each goal has its own page at `/app/goal/:id`, and the old `?goal=` URL redirects there. Pinned goals still lead each group.
+- Sidebar pins are links only, under "goals". User, verbatim: "The pins should just be a query for a goal and it's a link to the goal id why do we have to do a progress computation to render teh sidebar?" So the mockup's `0/14` beside each pin is dropped; the sidebar costs the sparse `pinned-goals-for-user` lookup, plus one related-entity read when pins exist, to keep sensitive goals hidden.
+- Home cards are unchanged and now link to the goal page.
 
 ## Scope
 

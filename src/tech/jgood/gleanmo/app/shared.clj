@@ -3,6 +3,7 @@
    [clojure.string :as str]
    [com.biffweb    :as biff]
    [tech.jgood.gleanmo.db.queries :as query]
+   [tech.jgood.gleanmo.goals.dashboard :as goals]
    [tech.jgood.gleanmo.ui.icons :as icons]
    [tick.core      :as t])
   (:import
@@ -208,10 +209,26 @@
   [href icon label]
   [:a.link.flex.items-center.gap-2 {:href href} icon [:span label]])
 
+(defn- pinned-goal-links
+  "Pinned, unarchived goals as links nested under \"goals\"
+   (roadmap/091-pinned-goals.md, 2026-10-06). One sparse-flag lookup and no
+   progress computed; goals the visibility settings hide stay out."
+  [{:keys [biff/db uri]} user-id settings]
+  (let [pinned (remove #(true? (:goal/archived %))
+                       (query/pinned-goals-for-user db user-id))]
+    (for [g (goals/visible-goals db user-id pinned settings)
+          :let [href (str "/app/goal/" (:xt/id g))]]
+      [:a {:key               href
+           :href              href
+           :data-sidebar-goal (str (:xt/id g))
+           :class             (str "link block truncate pl-7 text-sm "
+                                   (when (= uri href) "text-neon-cyan"))}
+       (:goal/label g)])))
+
 (defn side-bar
   [{:keys [session] :as ctx} & content]
   (let [user-id     (:uid session)
-        {:keys [show-sensitive show-archived show-bm-logs]}
+        {:keys [show-sensitive show-archived show-bm-logs] :as settings}
         (query/resolve-user-settings ctx)
         account-url (str "/app/users/" user-id)
         {:keys [super-user]} (query/get-user-authz (:biff/db ctx) user-id)
@@ -270,6 +287,7 @@
       ;; Layer 3 — look back at what was logged.
       [:div.text-xs.text-gray-400.uppercase.tracking-wide.mb-2 "Review"]
       (sidebar-link "/app/goals" (icons/entity-icon :goal) "goals")
+      (pinned-goal-links ctx user-id settings)
       (sidebar-link "/app/calendar/year" (icons/calendar-days) "calendar (year)")
       (sidebar-link "/app/dashboards/stats" (icons/chart-column) "stats & charts")
       (sidebar-link "/app/stats/medication-history"

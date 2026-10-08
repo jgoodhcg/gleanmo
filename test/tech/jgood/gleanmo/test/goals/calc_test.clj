@@ -49,13 +49,13 @@
     (let [g (goal {:goal/timing :weekly :goal/ends-on nil
                    :goal/starts-on (date "2026-09-09")})]
       (is (= {:start (date "2026-09-09") :end (date "2026-09-13") :partial? true
-              :completed-days 3 :total-days 5 :remaining-days 2 :status :active}
+              :elapsed-days 3 :total-days 5 :remaining-days 2 :status :active}
              (select-keys (calc/window g (date "2026-09-12"))
-                          [:start :end :partial? :completed-days :total-days
+                          [:start :end :partial? :elapsed-days :total-days
                            :remaining-days :status])))
-      (is (= {:start (date "2026-09-14") :partial? false :completed-days 2}
+      (is (= {:start (date "2026-09-14") :partial? false :elapsed-days 2}
              (select-keys (calc/window g (date "2026-09-16"))
-                          [:start :partial? :completed-days])))))
+                          [:start :partial? :elapsed-days])))))
   (testing "states"
     (is (= :not-started (:status (calc/window (goal {}) (date "2026-06-30")))))
     (is (= :active (:status (calc/window (goal {}) (date "2026-07-01")))))
@@ -233,18 +233,18 @@
       (is (= (date "2027-02-28")
              (:through (calc/comparison-window
                         g {:start (date "2028-02-01") :through (date "2028-02-29")
-                           :completed-days 29}
+                           :elapsed-days 29}
                         1)))))
     (testing "weekly comparisons use the ISO week, and week 53 may not exist"
       (let [wk (goal {:goal/timing :weekly :goal/ends-on nil})]
         (is (= {:start (date "2025-09-08") :through (date "2025-09-10")}
                (calc/comparison-window wk {:start (date "2026-09-07")
                                            :through (date "2026-09-09")
-                                           :completed-days 3}
+                                           :elapsed-days 3}
                                        1)))
         (is (nil? (calc/comparison-window wk {:start (date "2026-12-28")
                                               :through (date "2026-12-29")
-                                              :completed-days 2}
+                                              :elapsed-days 2}
                                           1)))))))
 
 (deftest accounting-cutoff-test
@@ -301,7 +301,7 @@
   (let [w (calc/window (goal {:goal/timing :weekly :goal/ends-on (date "2026-09-16")})
                        (date "2026-09-20"))]
     (is (= 3 (:total-days w)))
-    (is (= 3 (:completed-days w)))
+    (is (= 3 (:elapsed-days w)))
     (is (:partial? w)))
   (is (= {(date "2026-11-01") 90000.0}
          (calc/daily-seconds [[(at "2026-11-01T00:00") (at "2026-11-02T00:00")]]
@@ -330,10 +330,10 @@
                  {:at (at "2026-07-02T20:00") :open? true}]
         p (calc/numeric-progress g ms records now)]
     (is (= 14400.0 (:logged p)) "today includes intervals ending exactly now")
-    (is (= 7200.0 (:completed-logged p)))
+    (is (= 7200.0 (:elapsed-logged p)))
     (is (= 7200.0 (:today-logged p)))
-    (is (= 3600.0 (:average p)) "only completed-day amount enters the average")
-    (is (= 3600.0 (:required p)) "required pace retains the completed-day baseline")
+    (is (= 3600.0 (:average p)) "only elapsed-day amount enters the average")
+    (is (= 3600.0 (:required p)) "required pace retains the elapsed-day baseline")
     (is (= 1.0 (:ratio p)))
     (is (= 0.0 (:pace-days p)))
     (is (= 14400.0 (second (peek (:series p)))))
@@ -353,9 +353,9 @@
         monday (calc/numeric-progress g ms records (at "2026-09-14T12:00"))]
     (is (= 0.0 (:logged midnight)))
     (is (= 2.0 (:logged monday)))
-    (is (= 0.0 (:completed-logged monday)))
+    (is (= 0.0 (:elapsed-logged monday)))
     (is (nil? (:average monday)))
-    (is (= 0 (get-in monday [:window :completed-days])))
+    (is (= 0 (get-in monday [:window :elapsed-days])))
     (is (= (date "2026-09-14") (get-in monday [:window :start])))
     (is (= :active (get-in (calc/numeric-progress
                             (assoc g :goal/starts-on (date "2026-09-14"))
@@ -370,7 +370,7 @@
                            [(m :meditation-log :records :total) 1.0]]]
       (let [p (calc/numeric-progress g ms records now)]
         (is (= expected (:logged p)))
-        (is (= 0.0 (:completed-logged p)))
+        (is (= 0.0 (:elapsed-logged p)))
         (is (= :ended (get-in p [:window :status])))
         (is (nil? (:required p)))
         (is (= (date "2026-07-03") (first (peek (:series p)))))
@@ -393,7 +393,7 @@
                                   {:at (at "2026-07-03T13:00") :duration 100}]
                                  (at "2026-07-03T12:00"))]
     (is (= 90.0 (:logged p)))
-    (is (= 80.0 (:completed-logged p)))
+    (is (= 80.0 (:elapsed-logged p)))
     (is (every? nil? (map p [:average :required :ratio :pace-days])))))
 
 (deftest today-goal-local-zones-test
@@ -412,15 +412,15 @@
         la (progress "America/Los_Angeles")]
     (is (= (date "2026-09-14") (get-in tokyo [:window :start])))
     (is (= 2.0 (:logged tokyo)))
-    (is (= 0.0 (:completed-logged tokyo)))
+    (is (= 0.0 (:elapsed-logged tokyo)))
     (is (nil? (:average tokyo)))
     (is (= (date "2026-09-07") (get-in la [:window :start])))
     (is (= 3.0 (:logged la)))
-    (is (= 0.0 (:completed-logged la)))
+    (is (= 0.0 (:elapsed-logged la)))
     (is (= 0.0 (:average la)))))
 
 (deftest live-today-test
-  ;; Jul 1–10, 10 h target. At noon Jul 5: four completed days hold 4 h, so
+  ;; Jul 1–10, 10 h target. At noon Jul 5: four elapsed days hold 4 h, so
   ;; six days remain and the required rate at day start is 1 h/day.
   (let [ms       (m :reading-log :duration :total)
         g        (goal {:goal/ends-on (date "2026-07-10") :goal/target 36000.0})
@@ -432,11 +432,11 @@
         close?   (fn [a b] (< (Math/abs (- (double a) (double b))) 1e-6))]
     (testing "behind: today's amount is short of the required rate"
       (let [p (today "2026-07-05T09:30")]
-        (is (= 3600.0 (:average p)) "the completed-day baseline does not move")
+        (is (= 3600.0 (:average p)) "the elapsed-day baseline does not move")
         (is (= 3600.0 (:required p)))
         (is (= 1800.0 (:today-amount p)))
         (is (= 1800.0 (:needed-today p)))
-        (is (= 3240.0 (:live-average p)) "logged ÷ (completed days + 1)")
+        (is (= 3240.0 (:live-average p)) "logged ÷ (elapsed days + 1)")
         (is (= 3960.0 (:required-after-today p)))
         (is (= -360.0 (:required-change p)) "falling short raises the required rate")
         (is (false? (:above-average? p)))
@@ -477,7 +477,7 @@
         (is (true? (:reached? p)))
         (is (every? nil? (map p [:required :needed-today :required-after-today
                                  :required-change :projection :recent-projection])))))
-    (testing "zero completed days: the live average is today alone"
+    (testing "zero elapsed days: the live average is today alone"
       (let [p (calc/numeric-progress (assoc g :goal/starts-on (date "2026-07-05")) ms
                                      [(interval-record "2026-07-05T09:00" "2026-07-05T10:00")]
                                      now)]
@@ -486,7 +486,7 @@
         (is (= 3600.0 (:live-average p)))
         (is (= 6000.0 (:required p)))
         (is (= 2400.0 (:needed-today p)))))
-    (testing "the recent-pace projection needs a full window of completed days"
+    (testing "the recent-pace projection needs a full window of elapsed days"
       (is (nil? (:recent-projection (today "2026-07-05T09:30"))))
       ;; Jul 1–31. 5 h early in the month, then 2 h on Jul 15: the last 14
       ;; days (Jul 7–20) hold 2 h, so the recent pace is well below average.
@@ -524,6 +524,101 @@
                       :goal/starts-on (date "2026-09-14")})
                ms records now)]
         (is (= 1800.0 (:average p)))
-        (is (= 1800.0 (:live-average p)) "5400 over two completed days plus today")
+        (is (= 1800.0 (:live-average p)) "5400 over two elapsed days plus today")
         (is (false? (:above-average? p)))
         (is (every? nil? (map p [:required :needed-today :projection])))))))
+
+(deftest gap-and-even-tonight-test
+  ;; Jul 1–10, 10 h target, even pace 1 h/day. Four elapsed days hold 4 h.
+  (let [ms  (m :reading-log :duration :total)
+        g   (goal {:goal/ends-on (date "2026-07-10") :goal/target 36000.0})
+        rec [(interval-record "2026-07-01T10:00" "2026-07-01T12:00")
+             (interval-record "2026-07-02T10:00" "2026-07-02T11:00")]]
+    (testing "behind at day start, and today's log does not move the gap"
+      (let [p (calc/numeric-progress
+               g ms (conj rec (interval-record "2026-07-05T09:00" "2026-07-05T11:00"))
+               (at "2026-07-05T12:00"))]
+        (is (= 3600.0 (:even-rate p)))
+        (is (= 18000.0 (:even-tonight p)))
+        (is (= -3600.0 (:gap-at-day-start p)) "3 h logged against 4 h of even pace")))
+    (testing "weekly and ended goals have no gap"
+      (is (nil? (:gap-at-day-start (calc/numeric-progress
+                                    (goal {:goal/timing :weekly :goal/ends-on nil})
+                                    ms rec (at "2026-07-05T12:00")))))
+      (is (nil? (:gap-at-day-start (calc/numeric-progress g ms rec
+                                                          (at "2026-07-12T12:00"))))))))
+
+(deftest ruler-test
+  (let [reps   (m :exercise-line :reps :total)
+        ;; The 2026-10-05 dogfood goal: 245 of 5,000 reps after 19 of 366
+        ;; days, so the pace needed is 4,755 ÷ 347 ≈ 13.7 reps/day.
+        pullup (fn [today]
+                 {:elapsed-logged 245.0
+                  :logged           (+ 245.0 today)
+                  :target           5000.0
+                  :required         (/ 4755.0 347)
+                  :even-tonight     (* (/ 5000.0 366) 20)})
+        kinds  #(mapv :kind (:marks %))
+        by     (fn [r kind] (some #(when (= kind (:kind %)) %) (:marks r)))
+        close? (fn [a b] (< (Math/abs (- (double a) (double b))) 1e-6))]
+    (testing "the dogfood example"
+      (let [r (calc/ruler (pullup 0) reps)]
+        (is (close? (- 245 (/ 4755.0 347)) (:lo r)) "a day of pace before this morning")
+        (is (close? (+ 245 (* 2.5 (/ 4755.0 347))) (:hi r)) "2.5 days past now")
+        (is (= 50.0 (:major r)) "a nice step near 3 days of pace")
+        (is (= 5.0 (:minor r)))
+        (is (= [235.0 240.0 245.0 250.0 255.0 260.0 265.0 270.0 275.0] (:ticks r)))
+        (is (= [:round :keep :even] (kinds r)))
+        (is (= {:kind :round :value 250.0 :distance 5.0 :side nil} (by r :round)))
+        (is (= {:kind :keep :value 259.0 :distance 14.0 :side nil} (by r :keep))
+            "pace marks round up to a loggable amount")
+        (is (= 274.0 (:value (by r :even))))))
+    (testing "logging slides the window and keeps the total inside it"
+      (doseq [today [0 10 14 30 120]
+              :let [r (calc/ruler (pullup today) reps)
+                    logged (+ 245 today)]]
+        (is (<= (:lo r) logged (:hi r)) (str today " today"))
+        (is (= (:marks r) (sort-by :value (:marks r))))))
+    (testing "a big day puts passed marks behind, with a negative distance"
+      (let [r (calc/ruler (pullup 30) reps)]
+        (is (= -16.0 (:distance (by r :keep))))
+        (is (= 300.0 (:value (by r :round))) "the next round number moves on")))
+    (testing "near the end: the round number clashing with keep pace is dropped"
+      ;; 470 of 500 with 3 days left: 10/day needed, step 20, next round 480 = keep.
+      (let [r (calc/ruler {:elapsed-logged 470.0 :logged 470.0 :target 500.0
+                           :required 10.0 :even-tonight (* (/ 500.0 30) 28)}
+                          reps)]
+        (is (= [:even :keep] (kinds r)))
+        (is (= -3.0 (:distance (by r :even))) "even pace tonight is already behind")
+        (is (nil? (by r :target)) "500 is past the window")))
+    (testing "the target appears once it is within reach"
+      (let [r (calc/ruler {:elapsed-logged 495.0 :logged 495.0 :target 500.0
+                           :required 5.0 :even-tonight 480.0}
+                          reps)]
+        (is (= 500.0 (:value (by r :target))))
+        (is (close? 501.5 (:hi r)) "capped 0.3 of a day past the target")))
+    (testing "a far-off mark sits outside the window with its side"
+      (let [r (calc/ruler {:elapsed-logged 1400.0 :logged 1400.0 :target 3000.0
+                           :required 6.0 :even-tonight 830.0}
+                          reps)]
+        (is (= :below (:side (by r :even))))
+        (is (= -570.0 (:distance (by r :even))))))
+    (testing "duration totals step in whole minutes"
+      (let [r (calc/ruler {:elapsed-logged (* 60.0 400) :logged (* 60.0 400)
+                           :target (* 60.0 6000) :required (* 60.0 (/ 5600.0 305))
+                           :even-tonight (* 60.0 (/ 6000.0 365) 61)}
+                          (m :meditation-log :duration :total))]
+        (is (every? #(zero? (mod % 60.0)) (map :value (:marks r))))
+        (is (zero? (mod (:minor r) 60.0)))))
+    (testing "nothing to measure by"
+      (is (nil? (calc/ruler {:logged 10.0 :target 10.0} reps)))
+      (is (nil? (calc/ruler (assoc (pullup 0) :even-tonight nil) reps))))))
+
+(deftest recent-weeks-test
+  ;; Wednesday Sep 16, 2026; the last complete week is Sep 7–13.
+  (let [g       (goal {:goal/timing :weekly :goal/starts-on (date "2026-08-26")})
+        history (mapv (fn [d] {:date d :value (when (#{1 3} (.getValue (.getDayOfWeek ^LocalDate d))) 2)})
+                      (calc/dates (date "2026-08-01") (date "2026-09-16")))]
+    (is (= [nil 2 4 4] (calc/recent-weeks (assoc g :goal/starts-on (date "2026-08-26")) history 4))
+        "Aug 17–23 predates the goal, and Aug 24–30 counts only from Wednesday the 26th")
+    (is (= [4 4] (calc/recent-weeks g history 2)))))

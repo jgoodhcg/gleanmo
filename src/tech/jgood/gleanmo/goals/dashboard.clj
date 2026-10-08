@@ -90,6 +90,26 @@
         (get entity (keyword t "title"))
         "Untitled")))
 
+(defn- visible-fn
+  "Predicate: the goal's selected records all exist and none is hidden by the
+   user's visibility settings."
+  [related settings]
+  (fn [g]
+    (not-any? (fn [k]
+                (some #(let [e (get related %)]
+                         (or (nil? e) (hidden? e settings)))
+                      (get g k)))
+              registry/relation-keys)))
+
+(defn visible-goals
+  "`goals` without those whose selected records the user's visibility
+   settings hide — the same rule the goals page applies, for callers such as
+   the sidebar that list goals without computing them."
+  [db user-id goals user-settings]
+  (if (seq goals)
+    (filter (visible-fn (related-entities db user-id goals) user-settings) goals)
+    []))
+
 (defn- scope
   "Labels of the goal's selected relation records, or nil for all."
   [goal m related]
@@ -99,10 +119,13 @@
 
 (defn- numeric-entry
   [{:keys [goal measurement] :as entry} records now]
-  (let [progress (calc/numeric-progress goal measurement records now)]
+  (let [progress (calc/numeric-progress goal measurement records now)
+        history  (calc/history goal measurement records now history-days)]
     (assoc entry
            :progress progress
-           :history (calc/history goal measurement records now history-days)
+           :history history
+           :weeks (when (= :weekly (:goal/timing goal))
+                    (calc/recent-weeks goal history 4))
            :recent (when (= :open-ended (:goal/timing goal))
                      (calc/recent-activity goal measurement records now
                                            recent-days))
@@ -110,7 +133,7 @@
            ;; unknown history rather than inferring zero activity.
            :comparison (when (not= :open-ended (:goal/timing goal))
                          (calc/comparison goal measurement records
-                                          (:completed-logged progress) (:window progress)
+                                          (:elapsed-logged progress) (:window progress)
                                           1 nil)))))
 
 (defn- book-entry
@@ -133,7 +156,7 @@
 
 (defn dashboard
   "Everything the goals page renders from one captured `now` instant.
-   Each goal includes today and computes completed-day pace in its saved zone.
+   Each goal includes today and computes elapsed-day pace in its saved zone.
 
    Returns `{:active [entry] :archived [goal] :hidden-count n}`. Goals whose
    selected records the user's visibility settings hide are left out of both
@@ -147,12 +170,7 @@
   (let [goals    (or goals (queries/goals-for-user db user-id))
         related  (related-entities db user-id goals)
         settings user-settings
-        visible? (fn [g]
-                   (not-any? (fn [k]
-                               (some #(let [e (get related %)]
-                                        (or (nil? e) (hidden? e settings)))
-                                     (get g k)))
-                             registry/relation-keys))
+        visible? (visible-fn related settings)
         {archived true, active false} (group-by #(true? (:goal/archived %))
                                                 (filter visible? goals))
         entries  (for [g active

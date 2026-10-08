@@ -5,7 +5,7 @@ description: "Minor improvements without full work-unit docs"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-10-04
+updated: 2026-10-08
 ---
 
 # Backlog
@@ -219,7 +219,7 @@ reading logs only — so a running exercise or bouldering session never showed.
 
 ### `test:goals` flakes on a seconds-precision datetime fill
 Observed once in `just e2e-test-all` on 2026-09-21, at step 8 ("Counting today
-while pace uses completed days"). Unrelated to the change being tested, and it
+while pace uses elapsed days"). Unrelated to the change being tested, and it
 passed three consecutive runs in isolation plus two further full-suite runs.
 - **Error**: `locator.fill: Error: Malformed value`, filling
   `input[name="reading-log/beginning"]` with `"2026-09-21T17:30:00"` against a
@@ -249,6 +249,15 @@ Reduce O(n) request patterns when fetching habit labels. Target a single query (
 - Update AGENTS.md with linting commands
 - Establish linting rules for codebase consistency
 - Pre-commit hooks for automated linting
+
+### Documentation audit: rewrite in STE (2026-10-08)
+User, verbatim: "Speaking of comments can you put on the roadmap to do an audit of documentation to write it in STE?"
+Raised while fixing an outdated comment in `main.js` (it described goal selection through HTMX after the redesign removed it).
+- **STE** is ASD-STE100 Simplified Technical English: a controlled vocabulary, one meaning per word, short sentences, active voice, one instruction per sentence.
+- **Candidate scope**, to confirm with the user before starting: `AGENTS.md`, `e2e/README.md`, roadmap prose, namespace docstrings, and code comments.
+  Verbatim user quotes stay as written.
+- **Audit for two things at once:** prose that is not STE, and prose that is no longer true. The `main.js` comment was both.
+- **Approach:** list files with a rough count of non-STE and stale passages, agree an order with the user, then rewrite in batches. Rewording only; no code changes.
 
 ## Task Today
 

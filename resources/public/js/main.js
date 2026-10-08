@@ -748,97 +748,51 @@ function toggleTaskRow(rowId) {
   });
 })();
 
-// Goals dashboard table (roadmap/081-goals-dashboard.md)
+// Goals list and goal page (roadmap/090, roadmap/091).
 //
-// Measurement and timing filters, text search, and sortable columns over the
-// server-rendered rows, which carry `data-kind`, `data-timing`, `data-search`
-// and one `data-sort-<column>` value per column (absent values sort last).
-// Selecting a row clicks its link, which htmx swaps into the detail card, so
-// filter and sort state survive selection.
+// A click anywhere on a list row opens its goal, except on the pin toggle.
+// On the goal page, ruler mark labels that would overlap drop into lower
+// lanes, and the ruler grows to fit them (mockups/2026-10-goal-card 05–06).
 (function () {
-  function sortValue(row, key) {
-    var v = row.getAttribute('data-sort-' + key);
-    if (v == null || v === '') return null;
-    return key === 'label' ? v : parseFloat(v);
-  }
+  document.addEventListener('click', function (e) {
+    var row = e.target.closest('[data-goal-row]');
+    if (!row || e.target.closest('a, button, form')) return;
+    var link = row.querySelector('a[data-goal-link]');
+    if (link) link.click();
+  });
 
-  function initGoalsTable(root) {
-    var panel = (root || document).querySelector('[data-goals-table]');
-    if (!panel || panel.dataset.goalsInit === 'true') return;
-    panel.dataset.goalsInit = 'true';
-    var tbody = panel.querySelector('tbody');
-    var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr[data-goal-row]'));
-    var count = panel.querySelector('[data-goals-count]');
-    var empty = panel.querySelector('[data-goals-empty]');
-    var state = { kind: 'all', timing: 'all', q: '', key: 'label', dir: 1 };
-
-    function apply() {
-      var visible = rows.filter(function (r) {
-        return (state.kind === 'all' || r.dataset.kind === state.kind) &&
-               (state.timing === 'all' || r.dataset.timing === state.timing) &&
-               (r.dataset.search || '').indexOf(state.q) !== -1;
+  function laneRulers(root) {
+    (root || document).querySelectorAll('[data-goal-ruler]').forEach(function (ruler) {
+      var placed = [];
+      var lanes = 0;
+      ruler.querySelectorAll('.goal-ruler-mark.down').forEach(function (mark) {
+        var label = mark.querySelector(':scope > span');
+        for (var lane = 0; lane < 5; lane++) {
+          mark.style.setProperty('--lane', lane);
+          var r = label.getBoundingClientRect();
+          var clash = placed.some(function (q) {
+            return q.lane === lane && r.left < q.right + 10 && r.right > q.left - 10;
+          });
+          if (!clash) {
+            placed.push({ lane: lane, left: r.left, right: r.right });
+            lanes = Math.max(lanes, lane);
+            break;
+          }
+        }
       });
-      visible.sort(function (a, b) {
-        var av = sortValue(a, state.key), bv = sortValue(b, state.key);
-        if (av === null) return bv === null ? 0 : 1;
-        if (bv === null) return -1;
-        return state.dir * (typeof av === 'string' ? av.localeCompare(bv) : av - bv);
-      });
-      rows.forEach(function (r) { r.hidden = visible.indexOf(r) === -1; });
-      visible.forEach(function (r) { tbody.appendChild(r); });
-      if (count) count.textContent = visible.length + ' / ' + rows.length;
-      if (empty) empty.hidden = visible.length > 0;
-      panel.querySelectorAll('th[data-sort-key]').forEach(function (th) {
-        var active = th.dataset.sortKey === state.key;
-        th.setAttribute('aria-sort', active ? (state.dir === 1 ? 'ascending' : 'descending') : 'none');
-        var b = th.querySelector('button');
-        b.textContent = b.textContent.replace(/ [↕↑↓]$/, '') + ' ' +
-          (active ? (state.dir === 1 ? '↑' : '↓') : '↕');
-      });
-    }
-
-    function wireGroup(attr, field) {
-      var buttons = panel.querySelectorAll('[' + attr + ']');
-      buttons.forEach(function (b) {
-        b.addEventListener('click', function () {
-          state[field] = b.getAttribute(attr);
-          buttons.forEach(function (o) { o.setAttribute('aria-pressed', String(o === b)); });
-          apply();
-        });
-      });
-    }
-
-    wireGroup('data-goal-kind', 'kind');
-    wireGroup('data-goal-timing', 'timing');
-    var search = panel.querySelector('[data-goals-search]');
-    if (search) {
-      search.addEventListener('input', function () {
-        state.q = search.value.trim().toLowerCase();
-        apply();
-      });
-    }
-    panel.querySelectorAll('th[data-sort-key] button').forEach(function (b) {
-      b.addEventListener('click', function () {
-        var key = b.closest('th').dataset.sortKey;
-        state.dir = state.key === key ? -state.dir : 1;
-        state.key = key;
-        apply();
-      });
-    });
-    tbody.addEventListener('click', function (e) {
-      var row = e.target.closest('tr[data-goal-row]');
-      if (!row) return;
-      rows.forEach(function (r) { r.setAttribute('aria-selected', String(r === row)); });
-      if (!e.target.closest('a, button, form')) {
-        var link = row.querySelector('a[data-goal-link]');
-        if (link) link.click();
-      }
+      ruler.style.height = (5 + lanes * 2.5) + 'rem';
     });
   }
 
-  document.addEventListener('DOMContentLoaded', function () { initGoalsTable(document); });
+  document.addEventListener('DOMContentLoaded', function () { laneRulers(document); });
+  document.addEventListener('htmx:afterSettle', function (e) { laneRulers(e.target); });
+  var resizeTimer;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () { laneRulers(document); }, 100);
+  });
 
-  // Delegation also handles activity strips replaced by goal selection through HTMX.
+  // Delegated, so one listener serves every activity strip on the page.
   document.addEventListener('focusin', function (e) {
     var cell = e.target.closest('[data-activity-cell]');
     if (!cell) return;

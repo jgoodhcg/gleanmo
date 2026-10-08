@@ -1,12 +1,12 @@
 (ns tech.jgood.gleanmo.app.goals
-  "The goals dashboard: a bounded, sortable, filterable table of every goal,
-   and one selected goal's chart, activity strip, and comparison or
-   recent-reading panel.
+  "Goals: a list grouped by family (cumulative dated, periodic, other) and a
+   page per goal. Cumulative dated goals get the ruler page
+   (roadmap/090-goal-live-today.md); other kinds keep the detail card.
 
    Totals include today through one captured request instant. Rates use
-   completed days in each goal's saved zone. Mutations here
-   (book chart preferences, archive, delete) write and 303 back, so the page
-   always renders from a fresh snapshot."
+   elapsed days in each goal's saved zone. Mutations here
+   (book chart preferences, pin, archive, delete) write and 303 back, so the
+   page always renders from a fresh snapshot."
   (:require
    [cheshire.core :as json]
    [clojure.string :as str]
@@ -114,12 +114,6 @@
     (when-not (re-matches #"[0.]+" txt)
       (str " (" (if (neg? v) "−" "+") txt ")"))))
 
-(defn- pace-text
-  [days]
-  (if (nil? days)
-    "—"
-    (str (if (neg? days) "−" "+") (fmt-num (Math/abs (double days))) " d")))
-
 (defn- source-line
   [{:keys [measurement scope]}]
   (str (get-in registry/sources [(:source measurement) :label]) " · "
@@ -137,28 +131,67 @@
                      (when-let [e (:goal/ends-on goal)] (str " · until " (short-date e))))
     (date-span (:goal/starts-on goal) (:goal/ends-on goal))))
 
-(defn- kind-of [{:keys [measurement]}] (name (:kind measurement)))
-
 (defn- pinned? [goal] (true? (:goal/pinned goal)))
 
-(defn- timing-key
+(defn goal-href
+  "The goal's own page."
   [goal]
-  (case (:goal/timing goal) :open-ended "open" :weekly "weekly" "dated"))
+  (str "/app/goal/" (:xt/id goal)))
 
 ;; ---------------------------------------------------------------------------
-;; Table
+;; Goal families (roadmap/090-goal-live-today.md, design direction 2026-10-06)
 ;; ---------------------------------------------------------------------------
 
-(defn- progress-bar
-  [fraction tick open?]
-  [:div {:class "relative mt-2 ml-auto h-1.5 w-full max-w-[10rem] rounded-full border border-dark bg-dark"}
-   (when (some? fraction)
-     [:span {:class (str "block h-full rounded-full " (if open? "bg-neon-lime" "bg-neon-cyan"))
-             :style {:width (str (min 100.0 (* 100.0 (max 0.0 fraction))) "%")}}])
-   (when tick
-     [:i {:class       "absolute -top-1 h-3 w-0.5 bg-white"
-          :aria-hidden "true"
-          :style       {:left (str (min 100.0 (* 100.0 tick)) "%")}}])])
+(defn- cumulative?
+  "A dated total: extra today covers a missed day, so it gets the ruler."
+  [{:keys [goal measurement book-progress]}]
+  (and (nil? book-progress)
+       (= :dated (:goal/timing goal))
+       (= :total (:aggregation measurement))))
+
+(defn- periodic?
+  "A weekly total: each week stands alone."
+  [{:keys [goal book-progress]}]
+  (and (nil? book-progress) (= :weekly (:goal/timing goal))))
+
+;; Ruler units: counts as themselves, duration totals in minutes, so a day's
+;; pace reads as a small whole number rather than a fraction of an hour.
+
+(defn- ruler-factor [m] (if (duration-total? m) 60.0 1.0))
+
+(defn- qty
+  "A canonical value in ruler units with `dp` decimals, or at most one."
+  ([m v] (when (some? v) (fmt-num (/ (double v) (ruler-factor m)))))
+  ([m v dp]
+   (when (some? v)
+     (format (str "%,." dp "f") (/ (double v) (ruler-factor m))))))
+
+(defn- qty-unit
+  [m]
+  (if (duration-total? m) "min" (get registry/unit-labels (:unit m))))
+
+(defn- signed-qty
+  "A whole-unit signed amount: −15, +3, or 0."
+  [m v]
+  (when (some? v)
+    (let [s (qty m (Math/abs (double v)) 0)]
+      (if (re-matches #"[0,]+" s) "0" (str (if (neg? v) "−" "+") s)))))
+
+(defn- pace-needed-whole
+  "The pace needed rounded up to an amount that can be logged."
+  [m required]
+  (format "%,d" (long (Math/ceil (- (/ (double required) (ruler-factor m)) 1e-9)))))
+
+(def ^:private log-entity
+  "Sources logged through their parent's screen."
+  {:exercise-line :exercise-session, :boulder-attempt :boulder-session})
+
+(defn- log-href
+  "Where Log goes for a measurement: the source's quick-action destination."
+  [m]
+  (let [entity (get log-entity (:source m) (:source m))]
+    (or (some #(when (= entity (:entity %)) (:href %)) shared/quick-action-items)
+        "/app/log")))
 
 (defn- data-attrs
   "`<prefix><key>` attributes for the non-nil values of `m`."
@@ -166,96 +199,6 @@
   (into {}
         (keep (fn [[k v]] (when (some? v) [(keyword (str prefix (name k))) (str v)])))
         m))
-
-(defn- sort-attrs
-  "data-sort-* attributes; absent values sort last client-side."
-  [m]
-  (data-attrs "data-sort-" m))
-
-(defn- goal-link
-  [goal & body]
-  (into [:a {:href           (str "/app/goals?goal=" (:xt/id goal))
-             :data-goal-link true
-             :hx-get         (str "/app/goals?goal=" (:xt/id goal))
-             :hx-target      "#goal-detail-mount"
-             :hx-select      "#goal-detail"
-             :hx-swap        "innerHTML"
-             :hx-push-url    "true"
-             :class          "block text-left text-sm font-semibold text-white no-underline hover:text-neon-cyan"}]
-        body))
-
-(defn- name-cell
-  [{:keys [goal] :as entry}]
-  [:td {:class "px-4 py-3 text-left align-top"}
-   [:div.flex.items-baseline.justify-between.gap-3
-    (goal-link goal (:goal/label goal)
-               (when (pinned? goal)
-                 [:span {:class "ml-2 text-xs font-normal text-neon-cyan"
-                         :data-goal-pinned true}
-                  "Pinned"]))
-    [:a.link.text-xs.shrink-0
-     {:href (str "/app/goal/" (:xt/id goal) "/edit")
-      :aria-label (str "Edit " (:goal/label goal))}
-     "Edit"]]
-   [:span.block.text-xs.text-gray-400.mt-1
-    (source-line entry) [:span.text-gray-300 (str " · " (timing-text goal))]]])
-
-(defn- dash-cell [] [:td {:class "px-4 py-3 text-right text-gray-500"} "—"])
-
-(defn- numeric-row
-  [{:keys [goal measurement progress] :as entry} selected?]
-  (let [{:keys [logged target average required ratio pace-days next reached?
-                even-pace window progress]
-         :as   p} progress
-        m      measurement
-        best?  (= :best (:aggregation m))
-        open?  (= :open-ended (:goal/timing goal))
-        warn?  (and ratio (> ratio 1))
-        status (if warn? "text-neon-amber" "text-neon-lime")
-        rate-v (fn [v] (when v (if (duration-total? m) (/ v 60) v)))]
-    [:tr (merge {:data-goal-row true
-                 :data-goal-id  (str (:xt/id goal))
-                 :data-kind     (kind-of entry)
-                 :data-timing   (timing-key goal)
-                 :data-search   (str/lower-case (str (:goal/label goal) " " (source-line entry)))
-                 :aria-selected (str selected?)
-                 :class         "border-b border-dark cursor-pointer hover:bg-dark"}
-                (sort-attrs {:label    (str/lower-case (:goal/label goal))
-                             :progress (:progress p)
-                             :rate     (rate-v average)
-                             :needed   (if best? (when-not reached? (/ (:remaining p) target))
-                                           (rate-v required))
-                             :ratio    ratio
-                             :pace     pace-days
-                             :next     (when next (/ (- next (or logged 0)) target))}))
-     (name-cell entry)
-     [:td {:class "px-4 py-3 text-right align-top tabular-nums"}
-      [:span.text-white (if (and logged (duration-total? m))
-                          (fmt-num (/ logged 3600))
-                          (if logged (fmt-num logged) "—"))]
-      [:span.text-gray-400 (str " / " (amount m target))]
-      (progress-bar progress
-                    (when (and even-pace (= :active (:status window))) even-pace)
-                    open?)]
-     (if best? (dash-cell)
-         [:td {:class "px-4 py-3 text-right align-top"} (rate m average)])
-     (cond
-       open?    (dash-cell)
-       best?    [:td {:class "px-4 py-3 text-right align-top"}
-                 (if reached? "Reached ✓" (str (amount m (:remaining p)) " to go"))]
-       required [:td {:class (str "px-4 py-3 text-right align-top " status)}
-                 (rate m required)]
-       :else    (dash-cell))
-     (if ratio
-       [:td {:class (str "px-4 py-3 text-right align-top " status)}
-        (str (when warn? "↑ ") (format "%.2f×" (double ratio)))]
-       (dash-cell))
-     [:td {:class "px-4 py-3 text-right align-top"} (pace-text pace-days)]
-     [:td {:class "px-4 py-3 text-right align-top"}
-      (if next
-        [:span (amount m (- next (or logged 0)))
-         [:span.text-xs.text-gray-400 (str " to " (amount m next))]]
-        (if reached? [:span.text-neon-lime "Reached ✓"] "—"))]]))
 
 (defn- book-state
   [{:keys [book-progress]}]
@@ -276,93 +219,6 @@
     (nil? v)            "—"
     (= :audio measure)  (duration/format-hms v)
     :else               (fmt-num v)))
-
-(defn- book-row
-  [{:keys [goal book-progress] :as entry} selected?]
-  (let [state   (book-state entry)
-        measure (chart-measure entry)
-        {:keys [latest total]} (get-in book-progress [:measures measure])]
-    [:tr (merge {:data-goal-row true
-                 :data-goal-id  (str (:xt/id goal))
-                 :data-kind     "completion"
-                 :data-timing   (timing-key goal)
-                 :data-search   (str/lower-case (str (:goal/label goal) " " (source-line entry)))
-                 :aria-selected (str selected?)
-                 :class         "border-b border-dark cursor-pointer hover:bg-dark"}
-                (sort-attrs {:label    (str/lower-case (:goal/label goal))
-                             :progress (if (= :completed state) 1 0)}))
-     (name-cell entry)
-     [:td {:class "px-4 py-3 text-right align-top"}
-      [:div {:class (case state :completed "text-neon-lime" :overdue "text-neon-amber" "text-white")}
-       (case state :completed "✓ Completed" :overdue "Overdue" "In progress")]
-      [:div.text-xs.text-gray-400.mt-1
-       (str (measure-labels measure) " · " (position-text measure (:value latest))
-            " / " (position-text measure total))]]
-     (dash-cell) (dash-cell) (dash-cell) (dash-cell) (dash-cell)]))
-
-(defn- filter-button
-  [attr value label pressed?]
-  [:button {:type         "button"
-            attr          value
-            :aria-pressed (str pressed?)
-            :class        "rounded px-2.5 py-1.5 text-xs text-gray-400 hover:bg-dark hover:text-white aria-pressed:bg-dark aria-pressed:text-neon-cyan"}
-   label])
-
-(def ^:private columns
-  [["label" "Goal" "text-left"]
-   ["progress" "Done / target" "text-right"]
-   ["rate" "Average per completed day" "text-right"]
-   ["needed" "Required" "text-right"]
-   ["ratio" "Required ÷ average" "text-right"]
-   ["pace" "Vs even pace" "text-right"]
-   ["next" "Next threshold" "text-right"]])
-
-(defn- goals-table
-  [entries selected]
-  [:section {:class "rounded-xl border border-dark bg-dark-surface overflow-hidden"
-             :aria-label "All goals"
-             :data-goals-table true}
-   [:div {:class "flex flex-wrap items-center gap-3 border-b border-dark px-4 py-3"}
-    [:h2.text-sm.font-semibold.text-white "All goals "
-     [:span.text-xs.text-gray-400 {:data-goals-count true}
-      (str (count entries) " / " (count entries))]]
-    [:div.flex.flex-wrap.gap-1 {:role "group" :aria-label "Filter by measurement"}
-     (for [[v label] [["all" "All"] ["duration" "Duration"] ["count" "Counts"]
-                      ["completion" "Completion"] ["best" "Best performance"]]]
-       (filter-button :data-goal-kind v label (= v "all")))]
-    [:label.ml-auto
-     [:span.sr-only "Filter goals by name or source"]
-     [:input.form-input {:type "search" :placeholder "Filter goals…"
-                         :class "w-48 py-1.5 text-xs"
-                         :data-goals-search true
-                         :data-original-value ""}]]]
-   [:div {:class "flex flex-wrap items-center gap-3 border-b border-dark px-4 py-1.5 text-xs text-gray-400"}
-    [:span "Timing"]
-    [:div.flex.flex-wrap.gap-1 {:role "group" :aria-label "Filter by timing"}
-     (for [[v label] [["all" "All"] ["dated" "Dated"] ["weekly" "Weekly reset"]
-                      ["open" "No deadline"]]]
-       (filter-button :data-goal-timing v label (= v "all")))]
-    [:span.ml-auto.hidden.sm:inline "Each goal has its own clock"]]
-   [:div {:class "goals-table-scroll max-h-72 overflow-auto" :tabindex "0"
-          :aria-label "Scrollable goals table"}
-    [:table {:class "goals-table w-full min-w-[60rem] border-separate border-spacing-0 text-xs"}
-     [:thead {:class "sticky top-0 z-10 bg-dark-surface"}
-      [:tr
-       (for [[k label align] columns]
-         [:th {:key k :data-sort-key k :aria-sort (if (= k "label") "ascending" "none")
-               :class (str "border-b border-dark px-4 py-2 font-medium uppercase tracking-wider text-gray-400 " align)}
-          [:button {:type "button" :class "uppercase tracking-wider"}
-           (str label (if (= k "label") " ↑" " ↕"))]])]]
-     [:tbody
-      (for [e entries
-            :let [sel? (= (get-in e [:goal :xt/id]) (get-in selected [:goal :xt/id]))]]
-        (if (:book-progress e) (book-row e sel?) (numeric-row e sel?)))]]
-    [:p {:class "p-8 text-center text-sm text-gray-400" :data-goals-empty true :hidden true}
-     "No goals match. Try another name or goal type."]]
-   [:div {:class "flex justify-between gap-3 border-t border-dark px-4 py-1.5 text-xs text-gray-400"}
-    [:span [:i {:class "mr-1.5 inline-block h-2.5 w-0.5 bg-white align-middle"}]
-     "Days without logs count as zero · each goal uses its saved time zone"]
-    [:span.hidden.sm:inline "No deadline = no required pace · select a goal to explore"]]])
 
 ;; ---------------------------------------------------------------------------
 ;; Charts (ECharts option JSON; main.js applies the `gleanmo` formatting hint)
@@ -404,9 +260,17 @@
    :label {:formatter label :color muted :fontSize 10}
    :data [{:xAxis (str date)}]})
 
+(defn- projection-label
+  "Where a projection lands, for its legend entry: the date it reaches the
+   target, or the total and share of target at the end of the period."
+  [m {:keys [total progress reaches-on]}]
+  (if reaches-on
+    (str "target " (short-date reaches-on))
+    (str (amount m total) " (" (fmt-num (* 100 progress)) "%)")))
+
 (defn- numeric-chart
   [{:keys [goal measurement progress now]} cutoff-date]
-  (let [{:keys [window series target required completed-logged logged
+  (let [{:keys [window series target required elapsed-logged logged
                 projection recent-projection]} progress
         {:keys [start end]} window
         m      measurement
@@ -444,16 +308,18 @@
                  paced? (conj (dashed "Even pace" "#6b7785"
                                       [[(str start) 0] [(str x-end) t]]))
                  (and paced? required)
-                 (conj (dashed "Required at day start" violet
-                               [[(str cutoff-date) (chart-value m completed-logged)] [(str x-end) t]]
+                 (conj (dashed "Needed from today" violet
+                               [[(str cutoff-date) (chart-value m elapsed-logged)] [(str x-end) t]]
                                :width 2))
                  (and now? projection)
-                 (conj (dashed "At this rate" cyan
+                 (conj (dashed (str "At your average · " (projection-label m projection)) cyan
                                [[(str local-now) (chart-value m logged)]
                                 [(str x-end) (chart-value m (:total projection))]]
                                :type "dotted" :width 2))
                  (and now? recent-projection)
-                 (conj (dashed (str "Last " calc/recent-pace-days " days' pace") green
+                 (conj (dashed (str "At last " calc/recent-pace-days " days · "
+                                    (projection-label m recent-projection))
+                               green
                                [[(str local-now) (chart-value m logged)]
                                 [(str x-end) (chart-value m (:total recent-projection))]]
                                :type "dotted" :width 2))
@@ -553,22 +419,33 @@
      :weekly     "Weekly reset"
      "Dated target")])
 
+(defn- pin-form
+  "Pin toggle. `from` \"list\" returns to the goals list instead of the goal."
+  [goal from & body]
+  (biff/form {:action (str (goal-href goal) "/pin") :method "post" :class "inline"}
+             [:input {:type "hidden" :name "pinned" :value (str (not (pinned? goal)))}]
+             (when from [:input {:type "hidden" :name "from" :value from}])
+             (into [:button {:type         "submit"
+                             :data-goal-pin true
+                             :aria-pressed (str (pinned? goal))
+                             :aria-label   (str (if (pinned? goal) "Unpin " "Pin ")
+                                                (:goal/label goal))
+                             :class        (if (pinned? goal)
+                                             "text-neon-cyan hover:text-white"
+                                             "text-gray-400 hover:text-neon-cyan")}]
+                   body)))
+
 (defn- actions
   [goal]
   [:div {:class "flex flex-wrap justify-end items-center gap-3 text-xs"
          :data-goal-actions true}
-   [:a.link {:href (str "/app/goal/" (:xt/id goal) "/edit")} "Edit"]
-   (biff/form {:action (str "/app/goal/" (:xt/id goal) "/pin") :method "post"
-               :class "inline"}
-              [:input {:type "hidden" :name "pinned"
-                       :value (str (not (pinned? goal)))}]
-              [:button.link {:type "submit" :data-goal-pin true}
-               (if (pinned? goal) "Unpin" "Pin")])
-   (biff/form {:action (str "/app/goal/" (:xt/id goal) "/archive") :method "post"
+   (pin-form goal nil (if (pinned? goal) "★ Pinned" "☆ Pin"))
+   [:a.link {:href (str (goal-href goal) "/edit")} "Edit"]
+   (biff/form {:action (str (goal-href goal) "/archive") :method "post"
                :class "inline"}
               [:input {:type "hidden" :name "archived" :value "true"}]
               [:button.link {:type "submit"} "Archive"])
-   (biff/form {:action (str "/app/goal/" (:xt/id goal) "/delete") :method "post"
+   (biff/form {:action (str (goal-href goal) "/delete") :method "post"
                :class "inline"
                :onsubmit "return confirm('Delete this goal? Your logs are not affected.');"}
               [:button {:type "submit" :class "text-gray-400 hover:text-red-400"} "Delete"])])
@@ -621,7 +498,7 @@
         best?  (= :best (:aggregation m))
         open?  (= :open-ended (:goal/timing goal))
         weekly? (= :weekly (:goal/timing goal))
-        {:keys [completed-days remaining-days status]} window
+        {:keys [elapsed-days remaining-days status]} window
         average-note (fn [prefix]
                        (str prefix
                             (when live-average
@@ -648,9 +525,9 @@
         (and open? (not best?))
         [:<>
          (stat "Still to go" (amount m remaining) "No deadline")
-         (stat "Average per completed day" (rate m average)
+         (stat "Average per elapsed day" (rate m average)
                (average-note (str "Since " (short-date (:goal/starts-on goal)) " · "
-                                  completed-days " completed days")))
+                                  elapsed-days " elapsed days")))
          (stat "Next milestone" (if next (amount m (- next (or logged 0))) "—")
                (when next (str "to " (amount m next))))]
 
@@ -672,15 +549,15 @@
 
         :else
         [:<>
-         (stat "Average per completed day" (rate m average)
-               (average-note (str completed-days " completed days")))
+         (stat "Average per elapsed day" (rate m average)
+               (average-note (str elapsed-days " elapsed days")))
          (if required
            (stat "Required from today" (rate m required)
                  (str remaining-days " days left"
                       (if required-after-today
                         (str " · after today " (rate m required-after-today)
                              (rate-change m (- required-change)))
-                        " · based on completed days")
+                        " · based on elapsed days")
                       (when ratio (format " · %.2f× your average" (double ratio))))
                  (if (and ratio (> ratio 1)) "text-neon-amber" "text-neon-lime"))
            (stat "Required from today" "—"
@@ -703,34 +580,12 @@
       (str "This calendar week · " (date-span start end))
       :else (str "Cumulative progress · " (date-span start end)))))
 
-(defn- projection-text
-  "Where a projection lands: the date it reaches the target, or the total and
-   share of target at the end of the period."
-  [m {:keys [total progress reaches-on]}]
-  (if reaches-on
-    (str "target on " (short-date reaches-on))
-    (str (amount m total) ", " (fmt-num (* 100 progress)) "% of target")))
-
 (defn- chart-readout
-  [{:keys [goal measurement progress]}]
-  (let [{:keys [projection recent-projection pace-days reached?]} progress]
-    (cond
-      (= :best (:aggregation measurement)) "Best recorded within the goal period"
-      (= :open-ended (:goal/timing goal)) "Progress keeps accumulating · no reset or required pace"
-      (= :weekly (:goal/timing goal)) "Each week stands on its own · no carry-forward"
-      :else
-      (str/join
-       " · "
-       (cond-> []
-         (and projection (not reached?))
-         (conj (str "At this rate: " (projection-text measurement projection)))
-         (and recent-projection (not reached?))
-         (conj (str "At the last " calc/recent-pace-days " days' pace: "
-                    (projection-text measurement recent-projection)))
-         pace-days
-         (conj (str (fmt-num (Math/abs (double pace-days))) " days "
-                    (if (neg? pace-days) "behind" "ahead of")
-                    " even pace · completed days")))))))
+  [{:keys [goal measurement]}]
+  (cond
+    (= :best (:aggregation measurement)) "Best recorded within the goal period"
+    (= :open-ended (:goal/timing goal)) "Progress keeps accumulating · no reset or required pace"
+    (= :weekly (:goal/timing goal)) "Each week stands on its own · no carry-forward"))
 
 (defn- history-panel
   [{:keys [goal measurement history book-progress]}]
@@ -848,7 +703,7 @@
            (str " The goal period is " (long-date (:goal/starts-on goal)) " – "
                 (long-date (:goal/ends-on goal)) ", inclusive."))
          " Totals and charts include today's eligible records through this page's refresh in "
-         (:goal/time-zone goal) ". Baseline rates use completed days through "
+         (:goal/time-zone goal) ". Baseline rates use elapsed days through "
          (long-date (calc/plus-days cutoff-date -1))
          ". Live values beside them count today as a whole day."
          " Intervals must have ended by the relevant cutoff before clipping to the goal period."
@@ -948,7 +803,7 @@
             (if completion "Confirmed by a reading log" "Position does not mark it finished"))]]))
 
 (defn goal-detail
-  "The selected goal's card. `#goal-detail` is what a row click swaps in."
+  "The detail card for goals without a page of their own yet."
   [entry cutoff-date]
   [:section#goal-detail
    {:class "rounded-xl border border-dark bg-dark-surface overflow-hidden"
@@ -1058,7 +913,7 @@
   [{:keys [goal] :as entry}]
   (let [[fraction headline status status-class] (card-figures entry)]
     [:a {:key          (str (:xt/id goal))
-         :href         (str "/app/goals?goal=" (:xt/id goal))
+         :href         (goal-href goal)
          :data-home-goal (str (:xt/id goal))
          :class        "block rounded-lg bg-dark-surface px-4 py-3 no-underline transition-colors hover:bg-dark-light"
          :style        {:border "1px solid #1e2430"}}
@@ -1105,54 +960,325 @@
      :body    (ui/fragment ctx (pinned-goal-cards entries))}))
 
 ;; ---------------------------------------------------------------------------
+;; Goals list (roadmap/091-pinned-goals.md, 2026-10-06)
+;; ---------------------------------------------------------------------------
+
+(def ^:private row-grid
+  "One template for every row in every group, so columns line up across
+   groups. On a phone everything but the pin stacks in the second column."
+  (str "grid grid-cols-[1.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-1 "
+       "border-t border-dark py-3 cursor-pointer "
+       "md:grid-cols-[1.5rem_minmax(0,22rem)_minmax(0,1fr)_minmax(0,19rem)] md:gap-x-6"))
+
+(def ^:private in-column "col-start-2 min-w-0 md:col-start-auto")
+
+(defn- list-bar
+  [fraction color]
+  [:div {:class "mt-1.5 h-1.5 w-full rounded-full bg-dark"}
+   (when (some? fraction)
+     [:span {:class (str "block h-full rounded-full " color)
+             :style {:width (str (min 100.0 (* 100.0 (max 0.0 fraction))) "%")}}])])
+
+(defn- figure
+  "A labelled number in a list row: quiet label, bright value."
+  [label value]
+  [:span.text-gray-400 label " " [:b.font-semibold.text-white value]])
+
+(defn- list-row
+  [{:keys [goal]} group meta progress figures]
+  [:div {:class         row-grid
+         :data-goal-row true
+         :data-goal-id  (str (:xt/id goal))
+         :data-group    group}
+   [:div {:class "col-start-1 row-start-1 md:col-start-auto md:row-start-auto"}
+    (pin-form goal "list" (if (pinned? goal) "★" "☆"))]
+   [:div {:class in-column}
+    [:a {:href           (goal-href goal)
+         :data-goal-link true
+         :class          "block truncate text-sm font-semibold text-white no-underline hover:text-neon-cyan"}
+     (:goal/label goal)]
+    [:div.truncate.text-xs.text-gray-400 meta]]
+   [:div {:class in-column} progress]
+   (into [:div {:class (str in-column " flex flex-wrap gap-x-4 text-xs tabular-nums md:justify-end")}]
+         figures)])
+
+(defn- logged-of
+  "\"245 / 5,000 reps\": the total in the target's units."
+  [m logged target]
+  (str (if (duration-total? m) (amount m (or logged 0)) (fmt-num (or logged 0)))
+       " / " (amount m target)))
+
+(defn- cumulative-row
+  [{:keys [goal measurement progress] :as entry}]
+  (let [m measurement
+        {:keys [logged target today-amount required gap-at-day-start window]} progress
+        [_ _ status status-class] (card-figures entry)]
+    (list-row entry "cumulative"
+              (str (source-line entry) " · ends " (fmt-date (:goal/ends-on goal) "MMM d, yyyy"))
+              [:<>
+               [:div.text-xs.text-gray-400.tabular-nums (logged-of m logged target)]
+               (list-bar (:progress progress) "bg-neon-cyan")]
+              (if required
+                [[:span (data-attrs "data-" {:today today-amount :required required})
+                  (figure "today" (str (qty m today-amount 0) "/"
+                                       (pace-needed-whole m required)))]
+                 [:span {:data-gap (str gap-at-day-start)}
+                  (figure "gap" (signed-qty m gap-at-day-start))]
+                 [:span.text-gray-400 (str (:remaining-days window) " days left")]]
+                [[:span {:class status-class} status]]))))
+
+(defn- periodic-row
+  [{:keys [measurement progress weeks] :as entry}]
+  (let [m measurement
+        {:keys [logged target today-amount]} progress]
+    (list-row entry "periodic"
+              (str (source-line entry) " · " (amount m target) " per week, resets Monday")
+              [:<>
+               [:div.text-xs.text-gray-400.tabular-nums
+                (str (logged-of m logged target) " this week")]
+               (list-bar (:progress progress) "bg-neon-violet")]
+              [(figure "today" (amount m today-amount))
+               (figure "last 4 weeks"
+                       (str/join " · " (map #(if % (amount m %) "—") weeks)))])))
+
+(defn- other-row
+  [{:keys [goal] :as entry}]
+  (let [[fraction headline status status-class] (card-figures entry)]
+    (list-row entry "other"
+              (str (source-line entry) " · " (timing-text goal))
+              [:<>
+               [:div.text-xs.text-gray-400.tabular-nums headline]
+               (list-bar fraction "bg-neon-cyan")]
+              [[:span {:class status-class} status]])))
+
+(def ^:private groups
+  [[:cumulative "Cumulative · with an end date" cumulative-row]
+   [:periodic "Periodic · each period stands alone" periodic-row]
+   [:other "No deadline, best, and books" other-row]])
+
+(defn- goals-list
+  [entries]
+  (let [by-group (group-by #(cond (cumulative? %) :cumulative
+                                  (periodic? %)   :periodic
+                                  :else           :other)
+                           entries)]
+    [:div {:data-goals-list true}
+     (for [[k title row] groups
+           :let [rows (get by-group k)]
+           :when (seq rows)]
+       [:section {:key (name k) :data-goal-group (name k) :aria-label title
+                  :class "mt-8 first:mt-0"}
+        [:h2 {:class "mb-1 text-xs uppercase tracking-wider text-gray-400"} title]
+        (map row rows)])]))
+
+;; ---------------------------------------------------------------------------
+;; Goal page · cumulative dated goals (roadmap/090, design direction 2026-10-06)
+;; ---------------------------------------------------------------------------
+
+(defn- ruler-pos
+  [{:keys [lo hi]} v]
+  (max 0.0 (min 100.0 (* 100.0 (/ (- (double v) lo) (- hi lo))))))
+
+(defn- left [p] {:left (str p "%")})
+
+(def ^:private mark-names
+  {:keep "keep pace today", :even "even pace tonight", :target "target"})
+
+(def ^:private mark-colors
+  {:keep "text-neon-amber", :even "text-white", :round "text-neon-cyan",
+   :target "text-neon-lime"})
+
+(defn- distance-text
+  [m d]
+  (let [a (qty m (Math/abs (double d)))]
+    (cond (re-matches #"[0.,]+" a) "here"
+          (pos? d)                 (str a " to go")
+          :else                    (str a " past"))))
+
+(defn- edge-class
+  "Labels near an edge hang inward so they stay on the ruler."
+  [p]
+  (cond (> p 85) " right" (< p 15) " left" :else ""))
+
+(defn- ruler-view
+  "The zoomed ruler. main.js drops overlapping mark labels into lanes."
+  [m {:keys [logged elapsed-logged today-amount]} {:keys [ticks marks] :as r}]
+  (let [pos    #(ruler-pos r %)
+        before (pos (or elapsed-logged 0))
+        now    (pos (or logged 0))]
+    [:div {:class           "goal-ruler"
+           :data-goal-ruler true
+           :data-lo         (str (:lo r))
+           :data-hi         (str (:hi r))}
+     [:div.goal-ruler-axis]
+     (for [t ticks]
+       [:span.goal-ruler-minor {:key (str t) :style (left (pos t))}])
+     [:div {:class "goal-ruler-seg bg-neon-cyan"
+            :style {:left "0%" :width (str before "%")}}]
+     [:div {:class "goal-ruler-seg bg-neon-lime"
+            :style {:left (str before "%") :width (str (- now before) "%")}}]
+     (for [{:keys [kind value distance side]} marks
+           :let [p (case side :below 0.0 :above 100.0 (pos value))]]
+       [:div {:key             (name kind)
+              :data-ruler-mark (name kind)
+              :data-value      (str value)
+              :class           (str "goal-ruler-mark down " (name kind)
+                                    (case side
+                                      :below " off left"
+                                      :above " off right"
+                                      (edge-class p)))
+              :style           (left p)}
+        [:i]
+        [:span
+         (when (= :below side) "← ")
+         [:span {:class (str "tabular-nums " (mark-colors kind))} (qty m value)]
+         (when-let [n (mark-names kind)] [:span.text-gray-400 (str " " n)])
+         (when (= :above side) " →")
+         [:br]
+         [:span.text-gray-400.tabular-nums (distance-text m distance)]]])
+     [:div {:class           (str "goal-ruler-mark you up" (edge-class now))
+            :data-ruler-mark "you"
+            :style           (left now)}
+      [:i]
+      [:span.text-white
+       [:b.tabular-nums (qty m logged)]
+       [:span.text-gray-400 (str " +" (qty m (or today-amount 0)) " today")]]]]))
+
+(defn- overall-bar
+  "The whole goal, with the ruler's window outlined on it."
+  [m {:keys [logged target]} r]
+  (let [pct #(min 100.0 (* 100.0 (/ (max 0.0 (double %)) target)))]
+    [:div {:class "mt-5 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 text-xs"}
+     [:b.text-white.tabular-nums
+      (if (duration-total? m) (amount m (or logged 0)) (fmt-num (or logged 0)))]
+     [:span {:class "relative block h-2 rounded-full bg-dark"}
+      [:span {:class "block h-full rounded-full bg-neon-cyan"
+              :style {:width (str (pct (or logged 0)) "%")}}]
+      (when r
+        [:span {:class "goal-zoom"
+                :style {:left  (str (pct (:lo r)) "%")
+                        :width (str (max 0.0 (- (pct (:hi r)) (pct (:lo r)))) "%")}}])]
+     [:span.text-gray-400.tabular-nums (amount m target)]]))
+
+(defn- key-row
+  [k label value & [cls]]
+  [:<>
+   [:dt.text-gray-400 label]
+   [:dd {:class    (str "m-0 text-right font-semibold " (or cls "text-white"))
+         :data-key k}
+    (or value "—")]])
+
+(defn- quiet-row
+  [label value]
+  [:<> [:dt label] [:dd.m-0.text-right value]])
+
+(defn- cumulative-page
+  [{:keys [goal measurement progress] :as entry} cutoff-date]
+  (let [m measurement
+        {:keys [window logged target today-amount average required gap-at-day-start
+                even-rate live-average]} progress
+        r (calc/ruler progress m)]
+    [:article {:data-goal-page "cumulative" :data-goal-id (str (:xt/id goal))}
+     [:nav.text-xs.text-gray-400 [:a.link {:href "/app/goals"} "Goals"] " /"]
+     [:div.mt-1.flex.flex-wrap.items-baseline.justify-between.gap-3
+      [:h1.text-xl.font-semibold.text-white.break-words (:goal/label goal)]
+      (actions goal)]
+     [:p.mt-0.5.text-xs.text-gray-400 (str (source-line entry) " · " (:label m))]
+     (overall-bar m progress r)
+     (when r (ruler-view m progress r))
+     [:div.goal-info
+      [:dl {:class "goal-key tabular-nums" :data-goal-key true}
+       (key-row "today" "today" (when today-amount (qty m today-amount 0)))
+       (key-row "average" "avg / elapsed day" (qty m average 1))
+       (key-row "required" "pace needed" (qty m required 1) "text-neon-amber")
+       (key-row "gap" "gap at day start" (signed-qty m gap-at-day-start))]
+      [:dl {:class "goal-extra tabular-nums"}
+       (quiet-row "period" (date-span (:start window) (:end window)))
+       (quiet-row "days left" (str (or (:remaining-days window) 0)))
+       (quiet-row "even pace" (rate m even-rate))
+       (quiet-row "with today" (rate m live-average))
+       (when r
+         (quiet-row "ruler" (str (qty m (:lo r) 0) "–" (qty m (:hi r) 0) " " (qty-unit m))))]
+      [:div.goal-log
+       [:a.form-button-primary {:href (log-href m) :data-goal-log true} "+ Log"]]]
+     [:div.mt-8
+      (chart-block "goal-chart" (numeric-chart entry cutoff-date)
+                   (str (:goal/label goal) ": " (amount m logged) " of " (amount m target)))]]))
+
+(defn- goal-page-body
+  "One goal: the ruler page for cumulative dated goals, the existing detail
+   card for every other kind."
+  [entry]
+  (if (cumulative? entry)
+    (cumulative-page entry (:cutoff-date entry))
+    [:div
+     [:nav.mb-2.text-xs.text-gray-400 [:a.link {:href "/app/goals"} "Goals"] " /"]
+     (goal-detail entry (:cutoff-date entry))]))
+
+;; ---------------------------------------------------------------------------
 ;; Handlers
 ;; ---------------------------------------------------------------------------
 
+(defn- page-notes
+  [{:keys [archived hidden-count]}]
+  [:<>
+   (archived-section archived)
+   (when (pos? hidden-count)
+     [:p.text-xs.text-gray-500
+      (str hidden-count " goal(s) hidden by your sensitive/archived settings.")])])
+
 (defn goals-page
-  "GET /app/goals — `?goal=<id>` selects the detail card."
+  "GET /app/goals — every goal, grouped by family. `?goal=<id>`, the old
+   selected-goal URL, redirects to that goal's page."
   [{:keys [session biff/db params] :as ctx}]
-  (let [now      (java.time.Instant/now)
-        data     (dashboard/dashboard db (:uid session)
-                                      {:now           now
-                                       :user-settings (queries/resolve-user-settings ctx)})
-        ;; Pinned goals lead, so the first pinned goal is also the default
-        ;; selection when no ?goal= is given.
-        entries  (sort-by (juxt (comp not pinned? :goal)
-                                (comp str/lower-case :goal/label :goal))
-                          (:active data))
-        want     (some-> (:goal params) parse-uuid)
-        selected (or (some #(when (= want (get-in % [:goal :xt/id])) %) entries)
-                     (first entries))]
-    (ui/page
-     (assoc ctx ::ui/echarts true)
-     (layout/page-shell
-      ctx {:width :wide}
-      (layout/page-header
-       {:title    "Goals"
-        :subtitle "A little closer, every time."
-        :actions  [:a.form-button-primary {:href "/app/goals/new"} "+ New goal"]})
-      [:p.text-xs.text-gray-400
-       "Totals include today · baseline rates use completed days, live values add today · each goal uses its saved time zone"]
-      (if (empty? entries)
-        (layout/empty-state
-         {:message "No goals yet. A goal counts what you already log — time, sessions, reps, or finishing a book."
-          :action  [:a.form-button-primary {:href "/app/goals/new"} "Create your first goal"]})
-        [:div.space-y-4
-         (goals-table entries selected)
-         [:div#goal-detail-mount (goal-detail selected (:cutoff-date selected))]])
-      (archived-section (:archived data))
-      (when (pos? (:hidden-count data))
-        [:p.text-xs.text-gray-500
-         (str (:hidden-count data) " goal(s) hidden by your sensitive/archived settings.")])))))
+  (if-let [id (some-> (:goal params) parse-uuid)]
+    {:status 303 :headers {"location" (str "/app/goal/" id)}}
+    (let [data    (dashboard/dashboard db (:uid session)
+                                       {:now           (Instant/now)
+                                        :user-settings (queries/resolve-user-settings ctx)})
+          entries (sort-by (juxt (comp not pinned? :goal)
+                                 (comp str/lower-case :goal/label :goal))
+                           (:active data))]
+      (ui/page
+       ctx
+       (layout/page-shell
+        ctx {:width :wide}
+        (layout/page-header
+         {:title    "Goals"
+          :subtitle "A little closer, every time."
+          :actions  [:a.form-button-primary {:href "/app/goals/new"} "+ New goal"]})
+        (if (empty? entries)
+          (layout/empty-state
+           {:message "No goals yet. A goal counts what you already log — time, sessions, reps, or finishing a book."
+            :action  [:a.form-button-primary {:href "/app/goals/new"} "Create your first goal"]})
+          (goals-list entries))
+        (page-notes data))))))
 
 (defn- owned-goal
   [{:keys [biff/db session path-params]}]
   (when-let [id (some-> (:id path-params) parse-uuid)]
     (queries/get-entity-for-user db id (:uid session) :goal)))
 
+(defn goal-page
+  "GET /app/goal/:id — one goal, computed alone. Archived, hidden, or
+   missing goals go back to the list."
+  [{:keys [session biff/db] :as ctx}]
+  (let [goal  (owned-goal ctx)
+        entry (when goal
+                (first (:active (dashboard/dashboard
+                                 db (:uid session)
+                                 {:now           (Instant/now)
+                                  :user-settings (queries/resolve-user-settings ctx)
+                                  :goals         [goal]}))))]
+    (if-not entry
+      {:status 303 :headers {"location" "/app/goals"}}
+      (ui/page
+       (assoc ctx ::ui/echarts true)
+       (layout/page-shell ctx {:width :wide} (goal-page-body entry))))))
+
 (defn- back-to
   [goal]
-  {:status 303 :headers {"location" (str "/app/goals" (when goal (str "?goal=" (:xt/id goal))))}})
+  {:status 303 :headers {"location" (if goal (goal-href goal) "/app/goals")}})
 
 (defn save-preferences!
   "POST /app/goal/:id/preferences — the book chart measure and even-pace
@@ -1183,14 +1309,15 @@
     (back-to nil)))
 
 (defn set-pinned!
-  "POST /app/goal/:id/pin — pinning leads the goals page and adds a home
-   card. Unpinning dissocs the flag rather than storing false."
+  "POST /app/goal/:id/pin — pinning leads the goals list, adds a home card,
+   and lists the goal in the sidebar. Unpinning dissocs the flag rather than
+   storing false. `from=list` returns to the list."
   [{:keys [params] :as ctx}]
   (if-let [goal (owned-goal ctx)]
     (let [pin? (shared/param-true? (:pinned params))]
       (mutations/update-entity! ctx {:entity-key :goal :entity-id (:xt/id goal)
                                      :data {:goal/pinned (if pin? true :db/dissoc)}})
-      (back-to goal))
+      (back-to (when-not (= "list" (:from params)) goal)))
     (back-to nil)))
 
 (defn delete!
@@ -1212,7 +1339,7 @@
     ["/suggestion" {:get editor/suggestion-fragment}]
     ["/pinned" {:get pinned-goals-fragment}]]
    ["/goal/:id" {}
-    ["" {:post editor/update!}]
+    ["" {:get goal-page, :post editor/update!}]
     ["/edit" {:get editor/edit-page}]
     ["/preferences" {:post save-preferences!}]
     ["/pin" {:post set-pinned!}]

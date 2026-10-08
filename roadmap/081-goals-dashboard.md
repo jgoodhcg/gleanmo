@@ -3,7 +3,7 @@ title: "Goals dashboard"
 status: active
 description: "Implement the approved dashboard with reusable numeric types, reading positions, goal storage, and scoped progress queries."
 created: 2026-09-12
-updated: 2026-10-05
+updated: 2026-10-06
 tags: [goals, visualization, schema, reading]
 priority: medium
 ---
@@ -216,12 +216,12 @@ Totals, best performances, book positions, completion, and charts include today'
 Point measurements use the half-open range ending at that instant; interval ends can equal it.
 Exclude open intervals and intervals ending after the relevant cutoff before clipping or attributing their values.
 
-Rates retain completed-day accounting at local midnight starting today.
-Average, required rate, rate ratio, and even-pace difference use only the completed-day amount and completed-day denominator.
+Rates retain elapsed-day accounting at local midnight starting today.
+Average, required rate, rate ratio, and even-pace difference use only the elapsed-day amount and elapsed-day denominator.
 Intervals ending today cannot affect those calculations until the next local day, including their portions attributed to earlier days.
 Required rate uses the remaining target at midnight and the calendar days remaining, including today.
 Once today's records reach the target, suppress the required rate.
-Label averages "per completed day" and explain the completed-day baseline for required pace.
+Label averages "per elapsed day" and explain the elapsed-day baseline for required pace.
 Unknown coverage continues to suppress unsupported pace estimates.
 
 The chart's partial-day endpoint uses the captured local time, rather than tomorrow's boundary.
@@ -365,7 +365,7 @@ Resolve each item, or move it to another work unit, before archiving this unit.
   Each table row also provides an Edit link beside its goal name.
 - [x] Count today.
   Totals and charts include today's eligible records through one captured request instant.
-  Rates retain the completed-day cutoff in each goal's saved zone.
+  Rates retain the elapsed-day cutoff in each goal's saved zone.
   The specification above replaces the earlier one-cutoff rule.
 - [ ] Duplicate entities.
   "Pullup" and "Pullups" are separate exercises.
@@ -410,7 +410,7 @@ Resolve each item, or move it to another work unit, before archiving this unit.
   pinning goals, a home-screen goal card, and the list/graph layout question to [091](./091-pinned-goals.md);
   comparisons with last week and last year and best/worst of all time to [092](./092-goal-comparisons-records.md);
   a running workout on the home screen to [008](./008-backlog.md) ("Running Workouts Missing From Home").
-- [ ] Say "elapsed days", not "completed days", in UI, docs, and code (2026-10-04).
+- [x] Say "elapsed days", not "completed days", in UI, docs, and code (2026-10-04).
   User, verbatim (dogfood list): "Change completed days to elapsed days".
   Clarified in conversation: "completed sounds like the user actively did something to close the day but really we are just looking at days that have already happened."
   Interpretation: a wording change, not a calculation change. The baseline stays "days in the goal window that ended before today, in the goal's saved zone"; only its name changes.
@@ -421,6 +421,8 @@ Resolve each item, or move it to another work unit, before archiving this unit.
   and the roadmap prose in this unit, [089](./089-goal-target-suggestion.md), [090](./090-goal-live-today.md), and [008](./008-backlog.md).
   About 55 matches across 7 source/test files as of 2026-10-04 (`grep -rni "completed.day\|completed-day" src test e2e/scripts`).
   Watch the neighbouring word: book goals use "completed" for finishing a book, which is correct and stays.
+  Done 2026-10-06 with the [090](./090-goal-live-today.md) redesign: identifiers (`:elapsed-days`, `:elapsed-logged`), UI copy, tests, e2e, and roadmap prose.
+  Verbatim user quotes keep their wording. "Completed" still describes ended intervals and finished books.
 - [ ] The goals page is hard to use on mobile (2026-10-04).
   User, verbatim: "It's hard to use the goals page on mobile".
   No specific failure named yet; needs a mobile walkthrough to find what is hard.
@@ -428,6 +430,8 @@ Resolve each item, or move it to another work unit, before archiving this unit.
   the table scrolls horizontally inside its own container; the chart is small at phone width.
   This is the same open question [091](./091-pinned-goals.md) left under Notes ("Do I want the graph and goal picker to be on the same page?"), whose options were the selected card above the table on mobile, or a compact goal select replacing the table on small screens.
   Approach: capture the current mobile screens, mock up options, review with the user before building.
+  2026-10-06: the list and the goal are now separate pages ([091](./091-pinned-goals.md), [090](./090-goal-live-today.md)), so the chart no longer sits below every row, and neither page scrolls sideways at phone width (asserted in `test-goals.ts`).
+  Left open until the user tries it on a phone.
   Folds into [087](./087-essential-information-redesign.md) if that redesign reaches goals first.
   2026-10-05, asked whether goals are mostly checked on the phone, user, verbatim: "I don't now because they look bad on mobile."
   So mobile use is suppressed by the layout, not absent; its value is higher than current usage suggests.
@@ -467,9 +471,9 @@ Source paths below are relative to `src/tech/jgood/gleanmo/`.
 
 - [x] Derive each goal's local accounting date from one captured instant.
   `app/goals.clj:881` obtains the account's date; `goals/dashboard.clj:51` reinterprets that date in every goal's zone.
-  When the account and goal have different local dates, the goal includes an incomplete day or omits a completed day.
+  When the account and goal have different local dates, the goal includes an incomplete day or omits an elapsed day.
   For example, Tokyo can already be Monday while Los Angeles is still Sunday; the Los Angeles weekly goal resets early.
-  Capture the request time once and derive each goal's completed-day boundary and labels in its saved zone.
+  Capture the request time once and derive each goal's elapsed-day boundary and labels in its saved zone.
   Test zones on opposite sides of midnight.
 
 - [x] Exclude records whose interval ends beyond the accounting cutoff.
@@ -580,7 +584,7 @@ Count today and Edit placement are implemented below; the remaining dogfood feed
 
 - Source visibility now checks ownership, deletion, and visibility through bounded reads of candidate ancestors.
   Book completion uses the same policy as numeric reading goals.
-- Each goal derives its completed-day cutoff from one request instant in its saved time zone.
+- Each goal derives its elapsed-day cutoff from one request instant in its saved time zone.
   Intervals must finish by that cutoff before clipping to the goal period.
 - Source requests merge overlapping progress and activity windows without scanning unused gaps.
   Duration requests find overlapping intervals without a maximum-duration assumption.
@@ -626,7 +630,7 @@ No code, schema, or database changes were made during creation of this plan.
 ## Count today and action placement (2026-09-15)
 
 Boundary tests were written before implementation and failed against the previous cutoff behavior.
-They cover today versus completed-day amounts, open and future-ending intervals, midnight, opposite time zones, Monday resets, and ended goals.
+They cover today versus elapsed-day amounts, open and future-ending intervals, midnight, opposite time zones, Monday resets, and ended goals.
 Database tests verify today's reading totals and completion, then delete the source record and verify recalculation.
 Book and numeric charts retain today's points within their displayed bounds.
 Unknown coverage still suppresses pace estimates, including chart guides.
@@ -657,12 +661,12 @@ No commit, push, deployment, production migration, or server restart was perform
 
 User review supersedes the earlier current-window coverage requirement.
 Current numeric goals use logged data directly, including zero activity on days without logs.
-Averages and required pace retain completed-day accounting; totals and charts include eligible activity today.
+Averages and required pace retain elapsed-day accounting; totals and charts include eligible activity today.
 Best-performance goals remain unset until a qualifying record exists.
 Historical comparisons retain their separate coverage requirements.
 
 Removed the current-goal coverage warning and the metadata dependency in progress calculations.
-Regression tests cover empty histories, skipped logging days, completed-day rates, and dashboard integration.
+Regression tests cover empty histories, skipped logging days, elapsed-day rates, and dashboard integration.
 Browser checks verify visible pace values and chart guides without coverage metadata.
 
 Multi-year ranges now show both years in table rows and numeric/book chart headings.

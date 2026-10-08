@@ -255,7 +255,7 @@
     (is (str/includes? html "90 s"))
     (is (not (str/includes? html "170 s")))
     (is (not (str/includes? html "Progress keeps accumulating")))
-    (is (not (str/includes? html "Average per completed day")))
+    (is (not (str/includes? html "Average per elapsed day")))
     (let [dated (assoc-in entry [:goal :goal/timing] :dated)
           dated (assoc-in dated [:goal :goal/ends-on] (LocalDate/parse "2026-07-10"))
           dated (assoc dated :comparison {:status :known :percent 12.5 :amount 80
@@ -327,7 +327,7 @@
           entries (read-dashboard)
           p (get-in entries [numeric :progress])]
       (is (= 7200.0 (:logged p)))
-      (is (= 3600.0 (:completed-logged p)))
+      (is (= 3600.0 (:elapsed-logged p)))
       (is (= 3600.0 (:today-logged p)))
       (is (= 7200.0 (second (peek (:series p)))))
       (is (= 1800.0 (:average p)))
@@ -374,3 +374,76 @@
           (is (not (contains? (queries/get-entity-by-id db beta) :goal/pinned)))))
       (testing "no pinned goals renders no home section"
         (is (nil? (goals-page/pinned-goal-cards [])))))))
+
+(deftest visible-goals-test
+  (with-open [node (test-xtdb-node [])]
+    (let [user   (random-uuid)
+          habit  (create! node :habit {:user/id user :habit/label "Private"
+                                       :habit/sensitive true})
+          base   {:user/id user :goal/time-zone "UTC" :goal/timing :open-ended
+                  :goal/starts-on (LocalDate/parse "2026-07-01") :goal/source :habit-log
+                  :goal/measure :records :goal/aggregation :total :goal/target 10
+                  :goal/pinned true}
+          plain  (create! node :goal (assoc base :goal/label "Plain"))
+          secret (create! node :goal (assoc base :goal/label "Secret"
+                                            :goal/habit-ids #{habit}))
+          db     (xt/db node)
+          pinned (queries/pinned-goals-for-user db user)
+          ids    #(set (map :xt/id %))]
+      (is (= #{plain} (ids (dashboard/visible-goals db user pinned visible)))
+          "a goal over a sensitive habit stays out of the sidebar")
+      (is (= #{plain secret}
+             (ids (dashboard/visible-goals db user pinned (assoc visible :show-sensitive true)))))
+      (is (empty? (dashboard/visible-goals db user [] visible))))))
+
+(defn- reps-entry
+  "A dated rep goal, Sep 16 2026 – Sep 16 2027, with 245 reps over 19 elapsed
+   days (the 2026-10-05 dogfood goal), seen at noon on Oct 5."
+  [timing today-reps]
+  (let [goal (cond-> {:xt/id (random-uuid) :goal/label "Pullup" :goal/source :exercise-line
+                      :goal/measure :reps :goal/aggregation :total :goal/time-zone "UTC"
+                      :goal/timing timing :goal/target 5000
+                      :goal/starts-on (LocalDate/parse "2026-09-16")
+                      :goal/ends-on (LocalDate/parse "2027-09-16")}
+               (= :weekly timing) (assoc :goal/target 100))
+        m (registry/measurement goal)
+        now (at "2026-10-05T12:00")
+        records (cond-> [{:at (at "2026-09-20T10:00") :reps 245}]
+                  (pos? today-reps) (conj {:at (at "2026-10-05T09:00") :reps today-reps}))
+        history (calc/history goal m records now 84)]
+    {:goal goal :measurement m :now now :cutoff-date (LocalDate/parse "2026-10-05")
+     :progress (calc/numeric-progress goal m records now)
+     :history history
+     :weeks (when (= :weekly timing) (calc/recent-weeks goal history 4))}))
+
+(deftest goals-list-render-test
+  (let [html (rum/render-static-markup
+              (#'goals-page/goals-list [(reps-entry :dated 0) (reps-entry :weekly 0)
+                                        (reps-entry :open-ended 0)]))]
+    (testing "one group per family, in order"
+      (is (= ["cumulative" "periodic" "other"]
+             (map second (re-seq #"data-goal-group=\"(\w+)\"" html)))))
+    (testing "cumulative rows show today against the pace needed, and the gap"
+      (is (str/includes? html "0/14"))
+      (is (str/includes? html "−15"))
+      (is (str/includes? html "347 days left")))
+    (testing "rows link to goal pages"
+      (is (str/includes? html "href=\"/app/goal/")))))
+
+(deftest cumulative-page-render-test
+  (let [html (rum/render-static-markup (#'goals-page/goal-page-body (reps-entry :dated 10)))
+        key-value (fn [k] (second (re-find (re-pattern (str "data-key=\"" k "\"[^>]*>([^<]*)<"))
+                                           html)))]
+    (is (str/includes? html "data-goal-page=\"cumulative\""))
+    (is (str/includes? html "data-goal-ruler"))
+    (is (= "10" (key-value "today")))
+    (is (= "12.9" (key-value "average")))
+    (is (= "13.7" (key-value "required")))
+    (is (= "−15" (key-value "gap")))
+    (is (str/includes? html "/app/exercise/session") "Log opens the workout screen")
+    (is (not (str/includes? html "to stay on pace")) "numbers, not sentences")
+    (is (not (str/includes? html "<details")) "nothing collapsed"))
+  (testing "other kinds keep the detail card"
+    (is (str/includes? (rum/render-static-markup
+                        (#'goals-page/goal-page-body (reps-entry :weekly 0)))
+                       "id=\"goal-detail\""))))

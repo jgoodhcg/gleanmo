@@ -9,7 +9,7 @@
    mockups/2026-09-motivating-dashboards/codex/.
 
    Totals include eligible records through one captured request instant.
-   Pace calculations retain the completed-day cutoff in each goal's zone.
+   Pace calculations retain the elapsed-day cutoff in each goal's zone.
    A LocalDate input denotes midnight starting that date, for date-only reads."
   (:import
    [java.time DayOfWeek Duration Instant LocalDate YearMonth ZoneId]
@@ -53,7 +53,7 @@
 
 (defn accounting-clock
   "Resolve an Instant, or a date-only midnight snapshot, in the goal's zone.
-   Returns the current instant, local date, completed-day cutoff, and last
+   Returns the current instant, local date, elapsed-day cutoff, and last
    observed date. At exact midnight, the last observed date is yesterday."
   [goal as-of]
   (let [zone (zone-of goal)
@@ -81,7 +81,7 @@
    to the goal's own dates; a clipped week keeps the full target and is marked
    `:partial?`. Open-ended goals run from starts-on with no end.
 
-   `:through` is the last completed day counted, `:completed-days` how many
+   `:through` is the last elapsed day counted, `:elapsed-days` how many
    days of the period are complete, `:remaining-days` how many are left
    (including today). Status is `:not-started` before the start date and
    `:ended` once the last day has completed."
@@ -103,15 +103,15 @@
           :dated [starts-on ends-on false]
           [starts-on nil false])
         through   (if end (min-date end last-done) last-done)
-        completed (max 0 (inc (days-between start through)))
+        elapsed   (max 0 (inc (days-between start through)))
         total     (when end (inc (days-between start end)))]
     {:start          start
      :end            end
      :through        through
      :partial?       partial?
-     :completed-days completed
+     :elapsed-days   elapsed
      :total-days     total
-     :remaining-days (when total (- total completed))
+     :remaining-days (when total (- total elapsed))
      :status         (cond
                        (.isBefore cutoff-date starts-on)             :not-started
                        (and ends-on (.isAfter cutoff-date ends-on)) :ended
@@ -242,7 +242,7 @@
         (* factor (if (:integer? m) (max 1 (Math/round (double step))) step)))))
 
 (defn progress-series
-  "`[[date value] ...]` at day boundaries: the value after each completed day,
+  "`[[date value] ...]` at day boundaries: the value after each elapsed day,
    starting from the period start. Totals accumulate; best is a running max
    that stays nil until the first qualifying record."
   [daily ^LocalDate start ^LocalDate through best?]
@@ -288,8 +288,8 @@
 (defn numeric-progress
   "Progress through as-of, an Instant or a date-only midnight snapshot.
    Totals and charts include today's eligible activity. Pace uses records
-   completed by local midnight, attributed only to completed days.
-   Required pace and even-pace difference use that same completed-day amount.
+   completed by local midnight, attributed only to elapsed days.
+   Required pace and even-pace difference use that same elapsed-day amount.
    Logged data is authoritative; days without logs contribute zero.
    Best goals have no rates and remain unset until a performance is recorded.
 
@@ -303,45 +303,46 @@
   [goal m records as-of]
   (let [zone (zone-of goal)
         {:keys [now today midnight]} (accounting-clock goal as-of)
-        {:keys [start end through status completed-days remaining-days total-days]
+        {:keys [start end through status elapsed-days remaining-days total-days]
          :as w} (window goal today)
         from (day-start start zone)
         to (if end (min-inst (day-start (plus-days end 1) zone) now) now)
-        completed-to (min-inst to midnight)
+        elapsed-to (min-inst to midnight)
         records (scoped-records goal m records)
         daily (if (.isBefore from to)
                 (daily-values m records zone from to now) (sorted-map))
-        completed-daily (if (.isBefore from completed-to)
-                          (daily-values m records zone from completed-to midnight)
-                          (sorted-map))
+        elapsed-daily (if (.isBefore from elapsed-to)
+                        (daily-values m records zone from elapsed-to midnight)
+                        (sorted-map))
         best? (= :best (:aggregation m))
         target (double (:goal/target goal))
         logged (observed-amount daily best?)
-        completed-logged (observed-amount completed-daily best?)
+        elapsed-logged (observed-amount elapsed-daily best?)
         amount (or logged 0.0)
-        completed-amount (or completed-logged 0.0)
+        elapsed-amount (or elapsed-logged 0.0)
         reached? (>= amount target)
         timing (:goal/timing goal)
         paced? (and (not best?) (= :dated timing))
         active? (= :active status)
-        average (when (and (not best?) (pos? completed-days))
-                  (/ completed-amount completed-days))
+        average (when (and (not best?) (pos? elapsed-days))
+                  (/ elapsed-amount elapsed-days))
         required (when (and paced? active? (not reached?)
                             (pos? (or remaining-days 0)))
-                   (/ (max 0.0 (- target completed-amount)) remaining-days))
+                   (/ (max 0.0 (- target elapsed-amount)) remaining-days))
         today-amount (when (and (not best?) active?)
-                       (max 0.0 (- amount completed-amount)))
+                       (max 0.0 (- amount elapsed-amount)))
         live-average (when (and today-amount (not= :weekly timing))
-                       (/ amount (inc completed-days)))
+                       (/ amount (inc elapsed-days)))
         required-after (when (and required (> remaining-days 1))
                          (/ (- target amount) (dec remaining-days)))
         recent-average (when (and paced? active? (not reached?)
-                                  (>= completed-days recent-pace-days))
+                                  (>= elapsed-days recent-pace-days))
                          (/ (reduce + 0.0
                                     (vals (subseq daily
                                                   >= (plus-days today (- 1 recent-pace-days))
                                                   <= today)))
                             recent-pace-days))
+        even-rate (when (and paced? total-days) (/ target total-days))
         step (threshold-step goal m)
         series (progress-series daily start through (or best? (nil? logged)))
         partial-today? (and (not (.isBefore today start))
@@ -350,7 +351,7 @@
     {:window w
      :daily daily
      :logged logged
-     :completed-logged completed-logged
+     :elapsed-logged elapsed-logged
      :today-logged (get daily today)
      :target target
      :remaining (max 0.0 (- target amount))
@@ -369,13 +370,94 @@
      :recent-projection (when recent-average
                           (projection amount recent-average target today end))
      :ratio (when (and required average (pos? average)) (/ required average))
-     :pace-days (when (and paced? total-days (pos? completed-days))
-                  (- (* (/ completed-amount target) total-days) completed-days))
-     :even-pace (when (and paced? total-days) (/ completed-days total-days))
+     :pace-days (when (and paced? total-days (pos? elapsed-days))
+                  (- (* (/ elapsed-amount target) total-days) elapsed-days))
+     :even-pace (when (and paced? total-days) (/ elapsed-days total-days))
+     :even-rate even-rate
+     :even-tonight (when (and even-rate active?) (* even-rate (inc elapsed-days)))
+     :gap-at-day-start (when (and even-rate active?)
+                         (- elapsed-amount (* even-rate elapsed-days)))
      :next (when-not reached?
              (min target (* step (inc (Math/floor (/ (+ amount 1e-9) step))))))
      :series (cond-> series
                partial-today? (conj [(.toLocalDateTime (.atZone now zone)) logged]))}))
+
+;; ---------------------------------------------------------------------------
+;; Ruler (roadmap/090-goal-live-today.md, design direction 2026-10-06)
+;; ---------------------------------------------------------------------------
+
+(defn- ruler-unit
+  "Canonical units per ruler unit, and whether the ruler steps in whole units.
+   Duration totals measure in minutes; counts never step by fractions."
+  [m]
+  (if (and (= :seconds (:unit m)) (= :total (:aggregation m)))
+    [60.0 true]
+    [1.0 (boolean (:integer? m))]))
+
+(defn ruler
+  "A zoomed scale around a dated total's current amount, in units of one day
+   of the pace needed (`D`), or nil when there is no pace to measure by.
+
+   The window runs from a day of pace before this morning's total to 2.5 days
+   past the current one, pulling in the next round number and even pace
+   tonight when they are within 4 days and padding them by 0.3 of a day; it
+   never extends past the target by more than that pad. Logging therefore
+   slides and widens it, and it always contains the current total.
+
+   Marks, sorted by value: `:keep` (keep pace today), `:even` (even pace
+   tonight), `:round` (the next multiple of a nice step near 3 days of pace,
+   dropped below the target or within a quarter day of a pace mark), and
+   `:target` when in the window. Pace marks round up to an amount that can
+   be logged; `:distance` is measured from that shown value. `:side` is
+   `:below` or `:above` for a mark outside the window.
+
+   Every value is in the measurement's canonical units."
+  [{:keys [logged elapsed-logged required target even-tonight]} m]
+  (when (and required (pos? required) even-tonight)
+    (let [[factor whole?] (ruler-unit m)
+          u        #(/ (double %) factor)
+          whole    #(if whole? (max 1.0 (double (Math/round (double %)))) %)
+          up       #(if whole? (Math/ceil (- % 1e-9)) (/ (Math/ceil (- (* % 10) 1e-9)) 10))
+          before   (u (or elapsed-logged 0.0))
+          logged   (u (or logged 0.0))
+          target   (u target)
+          d        (u required)
+          keep     (+ before d)
+          even     (u even-tonight)
+          major    (whole (nice-step (* 3 d)))
+          next-maj (* major (inc (Math/floor (/ (+ logged 1e-9) major))))
+          near?    #(<= % (* 4 d))
+          hi       (cond-> (+ logged (* 2.5 d))
+                     (near? (- next-maj logged)) (max (+ next-maj (* 0.3 d)))
+                     (near? (Math/abs (- even logged))) (max (+ even (* 0.3 d))))
+          hi       (min hi (+ target (* 0.3 d)))
+          lo       (cond-> (max 0.0 (- before d))
+                     (near? (Math/abs (- even logged)))
+                     (-> (min (- even (* 0.3 d))) (max 0.0)))
+          minor    (whole (nice-step (/ (- hi lo) 8)))
+          clash?   #(or (< (Math/abs (- % keep)) (* 0.25 d))
+                        (< (Math/abs (- % even)) (* 0.25 d)))
+          mark     (fn [kind raw shown]
+                     {:kind     kind
+                      :value    (* factor shown)
+                      :distance (* factor (- shown logged))
+                      :side     (cond (< raw lo) :below (> raw hi) :above)})
+          canon    #(* factor %)]
+      {:lo         (canon lo)
+       :hi         (canon hi)
+       :major      (canon major)
+       :minor      (canon minor)
+       :ticks      (mapv canon (take-while #(<= % (+ hi 1e-9))
+                                           (iterate #(+ % minor)
+                                                    (* minor (Math/ceil (/ lo minor))))))
+       :marks      (->> [(mark :keep keep (up keep))
+                         (mark :even even (up even))
+                         (when (and (< next-maj target) (not (clash? next-maj)))
+                           (mark :round next-maj next-maj))
+                         (when (<= target hi) (mark :target target target))]
+                        (remove nil?)
+                        (sort-by :value)
+                        vec)})))
 
 (defn recent-activity
   "Observed total or maximum over `days` calendar days including today.
@@ -408,6 +490,23 @@
                             (day-start from zone) now now)]
     (mapv (fn [d] {:date d :value (get daily d)})
           (dates from observed-through))))
+
+(defn recent-weeks
+  "Totals of the last `n` complete Monday–Sunday weeks before the current
+   one, oldest first, from `history` cells (`{:date :value}`). Days before
+   the goal starts do not count; a week entirely before it is nil."
+  [goal history n]
+  (let [starts-on (:goal/starts-on goal)
+        last-day  (:date (peek (vec history)))
+        monday    (.with ^LocalDate last-day
+                         (TemporalAdjusters/previousOrSame DayOfWeek/MONDAY))
+        by-date   (into {} (map (juxt :date :value)) history)]
+    (vec (for [k (range n 0 -1)
+               :let [from (plus-days monday (* -7 k))
+                     to   (plus-days from 6)]]
+           (when-not (.isBefore to starts-on)
+             (reduce + 0 (keep #(when-not (.isBefore ^LocalDate % starts-on) (get by-date %))
+                               (dates from to))))))))
 
 ;; ---------------------------------------------------------------------------
 ;; Book completion
@@ -517,8 +616,8 @@
    with the same ISO week number in the ISO week-year `years` back, covering
    the same weekdays; a week 53 with no counterpart has no comparison.
    Open-ended goals have none."
-  [goal {:keys [start through completed-days]} years]
-  (when (pos? (or completed-days 0))
+  [goal {:keys [start through elapsed-days]} years]
+  (when (pos? (or elapsed-days 0))
     (case (:goal/timing goal)
       :open-ended nil
       :weekly
@@ -532,7 +631,7 @@
                            (.with IsoFields/WEEK_OF_WEEK_BASED_YEAR (long week))
                            (.with (TemporalAdjusters/previousOrSame DayOfWeek/MONDAY)))
                 s      (plus-days monday (dec offset))]
-            {:start s, :through (plus-days s (dec completed-days))})))
+            {:start s, :through (plus-days s (dec elapsed-days))})))
       {:start   (same-month-day start years)
        :through (same-month-day through years)})))
 

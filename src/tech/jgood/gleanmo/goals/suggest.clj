@@ -4,7 +4,7 @@
    Pure, like `goals/calc.clj`: the caller reads records for `history-window`
    and passes them in. Values use the same daily calculation as goal
    progress, so a suggestion counts history exactly as the goal will count
-   its own period. Only completed days are read.
+   its own period. Only elapsed days are read.
 
    - Dated totals: the recent daily rate over the goal's length, plus
      `total-stretch`.

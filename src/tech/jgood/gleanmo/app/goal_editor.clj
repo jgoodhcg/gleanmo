@@ -374,7 +374,7 @@
        (time-zone-select form errors)
        [:div.flex.justify-between.gap-3.pt-2
         [:a.form-button-secondary
-         {:href (if goal-id (str "/app/goals?goal=" goal-id) "/app/goals")}
+         {:href (if goal-id (str "/app/goal/" goal-id) "/app/goals")}
          "Cancel"]
         [:button.form-button-primary {:type "submit"}
          (if goal-id "Save goal" "Create goal")]])))))
@@ -536,7 +536,7 @@
                                   :data       (assoc % :user/id (:uid session))}))]
     (if errors
       (editor-page ctx {:form form, :errors errors})
-      {:status 303, :headers {"location" (str "/app/goals?goal=" id)}})))
+      {:status 303, :headers {"location" (str "/app/goal/" id)}})))
 
 (defn update!
   "POST /app/goal/:id — inapplicable optional attributes are removed, so
@@ -553,5 +553,5 @@
                                                        %)}))]
       (if errors
         (editor-page ctx {:form form, :errors errors, :goal-id (:xt/id goal)})
-        {:status 303, :headers {"location" (str "/app/goals?goal=" (:xt/id goal))}}))
+        {:status 303, :headers {"location" (str "/app/goal/" (:xt/id goal))}}))
     {:status 303, :headers {"location" "/app/goals"}}))
