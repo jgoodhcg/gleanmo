@@ -2,6 +2,7 @@
   (:require
    [clojure.string :as str]
    [com.biffweb :as biff]
+   [tech.jgood.gleanmo.app.api-tokens :as api-tokens]
    [tech.jgood.gleanmo.app.bm-log :as bm-log]
    [tech.jgood.gleanmo.app.boulder :as boulder]
    [tech.jgood.gleanmo.app.boulder-attempt :as boulder-attempt]
@@ -638,6 +639,7 @@
 
             ;; user
             ["/my-user" {:get user/my-user}]
+            api-tokens/routes
             ["/users"
              {:middleware [mid/wrap-user-authz],
               :post       user/create!}]

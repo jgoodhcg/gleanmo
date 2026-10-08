@@ -6,6 +6,7 @@
    [malli.core :as malc]
    [malli.registry :as malr]
    [nrepl.cmdline :as nrepl-cmd]
+   [tech.jgood.gleanmo.api :as api]
    [tech.jgood.gleanmo.app :as app]
    [tech.jgood.gleanmo.email :as email]
    [tech.jgood.gleanmo.home :as home]
@@ -20,6 +21,7 @@
 
 (def modules
   (let [base-modules [app/module
+                      api/module
                       observability/module
                       (biff/authentication-module
                        {:biff.auth/new-user-tx

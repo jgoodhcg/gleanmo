@@ -1,9 +1,9 @@
 ---
 title: "AI Assistance Integration"
-status: draft
+status: active
 description: "Restore task use through conversational backlog cleanup and daily planning, starting with scoped agent access and approved batch changes"
 created: 2026-07-11
-updated: 2026-10-05
+updated: 2026-10-08
 tags: [integration, ai, mcp, api, security, llm-context]
 priority: high
 ---
@@ -131,6 +131,19 @@ The label check rejects an id that points at the wrong task.
 State-change signals are derived the same way the app derives them.
 A plan with any invalid entry writes nothing.
 These checks are a concrete starting point for the open question on stale-change rejection.
+
+### API v1 (2026-10-08)
+
+Decisions made on starting the build, answering several open questions below:
+
+- **Surface:** HTTP JSON first (`/api/v1`, `src/tech/jgood/gleanmo/api.clj`). MCP is a later thin layer over the same handlers.
+- **Tokens:** `api-token` entity; opaque `gmn_` + 32 random bytes, stored as SHA-256 only, plaintext shown once. Managed at `/app/api-tokens`. Revocable; `last-used-at` refreshed at most every 5 minutes.
+- **Permissions:** per entity *group* (`api.access/groups`), none/read/write, plus `sensitive-granted` and `archived-granted`. Health data (mood, symptoms, medication, BM) are ordinary groups, off unless granted. `user`, `ical-url`, `api-token` belong to no group and are unreachable.
+- **Reads** reuse `all-entities-for-user` (now with `:where` equality and `:text` substring filters) and the new `visible-entity-for-user`, so parent-sensitivity exclusion applies. Lists exclude sensitive/archived unless the request asks *and* the token is granted; asking without the grant is a 400. By-id reads see whatever the token is granted.
+- **Writes:** one endpoint, `POST /api/v1/tx`, taking `create | update | delete` ops — the user proposed raw XTDB actions with one checker; our own op format was chosen instead because `put` replaces whole documents and `evict`/`fn` cannot be checked meaningfully. Every op is checked (type writable, record visible to the token, own non-hidden fields only, relation ids owned by the user, sensitive/archived flags need the grant, malli schema) and the batch writes all-or-nothing via `write-entities!`. `dry_run` returns per-field `from`/`to` changes for review. Optional per-op `expect` rejects stale edits — the answer to the stale-change question. Deletes are soft. Task state/snooze signals are derived as the app derives them.
+- `GET /api/v1/types` describes the token's grants and every readable type's fields, enum values, scales and relations, so agents do not guess field names.
+
+Deferred: MCP, companion CLI and discovery endpoint, aggregate reads (today bundle, exercise composite), an audit log of agent writes, token expiry, rate limiting, escalation-mode sensitivity.
 
 ### Adoption Check
 

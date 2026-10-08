@@ -65,6 +65,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 
 ### Active
 
+- [061-ai-assistance.md](./061-ai-assistance.md) - Agent API v1 built 2026-10-08: scoped bearer tokens, permission-checked reads, one checked all-or-nothing `tx` write endpoint with dry run
 - [017-infrastructure.md](./017-infrastructure.md) - Database migration from Neon to DigitalOcean
 - [014-data-migration-status.md](./014-data-migration-status.md) - Tracker for Airtable backfills and remaining imports
 - [015-exercise.md](./015-exercise.md) - Exercise tracking with superset support and Airtable backfill; notes on sets and lines in the workout view re-requested 2026-10-04
@@ -155,7 +156,6 @@ PWA notification scaffolding does not establish working reminder delivery.
 - [040-today-ux-polish.md](./040-today-ux-polish.md) - Improve task completion feedback, add project selection to quick-add, and default the other fields so a quick-added task feels complete
 - [046-exercise-insights.md](./046-exercise-insights.md) - Visual daily exercise summary with muscle heatmap and session stats
 - [056-cronometer-integration.md](./056-cronometer-integration.md) - Pull nutrition and body composition from Cronometer: reverse-engineered mobile API for recent days, CSV import for the backfill (phase 0 session-safety check gates the API path)
-- [061-ai-assistance.md](./061-ai-assistance.md) - Restore task use through conversational cleanup, scoped agent access, and approved batch changes (priority high since 2026-10-04)
 - [080-relation-defaults.md](./080-relation-defaults.md) - Curated per-relation defaults that prefill log fields from the related entity (meditation position first; medication dose, book format, exercise unit to follow)
 
 ### Dropped

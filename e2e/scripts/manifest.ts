@@ -45,7 +45,7 @@ export interface ManifestRoute {
    *  Fixture names: see `SeriesFixture` in series-goals.ts. */
   path: string;
   /** Grouping label — used for logging and recorded in metadata. */
-  group: 'surfaces' | 'dashboards' | 'viz' | 'stats' | 'flows' | 'forms' | 'lists';
+  group: 'surfaces' | 'dashboards' | 'viz' | 'stats' | 'flows' | 'forms' | 'settings' | 'lists';
   /** Override which viewports to capture. Defaults to mobile + desktop.
    *  Use `['desktop']` for data-table-heavy pages with no mobile layout. */
   viewports?: ViewportName[];
@@ -102,6 +102,9 @@ export const MANIFEST_ROUTES: ManifestRoute[] = [
   { slug: 'form-boulder-problem-new', path: '/app/crud/form/boulder-problem/new', group: 'forms' },
   { slug: 'form-exercise-set-new',   path: '/app/crud/form/exercise-set/new',   group: 'forms' },
   { slug: 'form-book-new',           path: '/app/crud/form/book/new',           group: 'forms' },
+
+  // ── Settings ─────────────────────────────────────────────────────────
+  { slug: 'api-tokens', path: '/app/api-tokens', group: 'settings' },
 
   // ── Representative lists ─────────────────────────────────────────────
   { slug: 'list-habit',           path: '/app/crud/habit',           group: 'lists', viewports: ['desktop'] },

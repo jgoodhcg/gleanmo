@@ -221,6 +221,21 @@
            (or show-sensitive (not (true? (get doc sens-key))))
            (or show-archived  (not (true? (get doc arch-key))))))))
 
+(defn- match-doc-fn
+  "Predicate for `all-entities-for-user`'s `where` and `text` filters."
+  [where text]
+  (let [needle (some-> text str/trim not-empty str/lower-case)]
+    (fn [doc]
+      (and (every? (fn [[k v]]
+                     (let [stored (get doc k)]
+                       (if (set? stored) (contains? stored v) (= stored v))))
+                   where)
+           (or (nil? needle)
+               (some (fn [v]
+                       (and (string? v)
+                            (str/includes? (str/lower-case v) needle)))
+                     (vals doc)))))))
+
 (defnp get-entity-for-user
   "Get a single entity by ID that belongs to a specific user.
    Returns the first result or nil if not found."
@@ -237,6 +252,21 @@
     (when (seq result)
       (-> result
           first))))
+
+(defnp visible-entity-for-user
+  "One live `entity-type` document owned by `user-id`, or nil when it is
+   missing, soft-deleted, or hidden by the visibility flags — its own
+   sensitive/archived flag, or a sensitive/archived parent it points at.
+   The single-record counterpart of `all-entities-for-user`'s filtering."
+  [db user-id entity-type entity-id & {:keys [show-sensitive show-archived]}]
+  (let [settings {:show-sensitive (boolean show-sensitive)
+                  :show-archived  (boolean show-archived)}]
+    (when-let [doc (get-entity-for-user db entity-id user-id entity-type)]
+      (when (and ((keep-doc-fn entity-type settings) doc)
+                 (not (relationship-excluded?
+                       (build-exclusion-map db user-id entity-type settings)
+                       doc)))
+        doc))))
 
 (defnp get-entity-by-attribute-for-user
   "Get one user-owned entity of `entity-type` whose attribute equals `value`."
@@ -560,10 +590,15 @@
    pulls — sorted and paginated in Clojure, (2) batch pull of full documents
    for just the page, with relationship-exclusion filtering applied on chunks
    until the page fills. Document materialization cost scales with the page
-   size instead of the user's entire history for the type."
+   size instead of the user's entire history for the type.
+
+   `where` (`{attr value}`, equality; membership for set-valued attrs) and
+   `text` (case-insensitive substring over string attrs) are checked on the
+   pulled documents. A selective filter therefore pulls more of the type's
+   history to fill a page — fine for search over one type, not for hot paths."
   [db user-id entity-type &
    {:keys [filter-sensitive filter-archived filter-references
-           limit offset order-key order-direction since]}]
+           limit offset order-key order-direction since where text]}]
   (let [user-settings {:show-sensitive (boolean filter-sensitive)
                        :show-archived  (boolean filter-archived)}
         ;; Build exclusion map when filter-references requested
@@ -589,7 +624,8 @@
                              true                (mapv first))))
         ;; Post-filters previously pushed into the scan as per-row (not ...)
         ;; subqueries — all sparse, so filtering pulled docs is cheaper.
-        keep-doc?     (keep-doc-fn entity-type user-settings)
+        keep-doc?     (every-pred (keep-doc-fn entity-type user-settings)
+                                  (match-doc-fn where text))
         ;; Phase 2: pull docs in chunks, dropping filtered ones, until the
         ;; page (offset + limit) is satisfied. Filtered docs are typically
         ;; sparse, so this usually pulls a single chunk of ~2x the limit.
@@ -1580,3 +1616,26 @@
                             (t/<= dt year-end))
                        ;; If no dtstart, include it (events without dates)
                        true)))))))
+
+(defn api-token-by-hash
+  "The API token whose stored hash is `token-hash`, or nil. Revocation is the
+   caller's check, so a revoked token can be told apart from an unknown one."
+  [db token-hash]
+  (ffirst (q db
+             '{:find  [(pull ?e [*])]
+               :where [[?e :api-token/token-hash token-hash]]
+               :in    [token-hash]}
+             token-hash)))
+
+(defn api-tokens-for-user
+  "Every API token the user has created, revoked ones included, newest first."
+  [db user-id]
+  (->> (q db
+          '{:find  [(pull ?e [*])]
+            :where [[?e :user/id user-id]
+                    [?e ::sm/type :api-token]]
+            :in    [user-id]}
+          user-id)
+       (map first)
+       (sort-by ::sm/created-at #(compare %2 %1))
+       vec))

@@ -41,7 +41,8 @@
        (layout/page-header {:title "Account"})
        [:p.text-secondary (str "Email: " email)]
        [:p.text-secondary (str "Time Zone: " time-zone)]
-       [:a.link {:href (str "/app/users/" id "/edit")} "edit"])])))
+       [:a.link {:href (str "/app/users/" id "/edit")} "edit"]
+       [:p.mt-4 [:a.link {:href "/app/api-tokens"} "API tokens"]])])))
 
 (defn create!
   [_]
@@ -142,6 +143,9 @@
           [:div.mt-8.w-full
            [:button.form-button-primary.w-full
             {:type "submit"} "Update User"]]
+
+          [:div.mt-4
+           [:a.link {:href "/app/api-tokens"} "Manage API tokens"]]
 
           [:div.mt-4
            [:span.text-secondary

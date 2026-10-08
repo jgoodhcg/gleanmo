@@ -1,5 +1,6 @@
 (ns tech.jgood.gleanmo.schema
   (:require [tick.core :as t]
+            [tech.jgood.gleanmo.schema.api-token-schema :as ats]
             [tech.jgood.gleanmo.schema.location-schema :as ls]
             [tech.jgood.gleanmo.schema.user-schema :as us]
             [tech.jgood.gleanmo.schema.habit-schema :as hs]
@@ -69,6 +70,7 @@
    :boulder-attempt/id  :uuid
    :task/id             :uuid
    :goal/id             :uuid
+   :api-token/id        :uuid
    :user                us/user
    :habit               hs/habit
    :habit-log           hs/habit-log
@@ -98,7 +100,8 @@
    :task                ts/task
    :goal                gs/goal
    :cruddy              cs/cruddy
-   :performance-report  perf/performance-report})
+   :performance-report  perf/performance-report
+   :api-token           ats/api-token})
 
 (def module
   {:schema schema})
