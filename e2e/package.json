@@ -30,7 +30,8 @@
     "test:workout": "tsx scripts/test-workout.ts",
     "test:timer-double-submit": "tsx scripts/test-timer-double-submit.ts",
     "test:home-running-timer": "tsx scripts/test-home-running-timer.ts",
-    "test:api-tokens": "tsx scripts/test-api-tokens.ts"
+    "test:api-tokens": "tsx scripts/test-api-tokens.ts",
+    "test:landing": "tsx scripts/test-landing.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.40.0",
