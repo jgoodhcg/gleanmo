@@ -100,6 +100,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 
 ### Draft
 
+- [096-go-port-experiment.md](./096-go-port-experiment.md) - Record of a time-boxed AI port to Go + SQL (2026-10-07): impressions, and the preconditions (acceptance suite, vanilla CSS, Go vs Rust, data migration) for a real rewrite plan
 - [095-generic-entity-statistics.md](./095-generic-entity-statistics.md) - Generic cumulative and frequency charts; mean, median, mode, min, and max for meaningful measures and occurrence counts
 
 - [094-today-plan.md](./094-today-plan.md) - Today as one short daily plan: chosen tasks, habit/goal targets, and lightweight day items that inflate neither tasks nor habits; mockups first
