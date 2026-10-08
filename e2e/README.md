@@ -113,10 +113,16 @@ async function setHiddenOrVisibleSelectValue(select: Locator, value: string) {
 Screenshots are saved to `e2e/screenshots/`. Use the `SCREENSHOT_PHASE` env var to prefix filenames for before/after comparison:
 
 ```sh
-SCREENSHOT_PHASE=before just e2e-test-today-mobile
+SCREENSHOT_PHASE=before just e2e-test today-mobile
 # ... make changes ...
-SCREENSHOT_PHASE=after just e2e-test-today-mobile
+SCREENSHOT_PHASE=after just e2e-test today-mobile
+just e2e-screenshot-pairs today-mobile
 ```
+
+`just e2e-test` deletes that phase's earlier files for the test before running.
+Screenshot names identify a screen (route, state, viewport), not a design, so a
+redesign keeps them and pairs still line up — see "Testing philosophy" in
+`AGENTS.md` for the naming rules.
 
 ### Visual timeline (series capture)
 

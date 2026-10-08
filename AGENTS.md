@@ -363,17 +363,40 @@ Testing philosophy
 - When work touches UI, apply `AGENT_BLUEPRINT.md` `[BP-WF-VISUAL]` before edits.
 - Unit tests for logic and compilation verification; avoid brittle tests.
 - E2E for user-facing flows and UI changes.
-- Before/after screenshots for UI changes: run the relevant `just e2e-test-*`
+- Before/after screenshots for UI changes: run the relevant `just e2e-test <name>`
   suite **before** starting edits, then again **after**, using the
   `SCREENSHOT_PHASE` env var to prefix filenames:
   ```
-  SCREENSHOT_PHASE=before just e2e-test-today-mobile   # baseline
+  SCREENSHOT_PHASE=before just e2e-test today-mobile   # baseline
   # ... make UI changes ...
-  SCREENSHOT_PHASE=after just e2e-test-today-mobile     # new state
+  SCREENSHOT_PHASE=after just e2e-test today-mobile    # new state
+  just e2e-screenshot-pairs today-mobile               # every name should pair
   ```
   This produces paired files in `e2e/screenshots/` for changelogs and blog posts:
   `before-today-mobile-01-desktop-collapsed.png` / `after-today-mobile-01-desktop-collapsed.png`.
   Without the env var, screenshots use no prefix (default behavior for CI).
+  Use `just e2e-test <name>`, not the older `e2e-test-<name>` recipes: it deletes
+  that phase's earlier files for the test first, so a stale shot from a previous
+  run can't pass for a current one.
+
+  **A screenshot name identifies a screen, not a design.** The name passed to
+  `captureScreenshot` is the key that pairs a before with an after, so it has to
+  outlive the change it documents:
+  - Name the route, state, and viewport (`03-goals-page`, `04-mobile`), never
+    the design's vocabulary (`dashboard`, `card`, `ruler`, `list`). A redesign
+    that keeps a screen keeps its name, even if the old word no longer fits.
+  - Each number is used once in a test. A new screen takes the next unused
+    number; a screen the change removes retires its name, and the name is not
+    reused.
+  - When a change splits or merges screens, the old shot of a URL is the
+    "before" of whatever that URL becomes: copy it under the new name rather
+    than leaving the after unpaired.
+  - Run `just e2e-screenshot-pairs <name>` before reporting. Anything it lists
+    is a rename to fix, or a screen added or retired by the change, which the
+    report must say.
+  - Take the baseline before editing. If edits already exist, don't stash while
+    the user's `biff dev` runs; it can leave the old or new code loaded either
+    way. Look at the before images and confirm they show the old UI.
 - **Visual timeline (series capture) — separate from before/after pairs.** The
   paired `SCREENSHOT_PHASE` workflow above is per-change changelog art. For an
   ongoing progression / timelapse series, agents capture **every manifest

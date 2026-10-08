@@ -63,8 +63,40 @@ e2e-flow name="example":
 
 # Run one e2e test by name (requires dev server)
 # Usage: just e2e-test workout      # runs e2e/scripts/test-workout.ts
+#
+# With SCREENSHOT_PHASE set, that phase's earlier files for this test are
+# deleted first, so the phase holds exactly one run and no stale shot can pose
+# as a current one.
 e2e-test name:
-    cd e2e && npm run test:{{name}}
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd e2e
+    if [ -n "${SCREENSHOT_PHASE:-}" ]; then
+        rm -f screenshots/"${SCREENSHOT_PHASE}-{{name}}-"*.png
+    fi
+    npm run test:{{name}}
+
+# List before/after screenshots of one test that have no partner
+# Usage: just e2e-screenshot-pairs goals
+# Run it after the "after" phase. Every name should pair; an unpaired one is
+# either a renamed screen (fix the name) or a screen added or retired by the
+# change (say so when reporting the pair).
+e2e-screenshot-pairs name:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd e2e/screenshots
+    status=0
+    for f in before-{{name}}-*.png after-{{name}}-*.png; do
+        [ -e "$f" ] || continue
+        phase="${f%%-*}"; rest="${f#*-}"
+        other=$([ "$phase" = before ] && echo after || echo before)
+        if [ ! -e "$other-$rest" ]; then
+            echo "$phase only: $rest"
+            status=1
+        fi
+    done
+    [ "$status" = 0 ] && echo "All {{name}} screenshots pair."
+    exit 0
 
 # Run every e2e/scripts/test-*.ts, the same set CI runs (requires dev server)
 e2e-test-all:
