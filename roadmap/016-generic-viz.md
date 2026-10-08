@@ -5,7 +5,7 @@ description: "Generic visualizations for timestamp/interval entities"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-02-02
+updated: 2026-10-08
 ---
 
 # Gleanmo Generic Visualization System Requirements
@@ -15,6 +15,12 @@ updated: 2026-02-02
 - Constraints: Must infer chart types from schema and keep routing predictable.
 - Proposed approach: Use schema pattern detection and ECharts to generate calendar and timeline views.
 - Open questions: What is the minimal timeline/Gantt view that fits the current UI system?
+
+## Related statistics work (2026-10-08)
+
+[095-generic-entity-statistics.md](./095-generic-entity-statistics.md) owns cumulative charts, frequency distributions, and descriptive statistics.
+Reuse the existing heatmap infrastructure rather than rebuilding its completed foundation.
+This work unit retains timeline and other visualization extensions.
 
 ## Project Overview
 

@@ -100,12 +100,14 @@ PWA notification scaffolding does not establish working reminder delivery.
 
 ### Draft
 
+- [095-generic-entity-statistics.md](./095-generic-entity-statistics.md) - Generic cumulative and frequency charts; mean, median, mode, min, and max for meaningful measures and occurrence counts
+
 - [094-today-plan.md](./094-today-plan.md) - Today as one short daily plan: chosen tasks, habit/goal targets, and lightweight day items that inflate neither tasks nor habits; mockups first
 - [093-inbox-quick-capture.md](./093-inbox-quick-capture.md) - An offline-first capture page that opens instantly from the device cache and syncs tasks into the inbox, so Reminders stops being a capture queue
 - [092-goal-comparisons-records.md](./092-goal-comparisons-records.md) - Compare a goal with last week and last year, show best and worst periods of all time, and count weekly streaks; blocked on how history coverage is established
 - [088-timer-cross-device-staleness.md](./088-timer-cross-device-staleness.md) - A running timer on the home page keeps ticking after it is stopped on another device; pick a pushed invalidation or a long-interval poll
 - [084-symptom-blood-glucose.md](./084-symptom-blood-glucose.md) - Record blood glucose alongside the other vitals on symptom-log, and allow a vitals-only log
-- [087-essential-information-redesign.md](./087-essential-information-redesign.md) - Reduce every page to its essential information, then decide a holistic minimal redesign (hierarchy, space, phone and desktop ergonomics) in Claude Design; umbrella for 038, 040, and the backlog CRUD redesign
+- [087-essential-information-redesign.md](./087-essential-information-redesign.md) - Establish a general style, then iterate through every screen for essential content and attention hierarchy; [running screen inventory](./screen-inventory.md); umbrella for 038, 040, and CRUD redesign
 - [086-recurring-tasks.md](./086-recurring-tasks.md) - Tasks that repeat on a schedule, plus the reminder plan: in-app date reminders, then recurrence, then push
 - [085-dream-log.md](./085-dream-log.md) - A dream-log entity, so dreams can later be mined for recurring themes
 - [082-exercise-effort.md](./082-exercise-effort.md) - Record on each exercise line whether a set reached failure or how many reps were left

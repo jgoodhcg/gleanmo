@@ -5,7 +5,7 @@ description: "Minimize clicks for common logging actions, fast landing page, and
 tags: [area/frontend, area/ux, type/improvement]
 priority: high
 created: 2026-02-06
-updated: 2026-10-04
+updated: 2026-10-08
 ---
 
 # Workflow Optimization
@@ -88,6 +88,9 @@ with one tap" generalization in Notes below.
 - Comparisons: this week vs. last week, this month vs. last month.
 - Visual: charts and progress indicators that make consistency feel rewarding.
 - Could include per-entity stats (meditation minutes this month, drawing sessions this week) alongside aggregate views.
+
+Generic statistics now have a dedicated draft: [095-generic-entity-statistics.md](./095-generic-entity-statistics.md).
+That work owns implementation scope; the notes below preserve the earlier discussion.
 
 #### Dogfood notes (2026-10-04): generic descriptive stats
 
