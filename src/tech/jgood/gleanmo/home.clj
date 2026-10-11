@@ -24,11 +24,10 @@
 (def ^:private about-lines
   ["Gleanmo is a personal tracking app."
    "Record habits, exercise, reading, meditation, projects, and tasks."
-   "Record health data: mood, symptoms, medication, and BM logs."
+   "Record health data: mood, symptoms, medication, and more."
    "Use timers to record how long an activity takes."
    "See your records in calendars and charts."
    "Set a goal. Gleanmo shows your progress to the goal."
-   "Mark a record as sensitive. Gleanmo hides sensitive records until you show them."
    "Give an AI agent an API token. The token gets access only to the data that you select."
    "Sign in with a code that Gleanmo sends to your email. Gleanmo sends no other email."
    "One person makes Gleanmo for personal use. The source code is public."])
