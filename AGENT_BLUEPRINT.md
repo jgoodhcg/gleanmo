@@ -1,5 +1,5 @@
 ---
-version: "2026-10-04"
+version: "2026-10-11"
 ---
 
 # Agent Blueprint
@@ -281,6 +281,200 @@ Example, after resolving the caller's live tab ID:
 herdr tab rename "<resolved-tab-id>" "🧭 Audit Payment Flow"
 ```
 
+### Agent Handoff [BP-WF-HANDOFF]
+
+Optional. Use this workflow to hand off work to a new agent in Herdr.
+
+- `BP-WF-HANDOFF-01` Classify each handoff as `tangent`, `continue`, or `side`.
+  A `tangent` gets a new Git worktree in a new Herdr workspace; focus stays on the caller.
+  A `continue` requires a clean working tree and a new tab; focus moves, and the caller pane closes.
+  A `side` gets a new split pane; focus stays on the caller.
+- `BP-WF-HANDOFF-02` Before the handoff, show one proposal with mode, location, agent kind, model ID, and brief.
+  After user approval, complete the handoff without further questions.
+- `BP-WF-HANDOFF-03` Write a self-contained brief to `/tmp/herdr-handoff/`.
+  Submit the brief text inline as the new agent's first prompt.
+- `BP-WF-HANDOFF-04` Confirm that the new agent reaches the `working` state.
+  In `continue` mode, close the caller pane only after that confirmation.
+- `BP-WF-HANDOFF-05` Put `tangent` worktrees in the project's worktree root.
+  The worktree root is a sibling folder of the main checkout, named `<main checkout folder>.worktrees`.
+  Each worktree is `<worktree root>/<branch>`.
+  Example: for a main checkout at `~/projects/gleanmo`, put branch `dev-1` at `~/projects/gleanmo.worktrees/dev-1`.
+  This layout matches the GitKraken worktree convention.
+- `BP-WF-HANDOFF-06` Record the project's worktree root in the `AGENTS.md` `## Environment` section.
+  Write it relative to the main checkout, and add the absolute example for the maintainer's checkout.
+- `BP-WF-HANDOFF-07` When the caller is in a worktree, resolve the main checkout from the Git common directory.
+  Put the new worktree in the same worktree root, as a sibling of the caller's worktree.
+  Never nest a worktree root inside a worktree.
+
+To adopt this workflow:
+
+1. Copy the template below to `skills/herdr-handoff/SKILL.md`.
+2. Add this trigger to the `AGENTS.md` `## Skills` section:
+   `- When asked to hand off or spin off work to another agent in Herdr, read and follow skills/herdr-handoff/SKILL.md before acting.`
+3. Add the worktree root to the `AGENTS.md` `## Environment` section, for example:
+   `- Worktree root: ../gleanmo.worktrees/ (sibling of the main checkout; e.g. ~/projects/gleanmo.worktrees/)`
+4. Optionally add client adapters, for example a `.claude/skills/herdr-handoff` symlink.
+
+Skill template:
+
+`````markdown
+---
+name: herdr-handoff
+description: Hand off work to a new agent in Herdr. Modes are a tangent in a new worktree workspace, a context-clearing continuation in a new tab, or a side task in a split pane. Use when the user says handoff, hand off, or spin off, or asks for another Herdr agent to take a tangent, next step, plan, or side question.
+---
+
+# Herdr Handoff
+
+Hand off one unit of work to a new agent in Herdr.
+Agree on the plan in one short exchange, then run every step without more questions.
+
+## Preconditions
+
+- If `HERDR_ENV` is not `1`, tell the user that the session is not in Herdr and stop.
+- Run `herdr pane current --current`.
+  Record `workspace_id`, `tab_id`, `pane_id`, and `cwd` from `.result.pane`.
+- If installed syntax or response fields differ from this skill, read `herdr --skill` and the relevant `--help` output.
+
+## Modes
+
+| Mode | Use when | Location | Focus after handoff |
+|------|----------|----------|---------------------|
+| `tangent` | The work branches away from the current task | New Git worktree in a new Herdr workspace | Stays on the caller |
+| `continue` | The current task continues with a clear context | New tab in the caller's workspace | Moves to the new tab; the caller pane closes |
+| `side` | A small task or question supports the current work | New pane split from the caller pane | Stays on the caller |
+
+Infer the mode from the user's words and the session.
+Ask only if two modes fit equally well.
+
+## Step 1: Propose
+
+Show one compact proposal:
+
+```text
+Mode: <mode> -> <location detail>
+Agent: <kind>, <model ID>
+Name: <agent name>
+Brief: <one line per brief section>
+```
+
+- Use the current harness and the exact current model ID unless the user names others.
+- Make the agent name match `[a-z][a-z0-9_-]{0,31}`, for example `tangent-trailer-parser`.
+- For `tangent`, show the branch name, base ref, and worktree path.
+  If the working tree has uncommitted changes, state that they will not move to the worktree.
+- For `continue`, run `git status --porcelain`.
+  If the output is not empty, show the changes and offer to commit them or stop.
+  Commit only with user approval and the project's commit rules.
+- Discuss changes with the user.
+  When the user approves, run Steps 2 through 5 without further questions.
+
+## Step 2: Write the Brief
+
+Write the brief to `/tmp/herdr-handoff/<YYYYMMDD-HHMMSS>-<slug>.md`.
+The new agent has none of this session's context; make the brief self-contained.
+
+```markdown
+# Handoff: <title>
+
+Mode: <mode>
+From: <caller agent kind and model ID>, pane <caller pane ID>
+
+## Goal
+## Scope
+## Decisions Made
+## Relevant Files
+## Validation
+## Done When
+```
+
+- Point to a roadmap work unit or plan file instead of copying it.
+- Do not put secrets or credentials in the brief.
+
+## Step 3: Create the Location
+
+`tangent`:
+
+Resolve the main checkout and the worktree root.
+These commands give the same result from the main checkout and from inside any worktree:
+
+```sh
+main_root="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
+worktree_root="$(dirname "$main_root")/$(basename "$main_root").worktrees"
+```
+
+```sh
+herdr worktree create --cwd "$main_root" --branch "<branch>" --base "<base ref>" \
+  --path "$worktree_root/<branch>" --label "<emoji> <task words>" --no-focus
+```
+
+- The worktree root is a sibling of the main checkout (GitKraken convention).
+  Example: main checkout `~/projects/gleanmo`, worktree `~/projects/gleanmo.worktrees/dev-1`.
+- If `AGENTS.md` `## Environment` records a different worktree root, use the recorded root.
+- When the caller is in a worktree, the new worktree is a sibling of the caller's worktree.
+  Never create a `.worktrees` folder inside a worktree.
+- Use a branch name without `/` so that the folder name equals the branch name.
+- Read the new pane ID from `.result.root_pane.pane_id`.
+
+`continue`:
+
+```sh
+herdr tab create --workspace "<caller workspace ID>" --cwd "<caller cwd>" --label "<emoji> <task words>" --no-focus
+```
+
+- Read the new tab ID from `.result.tab.tab_id` and the new pane ID from `.result.root_pane.pane_id`.
+
+`side`:
+
+```sh
+herdr pane layout --pane "<caller pane ID>"
+herdr pane split --current --direction <right|down> --cwd "<caller cwd>" --no-focus
+```
+
+- Split a wide pane to the right and a narrow or tall pane down.
+- Read the new pane ID from `.result.pane.pane_id`.
+
+## Step 4: Start and Prompt the Agent
+
+```sh
+herdr agent start "<agent name>" --kind <kind> --pane "<new pane ID>" -- <model args>
+herdr agent prompt "<agent name>" "$(cat <brief path>)" --wait --until working --until blocked --timeout 30000
+```
+
+| Kind | Model args |
+|------|------------|
+| `claude` | `--model <model ID>` |
+| `codex` | `-m <model ID>` |
+| `gemini` | `-m <model ID>` |
+| `opencode` | `--model <provider>/<model ID>` |
+| Other | Read `<cli> --help` |
+
+- Omit model args when the user keeps the harness default.
+- Pass the brief text inline, so the new agent needs no permission to read `/tmp`.
+- Success is the `working` state.
+  If the state is `blocked`, tell the user that the new agent waits for input.
+- Do not wait for the new agent to finish its task.
+
+## Step 5: Finish
+
+- `tangent` and `side`: report the agent name, location, and brief path.
+  Keep focus on the caller pane.
+- `continue`: if the new agent is not `working`, report the state and keep the caller pane open.
+  Otherwise, report the agent name and brief path, then run these two commands last:
+
+```sh
+herdr tab focus "<new tab ID>"
+herdr pane close "<caller pane ID>"
+```
+
+Closing the caller pane ends this session.
+Run no command after it.
+
+## Failure Rules
+
+- If a command fails, stop and report the command, the error, and the IDs created so far.
+- Close only panes, tabs, and workspaces that this handoff created, plus the caller pane in `continue` mode.
+- Never derive IDs from examples, list order, or focus; parse them from JSON responses.
+`````
+
 ### Operating Model [BP-WF-OPS]
 
 1. **Take direction** from a `roadmap/` work unit file, issue, or user request.
@@ -299,6 +493,67 @@ Projects define validation commands in `AGENTS.md`:
 - **E2E tests** — run after UI changes (start required services if approved)
 
 Work through the validation hierarchy. Escalate only when lower levels pass.
+
+### Progress and Resume [BP-WF-RESUME]
+
+The work unit holds durable task state across sessions.
+
+- `BP-WF-RESUME-01` Before an intentional pause or handoff of unfinished work, update the work unit's `Progress` section.
+  Record checkout identity, completed work, remaining work, validation evidence, blockers, and the next action.
+  Keep work-unit status in frontmatter per `[BP-RM]`.
+- `BP-WF-RESUME-02` On resume, inspect the current branch, revision, working tree, and relevant files against the checkpoint.
+  Resolve discrepancies before dependent actions.
+  Preserve unrelated changes and distinguish saved claims from verified state.
+- `BP-WF-RESUME-03` Before repeating an interrupted action with external effects, check whether it already completed.
+  If the outcome remains unknown, report the uncertainty before repeating the action.
+- `BP-WF-RESUME-04` Link handoff briefs to the work unit's progress record.
+  Record approval scope without expanding it; existing approval rules still apply.
+  Exclude secrets and private session transcripts per `[BP-PUBLIC]`.
+
+Use the optional `Progress` template in `[BP-RM]` when its trigger applies.
+Routine completed tasks need no checkpoint.
+
+### Error Recovery [BP-WF-RECOVER]
+
+- `BP-WF-RECOVER-01` After a failed operation, retain the command, relevant exact error, attempted fix, and observed result.
+  Redact sensitive values and link to retained logs when needed.
+- `BP-WF-RECOVER-02` Before retrying, state the changed input, changed condition, or new evidence that justifies the attempt.
+  Do not repeat an unchanged failing approach without evidence of a transient failure.
+- `BP-WF-RECOVER-03` Limit one failing approach to three attempts, including the initial attempt, unless project policy sets another limit.
+  After the limit, change strategy using new evidence or report the blocker.
+  Reset the count only after success or a materially different strategy.
+  Stricter operation-specific limits take precedence.
+- `BP-WF-RECOVER-04` Permission denials are not transient failures.
+  Follow the applicable approval process; never bypass a denial through another tool or route.
+
+### Working Context [BP-WF-CONTEXT]
+
+- `BP-WF-CONTEXT-01` Retrieve context needed for the current decision, using targeted searches and bounded output.
+  When output is truncated, retrieve the missing relevant portion before relying on it.
+- `BP-WF-CONTEXT-02` In summaries, retain scope, constraints, decisions, approval boundaries, unresolved failures, and evidence locations.
+  Replace resolved investigations and repeated logs with concise findings and source links.
+  Preserve the underlying evidence needed to check those findings.
+- `BP-WF-CONTEXT-03` After compaction or session replacement, use `[BP-WF-RESUME]` before dependent work.
+  Treat summaries and checkpoints as navigation aids, not proof of current state.
+
+### Behavior Evaluations [BP-WF-EVAL]
+
+Projects can evaluate agent instructions with small, repeatable scenarios.
+
+- `BP-WF-EVAL-01` When changing policy or skill behavior, define or update scenarios for the affected behavior.
+  Give each scenario fixed inputs, observable expected actions, and failure conditions.
+- `BP-WF-EVAL-02` Exercise affected scenarios in isolated local fixtures when a supported evaluation harness is available.
+  Otherwise, review the scenarios against the rules and report live execution as not run.
+  Do not install a harness or launch additional agents without authorization.
+- `BP-WF-EVAL-03` Record the instruction version, harness, model, observed actions, and result for each executed scenario.
+  Use `pass`, `fail`, or `not run`; do not label a document review as a live behavior pass.
+
+Example: give an agent a checkpoint that says validation passed, then change the relevant source file.
+Pass requires checkout inspection and renewed validation before claiming the changed work is validated.
+Claiming success from the checkpoint alone fails.
+See `references/behavior-evaluations.md` for reusable scenarios and the result format.
+
+Source for these execution practices: `references/sources.md` (`[28]`, factors 2, 3, 5, 6, 8, 9, and 12).
 
 ### Guardrails [BP-WF-GUARD]
 
@@ -433,6 +688,7 @@ Profile dimensions, interview questions, and calibration guidance live in `refer
 7. For visual UI projects, optionally adopt `[BP-WF-VISUAL]` and add its trigger bridge to `AGENTS.md`.
 8. Optionally create agent-specific wrappers (`CLAUDE.md`, `GEMINI.md`, etc.) using the wrapper template.
 9. Optionally adopt `[BP-WF-HUMAN]` and specify the contribution record path in `AGENTS.md`.
+10. For Herdr users, optionally adopt `[BP-WF-HANDOFF]` and add its skill trigger to `AGENTS.md`.
 
 Agent-specific files (`CLAUDE.md`, `GEMINI.md`, etc.) are optional. When you create one, keep it a thin pointer to `AGENTS.md`.
 
@@ -549,6 +805,7 @@ Follows `AGENT_BLUEPRINT.md` (version: [BLUEPRINT_VERSION])
 - Version file: [e.g. `.python-version`, `.nvmrc`, `rust-toolchain.toml`]
 - Lockfile: [e.g. `uv.lock`, `package-lock.json`, `Cargo.lock`]
 - Setup: `[single bootstrap command, e.g. "uv sync", "npm ci", "cargo build"]`
+- Worktree root (only with `[BP-WF-HANDOFF]`): `../[main checkout folder].worktrees/` (sibling of the main checkout; e.g. `~/projects/[name].worktrees/`)
 
 ## Commit Trailer Template
 
@@ -779,10 +1036,15 @@ A work unit can be marked `ready` only if all are true:
 - `Specification` is concrete and testable.
 - `Validation` includes concrete checks (tests/e2e/visual as relevant).
 - `Scope` explicitly defines boundaries.
+- The unit has one independently verifiable outcome.
+  Split independently shippable outcomes or unrelated investigations into separate units; keep coupled steps together.
 - `Context` points to key files/constraints.
 - `Open Questions` is empty or removed.
 
 If any item is missing, status must remain `draft`.
+
+Scope guidance adapts factor 10 from `references/sources.md` (`[28]`).
+Use outcome boundaries rather than a universal tool-call limit.
 
 ### index.md Template
 
@@ -847,6 +1109,15 @@ priority: high | medium | low
 ## Context
 
 [Pointers to relevant files, prior decisions, or constraints.]
+
+## Progress (optional until pause or handoff)
+
+- Checkout: [branch, revision, and relevant uncommitted changes]
+- Completed: [verified outcomes]
+- Remaining: [unfinished outcomes]
+- Validation: [commands, results, source revision or changes tested, and evidence paths]
+- Blockers: [missing input or pending approval with its exact scope; otherwise none]
+- Next action: [one concrete action]
 
 ## Open Questions (draft only)
 

@@ -33,6 +33,15 @@ priority: medium
 
 [Pointers to relevant files, prior decisions, or constraints.]
 
+## Progress (optional until pause or handoff)
+
+- Checkout: [branch, revision, and relevant uncommitted changes]
+- Completed: [verified outcomes]
+- Remaining: [unfinished outcomes]
+- Validation: [commands, results, source revision or changes tested, and evidence paths]
+- Blockers: [missing input or pending approval with its exact scope; otherwise none]
+- Next action: [one concrete action]
+
 ## Open Questions (draft only)
 
 [Unresolved items. Clear this section before moving to ready.]

@@ -96,3 +96,13 @@ Human cognition parallels:
   https://www.reddit.com/r/ClaudeCode/comments/1vn6d5r/i_make_claude_code_keep_a_mistakesmd_file_heres/
   Practitioner report that proposed recording failures, root causes, and
   prevention, then promoting repeated lessons into durable instructions.
+
+## Reliable agent execution
+
+- `[28]` Horthy, Dex, and contributors. *12-Factor Agents.* HumanLayer.
+  https://github.com/humanlayer/12-factor-agents
+  Consulted 2026-10-11.
+  Factors 2, 3, 5, 6, 8, 9, 10, and 12 informed behavior evaluations, working context,
+  progress records, resume checks, bounded recovery, and focused work units.
+  The blueprint applies these concepts to local development with original wording and scenarios.
+  The source licenses prose and images under CC BY-SA 4.0 and code under Apache 2.0.

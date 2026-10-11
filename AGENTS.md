@@ -1,6 +1,6 @@
 # AGENTS
 
-Follows `AGENT_BLUEPRINT.md` (version: 2026-10-04)
+Follows `AGENT_BLUEPRINT.md` (version: 2026-10-11)
 
 ## Session Start
 
@@ -370,7 +370,7 @@ Testing philosophy
   SCREENSHOT_PHASE=before just e2e-test today-mobile   # baseline
   # ... make UI changes ...
   SCREENSHOT_PHASE=after just e2e-test today-mobile    # new state
-  just e2e-screenshot-pairs today-mobile               # every name should pair
+  just e2e-screenshot-pairs today-mobile               # every name must pair
   ```
   This produces paired files in `e2e/screenshots/` for changelogs and blog posts:
   `before-today-mobile-01-desktop-collapsed.png` / `after-today-mobile-01-desktop-collapsed.png`.
