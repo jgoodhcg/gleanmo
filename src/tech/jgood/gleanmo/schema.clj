@@ -11,6 +11,7 @@
             [tech.jgood.gleanmo.schema.bm-schema :as bs]
             [tech.jgood.gleanmo.schema.medication-schema :as meds]
             [tech.jgood.gleanmo.schema.calendar-event-schema :as ces]
+            [tech.jgood.gleanmo.schema.cronometer-schema :as crono]
             [tech.jgood.gleanmo.schema.project-schema :as ps]
             [tech.jgood.gleanmo.schema.reading-schema :as rs]
             [tech.jgood.gleanmo.schema.cruddy :as cs]
@@ -71,6 +72,11 @@
    :task/id             :uuid
    :goal/id             :uuid
    :api-token/id        :uuid
+   :food/id             :uuid
+   :food-log/id         :uuid
+   :biometric-log/id    :uuid
+   :nutrition-day/id    :uuid
+   :cronometer-connection/id :uuid
    :user                us/user
    :habit               hs/habit
    :habit-log           hs/habit-log
@@ -101,7 +107,12 @@
    :goal                gs/goal
    :cruddy              cs/cruddy
    :performance-report  perf/performance-report
-   :api-token           ats/api-token})
+   :api-token           ats/api-token
+   :food                crono/food
+   :food-log            crono/food-log
+   :biometric-log       crono/biometric-log
+   :nutrition-day       crono/nutrition-day
+   :cronometer-connection crono/cronometer-connection})
 
 (def module
   {:schema schema})

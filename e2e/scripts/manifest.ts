@@ -105,6 +105,7 @@ export const MANIFEST_ROUTES: ManifestRoute[] = [
 
   // ── Settings ─────────────────────────────────────────────────────────
   { slug: 'api-tokens', path: '/app/api-tokens', group: 'settings' },
+  { slug: 'cronometer', path: '/app/cronometer', group: 'settings' },
 
   // ── Representative lists ─────────────────────────────────────────────
   { slug: 'list-habit',           path: '/app/crud/habit',           group: 'lists', viewports: ['desktop'] },

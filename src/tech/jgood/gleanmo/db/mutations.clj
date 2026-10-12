@@ -288,3 +288,13 @@
                    report)]
     (biff/submit-tx ctx [(assoc doc :db/doc-type :performance-report)])
     doc))
+
+(defn evict-entity!
+  "Remove every version of a document from XTDB history.
+
+   A soft delete or an overwrite keeps old versions readable through
+   `entity-history`. Use this only where that history must not survive, such as
+   an encrypted credential the user has disconnected or replaced."
+  [ctx entity-id]
+  (biff/submit-tx ctx [[::xt/evict entity-id]])
+  entity-id)

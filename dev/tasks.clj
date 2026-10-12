@@ -79,6 +79,8 @@
   {"hello"              #'hello
    "download-airtable"  #'airtable/download-all-records
    "cronometer-probe"   #'cronometer/probe
+   "cronometer-connect" #'cronometer/connect
+   "cronometer-sync"    #'cronometer/sync-recent
    "migrate"            #'migrate/run
    "export-tasks"       #'task-entities/export-tasks
    "apply-task-changes" #'task-entities/apply-task-changes!

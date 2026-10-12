@@ -180,7 +180,9 @@
     :else           (str v)))
 
 (def ^:private dropped-keys
-  #{:user/id ::sm/deleted-at})
+  ;; `cronometer/raw` is the whole upstream payload: large, noisy, and already
+  ;; translated into the document's own fields.
+  #{:user/id ::sm/deleted-at :cronometer/raw})
 
 (defn doc->json
   "An entity document as the API returns it: `id`, `type`, `created-at`, then
@@ -199,8 +201,9 @@
         doc))
 
 (defn field->json
-  "Describe one schema field for the `types` endpoint."
-  [entity-type [field-key {:keys [type opts]}]]
+  "Describe one schema field for the `types` endpoint. `read-only` marks a
+   type no API client may write, whatever its fields allow."
+  [entity-type read-only [field-key {:keys [type opts]}]]
   (let [base   (if (and (vector? type) (= :maybe (first type))) (second type) type)
         target (relation-target type)]
     (cond-> {:name     (kw->str field-key)
@@ -209,11 +212,13 @@
                                                                      "relation-set"
                                                                      "relation")
                          (and (vector? base) (= :enum (first base))) "enum"
-                         (and (vector? base) (= :set (first base)))  "enum-set"
+                         (and (vector? base) (= :set (first base))
+                              (vector? (second base)))               "enum-set"
                          (vector? base)                              (pr-str base)
                          :else                                       (name base))
              :required (not (:optional opts))
-             :writable (writable-field? entity-type field-key)}
+             :writable (and (not read-only)
+                            (writable-field? entity-type field-key))}
       target
       (assoc :relation (name target))
 
@@ -235,9 +240,10 @@
 
 (defn type->json
   "Describe an entity type's own fields for the `types` endpoint."
-  [entity-type]
-  (->> (fields entity-type)
-       (filter (fn [[k _]] (own-field? entity-type k)))
-       (sort-by (fn [[k {:keys [opts]}]]
-                  [(or (:crud/priority opts) 1000) (str k)]))
-       (mapv #(field->json entity-type %))))
+  ([entity-type] (type->json entity-type {}))
+  ([entity-type {:keys [read-only]}]
+   (->> (fields entity-type)
+        (filter (fn [[k _]] (own-field? entity-type k)))
+        (sort-by (fn [[k {:keys [opts]}]]
+                   [(or (:crud/priority opts) 1000) (str k)]))
+        (mapv #(field->json entity-type read-only %)))))

@@ -20,6 +20,7 @@
    [malli.error :as me]
    [tech.jgood.gleanmo.api.access :as access]
    [tech.jgood.gleanmo.api.coerce :as coerce]
+   [tech.jgood.gleanmo.cronometer.nutrients :as nutrients]
    [tech.jgood.gleanmo.db.mutations :as mutations]
    [tech.jgood.gleanmo.db.queries :as queries]
    [tech.jgood.gleanmo.schema.meta :as sm]
@@ -116,18 +117,29 @@
                    "prefix"      (:api-token/prefix token)
                    "permissions" (access/permissions-summary token)}
          "groups" (vec
-                   (for [{:keys [key label types]} access/groups
+                   (for [{:keys [key label types read-only]} access/groups
                          :when (access/can? token :read (first types))]
-                     {"group"  (name key)
-                      "label"  label
-                      "access" (if (access/can? token :write (first types))
-                                 "write"
-                                 "read")
-                      "types"  (mapv (fn [entity-type]
-                                       {"type"   (name entity-type)
-                                        "fields" (coerce/type->json
-                                                  entity-type)})
-                                     types)}))}))
+                     (cond-> {"group"  (name key)
+                              "label"  label
+                              "access" (if (access/can? token :write (first types))
+                                         "write"
+                                         "read")
+                              "types"  (mapv (fn [entity-type]
+                                               {"type"   (name entity-type)
+                                                "fields" (coerce/type->json
+                                                          entity-type
+                                                          {:read-only read-only})})
+                                             types)}
+                       ;; Nutrient maps carry no units; this table does.
+                       (= :nutrition key)
+                       (assoc "nutrients"
+                              (mapv (fn [{:keys [id unit] k :key :as row}]
+                                      {"key"           (name k)
+                                       "label"         (:label row)
+                                       "unit"          (name unit)
+                                       "category"      (:category row)
+                                       "cronometer-id" id})
+                                    nutrients/ordered)))))}))
 
 ;; ---------------------------------------------------------------------------
 ;; GET /entities/:type

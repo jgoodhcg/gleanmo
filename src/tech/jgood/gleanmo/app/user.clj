@@ -42,7 +42,8 @@
        [:p.text-secondary (str "Email: " email)]
        [:p.text-secondary (str "Time Zone: " time-zone)]
        [:a.link {:href (str "/app/users/" id "/edit")} "edit"]
-       [:p.mt-4 [:a.link {:href "/app/api-tokens"} "API tokens"]])])))
+       [:p.mt-4 [:a.link {:href "/app/api-tokens"} "API tokens"]]
+       [:p.mt-2 [:a.link {:href "/app/cronometer"} "Cronometer"]])])))
 
 (defn create!
   [_]
@@ -146,6 +147,9 @@
 
           [:div.mt-4
            [:a.link {:href "/app/api-tokens"} "Manage API tokens"]]
+
+          [:div.mt-2
+           [:a.link {:href "/app/cronometer"} "Cronometer sync"]]
 
           [:div.mt-4
            [:span.text-secondary

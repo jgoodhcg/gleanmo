@@ -38,6 +38,11 @@
  :recaptcha/secret-key #biff/secret RECAPTCHA_SECRET_KEY
  :recaptcha/site-key   #biff/env RECAPTCHA_SITE_KEY
 
+ ;; Base64 32-byte AES key for credentials stored in XTDB (Cronometer). Each
+ ;; environment has its own; generate with `openssl rand -base64 32`. Absent,
+ ;; the Cronometer connect form is disabled and its sync stays dormant.
+ :gleanmo/credentials-key #biff/secret CREDENTIALS_KEY
+
  :biff.nrepl/enabled #profile {:dev true :default false}
  :biff.nrepl/port    #or [#biff/env NREPL_PORT "7888"]
  :biff.nrepl/args    ["--port" #ref [:biff.nrepl/port]

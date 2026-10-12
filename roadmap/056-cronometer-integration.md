@@ -1,6 +1,6 @@
 ---
 title: "Cronometer Integration"
-status: ready
+status: active
 description: "Pull food, recipes, biometrics and daily nutrition summaries from Cronometer into Gleanmo for the agent API — recent days over the reverse-engineered mobile API, historical backfill by CSV import"
 created: 2026-04-24
 updated: 2026-10-12
@@ -624,6 +624,52 @@ Validate: `just lint-fast`, `clj -M:dev test cronometer.transform-test`,
   inspect via the agent API.
 - Phase 4 (CSV backfill) follows as its own migration.
 
+## Progress
+
+- Checkout: worktree `dev-1`, branch `dev-1` at `d6b9e6d`, all three slices
+  uncommitted (2026-10-12).
+- Completed: Slices A, B and C as planned. Schemas, nutrient and metric
+  tables, pure transform, client, AES-GCM credentials, sync, dev tasks,
+  read-only API groups, `/app/cronometer`, daily task at 10:00 UTC, e2e test.
+- Remaining: user-run real-data check and live sync (see Rollout); Phase 4 CSV
+  backfill.
+- Validation: `just check` clean apart from two existing warnings in
+  `db/queries.clj`; `just validate` 203 tests, 0 failures; `just
+  e2e-test-all` passed; series ticks `2026-10-12T18-38-09Z` (before) and
+  `2026-10-12T18-59-33Z` (after).
+- Blockers: none. The dev instance has no `CREDENTIALS_KEY`, so it shows the
+  unconfigured state until one is added and the server restarts.
+- Next action: user runs the real-data check
+  (`clojure -Scp "$(clojure -Spath -A:dev)" -M -i tmp/cronometer_check.clj`),
+  adds `CREDENTIALS_KEY` to `config.env`, restarts, connects on
+  `/app/cronometer`, and presses Sync now.
+
+### Implementation decisions (2026-10-12)
+
+- **Unchanged rows are not rewritten.** A re-sync compares each document,
+  without `synced-at`, to the stored one and skips equal ones. Without this a
+  daily 7-day re-pull adds a version of every row (raw payloads included) to
+  XTDB history every day. `nutrition-day` is the exception: it is rewritten on
+  every pull, and its `cronometer/synced-at` is the "last sync" the status
+  page shows.
+- **A soft-deleted row that reappears is restored** (`deleted-at` dissoc'd).
+- **The ciphertext is bound to its user.** The user id is the AES-GCM
+  associated data, so a ciphertext copied to another user's document does not
+  decrypt.
+- **One sync per user at a time**, guarded in process
+  (`sync-recent-locked!`). Not safe across instances — same caveat as the
+  session atom (077).
+- **Read-only groups are enforced in `access/can?`**, so a stored write grant
+  on them (a tampered form) still reads as read. `/types` reports their fields
+  as not writable.
+- **Timeless readings take the wake time whenever the day has a Sleep entry**,
+  not only for Oura sources, as the `:day-start` rule implies.
+- **Connecting does not log in.** Credentials are checked by the first Sync
+  now; a failure shows as "sync stopped" with details in the server log.
+- **Unverified:** a serving on a recipe's `g` measure (type `Recipe`, value =
+  recipe weight). The scaling rule treats `grams` as a serving count, which
+  the probe confirmed only for the "full recipe" measure.
+
 ## Validation
 
 - [x] Phase 0: the phone app stays authenticated after a CLI login.
@@ -631,20 +677,24 @@ Validate: `just lint-fast`, `clj -M:dev test cronometer.transform-test`,
       range against the live API.
 - [x] Per-serving nutrient math reproduces Cronometer's day totals (three days,
       recipe included).
-- [ ] Slice A: schemas registered; transform tests pass over synthetic
+- [x] Slice A: schemas registered; transform tests pass over synthetic
       fixtures; every produced doc validates; `/types` describes the new types.
-- [ ] Slice B: sync is idempotent (second run writes nothing new); a serving
+- [x] Slice B: sync is idempotent (second run writes nothing new); a serving
       deleted in Cronometer is soft-deleted on re-sync; recipe ingredients
-      resolve to `food` docs with tags.
-- [ ] Blood pressure lands as one `biometric-log` with both values and units.
-- [ ] Timestamps use `user/time-zone`; Oura per-day values land on wake time.
-- [ ] Slice C: nutrition and biometrics groups are read-only to agents;
+      resolve to `food` docs with tags. (Stubbed client, synthetic fixtures.)
+- [x] Blood pressure lands as one `biometric-log` with both values and units.
+- [x] Timestamps use `user/time-zone`; Oura per-day values land on wake time.
+- [x] Slice C: nutrition and biometrics groups are read-only to agents;
       `cronometer/raw` is not in API output; nutrient table is in `/types`.
-- [ ] Status page renders; "Sync now" 303s back and the counts update.
-- [ ] Stored connection holds no plaintext email or password; disconnect
+- [x] Status page renders; "Sync now" 303s back and the counts update.
+      (Unconfigured state by e2e; connected state by `app.cronometer-test`.)
+- [x] Stored connection holds no plaintext email or password; disconnect
       leaves no document history (`xt/entity-history` empty).
-- [ ] New test namespaces are required in `test/tech/jgood/gleanmo/test.clj`.
-- [ ] `just lint-fast`, `just check`, `just validate`, `just e2e-test-all` pass.
+- [x] New test namespaces are required in `test/tech/jgood/gleanmo/test.clj`.
+- [x] `just lint-fast`, `just check`, `just validate`, `just e2e-test-all` pass.
+- [ ] Slice A step 6: transform over `cronometer_data/` matches the diary
+      summaries (user-run: `tmp/cronometer_check.clj`).
+- [ ] Live sync against the real account (user-run).
 - [ ] Phase 4: CSV backfill imported without errors.
 
 ## Scope

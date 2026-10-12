@@ -1,6 +1,8 @@
 (ns tech.jgood.gleanmo.worker
   (:require [clojure.tools.logging :as log]
             [com.biffweb :as biff]
+            [tech.jgood.gleanmo.cronometer.connection :as cronometer-connection]
+            [tech.jgood.gleanmo.cronometer.sync :as cronometer-sync]
             [tech.jgood.gleanmo.db.mutations :as mutations]
             [tech.jgood.gleanmo.db.queries :as queries]
             [tech.jgood.gleanmo.observability :as obs]
@@ -80,6 +82,42 @@
                                         :entity-id  id,
                                         :data       {running-key value}}))))))
 
+(def cronometer-user-pause-ms
+  "Pause between users in the scheduled Cronometer sync."
+  2000)
+
+(defn sync-cronometer
+  "Re-pull the last 7 Cronometer days for every user with a stored
+   connection, one user at a time with a pause between them. One user's
+   failure is logged and does not stop the others. A no-op without
+   `:gleanmo/credentials-key`.
+
+   Days are idempotent, so a double fire during a deploy overlap only repeats
+   work (roadmap/077-scheduled-work-multi-instance.md)."
+  [{:keys [biff.xtdb/node], :as ctx}]
+  (when (cronometer-connection/configured? ctx)
+    (obs/profile-block
+     ::sync-cronometer
+     (doseq [[i user] (map-indexed vector
+                                   (queries/users-with-cronometer-connection
+                                    (xt/db node)))]
+       (when (pos? i) (Thread/sleep (long cronometer-user-pause-ms)))
+       (try
+         (let [outcome (cronometer-sync/sync-recent-locked! ctx user)]
+           (cond
+             (= ::cronometer-sync/already-running outcome)
+             (log/info "Cronometer sync already running for user" (:xt/id user))
+
+             (:error outcome)
+             (log/warn "Cronometer sync stopped for user" (:xt/id user)
+                       "on" (:failed-day outcome) ":" (:error outcome))
+
+             :else
+             (log/info "Cronometer sync done for user" (:xt/id user)
+                       (count (:days outcome)) "days")))
+         (catch Exception e
+           (log/error e "Cronometer sync failed for user" (:xt/id user))))))))
+
 (defn alert-new-user [{:keys [biff.xtdb/node]} tx]
   (doseq [_ [nil]
           :let [db-before (xt/db node {::xt/tx-id (dec (::xt/tx-id tx))})]
@@ -100,7 +138,9 @@
   {:tasks [{:task #'print-usage
             :schedule #(every-n-minutes 5)}
            {:task #'reconcile-timer-flags
-            :schedule #(daily-at-utc 9)}]
+            :schedule #(daily-at-utc 9)}
+           {:task #'sync-cronometer
+            :schedule #(daily-at-utc 10)}]
    :on-tx alert-new-user
    :queues [{:id :echo
              :consumer #'echo-consumer}]})

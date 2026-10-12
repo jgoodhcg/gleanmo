@@ -1639,3 +1639,105 @@
        (map first)
        (sort-by ::sm/created-at #(compare %2 %1))
        vec))
+
+;; ---------------------------------------------------------------------------
+;; Cronometer (roadmap/056-cronometer-integration.md)
+;; ---------------------------------------------------------------------------
+
+(defn- live-ids
+  "The subset of `ids` that are not soft-deleted. Deleted-at is sparse, so this
+   is a lookup bound to `ids` rather than a `(not ...)` clause in a scan."
+  [db ids]
+  (if (seq ids)
+    (let [deleted (->> (q db
+                          '{:find  [?e]
+                            :where [[?e ::sm/deleted-at]]
+                            :in    [[?e ...]]}
+                          (vec ids))
+                       (into #{} (map first)))]
+      (into #{} (remove deleted) ids))
+    #{}))
+
+(defnp cronometer-ids-for-day
+  "Ids of the user's live `entity-type` documents imported from Cronometer
+   diary day `day-str` (\"2026-10-11\"). Equality-bound on the day, so cost
+   tracks one day's rows. The sync uses it to find rows that vanished from a
+   re-pulled day."
+  [db user-id entity-type day-str]
+  (->> (q db
+          '{:find  [?e]
+            :where [[?e :cronometer/day day]
+                    [?e :user/id user-id]
+                    [?e ::sm/type entity-type]]
+            :in    [user-id entity-type day]}
+          user-id entity-type day-str)
+       (into #{} (map first))
+       (live-ids db)))
+
+(defnp cronometer-docs-for-days
+  "The user's live `entity-type` documents imported from the given Cronometer
+   diary days. Equality-bound on the days, so cost tracks those days' rows."
+  [db user-id entity-type day-strs]
+  (if (seq day-strs)
+    (->> (q db
+            '{:find  [(pull ?e [*])]
+              :where [[?e :cronometer/day ?day]
+                      [?e :user/id user-id]
+                      [?e ::sm/type entity-type]]
+              :in    [user-id entity-type [?day ...]]}
+            user-id entity-type (vec day-strs))
+         (map first)
+         (remove ::sm/deleted-at)
+         vec)
+    []))
+
+(defnp count-entities-for-user
+  "How many `entity-type` documents the user has, soft-deleted included. Meant
+   for small types; it scans the user's documents of that type."
+  [db user-id entity-type]
+  (or (ffirst (q db
+                 '{:find  [(count ?e)]
+                   :where [[?e :user/id user-id]
+                           [?e ::sm/type entity-type]]
+                   :in    [user-id entity-type]}
+                 user-id entity-type))
+      0))
+
+(defnp last-cronometer-sync
+  "The latest `cronometer/synced-at` on the user's `nutrition-day` documents,
+   or nil. The sync rewrites every day it pulls, so this is the last sync."
+  [db user-id]
+  (ffirst (q db
+             '{:find  [(max ?t)]
+               :where [[?e :user/id user-id]
+                       [?e ::sm/type :nutrition-day]
+                       [?e :cronometer/synced-at ?t]]
+               :in    [user-id]}
+             user-id)))
+
+(defn cronometer-connection-for-user
+  "The user's live `cronometer-connection` document, or nil."
+  [db user-id]
+  (->> (q db
+          '{:find  [(pull ?e [*])]
+            :where [[?e :user/id user-id]
+                    [?e ::sm/type :cronometer-connection]]
+            :in    [user-id]}
+          user-id)
+       (map first)
+       (remove ::sm/deleted-at)
+       (sort-by ::sm/created-at #(compare %2 %1))
+       first))
+
+(defn users-with-cronometer-connection
+  "Every user document with a live `cronometer-connection`."
+  [db]
+  (let [user-ids (->> (q db
+                         '{:find  [?uid ?c]
+                           :where [[?c ::sm/type :cronometer-connection]
+                                   [?c :user/id ?uid]]})
+                      (group-by first)
+                      (keep (fn [[uid rows]]
+                              (when (seq (live-ids db (map second rows)))
+                                uid))))]
+    (fetch-entities-by-ids db user-ids)))

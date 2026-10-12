@@ -13,7 +13,9 @@
 
 (def groups
   "Permission groups in display order. `:types` are the entity types the group
-   covers."
+   covers. A `:read-only` group is never writable through the API, whatever a
+   token says: its data is owned by a sync (Cronometer), and the next sync
+   would overwrite an agent's edit."
   [{:key :tasks,      :label "Tasks & projects",
     :types [:task :project :project-log]}
    {:key :exercise,   :label "Exercise",
@@ -39,9 +41,16 @@
    {:key :medication, :label "Medication",
     :types [:medication :medication-log]}
    {:key :bm,         :label "BM logs",
-    :types [:bm-log]}])
+    :types [:bm-log]}
+   {:key :nutrition,  :label "Nutrition",
+    :types [:food :food-log :nutrition-day], :read-only true}
+   {:key :biometrics, :label "Biometrics",
+    :types [:biometric-log], :read-only true}])
 
 (def group-keys (set (map :key groups)))
+
+(def read-only-groups
+  (into #{} (comp (filter :read-only) (map :key)) groups))
 
 (def type->group
   (into {}
@@ -95,10 +104,14 @@
 
 (defn- granted-groups
   [token-doc access]
-  (let [writes (set (:api-token/write-groups token-doc))]
+  (let [writes (into #{}
+                     (remove read-only-groups)
+                     (:api-token/write-groups token-doc))]
     (case access
       :write writes
-      :read  (into writes (:api-token/read-groups token-doc)))))
+      ;; A write grant on a read-only group still grants read.
+      :read  (into (set (:api-token/write-groups token-doc))
+                   (:api-token/read-groups token-doc)))))
 
 (defn can?
   "Whether `token-doc` grants `access` (`:read` or `:write`) on `entity-type`."

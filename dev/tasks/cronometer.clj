@@ -13,33 +13,39 @@
      `cronometer_data/session.edn` (gitignored — it is a bearer token) and
      reused until Cronometer rejects it.
 
+   The HTTP calls live in `tech.jgood.gleanmo.cronometer.client`; this task
+   only supplies credentials and the file-backed session store.
+
    Credentials come from `CRONOMETER_EMAIL` / `CRONOMETER_PASSWORD`, read from
    the environment first and `config.env` second.
 
    Usage:
      clj -M:dev cronometer-probe login
-     clj -M:dev cronometer-probe dump [--day 2026-10-11] [--days 30]"
+     clj -M:dev cronometer-probe dump [--day 2026-10-11] [--days 30]
+
+   This file also holds the two tasks that write to XTDB, so the sync can be
+   run before the status page's connect form exists:
+     clj -M:dev cronometer-connect --target dev --email <gleanmo email>
+     clj -M:dev cronometer-sync --target dev --email <gleanmo email> [--days 7]
+   Locally the dev server must be stopped first — RocksDB takes an exclusive
+   lock."
   (:require
-   [cheshire.core :as json]
-   [clj-http.client :as http]
    [clojure.java.io :as io]
    [clojure.pprint :as pprint]
    [clojure.string :as str]
-   [clojure.tools.cli :refer [parse-opts]])
+   [clojure.tools.cli :refer [parse-opts]]
+   [com.biffweb :as biff]
+   [tasks.migrate :as migrate]
+   [tasks.util :as u]
+   [tech.jgood.gleanmo.cronometer.client :as client]
+   [tech.jgood.gleanmo.cronometer.connection :as connection]
+   [tech.jgood.gleanmo.cronometer.sync :as sync]
+   [tech.jgood.gleanmo.db.queries :as queries])
   (:import
    [java.time LocalDate]))
 
-(def ^:private base-url "https://mobile.cronometer.com")
 (def ^:private data-dir "cronometer_data")
 (def ^:private session-file (str data-dir "/session.edn"))
-
-(def ^:private app-auth
-  {:api 3, :os "Android", :build "2807", :flavour "free"})
-
-(def ^:private headers
-  {"user-agent"      "Dart/3.9 (dart:io)"
-   "content-type"    "text/plain; charset=utf-8"
-   "accept-encoding" "gzip"})
 
 ;; =============================================================================
 ;; Credentials and session
@@ -80,139 +86,17 @@
   (io/make-parents session-file)
   (spit session-file (pr-str session)))
 
-;; =============================================================================
-;; HTTP
-;; =============================================================================
+(def ^:private file-store
+  "CLI runs are short-lived and logins are rate-limited, so the probe keeps
+   its session on disk rather than in the client's in-memory store."
+  {:load   load-session
+   :save!  save-session!
+   :clear! #(io/delete-file session-file true)})
 
-(defn- post
-  [endpoint payload]
-  (let [resp (http/post (str base-url endpoint)
-                        {:headers          headers
-                         :body             (json/generate-string payload)
-                         :throw-exceptions false
-                         ;; Cronometer's load balancer sets cookies whose
-                         ;; `Expires` the default policy rejects with a warning.
-                         :cookie-policy    :standard
-                         :socket-timeout   30000
-                         :connection-timeout 30000})]
-    {:status (:status resp)
-     :body   (some-> (:body resp) not-empty (json/parse-string true))}))
-
-(defn login!
-  "Log in and cache `{:user-id :token :timezone}`. Returns the raw response with
-   the session key redacted."
+(defn- conn
   []
-  (let [[email password] (credentials)
-        {:keys [status body]}
-        (post "/api/v2/login"
-              {:email         email
-               :password      password
-               ;; Must stay null: a non-null timezone is a write to the account.
-               :timezone      nil
-               :userCode      nil
-               :build         "4.48.2 b2807-a"
-               :device        "Android 14 (SDK 34), Google Pixel 6 Pro"
-               :firebaseToken ""
-               :features      {:food_search_config
-                               "{\"newSearch\": true, \"newSpellcheck\": true}"
-                               :use_gpt_autofill "true"}
-               :auth          (merge {:userId nil, :token nil} app-auth)
-               :lastSeen      0
-               :config        {:call_version 2}})]
-    (when-not (and (= 200 status) (:sessionKey body))
-      (throw (ex-info "Cronometer login failed"
-                      {:status status
-                       :error  (or (:error body) (:result body))})))
-    (let [session {:user-id  (:id body)
-                   :token    (:sessionKey body)
-                   :timezone (:timezone body)}]
-      (save-session! session)
-      (assoc body :sessionKey "<redacted>"))))
-
-(defn- auth-failed?
-  [{:keys [status body]}]
-  (or (#{401 403} status)
-      (and (map? body) (#{"FAIL" "FAILURE"} (:result body)))))
-
-(defn- request
-  "POST a v2 endpoint with the cached session, logging in at most once when
-   there is no session or Cronometer rejects it."
-  [endpoint payload]
-  (letfn [(send [{:keys [user-id token]}]
-            (post endpoint
-                  (assoc payload
-                         :auth     (merge {:userId user-id, :token token} app-auth)
-                         :lastSeen 0)))]
-    (let [session (or (load-session)
-                      (do (println "No cached session; logging in.")
-                          (login!)
-                          (load-session)))
-          resp    (send session)
-          resp    (if (auth-failed? resp)
-                    (do (println "Session rejected; logging in again.")
-                        (login!)
-                        (send (load-session)))
-                    resp)]
-      (when (or (auth-failed? resp) (not= 200 (:status resp)))
-        (throw (ex-info (str "Cronometer request failed: " endpoint)
-                        {:status (:status resp), :body (:body resp)})))
-      (:body resp))))
-
-;; =============================================================================
-;; Endpoints
-;; =============================================================================
-
-(defn- format-day
-  "Cronometer wants a non-zero-padded `YYYY-M-D`."
-  [^LocalDate d]
-  (str (.getYear d) "-" (.getMonthValue d) "-" (.getDayOfMonth d)))
-
-(defn get-diary
-  "Diary entries for one day."
-  [day]
-  (request "/api/v2/get_diary"
-           {:day (format-day day), :config {:call_version 1}}))
-
-(defn get-nutrients
-  "The nutrient definition catalog — ids, names, units, RDIs. Despite the name
-   and the `day` it takes, it carries no consumed amounts."
-  [day]
-  (request "/api/v2/get_nutrients"
-           {:day (format-day day), :config {:call_version 1}}))
-
-(defn get-foods
-  "Full food records — name, measures, per-100g nutrients — for `food-ids`.
-   Diary servings carry only ids, so this is how they get names."
-  [food-ids]
-  (request "/api/v2/get_foods"
-           {:ids (vec food-ids), :config {:call_version 1}}))
-
-(defn get-nutrition-scores
-  "Per-nutrient consumed amounts for the given diary servings. The date fields
-   are ignored by the server when `servingIds` is given; the reference client
-   sends this placeholder."
-  [serving-ids]
-  (request "/api/v2/get_nutrition_scores"
-           {:startDay   "1900-1-1"
-            :endDay     "1900-1-1"
-            :servingIds (vec serving-ids)
-            :supplements "true"
-            :config     {:call_version 1}}))
-
-(defn get-metrics
-  "The biometric catalog: metric ids and their unit ids."
-  []
-  (request "/api/v2/get_metrics" {:config {:call_version 1}}))
-
-(defn get-biometrics
-  "`{:data [{:day :value}]}` for one metric and unit over an inclusive range."
-  [metric-id unit-id start end]
-  (request "/api/v2/get_biometrics"
-           {:metricId metric-id
-            :unitId   unit-id
-            :start    (format-day start)
-            :end      (format-day end)
-            :config   {:call_version 1}}))
+  (let [[email password] (credentials)]
+    (client/connection {:email email, :password password, :store file-store})))
 
 ;; =============================================================================
 ;; CLI
@@ -236,28 +120,30 @@
         start (.minusDays day (dec days))
         stamp (str day)]
     (println "Fetching diary for" stamp)
-    (let [diary    (get-diary day)
+    (let [c        (conn)
+          diary    (client/get-diary c day)
           servings (filter #(= "Serving" (:type %)) (:diary diary))]
       (write-edn! (str "diary_" stamp ".edn") diary)
       (println "Fetching" (count servings) "servings' foods and nutrition scores")
       (write-edn! (str "foods_" stamp ".edn")
-                  (get-foods (distinct (keep :foodId servings))))
+                  {:foods (client/get-foods c (distinct (keep :foodId servings)))})
       (write-edn! (str "nutrition_scores_" stamp ".edn")
-                  (get-nutrition-scores (keep :servingId servings))))
-    (println "Fetching nutrient definitions")
-    (write-edn! "nutrient_definitions.edn" (get-nutrients day))
-    (println "Fetching metric catalog")
-    (let [metrics (:metrics (get-metrics))]
-      (write-edn! "metrics.edn" metrics)
-      (doseq [metric-name ["weight" "body fat"]]
-        (if-let [{:keys [id units]} (metric-named metrics metric-name)]
-          (let [unit (first units)]
-            (println "Fetching" metric-name "in" (:name unit) "from" (str start) "to" stamp)
-            (write-edn! (str "biometrics_" (str/replace metric-name " " "_") "_" stamp ".edn")
-                        {:metric metric-name
-                         :unit   unit
-                         :result (get-biometrics id (:id unit) start day)}))
-          (println "No metric named" (pr-str metric-name) "in the catalog; skipped"))))))
+                  (client/get-nutrition-scores c (keep :servingId servings)))
+      (println "Fetching nutrient definitions")
+      (write-edn! "nutrient_definitions.edn"
+                  {:nutrients (client/get-nutrient-definitions c day)})
+      (println "Fetching metric catalog")
+      (let [metrics (client/get-metrics c)]
+        (write-edn! "metrics.edn" metrics)
+        (doseq [metric-name ["weight" "body fat"]]
+          (if-let [{:keys [id units]} (metric-named metrics metric-name)]
+            (let [unit (first units)]
+              (println "Fetching" metric-name "in" (:name unit) "from" (str start) "to" stamp)
+              (write-edn! (str "biometrics_" (str/replace metric-name " " "_") "_" stamp ".edn")
+                          {:metric metric-name
+                           :unit   unit
+                           :result (client/get-biometrics c id (:id unit) start day)}))
+            (println "No metric named" (pr-str metric-name) "in the catalog; skipped")))))))
 
 (def ^:private cli-options
   [["-d" "--day DAY" "Day to fetch, YYYY-MM-DD (default: yesterday)"]
@@ -281,10 +167,9 @@
       (run! println errors)
 
       (= ["login"] arguments)
-      (let [body (login!)]
-        (write-edn! "login.edn" body)
-        (println "Logged in as user" (:id body)
-                 "— account timezone:" (pr-str (:timezone body)))
+      (let [session (client/login! (conn))]
+        (println "Logged in as user" (:user-id session)
+                 "— account timezone:" (pr-str (:timezone session)))
         (println "Now open Cronometer on your phone and confirm it is still signed in."))
 
       (= ["dump"] arguments)
@@ -292,3 +177,76 @@
 
       :else
       (println "Usage: clj -M:dev cronometer-probe login | dump [--day YYYY-MM-DD] [--days N]"))))
+
+;; =============================================================================
+;; Connect and sync (write to XTDB)
+;; =============================================================================
+
+(def ^:private db-options
+  [["-t" "--target TARGET" "Target database: dev or prod" :default "dev"]
+   ["-e" "--email EMAIL" "Email of the Gleanmo user"]
+   ["-n" "--days DAYS" "Days to sync, ending today in the user's zone"
+    :default sync/default-days :parse-fn parse-long]])
+
+(defn- with-user-ctx
+  "Start a node for `target`, resolve `email`, and call `(f ctx user)`. The
+   ctx carries `:biff/secret` from config, so the credentials key resolves as
+   it does in the app."
+  [args f]
+  (let [{:keys [options errors]} (parse-opts args db-options)
+        {:keys [target email]}   options]
+    (cond
+      (seq errors) (do (run! u/print-red errors) (System/exit 1))
+      (not email)  (do (u/print-red "ERROR: --email is required") (System/exit 1))
+      :else
+      (let [config (biff/use-aero-config {:biff.config/profile target})
+            node   (migrate/start-node target)
+            failed (try
+                     (let [ctx  (assoc (migrate/build-ctx node)
+                                       :biff/secret (:biff/secret config))
+                           uid  (queries/user-id-by-email (:biff/db ctx) email)
+                           user (when uid (queries/get-entity-by-id (:biff/db ctx) uid))]
+                       (cond
+                         (not user)
+                         (do (u/print-red (str "No user found for email: " email)) true)
+
+                         (not (connection/configured? ctx))
+                         (do (u/print-red "CREDENTIALS_KEY is missing or not a base64 32-byte key.")
+                             true)
+
+                         :else (f ctx user options)))
+                     (finally
+                       (.close node)
+                       (u/print-cyan "Node closed.")))]
+        (when failed (System/exit 1))))))
+
+(defn connect
+  "Store CRONOMETER_EMAIL / CRONOMETER_PASSWORD (environment, then config.env)
+   as the user's encrypted Cronometer connection, replacing any earlier one.
+
+  Usage: clj -M:dev cronometer-connect --target dev --email <gleanmo email>"
+  [& args]
+  (with-user-ctx
+    args
+    (fn [ctx user _]
+      (let [[email password] (credentials)]
+        (connection/connect! ctx (:xt/id user) email password)
+        (u/print-green "Stored an encrypted Cronometer connection.")
+        false))))
+
+(defn sync-recent
+  "Sync the last N days (default 7) from the user's stored connection.
+
+  Usage: clj -M:dev cronometer-sync --target dev --email <gleanmo email> [--days 7]"
+  [& args]
+  (with-user-ctx
+    args
+    (fn [ctx user {:keys [days]}]
+      (let [{:keys [error not-connected], synced :days} (sync/sync-recent! ctx user days)]
+        (doseq [{:keys [day created updated deleted unchanged warnings]} synced]
+          (println day {:created created :updated updated :deleted deleted
+                        :unchanged unchanged :warnings (count warnings)}))
+        (cond
+          not-connected (do (u/print-red "No Cronometer connection; run cronometer-connect first.") true)
+          error         (do (u/print-red (str "Sync stopped: " error)) true)
+          :else         (do (u/print-green "Sync complete.") false))))))

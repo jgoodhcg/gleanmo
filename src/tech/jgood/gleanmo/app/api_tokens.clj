@@ -67,20 +67,25 @@
   [:p.text-sm.text-red-400 {:data-testid "new-api-token-error"} message])
 
 (defn- group-row
-  [{:keys [key label types]}]
+  "A read-only group (synced data) offers none and read only."
+  [{:keys [key label types read-only]}]
   (let [field (str "group-" (name key))]
     [:tr.border-t.border-dark {:key field}
      [:td.py-2.pr-3
       [:div.text-sm.text-gray-200 label]
-      [:div.text-xs.text-gray-500 (str/join ", " (map name types))]]
+      [:div.text-xs.text-gray-500
+       (str/join ", " (map name types))
+       (when read-only " · read-only, synced")]]
      (for [level ["none" "read" "write"]]
        [:td.py-2.px-2.text-center {:key level}
-        [:input {:type                "radio"
-                 :name                field
-                 :value               level
-                 :aria-label          (str label " " level)
-                 :checked             (= "none" level)
-                 :data-original-value "none"}]])]))
+        (if (and read-only (= "write" level))
+          [:span.text-xs.text-gray-600 {:aria-label (str label " write unavailable")} "—"]
+          [:input {:type                "radio"
+                   :name                field
+                   :value               level
+                   :aria-label          (str label " " level)
+                   :checked             (= "none" level)
+                   :data-original-value "none"}])])]))
 
 (defn- create-form
   "Posts with HTMX rather than navigating: the response carries the token's
@@ -187,12 +192,19 @@
         "Use a token as " [:code "Authorization: Bearer gmn_…"]
         ". Start at " [:code "GET /api/v1/types"] " to see what it can reach."]]))))
 
+(defn- submitted-level
+  "The level submitted for a group. A write submitted for a read-only group
+   (only possible from a tampered form) is stored as read."
+  [params {:keys [key read-only]}]
+  (let [level (get params (keyword (str "group-" (name key))))]
+    (if (and read-only (= "write" level)) "read" level)))
+
 (defn- submitted-groups
   [params level]
   (into #{}
-        (keep (fn [{:keys [key]}]
-                (when (= level (get params (keyword (str "group-" (name key)))))
-                  key)))
+        (keep (fn [group]
+                (when (= level (submitted-level params group))
+                  (:key group))))
         access/groups))
 
 (defn- fragment-response

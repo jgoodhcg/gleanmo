@@ -65,6 +65,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 
 ### Active
 
+- [056-cronometer-integration.md](./056-cronometer-integration.md) - Food, recipes, biometrics and daily summaries from Cronometer for the agent API; slices A–C built and tested 2026-10-12 (sync, encrypted per-user credentials, read-only API groups, `/app/cronometer`); live sync and CSV backfill pending
 - [061-ai-assistance.md](./061-ai-assistance.md) - Agent API v1 built 2026-10-08: scoped bearer tokens, permission-checked reads, one checked all-or-nothing `tx` write endpoint with dry run
 - [017-infrastructure.md](./017-infrastructure.md) - Database migration from Neon to DigitalOcean
 - [014-data-migration-status.md](./014-data-migration-status.md) - Tracker for Airtable backfills and remaining imports
@@ -98,7 +99,6 @@ PWA notification scaffolding does not establish working reminder delivery.
 - [027-screenshot-runner.md](./027-screenshot-runner.md) - Manifest-driven series capture for the visual timeline (manifest + runner + agent policy shipped; Biff-task glue + CI archive pending)
 - [069-crud-relation-select-scale.md](./069-crud-relation-select-scale.md) - Relationship selects render every related entity; ~10k options froze the exercise-line edit form on mobile
 - [079-htmx-navigation-consistency.md](./079-htmx-navigation-consistency.md) - One navigation model: boost all 42 native form POSTs through htmx, delete the hand-rolled double-submit guard in favor of hx-sync, drop the two unused vendor scripts; start buttons need unmistakable in-flight feedback (dogfood 2026-10-04)
-- [056-cronometer-integration.md](./056-cronometer-integration.md) - Food, recipes, biometrics and daily summaries from Cronometer for the agent API; phase 0 passed and model decided 2026-10-12; credentials per user, AES-GCM encrypted in XTDB
 
 ### Draft
 

@@ -5,8 +5,10 @@
    [tech.jgood.gleanmo :as main]
    [tech.jgood.gleanmo.api :as api]
    [tech.jgood.gleanmo.api.access :as access]
+   [tech.jgood.gleanmo.cronometer.transform :as transform]
    [tech.jgood.gleanmo.db.mutations :as mutations]
    [tech.jgood.gleanmo.schema.meta :as sm]
+   [tech.jgood.gleanmo.test.cronometer.fixtures :as fx]
    [tick.core :as t]
    [xtdb.api :as xt])
   (:import
@@ -305,3 +307,44 @@
                  (api/task-signals {:task/snooze-count 2}
                                    {:task/snooze-until :db/dissoc}
                                    now)))))))
+
+(deftest read-only-groups-test
+  (with-open [node (test-xtdb-node [])]
+    (let [user-id (UUID/randomUUID)
+          ;; A write grant on a read-only group, as a tampered form could store.
+          token   (token! node user-id :write [:nutrition :biometrics])
+          log     (transform/serving->food-log user-id fx/zone fx/serving-oats
+                                               fx/oats (t/now))
+          _       (create! node :food-log log)]
+      (testing "synced types are never writable through the API"
+        (is (not (access/can? {:api-token/write-groups #{:nutrition}} :write :food-log)))
+        (is (access/can? {:api-token/write-groups #{:nutrition}} :read :food-log))
+        (is (= [] (:write (access/permissions-summary
+                           {:api-token/write-groups #{:biometrics}})))))
+
+      (testing "a write is rejected"
+        (let [resp (tx node token {:ops [{:op "update", :type "food-log",
+                                          :id (str (:xt/id log)),
+                                          :set {:food-log/label "edited"}}]})]
+          (is (= 422 (:status resp)))
+          (is (= "Test Oats" (:food-log/label (stored node (:xt/id log)))))))
+
+      (testing "types describes the groups as read access, with the nutrient table"
+        (let [body      (:body (call node token api/types-handler {}))
+              groups    (into {} (map (juxt #(get % "group") identity)) (get body "groups"))
+              nutrition (get groups "nutrition")]
+          (is (= "read" (get nutrition "access")))
+          (is (= "read" (get-in groups ["biometrics" "access"])))
+          (is (some #(= {"key" "protein", "label" "Protein", "unit" "g",
+                         "category" "Protein", "cronometer-id" 203} %)
+                    (get nutrition "nutrients")))
+          (is (= #{"food" "food-log" "nutrition-day"}
+                 (set (map #(get % "type") (get nutrition "types")))))
+          (is (every? #(false? (:writable %))
+                      (mapcat #(get % "fields") (get nutrition "types"))))))
+
+      (testing "raw payloads stay out of API output"
+        (let [items (list-items node token "food-log" {})]
+          (is (= 1 (count items)))
+          (is (not (contains? (first items) "cronometer/raw")))
+          (is (= 8.0 (get-in (first items) ["food-log/nutrients" "protein"]))))))))
