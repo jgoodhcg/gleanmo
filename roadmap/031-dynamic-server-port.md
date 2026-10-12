@@ -5,7 +5,7 @@ description: "Make the server dynamically choose a port to run on to support git
 tags: [area/dev-tools, type/enhancement, tech/dev-server]
 priority: medium
 created: 2026-02-06
-updated: 2026-02-07
+updated: 2026-10-12
 ---
 
 # Dynamic Server Port Selection
@@ -45,8 +45,11 @@ When working with git worktrees or multiple branches of the same project, the fi
 
 ## Notes
 
-Current config in `resources/config.edn:7-8`:
-```clojure
-:biff/port     #profile {:dev 8080
-                         :prod #long #or [#biff/env PORT 8080]}
-```
+### Manual per-worktree port (2026-10-12)
+
+A stopgap, not this unit's automatic selection: the dev port and base URL now
+read `PORT` (env, then `config.env`), defaulting to 8080, and `just e2e-*`
+derives `BASE_URL` from the same `config.env` key. A second worktree sets
+`PORT=8081` and `NREPL_PORT=7889` in its own gitignored `config.env`. That
+breaks the "no manual configuration per worktree" constraint above, so the unit
+stays open.

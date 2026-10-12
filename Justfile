@@ -1,5 +1,10 @@
 # Run `just` to see all commands
 
+# e2e recipes target this worktree's dev server: BASE_URL wins, else PORT from
+# config.env (the same key resources/config.edn reads), else 8080.
+port := `sed -n 's/^PORT=["]*\([0-9]*\)["]*$/\1/p' config.env 2>/dev/null || true`
+export BASE_URL := env("BASE_URL", "http://localhost:" + if port == "" { "8080" } else { port })
+
 default:
     @just --list
 
