@@ -421,6 +421,7 @@
                 schema      (when (empty? field-errors)
                               (schema-errors entity-type doc malli-opts))]
             {:op :create, :entity-type entity-type, :id id, :data data, :doc doc
+             :id-generated (not id-given)
              :errors (cond-> (into field-errors flag-errs)
                        stored-dupe (conj "id is already in use")
                        schema      (conj (str "schema: " (pr-str schema))))})
@@ -479,11 +480,13 @@
   (batch-errors db (:user/id token) (mapv #(resolve-op env %) ops)))
 
 (defn- op->json
-  [index {:keys [op entity-type id stored doc errors]}]
+  "`dry-run?` hides an id the server generated: the commit generates a new one,
+   so showing it would promise an id the write will not use."
+  [dry-run? index {:keys [op entity-type id id-generated stored doc errors]}]
   (cond-> {"index"  index
            "op"     (some-> op name)
            "type"   (some-> entity-type name)
-           "id"     (some-> id str)
+           "id"     (when-not (and dry-run? id-generated) (some-> id str))
            "errors" errors}
     (= :create op) (assoc "changes" (changes entity-type {} doc))
     (= :update op) (assoc "changes" (changes entity-type stored doc))
@@ -510,7 +513,10 @@
       \"expect\": {...}?}
      {\"op\": \"delete\", \"type\": \"task\", \"id\": uuid, \"expect\": {...}?}
    `set` keys are full field names (`task/state`); null removes a field. A
-   create may choose its own id so later ops in the batch can relate to it."
+   create may choose its own id so later ops in the batch can relate to it,
+   and so a dry run's plan names the id the commit will use: a dry run shows
+   `id: null` for a create that leaves the id to the server. Resending a
+   committed batch with its chosen ids fails rather than duplicating it."
   [{:keys [api/token biff/db body-params biff/malli-opts], :as ctx}]
   (let [{:keys [ops dry_run]} body-params]
     (cond
@@ -532,7 +538,8 @@
                                                  malli-opts)}
                                   ops)
             valid?   (every? (comp empty? :errors) resolved)
-            ops-json (vec (map-indexed op->json resolved))]
+            ops-json (vec (map-indexed (partial op->json (true? dry_run))
+                                       resolved))]
         (cond
           (true? dry_run)
           (json 200 {"dry_run" true, "valid" valid?, "ops" ops-json})
@@ -545,11 +552,19 @@
             (commit! ctx resolved)
             (json 200 {"committed" true, "valid" true, "ops" ops-json})
             (catch Exception e
-              (if (mutations/invalid-write? e)
+              (cond
+                (mutations/invalid-write? e)
                 (error 422 "A write rule rejected the batch; nothing was written."
                        {"type"   (some-> (ex-data e) :entity-key name)
                         "errors" (coerce/->json-value (:errors (ex-data e)))})
-                (throw e)))))))))
+
+                ;; The id was free when the batch was checked and taken by
+                ;; commit time.
+                (mutations/id-in-use? e)
+                (error 409 "An id in the batch is already in use; nothing was written."
+                       {"id" (some-> (ex-data e) :id str)})
+
+                :else (throw e)))))))))
 
 ;; ---------------------------------------------------------------------------
 ;; Module

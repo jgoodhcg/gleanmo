@@ -1,0 +1,97 @@
+{
+  "id": "api-token-reveal",
+  "title": "How a newly created API token's plaintext reaches the browser",
+  "created": "2026-10-12",
+  "status": "accepted",
+  "decided": "2026-10-12",
+  "decision": "Option E — the create form posts with HTMX. The response is the masked token callout, plus the create form and token list swapped out-of-band. No redirect, no stored plaintext. Decided by the user on 2026-10-12 after walking through every option below.",
+  "context": {
+    "problem": "API token plaintext exists only at creation: the token doc keeps a SHA-256 of it and a 12-character display prefix (`gmn_` + 8 of 43 random characters, ~208 bits still secret). The original `create!` rendered the whole page as the POST response so the plaintext could appear in it. That broke the app's write-then-303 rule, and a page refresh re-submitted the form and silently minted a second token. The callout's copy also claimed the token was stored 'only as a hash' while the list showed the stored prefix, which prompted the user's question that started this review.",
+    "constraints": [
+      "The user has to see the plaintext once, so it must reach some response the browser renders. The question is only which response and through what channel.",
+      "AGENTS.md: mutation handlers write and 303 back unless a handler genuinely must render its own response; such handlers refresh `:biff/db` before reading.",
+      "No shared server-side store (Redis or similar) exists; App Platform may run more than one instance, and every deploy restarts the process.",
+      "XTDB keeps every document version, so anything written to the database is effectively permanent unless evicted.",
+      "Prefer the app's existing primitives (HTMX, plain forms) over bespoke client code."
+    ]
+  },
+  "options": [
+    {
+      "id": "A",
+      "label": "Keep rendering the page from the POST",
+      "description": "The original design. The plaintext is only ever in that one response. A refresh re-POSTs and creates a duplicate token; inconsistent with every other mutation handler."
+    },
+    {
+      "id": "B",
+      "label": "Session flash, then 303",
+      "description": "POST stores the plaintext under a session key and 303s; the GET renders it once and returns the session without it. Biff's session is an encrypted cookie, so the plaintext makes one round trip inside the cookie. Idiomatic Biff, least code."
+    },
+    {
+      "id": "C",
+      "label": "Browser-generated token",
+      "description": "JS generates the token with crypto.getRandomValues, keeps it in sessionStorage, submits it (or only its hash), the server 303s, and the GET page reads and clears sessionStorage. The server never sends the plaintext back. The user judged it 'not the most secure': key generation and the one-time display move into client JS, and a hash-only variant cannot verify entropy."
+    },
+    {
+      "id": "D",
+      "label": "Server-side one-time store",
+      "description": "Plaintext held in an in-memory map keyed by a nonce carried in the redirect URL; the GET consumes it. Breaks across instances and restarts. A shared Redis would make it sound — not worth adding for one page."
+    },
+    {
+      "id": "E",
+      "label": "HTMX post returning a fragment",
+      "description": "The form posts with hx-post; the response is the masked callout plus out-of-band swaps of the create form (reset, no changed-field highlights) and the token list. An XHR post is not a navigation, so a refresh is a plain GET: no re-submit, no re-show. The plaintext lives only in that one response, same as A."
+    },
+    {
+      "id": "F",
+      "label": "Rejected outright",
+      "description": "303 with a body: browsers discard a redirect's body; fetch follows it transparently, and redirect:'manual' yields an opaque response with no body or headers — so a 303 cannot carry a payload to any client. Token in the URL fragment: lands in the Location header and browser history. Encrypted plaintext on the token doc: XTDB history keeps it forever without an eviction. Minting the token on the GET: a GET that writes."
+    }
+  ],
+  "criteria": [
+    { "id": "plaintext-exposure", "label": "Plaintext appears in as few places as possible (responses, cookies, storage, history)", "weight": "high" },
+    { "id": "refresh-safe", "label": "Refreshing the page neither re-shows the token nor mints another", "weight": "high" },
+    { "id": "server-generated", "label": "Token entropy comes from the server", "weight": "medium" },
+    { "id": "app-consistency", "label": "Fits the app's handler conventions", "weight": "medium" },
+    { "id": "operational-simplicity", "label": "No new server state or single-instance assumption", "weight": "medium" },
+    { "id": "implementation-cost", "label": "Low cost to build and get right", "weight": "low" }
+  ],
+  "matrix": [
+    { "option": "A", "criteria_scores": {
+      "plaintext-exposure": 5, "refresh-safe": 0, "server-generated": 5,
+      "app-consistency": 2, "operational-simplicity": 5, "implementation-cost": 5
+    }, "notes": "Exposure is minimal, but the refresh duplicate is a real bug and the handler is the odd one out." },
+    { "option": "B", "criteria_scores": {
+      "plaintext-exposure": 3, "refresh-safe": 5, "server-generated": 5,
+      "app-consistency": 5, "operational-simplicity": 5, "implementation-cost": 4
+    }, "notes": "Most conventional. The cookie round trip is a modest risk — anyone able to decrypt the session cookie can already act as the user in the whole app — but it widens where the plaintext travels." },
+    { "option": "C", "criteria_scores": {
+      "plaintext-exposure": 4, "refresh-safe": 4, "server-generated": 1,
+      "app-consistency": 2, "operational-simplicity": 5, "implementation-cost": 2
+    }, "notes": "Clever but moves trust into page JS; a script failure leaves a created token nobody saw." },
+    { "option": "D", "criteria_scores": {
+      "plaintext-exposure": 4, "refresh-safe": 5, "server-generated": 5,
+      "app-consistency": 4, "operational-simplicity": 1, "implementation-cost": 2
+    }, "notes": "Right shape with a shared store; wrong without one." },
+    { "option": "E", "criteria_scores": {
+      "plaintext-exposure": 5, "refresh-safe": 5, "server-generated": 5,
+      "app-consistency": 3, "operational-simplicity": 5, "implementation-cost": 4
+    }, "notes": "Keeps A's single-response exposure and fixes the refresh bug. Costs a JS dependency for creating a token (the app already loads HTMX on every page) and an out-of-band swap, which AGENTS.md's 303 rule otherwise steers away from; this is the 'handler genuinely must render its own response' exception that rule names." }
+  ],
+  "rationale": "Every option has to put the plaintext in some response; E is the only one that keeps it in exactly one, with no cookie, storage, or server state, while also fixing the refresh duplicate. B was the runner-up and the more conventional fit, and would be the choice if the app ever stopped loading HTMX. The 303-with-payload idea was the user's and is what led to E: a redirect cannot carry the body, but a non-navigating post removes the reason a redirect was wanted.",
+  "also_decided": [
+    "The callout masks the token like a password (readonly password input) with a Reveal/Hide toggle; Copy reads the input value, so copying never needs a reveal, and shows 'Copied ✓'. The fragment is sent with Cache-Control: no-store.",
+    "Callout copy corrected: 'Only a hash and its first few characters are kept, so the full token can't be shown again.'",
+    "A modal was rejected: an accidental Esc or backdrop click before copying loses a token that cannot be shown again.",
+    "Every create in db/mutations.clj now uses Biff's :db/op :create ([::xt/match id nil]), so a create over an existing id fails at commit instead of silently replacing the document. Surfaced as mutations/id-in-use?; the API maps it to 409. put-performance-report! stays a put because it replaces one document per instance by design.",
+    "Client-supplied ids on API creates are kept: they let ops in one batch reference each other and make retries safe (a resend fails instead of duplicating).",
+    "A dry run returns id null for a create whose id the server would generate, since the commit generates a different one; a client-supplied id is echoed."
+  ],
+  "references": [
+    "src/tech/jgood/gleanmo/app/api_tokens.clj — create!, new-token-callout",
+    "src/tech/jgood/gleanmo/api/access.clj — generate-token, hash-token, display-prefix",
+    "src/tech/jgood/gleanmo/db/mutations.clj — submit-creates!, id-in-use?",
+    "src/tech/jgood/gleanmo/api.clj — tx-handler 409 mapping, op->json dry-run id",
+    "e2e/scripts/test-api-tokens.ts — masking, copy, refresh-safety assertions",
+    "roadmap/061-ai-assistance.md"
+  ]
+}

@@ -139,20 +139,50 @@
              (or stored {})
              data))
 
+;; Creates use Biff's `:db/op :create`, which adds `[::xt/match id nil]` to the
+;; transaction: a create whose id already exists is refused at commit instead
+;; of silently replacing that document, as a plain put would. The ids callers
+;; preset (API batches, `write-entities!`) make this reachable.
+;;
+;; Biff reports the collision only through its exception message, so
+;; `submit-creates!` turns that one exception into `::id-in-use`.
+
+(def ^:private biff-create-collision
+  "Attempted to create over an existing doc.")
+
+(defn id-in-use?
+  "True for the exception a create over an existing id throws."
+  [e]
+  (= ::id-in-use (:type (ex-data e))))
+
+(defn- submit-creates!
+  [ctx tx]
+  (try
+    (biff/submit-tx ctx tx)
+    (catch clojure.lang.ExceptionInfo e
+      (if (= biff-create-collision (ex-message e))
+        (throw (ex-info "An entity with this id already exists"
+                        {:type ::id-in-use
+                         :id   (get-in (ex-data e) [:tx-doc :xt/id])}
+                        e))
+        (throw e)))))
+
 (defn create-entity!
-  "Create a new entity in the database."
+  "Create a new entity in the database. Throws `id-in-use?` if its id already
+   exists."
   [ctx {:keys [entity-key data]}]
   (let [doc (entity-doc entity-key data)]
     (when (rules/needs-check? entity-key doc)
       (enforce-write-rules! ctx entity-key doc))
-    (biff/submit-tx ctx
-                    [(merge {:db/doc-type entity-key,
-                             :xt/id       (:xt/id doc)}
-                            doc)])
+    (submit-creates! ctx
+                     [(merge {:db/doc-type entity-key,
+                              :db/op       :create,
+                              :xt/id       (:xt/id doc)}
+                             doc)])
     (:xt/id doc)))
 
 (defn- create-tx-ops
-  "Check write rules for, and build, the put docs for `entity-specs`. A spec's
+  "Check write rules for, and build, the create docs for `entity-specs`. A spec's
    `data` may carry its own `:xt/id`; otherwise one is generated."
   [ctx entity-specs]
   (let [docs (mapv (fn [{:keys [entity-key data]}]
@@ -163,6 +193,7 @@
         (enforce-write-rules! ctx entity-key doc)))
     (mapv (fn [[entity-key doc]]
             (merge {:db/doc-type entity-key
+                    :db/op       :create
                     :xt/id       (:xt/id doc)}
                    doc))
           docs)))
@@ -172,7 +203,7 @@
   [ctx entity-specs]
   (let [tx-docs (create-tx-ops ctx entity-specs)]
     (when (seq tx-docs)
-      (biff/submit-tx ctx tx-docs))
+      (submit-creates! ctx tx-docs))
     (mapv :xt/id tx-docs)))
 
 (defn- update-tx-op
@@ -216,7 +247,7 @@
   (let [create-docs (create-tx-ops ctx creates)
         tx-ops      (into create-docs (map #(update-tx-op ctx %)) updates)]
     (when (seq tx-ops)
-      (biff/submit-tx ctx tx-ops))
+      (submit-creates! ctx tx-ops))
     {:created (mapv :xt/id create-docs)
      :updated (mapv :entity-id updates)}))
 

@@ -35,18 +35,36 @@
                 archived        (conj "archived")))))
 
 (defn- new-token-callout
+  "The plaintext of a token just created. It is masked like a password until
+   revealed, and Copy reads the input's value, so copying never needs a reveal."
   [token]
   (layout/card
    {:class "border-neon-cyan" :data-testid "new-api-token"}
    [:p.text-sm.text-gray-300.mb-2
-    "Copy this token now. It is stored only as a hash and will not be shown again."]
+    "Copy this token now. Only a hash and its first few characters are kept, so the full token can't be shown again."]
    [:div.flex.items-center.gap-2
-    [:code.flex-1.font-mono.text-sm.break-all.text-white.bg-dark-bg.rounded.p-2
-     {:id "new-api-token-value"} token]
-    [:button.form-button-secondary
+    [:input.form-input.flex-1.min-w-0.font-mono.text-sm
+     {:type         "password"
+      :id           "new-api-token-value"
+      :value        token
+      :readonly     true
+      :autocomplete "off"
+      :spellcheck   "false"
+      :aria-label   "New API token"}]
+    [:button.form-button-secondary.shrink-0
      {:type    "button"
-      :onclick "navigator.clipboard.writeText(document.getElementById('new-api-token-value').textContent)"}
+      :id      "new-api-token-reveal"
+      :onclick "var i=document.getElementById('new-api-token-value');var shown=i.type==='text';i.type=shown?'password':'text';this.textContent=shown?'Reveal':'Hide'"}
+     "Reveal"]
+    [:button.form-button-secondary.shrink-0
+     {:type    "button"
+      :id      "new-api-token-copy"
+      :onclick "var b=this;navigator.clipboard.writeText(document.getElementById('new-api-token-value').value).then(function(){b.textContent='Copied ✓'},function(){b.textContent='Copy failed'}).then(function(){setTimeout(function(){b.textContent='Copy'},1500)})"}
      "Copy"]]))
+
+(defn- create-error
+  [message]
+  [:p.text-sm.text-red-400 {:data-testid "new-api-token-error"} message])
 
 (defn- group-row
   [{:keys [key label types]}]
@@ -65,9 +83,17 @@
                  :data-original-value "none"}]])]))
 
 (defn- create-form
+  "Posts with HTMX rather than navigating: the response carries the token's
+   plaintext, and a navigation would let a refresh re-submit and mint another
+   token. See `.decisions/api-token-reveal.json`."
   []
   (biff/form
-   {:action base-path, :method "post", :id "api-token-create-form"}
+   {:action    base-path
+    :method    "post"
+    :id        "api-token-create-form"
+    :hx-post   base-path
+    :hx-target "#new-api-token-slot"
+    :hx-swap   "innerHTML"}
    [:div.space-y-4
     [:div
      [:label.form-label {:for "label"} "Label"]
@@ -125,30 +151,41 @@
        {:action (str base-path "/" id "/revoke"), :method "post", :class "shrink-0"}
        [:button.form-button-secondary {:type "submit"} "Revoke"]))]])
 
+(defn- create-section
+  "The create form in its swap container. Re-sent after a create so the form
+   comes back empty with no changed-field highlights."
+  ([] (create-section nil))
+  ([attrs]
+   [:div#api-token-create attrs (layout/card (create-form))]))
+
+(defn- token-list
+  ([tokens] (token-list tokens nil))
+  ([tokens attrs]
+   [:div#api-token-list attrs
+    (layout/section-header "TOKENS" [:span.text-xs.text-gray-500 (count tokens)])
+    (if (seq tokens)
+      [:ul.mt-2.list-none.pl-0 (map token-row tokens)]
+      [:p.text-sm.text-gray-500.mt-2 "No tokens yet."])]))
+
 (defn page
-  "The token page. `new-token` is the plaintext of a token just created, shown
-   once."
-  ([ctx] (page ctx nil))
-  ([{:keys [biff/db session], :as ctx} new-token]
-   (let [tokens (queries/api-tokens-for-user db (:uid session))]
-     (ui/page
-      ctx
-      (layout/page-shell
-       ctx {:width :narrow}
-       (layout/page-header
-        {:title    "API tokens"
-         :subtitle "Bearer tokens for agents and scripts. Each sees only what you grant it."})
-       [:div.space-y-6
-        (when new-token (new-token-callout new-token))
-        (layout/card (create-form))
-        [:div
-         (layout/section-header "TOKENS" [:span.text-xs.text-gray-500 (count tokens)])
-         (if (seq tokens)
-           [:ul.mt-2.list-none.pl-0 (map token-row tokens)]
-           [:p.text-sm.text-gray-500.mt-2 "No tokens yet."])]
-        [:p.text-xs.text-gray-500
-         "Use a token as " [:code "Authorization: Bearer gmn_…"]
-         ". Start at " [:code "GET /api/v1/types"] " to see what it can reach."]])))))
+  "The token page. A new token's plaintext never appears here — `create!`
+   returns it as an HTMX fragment into `#new-api-token-slot`."
+  [{:keys [biff/db session], :as ctx}]
+  (let [tokens (queries/api-tokens-for-user db (:uid session))]
+    (ui/page
+     ctx
+     (layout/page-shell
+      ctx {:width :narrow}
+      (layout/page-header
+       {:title    "API tokens"
+        :subtitle "Bearer tokens for agents and scripts. Each sees only what you grant it."})
+      [:div.space-y-6
+       [:div#new-api-token-slot]
+       (create-section)
+       (token-list tokens)
+       [:p.text-xs.text-gray-500
+        "Use a token as " [:code "Authorization: Bearer gmn_…"]
+        ". Start at " [:code "GET /api/v1/types"] " to see what it can reach."]]))))
 
 (defn- submitted-groups
   [params level]
@@ -158,14 +195,24 @@
                   key)))
         access/groups))
 
+(defn- fragment-response
+  [& body]
+  {:status  200
+   :headers {"Content-Type"  "text/html"
+             "Cache-Control" "no-store"}
+   :body    (apply ui/fragment {} body)})
+
 (defn create!
-  "Create a token and render the page with its plaintext. This handler renders
-   instead of redirecting because the plaintext exists only in this response;
-   the snapshot is refreshed so the new token appears in the list."
+  "Create a token and return its plaintext as an HTMX fragment, the one time it
+   is ever sent. This breaks the app's write-then-303 rule on purpose: no
+   redirect can carry the plaintext without storing it somewhere, and an HTMX
+   post is not a navigation, so refreshing the page cannot re-submit it. The
+   form and token list come back out-of-band; the snapshot is refreshed first
+   so the list includes the new token. See `.decisions/api-token-reveal.json`."
   [{:keys [params session biff.xtdb/node], :as ctx}]
   (let [label (str/trim (str (:label params)))]
     (if (str/blank? label)
-      {:status 303, :headers {"location" base-path}}
+      (fragment-response (create-error "A label is required."))
       (let [token (access/generate-token)]
         (mutations/create-entity!
          ctx
@@ -180,7 +227,11 @@
                                                      (:sensitive-granted params))
                        :api-token/archived-granted  (param-true?
                                                      (:archived-granted params))}})
-        (page (assoc ctx :biff/db (xt/db node)) token)))))
+        (let [tokens (queries/api-tokens-for-user (xt/db node) (:uid session))]
+          (fragment-response
+           (new-token-callout token)
+           (create-section {:hx-swap-oob "true"})
+           (token-list tokens {:hx-swap-oob "true"})))))))
 
 (defn revoke!
   [{:keys [biff/db path-params session], :as ctx}]

@@ -2,7 +2,9 @@
 // Usage: npm run test:api-tokens
 //
 // This test:
-// 1. Creates a token granted write on tasks from /app/api-tokens
+// 1. Creates a token granted write on tasks from /app/api-tokens; the token
+//    arrives masked, reveals and copies, and a refresh neither re-shows it nor
+//    mints a second one
 // 2. Calls the API with it: types, a dry-run and a committed tx, a by-id read,
 //    a text search, and an ungranted type
 // 3. Verifies requests without the token are refused
@@ -30,7 +32,11 @@ async function main() {
   console.log('\n=== API Tokens Test ===\n');
 
   const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'], {
+    origin: BASE_URL,
+  });
+  const page = await context.newPage();
 
   try {
     const testEmail = 'e2e-api-tokens@localhost';
@@ -44,16 +50,52 @@ async function main() {
     await page.waitForLoadState('networkidle');
     await captureScreenshot(page, '01-desktop');
 
+    const rows = page.locator('[data-testid="api-token-row"]');
+    const rowsBefore = await rows.count();
+
     await page.fill('#label', tokenLabel);
     await page.check('input[name="group-tasks"][value="write"]');
     await page.click('#api-token-create-form button[type="submit"]');
-    await page.waitForLoadState('networkidle');
 
     const tokenLocator = page.locator('#new-api-token-value');
     await expect(tokenLocator).toBeVisible({ timeout: 10000 });
-    const token = ((await tokenLocator.textContent()) || '').trim();
+    const token = (await tokenLocator.inputValue()).trim();
     check(token.startsWith('gmn_'), 'new token is shown once with the gmn_ prefix');
+    check(
+      (await tokenLocator.getAttribute('type')) === 'password',
+      'new token is masked by default',
+    );
+    await expect(rows).toHaveCount(rowsBefore + 1, { timeout: 10000 });
+    check(true, 'token list updates in place with the new token');
+    check((await page.inputValue('#label')) === '', 'create form comes back empty');
     await captureScreenshot(page, '02-created');
+
+    await page.click('#new-api-token-reveal');
+    check(
+      (await tokenLocator.getAttribute('type')) === 'text',
+      'Reveal shows the token',
+    );
+    await page.click('#new-api-token-reveal');
+    check(
+      (await tokenLocator.getAttribute('type')) === 'password',
+      'Hide masks it again',
+    );
+
+    await page.click('#new-api-token-copy');
+    await expect(page.locator('#new-api-token-copy')).toHaveText('Copied ✓');
+    const copied = await page.evaluate(() => navigator.clipboard.readText());
+    check(copied === token, 'Copy puts the full token on the clipboard while masked');
+
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    check(
+      (await page.locator('#new-api-token-value').count()) === 0,
+      'refresh does not show the token again',
+    );
+    check(
+      (await rows.count()) === rowsBefore + 1,
+      'refresh does not create a second token',
+    );
 
     const api = page.context().request;
     const auth = { Authorization: `Bearer ${token}` };

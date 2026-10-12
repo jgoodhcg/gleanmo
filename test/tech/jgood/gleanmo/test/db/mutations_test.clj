@@ -56,6 +56,31 @@
         (is (= (:cruddy/bool test-data) (:cruddy/bool entity)))
         (is (some? (::sm/created-at entity)))))))
 
+(deftest create-over-existing-id-test
+  (testing "a create whose id already exists is refused and leaves the doc alone"
+    (with-open [node (test-xtdb-node [])]
+      (let [ctx     (get-context node)
+            user-id (UUID/randomUUID)
+            id      (UUID/randomUUID)
+            habit   (fn [label] {:entity-key :habit
+                                 :data {:xt/id id :user/id user-id
+                                        :habit/label label}})
+            refused (fn [f]
+                      (try (f) nil
+                           (catch Exception e e)))]
+        (mutations/create-entity! ctx (habit "Original"))
+        (doseq [[label f] [["create-entity!"
+                            #(mutations/create-entity! ctx (habit "Again"))]
+                           ["create-entities!"
+                            #(mutations/create-entities! ctx [(habit "Again")])]
+                           ["write-entities!"
+                            #(mutations/write-entities! ctx {:creates [(habit "Again")]})]]]
+          (let [e (refused f)]
+            (is (some? e) label)
+            (is (mutations/id-in-use? e) label)
+            (is (= id (:id (ex-data e))) label)))
+        (is (= "Original" (:habit/label (xt/entity (xt/db node) id))))))))
+
 (deftest create-entities-test
   (testing "create-entities! submits one batch and preserves input order"
     (with-open [node (test-xtdb-node [])]

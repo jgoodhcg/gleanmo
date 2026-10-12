@@ -194,6 +194,18 @@
                  (get-in resp [:body "ops" 0 "changes" "task/state"])))
           (is (= :later (:task/state (stored node task-id))))))
 
+      (testing "a dry run shows no id for a create that leaves it to the server"
+        (let [chosen (UUID/randomUUID)
+              resp   (tx node writer {:dry_run true
+                                      :ops [{:op "create", :type "task",
+                                             :set {:task/label "a", :task/state "now"}}
+                                            {:op "create", :type "task",
+                                             :id (str chosen),
+                                             :set {:task/label "b", :task/state "now"}}]})]
+          (is (= 200 (:status resp)))
+          (is (nil? (get-in resp [:body "ops" 0 "id"])))
+          (is (= (str chosen) (get-in resp [:body "ops" 1 "id"])))))
+
       (testing "one bad op rejects the whole batch"
         (let [resp (tx node writer {:ops [{:op "update", :type "task",
                                            :id (str task-id),
@@ -256,6 +268,21 @@
                                         :id (str theirs),
                                         :set {:project/label "Hijack"}}]}))))
         (is (= "Theirs" (:project/label (stored node theirs)))))
+
+      (testing "an id taken between the check and the commit is refused, not overwritten"
+        (let [racing-id (UUID/randomUUID)
+              checked   (xt/db node)
+              _         (create! node :project {:xt/id racing-id, :user/id user-id,
+                                                :project/label "First"})
+              resp      ((api/wrap-api-token api/tx-handler)
+                         (merge (ctx node)
+                                {:biff/db     checked
+                                 :headers     {"authorization" (str "Bearer " writer)}
+                                 :body-params {:ops [{:op "create", :type "project",
+                                                      :id (str racing-id),
+                                                      :set {:project/label "Second"}}]}}))]
+          (is (= 409 (:status resp)) (pr-str (:body resp)))
+          (is (= "First" (:project/label (stored node racing-id))))))
 
       (testing "delete is a soft delete"
         (let [resp (tx node writer {:ops [{:op "delete", :type "task",

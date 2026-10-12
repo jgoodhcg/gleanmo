@@ -3,7 +3,7 @@ title: "AI Assistance Integration"
 status: active
 description: "Restore task use through conversational backlog cleanup and daily planning, starting with scoped agent access and approved batch changes"
 created: 2026-07-11
-updated: 2026-10-08
+updated: 2026-10-12
 tags: [integration, ai, mcp, api, security, llm-context]
 priority: high
 ---
@@ -142,6 +142,13 @@ Decisions made on starting the build, answering several open questions below:
 - **Reads** reuse `all-entities-for-user` (now with `:where` equality and `:text` substring filters) and the new `visible-entity-for-user`, so parent-sensitivity exclusion applies. Lists exclude sensitive/archived unless the request asks *and* the token is granted; asking without the grant is a 400. By-id reads see whatever the token is granted.
 - **Writes:** one endpoint, `POST /api/v1/tx`, taking `create | update | delete` ops — the user proposed raw XTDB actions with one checker; our own op format was chosen instead because `put` replaces whole documents and `evict`/`fn` cannot be checked meaningfully. Every op is checked (type writable, record visible to the token, own non-hidden fields only, relation ids owned by the user, sensitive/archived flags need the grant, malli schema) and the batch writes all-or-nothing via `write-entities!`. `dry_run` returns per-field `from`/`to` changes for review. Optional per-op `expect` rejects stale edits — the answer to the stale-change question. Deletes are soft. Task state/snooze signals are derived as the app derives them.
 - `GET /api/v1/types` describes the token's grants and every readable type's fields, enum values, scales and relations, so agents do not guess field names.
+
+2026-10-12 review of token setup and use (decision record: `.decisions/api-token-reveal.json`):
+
+- Token create posts with HTMX and returns the plaintext as a fragment; a refresh previously re-submitted the form and minted a second token. The token arrives masked with Reveal/Copy. Session flash, browser-generated tokens, a server-side one-time store, and a 303 carrying a body were considered and are recorded there.
+- The stored `prefix` (`gmn_` + 8 of 43 characters) is not the token; the callout copy now says a hash and the first few characters are kept.
+- Every create in `db/mutations.clj` uses `:db/op :create`, so a create over an existing id fails at commit (API: 409) instead of replacing the document. Client-supplied create ids stay: batch references and safe retries.
+- A dry run reports `id: null` for a create whose id the server will generate.
 
 Deferred: MCP, companion CLI and discovery endpoint, aggregate reads (today bundle, exercise composite), an audit log of agent writes, token expiry, rate limiting, escalation-mode sensitivity.
 
