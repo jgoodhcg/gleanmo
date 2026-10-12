@@ -152,6 +152,35 @@ Decisions made on starting the build, answering several open questions below:
 
 Deferred: MCP, companion CLI and discovery endpoint, aggregate reads (today bundle, exercise composite), an audit log of agent writes, token expiry, rate limiting, escalation-mode sensitivity.
 
+### Performance monitoring (added 2026-10-12)
+
+> "can you also add that performance monitoring should be part of the ai api
+> integration?" — user, 2026-10-12
+
+Two parts, both confirmed by the user 2026-10-12:
+
+> "I meant what you interpreted but also we should be performance onitoring the
+> api endpoints as well add that to the roadmap"
+
+1. **Read access.** An agent with a granted token can
+read performance monitoring data, the persisted `performance-report` snapshots
+and per-route aggregates from [021-performance.md](./021-performance.md), so
+it can answer "what got slower since the last deploy?". This is a read-only
+group, like Cronometer data in
+[056-cronometer-integration.md](./056-cronometer-integration.md), restricted to
+super users as the dashboard is today.
+
+2. **Instrument the API.** `/api/v1` requests are profiled like app routes, so
+agent traffic appears on the performance dashboard. `obs/wrap-request-profiling` sits in
+`wrap-base-defaults` (`middleware.clj`), which likely already covers
+`/api/v1` — verify. If it does, the work is making them distinguishable (per endpoint and per op type for `tx`,
+not one bucket per path) and confirming they show on the dashboard.
+
+Dependency: the data is only as good as
+[076-performance-regression-tracking.md](./076-performance-regression-tracking.md)
+makes it. Today snapshots are manual and per instance, so an agent would read
+the same partial picture the dashboard shows.
+
 ### Adoption Check
 
 After the initial cleanup, evaluate one week of normal use with the user.

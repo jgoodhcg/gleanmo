@@ -1,14 +1,40 @@
 ---
-title: "Scheduled Work Under Multiple Instances"
+title: "Multiple Backend Instances"
 status: draft
-description: "Scheduled tasks, tx listeners and queues all run per-container with no singleton guarantee — make them safe before the app ever scales past one instance"
+description: "The list of everything that assumes one backend container — scheduled work, tx listeners, queues, performance metrics, in-memory integration sessions — to resolve before the app runs more than one instance"
 created: 2026-08-13
-updated: 2026-08-13
+updated: 2026-10-12
 tags: [infrastructure, observability, correctness]
 priority: low
 ---
 
-# Scheduled Work Under Multiple Instances
+# Multiple Backend Instances
+
+## Per-instance state list (started 2026-10-12)
+
+Everything below assumes exactly one backend container.
+Each must be resolved, or moved to shared storage, before running more than one.
+Add to this list whenever new code keeps state in process memory or schedules work.
+
+| Item | What breaks with N instances | Where it is tracked |
+|---|---|---|
+| Scheduled tasks (`print-usage`, `reconcile-timer-flags`, Cronometer daily sync) | Each runs N times | This unit, Specification |
+| `:on-tx` listeners (`alert-new-user`) | Each fires N times per transaction | This unit, Specification |
+| Queues (`:echo`) | Possibly per-instance and lost on deploy | This unit, Specification |
+| Performance monitoring data saving (`observability.clj` accumulators, per-instance `performance-report` docs) | Each container records its own slice; the dashboard shows whichever one served the request | [076-performance-regression-tracking.md](./076-performance-regression-tracking.md) |
+| Cronometer session tokens (in-memory atom keyed by user) | Each instance logs in separately; Cronometer rate-limits logins per account, so N instances multiply login attempts | [056-cronometer-integration.md](./056-cronometer-integration.md), Credentials |
+
+Checked 2026-10-12 and not on the list: web sessions (cookie-based, shared
+`COOKIE_SECRET`), API token `last-used-at` (written to XTDB), the per-request
+`rel-cache` atoms (request-scoped).
+
+> "There should be a list started that includes scheduled jobs and performance
+> monitoring data saving." — user, 2026-10-12
+
+For the Cronometer session, the likely fix is to store the session token
+encrypted in XTDB with the credentials (see 056), with a compare-and-set on
+refresh so two instances do not both log in. That trades a small write per
+login for one login across the fleet.
 
 ## Intent
 
@@ -97,10 +123,11 @@ different.
 Not a decision to scale. The app is comfortable at one container and there is no
 load argument for more; this is about the correctness of *if*.
 
-Not the metrics fragmentation — same cause, different fix, separate unit.
+Not the metrics fragmentation fix — same cause, different fix, in 076. It is
+on the list above so the list is complete.
 
-Not general distributed-systems hardening. The surface is four items in one
-namespace, and it should stay that size.
+Not general distributed-systems hardening. The list above is the whole
+surface; it should stay short.
 
 ## Context
 

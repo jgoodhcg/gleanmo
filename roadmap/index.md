@@ -98,7 +98,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 - [027-screenshot-runner.md](./027-screenshot-runner.md) - Manifest-driven series capture for the visual timeline (manifest + runner + agent policy shipped; Biff-task glue + CI archive pending)
 - [069-crud-relation-select-scale.md](./069-crud-relation-select-scale.md) - Relationship selects render every related entity; ~10k options froze the exercise-line edit form on mobile
 - [079-htmx-navigation-consistency.md](./079-htmx-navigation-consistency.md) - One navigation model: boost all 42 native form POSTs through htmx, delete the hand-rolled double-submit guard in favor of hx-sync, drop the two unused vendor scripts; start buttons need unmistakable in-flight feedback (dogfood 2026-10-04)
-- [056-cronometer-integration.md](./056-cronometer-integration.md) - Food, recipes, biometrics and daily summaries from Cronometer for the agent API; phase 0 passed and model decided 2026-10-12
+- [056-cronometer-integration.md](./056-cronometer-integration.md) - Food, recipes, biometrics and daily summaries from Cronometer for the agent API; phase 0 passed and model decided 2026-10-12; credentials per user, AES-GCM encrypted in XTDB
 
 ### Draft
 
@@ -116,7 +116,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 - [082-exercise-effort.md](./082-exercise-effort.md) - Record on each exercise line whether a set reached failure or how many reps were left
 - [078-data-export.md](./078-data-export.md) - Export page, generic per-entity exporter, and the composite registry, in Markdown/CSV/JSON; interim to the full ai-assistance API/CLI/MCP
 - [076-performance-regression-tracking.md](./076-performance-regression-tracking.md) - Make performance comparable across deploys — scheduled snapshots, cross-instance aggregation, per-SHA grouping, and a synthetic benchmark so low traffic still yields data
-- [077-scheduled-work-multi-instance.md](./077-scheduled-work-multi-instance.md) - Scheduled tasks, tx listeners and queues all run per-container with no singleton guarantee — make them safe before the app ever scales past one instance
+- [077-scheduled-work-multi-instance.md](./077-scheduled-work-multi-instance.md) - Multiple backend instances: the list of everything that assumes one container — scheduled work, tx listeners, queues, performance metrics saving, Cronometer session tokens
 - [070-screenshot-series-heartbeat.md](./070-screenshot-series-heartbeat.md) - Capture the visual timeline in CI against a fixed fixture, published to an orphan branch
 - [020-mood.md](./020-mood.md) - Structured mood logging with Airtable backfill
 - [009-bouldering.md](./009-bouldering.md) - Climbing sessions and problem attempts; screen is built — gym-use feedback 2026-10-04: stop/resume and discard a running attempt, visual identity distinct from workout

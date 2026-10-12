@@ -3,7 +3,7 @@ title: "Performance Regression Tracking"
 status: draft
 description: "Make performance comparable across deploys — scheduled snapshots, cross-instance aggregation, per-SHA grouping, and a synthetic benchmark so low traffic still yields data"
 created: 2026-08-13
-updated: 2026-08-13
+updated: 2026-10-12
 tags: [observability, performance]
 priority: medium
 ---
@@ -103,6 +103,10 @@ Not alerting. Detection before notification.
 
 ## Context
 
+- [061-ai-assistance.md](./061-ai-assistance.md) — performance data is to be readable
+  through the agent API (added 2026-10-12); this unit decides what that data is worth.
+- [077-scheduled-work-multi-instance.md](./077-scheduled-work-multi-instance.md) —
+  holds the list of per-instance state; metrics saving is on it.
 - `src/tech/jgood/gleanmo/observability.clj` — accumulator, `aggregator-snapshot`,
   `persist-instance-snapshot!` (line 178), `instance-doc-id` (line 176),
   `wrap-request-profiling`, `profile-block`

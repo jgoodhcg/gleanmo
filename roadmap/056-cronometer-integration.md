@@ -383,20 +383,43 @@ day — so a re-sync addresses the same documents without a lookup query. The
 user id is included because Cronometer food ids are global while `food` docs
 are per user.
 
-### Credentials
+### Credentials (decided 2026-10-12)
 
-The sync needs a Cronometer username and password.
+The sync needs each user's Cronometer email and password.
+They are stored per user in XTDB, encrypted.
+This replaces the earlier plan of environment secrets for one configured owner.
 
-- **Recommended for now: environment secrets**, read via Biff's `biff/secret`
-  the way `mailersend/api-key` is in `src/tech/jgood/gleanmo/email.clj:85`.
-  Gleanmo is a personal single-user app; this is the whole job.
-- **A per-user settings form storing credentials in XTDB is a bigger change
-  than it looks.** The codebase has no encryption-at-rest primitive, and
-  putting a plaintext third-party password in the document store is worse than
-  putting it in the deploy environment. If per-user config is wanted, it needs
-  an encryption decision first — see Open Questions.
-- The cached `sessionKey` is a bearer token. Hold it in memory (an atom) and
-  re-login on restart; do not persist it to the document store.
+- **Entity `cronometer-connection`**, one per user.
+  It holds the email and password together as one AES-256-GCM ciphertext,
+  with its random 12-byte nonce and a key version (`1` for now).
+  The key version costs nothing today and makes a later rotation possible.
+- **Key:** `CREDENTIALS_KEY`, a base64 32-byte key,
+  read through `#biff/secret` as `:gleanmo/credentials-key`.
+  Without it, the connect form is disabled and the sync stays dormant.
+  The key is general-purpose: a later integration encrypts with the same primitive.
+- **Primitive:** `src/tech/jgood/gleanmo/crypto.clj`, `encrypt` / `decrypt`
+  over `javax.crypto`. No new dependency.
+- **A leaked database or backup exposes only ciphertext.**
+  Reading a password needs both the database and the environment.
+- **Disconnect evicts.** XTDB keeps every document version,
+  so a soft delete or an overwrite leaves the old ciphertext in history.
+  Disconnecting calls `xt/evict` on the connection, through a new function in `db/mutations.clj`.
+  Changing the password evicts the old connection and writes a new one, for the same reason.
+- **Unreachable from everywhere else.** `cronometer-connection` is in no API
+  group, not in `crud-entities`, and must stay out of the
+  [078-data-export.md](./078-data-export.md) exporter.
+- **Key rotation is not handled yet** — see Open Questions.
+  Losing or replacing the key makes every stored credential undecryptable;
+  each user then has to reconnect. No other data is affected.
+- **Session:** the `sessionKey` from login is a bearer token.
+  It is held in memory, in an atom keyed by user id, and never persisted.
+  Re-login on restart and once on an auth failure.
+  This is correct only with one backend instance — see
+  [077-scheduled-work-multi-instance.md](./077-scheduled-work-multi-instance.md).
+
+Multiple users of an unofficial API carry a risk that encryption does not address.
+The app collects third-party passwords and drives an undocumented endpoint from one server IP.
+If Gleanmo gets real other users, apply for Cronometer's official developer API (OAuth).
 
 ### Views
 
@@ -422,9 +445,14 @@ mergeable and validated; the first touches no network and no database.
   `db/queries.clj` / `db/mutations.clj` rules, and the `:biff/db` snapshot
   anti-pattern.
 - Personal data never enters the repo. `cronometer_data/` (gitignored) holds
-  the user's real dumps — use them for local verification only. Committed test
-  fixtures are **synthetic**, hand-written to mirror the shapes in Probe
-  Findings (this repo is public).
+  the user's real dumps. Build and test against **synthetic** fixtures,
+  hand-written to mirror the shapes in Probe Findings (this repo is public):
+  no value, food name, recipe, reading, id or date copied from the dumps.
+  Before each commit, check that no staged file contains values from
+  `cronometer_data/`.
+- No live Cronometer calls from an agent session. The live sync and the
+  real-data check (Slice A step 6) are user-run; the user gives instructions
+  when implementation starts (2026-10-12).
 - The reference for every endpoint and payload is `dev/tasks/cronometer.clj`
   (working, verified against the live API) and
   [rwestergren/cronometer-api-mcp](https://github.com/rwestergren/cronometer-api-mcp)
@@ -492,7 +520,7 @@ mergeable and validated; the first touches no network and no database.
    unknown metric; unmapped unit; deterministic ids (same input → same ids);
    every produced doc validates against its malli schema; nutrient-table keys
    unique.
-6. Local check (not committed): a `comment` block or dev task that runs the
+6. Local check (not committed, user-run): a `comment` block or dev task that runs the
    transform over `cronometer_data/*` and prints summed macros next to the
    diary `summary` for each dumped day — they matched exactly in the probe.
 
@@ -504,14 +532,19 @@ Validate: `just lint-fast`, `clj -M:dev test cronometer.transform-test`,
 1. **Client** — promote `dev/tasks/cronometer.clj`'s HTTP layer to
    `src/tech/jgood/gleanmo/cronometer/client.clj`: `login!`, `get-diary`,
    `get-foods`, `get-metrics`, `get-nutrient-definitions`. Session held in an
-   atom (re-login on restart and once on auth failure); credentials from config
-   keys `:cronometer/email` / `:cronometer/password` added to
-   `resources/config.edn` as `#biff/secret CRONOMETER_EMAIL` etc. Keep
+   atom keyed by user id (re-login on restart and once on auth failure).
+   Every function takes the user's credentials as an argument; the client
+   never reads config. Keep
    `:cookie-policy :standard`, the Dart user-agent, `text/plain` content type.
    Never log the password or session key. Sequential requests with a short
    pause between days (start at 250 ms).
    The dev probe task stays, rewritten to call this client but keeping its
    file-cached session (CLI runs are short-lived; logins are rate-limited).
+   **Credentials** — per the Credentials section: `crypto.clj`
+   (`encrypt` / `decrypt`, unit-tested round trip, wrong key fails, nonce never
+   reused), the `cronometer-connection` schema, `:gleanmo/credentials-key` in
+   `resources/config.edn`, and `evict-entity!` in `db/mutations.clj`.
+   Queries: `cronometer-connection-for-user` and `users-with-cronometer-connection`.
 2. **Queries** (`db/queries.clj`) — `cronometer-ids-for-day [db user-id
    entity-type day-str]`: equality-bound on `user/id`, `::sm/type`,
    `:cronometer/day`, returning ids of non-deleted docs. Used to find rows that
@@ -533,9 +566,13 @@ Validate: `just lint-fast`, `clj -M:dev test cronometer.transform-test`,
       not produced this run → soft delete (deleted in Cronometer).
    6. One `write-entities!` per day, so a day lands whole or not at all.
    Returns a per-day summary (counts created/updated/deleted, warnings).
-4. **Dev task** — `clj -M:dev cronometer-sync --target dev --email <gleanmo
-   email> --days 7`, following `tasks.task-entities` for target/email
-   handling. Locally the dev server must be stopped (RocksDB lock).
+4. **Dev tasks** — `clj -M:dev cronometer-connect --target dev --email
+   <gleanmo email>` encrypts `CRONOMETER_EMAIL` / `CRONOMETER_PASSWORD` (env,
+   then `config.env`) into that user's connection, so the sync is testable
+   before the Slice C form exists. `clj -M:dev cronometer-sync --target dev
+   --email <gleanmo email> --days 7` syncs from the stored connection. Both
+   follow `tasks.task-entities` for target/email handling. Locally the dev
+   server must be stopped (RocksDB lock).
 5. **Tests** — `test/tech/jgood/gleanmo/test/cronometer/sync_test.clj` with
    `test-xtdb-node` (see `api_test.clj`) and the client stubbed
    (`with-redefs`) over synthetic fixtures: first run creates; second identical
@@ -559,14 +596,16 @@ Validate: `just lint-fast`, `clj -M:dev test cronometer.transform-test`,
    `cronometer/synced-at`, counts per type over the last 7 days, the latest
    day's macros from food-log sums, and a `biff/form` POST "Sync now" that runs
    `sync-days!` for 7 days and **303s back** (no render from the request's
-   `:biff/db`). Shown only when Cronometer config is present and the user is
-   the configured owner (`:cronometer/user-email`, `CRONOMETER_USER_EMAIL` —
-   the Gleanmo account that owns imports; it differs from the Cronometer
-   login email). Any queries it needs go in `db/queries.clj`.
+   `:biff/db`). The page also carries the connect form (Cronometer email +
+   password; the password field never re-renders a stored value), a
+   "Disconnect" action that evicts, and the connected email. Every action
+   writes and 303s. With no `:gleanmo/credentials-key` configured, the page
+   says so and offers no form. Any queries it needs go in `db/queries.clj`.
 3. **Schedule** — `worker.clj`: a `daily-at-utc` task syncing the last 7 days
-   for the configured owner; no-op when config is absent. Idempotency makes a
-   double fire during a deploy overlap harmless
-   ([077-scheduled-work-multi-instance.md](./077-scheduled-work-multi-instance.md)).
+   for every user with a connection, sequentially, with a pause between users;
+   one user's failure is logged and does not stop the others. No-op when the
+   key is absent. Idempotency makes a double fire during a deploy overlap
+   harmless ([077-scheduled-work-multi-instance.md](./077-scheduled-work-multi-instance.md)).
 4. **E2E** — `e2e/scripts/test-cronometer.ts` + `"test:cronometer"` in
    `e2e/package.json`: the status page renders its empty/unconfigured state.
    It cannot exercise a live sync in CI (no credentials) — say so in the test.
@@ -575,10 +614,14 @@ Validate: `just lint-fast`, `clj -M:dev test cronometer.transform-test`,
 
 ### Rollout (user-performed)
 
-- Add `CRONOMETER_EMAIL`, `CRONOMETER_PASSWORD`, `CRONOMETER_USER_EMAIL` to the
-  App Platform environment (and local `config.env`). Without them prod gets
-  `nil` and the sync stays dormant.
-- Merge to `main`; trigger "Sync now" once; inspect via the agent API.
+- Generate a key (`openssl rand -base64 32`) and add it as `CREDENTIALS_KEY`
+  to the App Platform environment. Local `config.env` gets its **own** key;
+  dev and prod do not share one. Without it prod gets `nil` and the sync
+  stays dormant.
+- Keep a copy of the prod key outside App Platform (password manager).
+  Losing it means reconnecting, not data loss.
+- Merge to `main`; connect on `/app/cronometer`; trigger "Sync now" once;
+  inspect via the agent API.
 - Phase 4 (CSV backfill) follows as its own migration.
 
 ## Validation
@@ -598,6 +641,8 @@ Validate: `just lint-fast`, `clj -M:dev test cronometer.transform-test`,
 - [ ] Slice C: nutrition and biometrics groups are read-only to agents;
       `cronometer/raw` is not in API output; nutrient table is in `/types`.
 - [ ] Status page renders; "Sync now" 303s back and the counts update.
+- [ ] Stored connection holds no plaintext email or password; disconnect
+      leaves no document history (`xt/entity-history` empty).
 - [ ] New test namespaces are required in `test/tech/jgood/gleanmo/test.clj`.
 - [ ] `just lint-fast`, `just check`, `just validate`, `just e2e-test-all` pass.
 - [ ] Phase 4: CSV backfill imported without errors.
@@ -650,8 +695,14 @@ Validate: `just lint-fast`, `clj -M:dev test cronometer.transform-test`,
 
 - [x] Unit convention — decided 2026-10-12: value + sibling `<field>-unit`
       everywhere, as entered, no conversion (AGENTS.md schema conventions).
-- [x] Credentials in prod — env secrets for the single configured owner
-      (Slice B/C). Per-user encrypted storage stays out of scope.
+- [x] Credentials — decided 2026-10-12 (revised the same day): per-user,
+      AES-GCM encrypted in XTDB under `CREDENTIALS_KEY`. Supersedes "env
+      secrets for one configured owner".
+- [ ] Key rotation. Deferred by the user 2026-10-12. The stored key version
+      allows decrypt-with-old / re-encrypt-with-new; needs a second key slot
+      in config and a re-encrypt pass (which must evict the old versions).
+- [ ] Session tokens under more than one backend instance — listed in
+      [077-scheduled-work-multi-instance.md](./077-scheduled-work-multi-instance.md).
 - [ ] Does sending `firebaseToken: ""` disturb push notifications on the phone?
 - [ ] What does a Cronometer CSV export look like, and do its rows carry ids
       matching the API's `servingId`?
@@ -713,8 +764,24 @@ Decisions from reviewing the dumps:
 > if a biometric just has optional fields for everything? Then we can store
 > arbitrary attributes and units."
 
-Interpretation: the `values` map on `biometric-log`; ingredients as `food`
-references so tags resolve.
+Interpretation at the time: a `values` map on `biometric-log` (later replaced
+by flat typed fields — see below); ingredients as `food` references so tags
+resolve.
+
+**Credentials (2026-10-12, before implementation).**
+
+> "Ok we can store the credentials in the database encrypted via a credentials
+> key supplied as an envvar. Not sure what will happen if we have to rotate
+> that. We can add it to the roadmap to deal with later though."
+
+> "Also the session token you plan to have live in memory and that's fine for
+> our single instance setup but if we eventually have multiple instances that
+> won't work."
+
+Asked first whether credentials would be plaintext in the database (no), then
+how env secrets would work for more than one user (they don't). Outcome: the
+Credentials section. Agent API exposure (Slice C step 1) confirmed in scope
+the same day.
 
 **Time-zone correction (idea, not scheduled):**
 
