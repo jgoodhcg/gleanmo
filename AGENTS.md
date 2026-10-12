@@ -436,6 +436,7 @@ Schema conventions
 - Register new schemas in `src/tech/jgood/gleanmo/schema.clj`.
 - Add new field types by updating schema registry, input renderer, form converter, and list formatter in that order.
 - Boolean attributes are past-tense state words with no `?` suffix (`sent`, `archived`, `interrupted`). `reading-log/finished?` predates this rule; don't copy it.
+- Every measured value has a sibling `<field>-unit` enum, even when the enum has one member (`bp-systolic` + `bp-systolic-unit [:enum :mmhg]`). Units never go in field names, and imports store the unit they were given rather than converting. `exercise-line/weight` + `weight-unit` is the model. Known exceptions: `exercise-line/duration-seconds` predates the rule and has production data — don't copy it; nutrient maps (`food/nutrients`) take units from the nutrient table, because a unit beside each of ~95 values per row would just repeat it. Decided 2026-10-12 in `roadmap/056-cronometer-integration.md`.
 
 ### Changing a field that already has data — add, don't rewrite
 

@@ -4,6 +4,7 @@
    [clojure.test             :as test]
    [com.biffweb.tasks        :as biff-tasks]
    [tasks.airtable           :as airtable]
+   [tasks.cronometer         :as cronometer]
    [tasks.migrate            :as migrate]
    [tasks.task-entities      :as task-entities]))
 
@@ -77,6 +78,7 @@
 (def custom-tasks
   {"hello"              #'hello
    "download-airtable"  #'airtable/download-all-records
+   "cronometer-probe"   #'cronometer/probe
    "migrate"            #'migrate/run
    "export-tasks"       #'task-entities/export-tasks
    "apply-task-changes" #'task-entities/apply-task-changes!

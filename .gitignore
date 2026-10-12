@@ -26,6 +26,8 @@ prod-storage/
 
 airtable_data/
 
+cronometer_data/
+
 src/tech/jgood/.clj-kondo/.cache/
 **/.clj-kondo/.cache/
 

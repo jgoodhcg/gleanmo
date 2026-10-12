@@ -98,6 +98,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 - [027-screenshot-runner.md](./027-screenshot-runner.md) - Manifest-driven series capture for the visual timeline (manifest + runner + agent policy shipped; Biff-task glue + CI archive pending)
 - [069-crud-relation-select-scale.md](./069-crud-relation-select-scale.md) - Relationship selects render every related entity; ~10k options froze the exercise-line edit form on mobile
 - [079-htmx-navigation-consistency.md](./079-htmx-navigation-consistency.md) - One navigation model: boost all 42 native form POSTs through htmx, delete the hand-rolled double-submit guard in favor of hx-sync, drop the two unused vendor scripts; start buttons need unmistakable in-flight feedback (dogfood 2026-10-04)
+- [056-cronometer-integration.md](./056-cronometer-integration.md) - Food, recipes, biometrics and daily summaries from Cronometer for the agent API; phase 0 passed and model decided 2026-10-12
 
 ### Draft
 
@@ -155,7 +156,6 @@ PWA notification scaffolding does not establish working reminder delivery.
 - [038-today-mobile-redesign.md](./038-today-mobile-redesign.md) - Redesign the today task page for better mobile ergonomics and responsiveness
 - [040-today-ux-polish.md](./040-today-ux-polish.md) - Improve task completion feedback, add project selection to quick-add, and default the other fields so a quick-added task feels complete
 - [046-exercise-insights.md](./046-exercise-insights.md) - Visual daily exercise summary with muscle heatmap and session stats
-- [056-cronometer-integration.md](./056-cronometer-integration.md) - Pull nutrition and body composition from Cronometer: reverse-engineered mobile API for recent days, CSV import for the backfill (phase 0 session-safety check gates the API path)
 - [080-relation-defaults.md](./080-relation-defaults.md) - Curated per-relation defaults that prefill log fields from the related entity (meditation position first; medication dose, book format, exercise unit to follow)
 
 ### Dropped
