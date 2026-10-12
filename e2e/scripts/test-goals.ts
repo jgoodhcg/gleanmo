@@ -244,6 +244,9 @@ async function main() {
     await expect(key('average')).toHaveText('12.9');
     await expect(key('required')).toHaveText('16.5');
     await expect(key('today')).toHaveText('0');
+    // Even pace is 600 min over 38 days; tonight's even line is 8 days of it,
+    // 126.3 rounded up to 127, so 37 more than the 90 logged.
+    await expect(key('to-even')).toHaveText('37');
     for (const kind of ['you', 'keep', 'even']) {
       await expect(cumulative.locator(`[data-ruler-mark="${kind}"]`)).toHaveCount(1);
     }

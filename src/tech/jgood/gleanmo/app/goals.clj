@@ -1082,7 +1082,7 @@
 (defn- left [p] {:left (str p "%")})
 
 (def ^:private mark-names
-  {:keep "keep pace today", :even "even pace tonight", :target "target"})
+  {:keep "hold steady", :even "back on plan", :target "target"})
 
 (def ^:private mark-colors
   {:keep "text-neon-amber", :even "text-white", :round "text-neon-cyan",
@@ -1170,7 +1170,7 @@
 
 (defn- quiet-row
   [label value]
-  [:<> [:dt label] [:dd.m-0.text-right value]])
+  [:div.goal-extra-row [:dt label] [:dd.m-0.text-right value]])
 
 (defn- cumulative-page
   [{:keys [goal measurement progress] :as entry} cutoff-date]
@@ -1189,14 +1189,17 @@
      [:div.goal-info
       [:dl {:class "goal-key tabular-nums" :data-goal-key true}
        (key-row "today" "today" (when today-amount (qty m today-amount 0)))
-       (key-row "average" "avg / elapsed day" (qty m average 1))
-       (key-row "required" "pace needed" (qty m required 1) "text-neon-amber")
-       (key-row "gap" "gap at day start" (signed-qty m gap-at-day-start))]
+       (key-row "average" "avg (elapsed days)" (qty m average 1))
+       (key-row "required" "pace needed (from today)" (qty m required 1) "text-neon-amber")
+       (key-row "gap" "gap at day start" (signed-qty m gap-at-day-start))
+       (key-row "to-even" "needed today to reach even pace"
+                (some #(when (= :even (:kind %)) (qty m (max 0.0 (:distance %)) 0))
+                      (:marks r)))]
       [:dl {:class "goal-extra tabular-nums"}
        (quiet-row "period" (date-span (:start window) (:end window)))
        (quiet-row "days left" (str (or (:remaining-days window) 0)))
-       (quiet-row "even pace" (rate m even-rate))
-       (quiet-row "with today" (rate m live-average))
+       (quiet-row "even pace (whole period)" (rate m even-rate))
+       (quiet-row "avg (incl. today)" (rate m live-average))
        (when r
          (quiet-row "ruler" (str (qty m (:lo r) 0) "–" (qty m (:hi r) 0) " " (qty-unit m))))]
       [:div.goal-log

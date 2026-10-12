@@ -1045,6 +1045,7 @@ input.choices__input--cloned {
 .goal-info {
   display: grid;
   grid-template-areas: "key" "log" "extra";
+  grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
   margin-top: 0.5rem;
 }
@@ -1052,7 +1053,7 @@ input.choices__input--cloned {
 .goal-key {
   grid-area: key;
   display: grid;
-  grid-template-columns: max-content max-content;
+  grid-template-columns: minmax(0, 1fr) max-content;
   gap: 0.125rem 1.5rem;
   margin: 0;
   font-size: 0.9375rem;
@@ -1060,13 +1061,21 @@ input.choices__input--cloned {
 
 .goal-extra {
   grid-area: extra;
-  display: grid;
-  grid-template-columns: max-content max-content;
-  gap: 0.0625rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
   align-content: start;
   margin: 0;
-  font-size: 0.6875rem;
+  font-size: 0.9375rem;
   color: #6e7681;
+}
+
+/* On a phone each context row sizes on its own, so one long value (the
+   period) does not squeeze every label; wider screens align them as columns. */
+.goal-extra-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .goal-log { grid-area: log; }
@@ -1077,6 +1086,16 @@ input.choices__input--cloned {
     grid-template-columns: auto 1fr;
     column-gap: 3rem;
   }
+
+  .goal-key { grid-template-columns: max-content max-content; }
+
+  .goal-extra {
+    display: grid;
+    grid-template-columns: max-content max-content;
+    column-gap: 1rem;
+  }
+
+  .goal-extra-row { display: contents; }
 
   .goal-log { justify-self: end; align-self: end; }
 }

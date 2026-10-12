@@ -404,8 +404,8 @@
    never extends past the target by more than that pad. Logging therefore
    slides and widens it, and it always contains the current total.
 
-   Marks, sorted by value: `:keep` (keep pace today), `:even` (even pace
-   tonight), `:round` (the next multiple of a nice step near 3 days of pace,
+   Marks, sorted by value: `:keep` (hold steady), `:even` (back on plan:
+   even pace tonight), `:round` (the next multiple of a nice step near 3 days of pace,
    dropped below the target or within a quarter day of a pace mark), and
    `:target` when in the window. Pace marks round up to an amount that can
    be logged; `:distance` is measured from that shown value. `:side` is
