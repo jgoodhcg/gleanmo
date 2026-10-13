@@ -107,7 +107,10 @@
         (is (str/includes? page (str "Latest day with food: " today)))
         ;; 320 + 60 + 660 kcal
         (is (str/includes? page ">1040<"))
-        (is (not (str/includes? page ">never<")))))
+        (is (not (str/includes? page ">never<")))
+        (testing "with the day's activities and its one timed session"
+          (is (re-find #"Activities</span><span[^>]*>3<" page))
+          (is (re-find #"Timed activity sessions</span><span[^>]*>1<" page)))))
 
     (testing "disconnecting evicts the connection"
       (let [id   (:xt/id (queries/cronometer-connection-for-user (xt/db node) fx/user-id))

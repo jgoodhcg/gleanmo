@@ -13,6 +13,8 @@
             [tech.jgood.gleanmo.schema.medication-schema :as meds]
             [tech.jgood.gleanmo.schema.calendar-event-schema :as ces]
             [tech.jgood.gleanmo.schema.cronometer-schema :as crono]
+            [tech.jgood.gleanmo.schema.nutrition-schema :as nutrition]
+            [tech.jgood.gleanmo.schema.biometric-schema :as biometric]
             [tech.jgood.gleanmo.schema.project-schema :as ps]
             [tech.jgood.gleanmo.schema.reading-schema :as rs]
             [tech.jgood.gleanmo.schema.cruddy :as cs]
@@ -111,10 +113,10 @@
    :performance-report  perf/performance-report
    :activity-observation aos/activity-observation
    :api-token           ats/api-token
-   :food                crono/food
-   :food-log            crono/food-log
-   :biometric-log       crono/biometric-log
-   :nutrition-day       crono/nutrition-day
+   :food                nutrition/food
+   :food-log            nutrition/food-log
+   :biometric-log       biometric/biometric-log
+   :nutrition-day       nutrition/nutrition-day
    :cronometer-connection crono/cronometer-connection})
 
 (def module

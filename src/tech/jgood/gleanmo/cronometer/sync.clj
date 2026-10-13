@@ -5,8 +5,8 @@
    `cronometer.transform`, then write the day in one transaction so it lands
    whole or not at all. Document ids are derived from Cronometer keys, so a
    re-sync addresses the same documents: new ones are created, changed ones
-   updated, unchanged ones left alone, and food and biometric logs that
-   vanished from a re-pulled day are soft-deleted.
+   updated, unchanged ones left alone, and food logs, biometric logs and
+   activity observations that vanished from a re-pulled day are soft-deleted.
 
    Unchanged documents are skipped rather than rewritten so a daily 7-day
    re-sync does not add a version of every row to XTDB history each day. The
@@ -63,13 +63,18 @@
 ;; Write plan
 ;; =============================================================================
 
+(def ^:private user-managed-keys
+  "Keys the user sets on an imported document. Cronometer knows nothing of
+   them, so a re-sync neither compares nor removes them."
+  #{:activity-observation/exercise-session-id})
+
 (def ^:private kept-keys
   "Keys a re-sync never removes from a stored document."
-  #{:xt/id ::sm/type ::sm/created-at :user/id})
+  (into #{:xt/id ::sm/type ::sm/created-at :user/id} user-managed-keys))
 
 (defn- comparable
   [doc]
-  (dissoc doc ::sm/created-at :cronometer/synced-at))
+  (apply dissoc doc ::sm/created-at :cronometer/synced-at user-managed-keys))
 
 (defn- update-data
   "The `:update` data that turns `stored` into `doc`: every key of `doc`, plus
@@ -126,7 +131,7 @@
 
 (def ^:private day-scoped-types
   "Types whose rows are removed when they vanish from a re-pulled day."
-  [:food-log :biometric-log])
+  [:food-log :biometric-log :activity-observation])
 
 (defn sync-day!
   "Pull and write one day. Returns `{:day :created :updated :deleted
@@ -146,7 +151,9 @@
                                           :metric-catalog metric-catalog
                                           :synced-at      now})
         docs      (concat (:foods result) (:food-logs result)
-                          (:biometric-logs result) [(:nutrition-day result)])
+                          (:biometric-logs result)
+                          (:activity-observations result)
+                          [(:nutrition-day result)])
         produced  (set (map :xt/id docs))
         db        (xt/db node)
         existing  (into {}

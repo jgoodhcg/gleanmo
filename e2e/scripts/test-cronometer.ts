@@ -75,6 +75,17 @@ async function syncFromFake(page: Page) {
     const n = Number(text.match(/(\d+)\s*$/)?.[1] ?? 0);
     check(n > 0, `count filled: ${text.replace(/\s+/g, ' ')}`);
   }
+  // The fake gives every day an untimed Daily Activity and most days a timed
+  // walk, so a 7-day sync yields at least 7 activities and some sessions.
+  const countOf = async (label: string) => {
+    const row = page.locator('[data-testid="cronometer-count"]', { hasText: label });
+    return Number((await row.innerText()).match(/(\d+)\s*$/)?.[1] ?? 0);
+  };
+  const activities = await countOf('Activities');
+  check(activities >= 7, `activities cover every synced day: ${activities}`);
+  const sessions = await countOf('Timed activity sessions');
+  check(sessions > 0 && sessions < activities, `timed sessions imported: ${sessions}`);
+
   await expect(page.locator('[data-testid="cronometer-status"]')).not.toContainText('never');
   check(true, 'last sync is set');
 

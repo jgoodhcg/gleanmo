@@ -11,7 +11,7 @@
    [tech.jgood.gleanmo.schema.meta :as sm])
   (:import
    [java.nio.charset StandardCharsets]
-   [java.time LocalDate LocalTime ZoneId]
+   [java.time Instant LocalDate LocalTime ZoneId]
    [java.util UUID]))
 
 ;; =============================================================================
@@ -266,6 +266,54 @@
      :warnings (into [] (mapcat :warnings) results)}))
 
 ;; =============================================================================
+;; Activities
+;; =============================================================================
+
+(defn- activity-scope
+  "A timed entry is one session. Untimed Oura \"Daily Activity\" entries are the
+   day's aggregate. Anything else untimed (Google Health Activity) is
+   `:unknown`: its shape does not say which it is."
+  [{:keys [time name]}]
+  (cond
+    time :session
+    (and (string? name) (.startsWith ^String name "Daily Activity")) :daily
+    :else :unknown))
+
+(defn exercise->activity-observation
+  "An `activity-observation` document for one diary Exercise entry.
+
+   A timed entry's `time` is when the activity began. Its end is derived from
+   the upstream `minutes`, so it is marked `auto-ended`; with no positive
+   minutes it gets a beginning only. Untimed entries keep only their `day` —
+   no invented boundaries. Calories and minutes stay in `cronometer/raw`."
+  [user-id zone {:keys [exerciseId externalId name source day time minutes] :as entry}
+   synced-at]
+  (let [scope     (activity-scope entry)
+        beginning (when time (->instant day time zone))]
+    (cond-> (merge
+             {:xt/id                      (doc-id user-id :activity-observation exerciseId)
+              ::sm/type                   :activity-observation
+              :user/id                    user-id
+              :activity-observation/label (if (seq name) name "Exercise")
+              :activity-observation/scope scope
+              :cronometer/exercise-id     exerciseId}
+             (lineage entry synced-at))
+      (seq source)     (assoc :activity-observation/source source)
+      (seq externalId) (assoc :cronometer/external-id externalId)
+      (nil? beginning) (assoc :activity-observation/day (LocalDate/parse day))
+      beginning        (assoc :activity-observation/beginning beginning)
+      (and beginning (number? minutes) (pos? minutes))
+      (assoc :activity-observation/end (.plusSeconds ^Instant beginning
+                                                     (long (* 60 minutes)))
+             :activity-observation/auto-ended true))))
+
+(defn diary->activity-observations
+  "`activity-observation` documents for a day's Exercise entries."
+  [user-id zone diary synced-at]
+  (mapv #(exercise->activity-observation user-id zone % synced-at)
+        (entries-of-type diary "Exercise")))
+
+;; =============================================================================
 ;; Day
 ;; =============================================================================
 
@@ -298,7 +346,7 @@
 
 (defn diary->docs
   "Every document for one day: `{:foods :food-logs :biometric-logs
-   :nutrition-day :warnings}`.
+   :activity-observations :nutrition-day :warnings}`.
 
    `foods` are the food records for the day's servings and their recipe
    ingredients, recursively."
@@ -313,6 +361,8 @@
                                                synced-at)
                            servings)
      :biometric-logs (:docs bio)
+     :activity-observations (diary->activity-observations user-id zone diary
+                                                          synced-at)
      :nutrition-day  (diary->nutrition-day user-id day diary synced-at)
      :warnings       (cond-> (:warnings bio)
                        (seq missing)

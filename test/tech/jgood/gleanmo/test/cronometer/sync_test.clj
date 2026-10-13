@@ -17,7 +17,7 @@
    [tick.core :as t]
    [xtdb.api :as xt])
   (:import
-   [java.time LocalDate]))
+   [java.time Instant LocalDate]))
 
 (def ^:private test-key (crypto/generate-key))
 
@@ -126,8 +126,9 @@
             [summary] (:days result)]
         (is (nil? (:error result)) (pr-str result))
         (is (= fx/day (:day summary)))
-        ;; 3 foods + 3 food-logs + 8 biometric-logs + 1 nutrition-day
-        (is (= 15 (:created summary)))
+        ;; 3 foods + 3 food-logs + 8 biometric-logs + 3 activity-observations
+        ;; + 1 nutrition-day
+        (is (= 18 (:created summary)))
         (testing "and fetches recipe ingredients that no serving names"
           (is (= #{101 102 201} (set asked))))))
 
@@ -148,7 +149,7 @@
         (is (= 0 (:created summary)))
         (is (= 0 (:deleted summary)))
         (is (= 0 (:updated summary)))
-        (is (= 15 (:unchanged summary)))
+        (is (= 18 (:unchanged summary)))
         (testing "except the nutrition-day, which is rewritten to mark the sync"
           (is (= 2 (history-count node :nutrition-day fx/day))))
         (is (= before (history-count node :food-log 5001)))))
@@ -191,6 +192,41 @@
           (is (nil? (:cronometer/time glucose)))
           (is (not (contains? glucose :cronometer/offset)))
           (is (= :wake-time (:biometric-log/timestamp-basis glucose))))))
+
+    (testing "a re-sync keeps a user-set exercise session link"
+      (let [session-id (random-uuid)
+            obs-id     (transform/doc-id fx/user-id :activity-observation 9002)]
+        (mutations/update-entity! (ctx node)
+                                  {:entity-key :activity-observation
+                                   :entity-id  obs-id
+                                   :data       {:activity-observation/exercise-session-id
+                                                session-id}})
+        (let [before (history-count node :activity-observation 9002)
+              {:keys [result]} (run-sync! node fx/diary fx/foods)]
+          (is (nil? (:error result)))
+          (is (= session-id (:activity-observation/exercise-session-id
+                             (doc node :activity-observation 9002))))
+          (testing "without rewriting the observation"
+            (is (= before (history-count node :activity-observation 9002)))))
+        (testing "and an upstream change keeps it too"
+          (let [diary (update fx/diary :diary
+                              (fn [entries]
+                                (mapv #(if (= 9002 (:exerciseId %))
+                                         (assoc % :minutes 45)
+                                         %)
+                                      entries)))]
+            (run-sync! node diary fx/foods)
+            (let [walk (doc node :activity-observation 9002)]
+              (is (= session-id (:activity-observation/exercise-session-id walk)))
+              (is (= (Instant/parse "2030-01-15T15:30:00Z")
+                     (:activity-observation/end walk))))))))
+
+    (testing "an exercise removed in Cronometer is soft-deleted"
+      (let [diary (update fx/diary :diary
+                          (fn [entries] (vec (remove #(= 9003 (:exerciseId %)) entries))))
+            {:keys [result]} (run-sync! node diary fx/foods)]
+        (is (= 1 (:deleted (first (:days result)))))
+        (is (some? (::sm/deleted-at (doc node :activity-observation 9003))))))
 
     (testing "the last sync time is the latest nutrition-day sync"
       (is (some? (queries/last-cronometer-sync (xt/db node) fx/user-id))))))

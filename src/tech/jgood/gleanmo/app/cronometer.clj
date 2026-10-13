@@ -179,7 +179,9 @@
   (let [day-strs  (map str (sync/recent-days zone window-days))
         food-logs (queries/cronometer-docs-for-days db user-id :food-log day-strs)
         readings  (queries/cronometer-docs-for-days db user-id :biometric-log day-strs)
-        days      (queries/cronometer-docs-for-days db user-id :nutrition-day day-strs)]
+        days      (queries/cronometer-docs-for-days db user-id :nutrition-day day-strs)
+        activities (queries/cronometer-docs-for-days db user-id :activity-observation
+                                                     day-strs)]
     [:div.space-y-3
      (layout/section-header "STATUS" (str "last " window-days " days"))
      (layout/card
@@ -191,6 +193,10 @@
       [:div
        (count-row "Food logs" (count food-logs))
        (count-row "Biometric readings" (count readings))
+       (count-row "Activities" (count activities))
+       (count-row "Timed activity sessions"
+                  (count (filter #(= :session (:activity-observation/scope %))
+                                 activities)))
        (count-row "Diary days" (count days))
        (count-row "Foods and recipes (all time)"
                   (queries/count-entities-for-user db user-id :food))])
@@ -213,7 +219,7 @@
       ctx {:width :narrow}
       (layout/page-header
        {:title    "Cronometer"
-        :subtitle "Food, recipes, biometrics and daily nutrition, pulled from Cronometer for the agent API."})
+        :subtitle "Food, recipes, biometrics, activities and daily nutrition, pulled from Cronometer for the agent API."})
       [:div.space-y-6
        (flash params)
        (when (connection/fake? ctx) (fake-notice))

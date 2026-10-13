@@ -151,13 +151,24 @@
   {:type "Exercise" :day day :exerciseId 9001 :name "Daily Activity (Test)"
    :calories -300 :minutes 120 :source "Oura" :meta {}})
 
+;; A timed session: `time` is when the walk began.
+(def walk
+  {:type "Exercise" :day day :exerciseId 9002 :name "walking (Oura)"
+   :time "09:45:00" :offset -240 :calories -150 :minutes 40 :source "Oura"
+   :externalId "00000000-0000-4000-8000-000000009002" :meta {}})
+
+;; Untimed and not a "Daily Activity": its scope is unknown.
+(def google-health
+  {:type "Exercise" :day day :exerciseId 9003 :name "Google Health Activity"
+   :calories -0.5 :minutes 0 :source "Google Health" :meta {}})
+
 (def diary
   {:info     {:complete true :day day}
    :summary  {:consumed {:total 1040 :protein_g 36.8}
               :burned   {:total 2300}}
    :template {:name "Test Targets" :protein 120 :carbs 200 :fat 70}
    :fasts    []
-   :diary    [exercise sleep recovery temp-variation hrv-unknown-unit
+   :diary    [exercise walk google-health sleep recovery temp-variation hrv-unknown-unit
               weight-with-stale-composite blood-pressure glucose mood
               serving-oats serving-milk serving-porridge]})
 

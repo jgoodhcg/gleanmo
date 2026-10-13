@@ -156,13 +156,53 @@
     (is (= (java.time.LocalDate/parse fx/day) (:nutrition-day/day day)))
     (is (true? (:nutrition-day/completed day)))
     (is (= (:summary fx/diary) (read-string (:nutrition-day/summary day))))
-    (is (= [fx/exercise] (read-string (:nutrition-day/exercises day))))))
+    (is (= [fx/exercise fx/walk fx/google-health]
+           (read-string (:nutrition-day/exercises day))))))
+
+(deftest activity-observation-test
+  (let [by-id (into {} (map (juxt :cronometer/exercise-id identity))
+                    (:activity-observations (docs)))]
+    (testing "a timed entry is a session that begins at its time"
+      (let [walk (by-id 9002)]
+        (is (= :session (:activity-observation/scope walk)))
+        (is (= "walking (Oura)" (:activity-observation/label walk)))
+        (is (= "Oura" (:activity-observation/source walk)))
+        ;; 09:45 in America/New_York, not the entry's -240 offset
+        (is (= (Instant/parse "2030-01-15T14:45:00Z")
+               (:activity-observation/beginning walk)))
+        (testing "and ends `minutes` later, marked as derived"
+          (is (= (Instant/parse "2030-01-15T15:25:00Z")
+                 (:activity-observation/end walk)))
+          (is (true? (:activity-observation/auto-ended walk))))
+        (is (not (contains? walk :activity-observation/day)))
+        (is (= -240 (:cronometer/offset walk)))
+        (is (= (:externalId fx/walk) (:cronometer/external-id walk)))
+        (is (= fx/walk (read-string (:cronometer/raw walk))))))
+    (testing "an untimed Daily Activity is the day's aggregate, with no boundaries"
+      (let [daily (by-id 9001)]
+        (is (= :daily (:activity-observation/scope daily)))
+        (is (= (java.time.LocalDate/parse fx/day) (:activity-observation/day daily)))
+        (is (not-any? #(contains? daily %)
+                      [:activity-observation/beginning :activity-observation/end
+                       :activity-observation/auto-ended]))))
+    (testing "any other untimed entry has an unknown scope"
+      (is (= :unknown (:activity-observation/scope (by-id 9003))))
+      (is (= (java.time.LocalDate/parse fx/day)
+             (:activity-observation/day (by-id 9003)))))
+    (testing "a timed entry without positive minutes gets a beginning only"
+      (let [obs (transform/exercise->activity-observation
+                 fx/user-id fx/zone (assoc fx/walk :minutes 0) synced-at)]
+        (is (some? (:activity-observation/beginning obs)))
+        (is (not (contains? obs :activity-observation/end)))
+        (is (not (contains? obs :activity-observation/auto-ended)))))))
 
 (deftest deterministic-ids-test
   (let [a (docs)
         b (docs)
         ids (fn [r] (map :xt/id (concat (:foods r) (:food-logs r)
-                                        (:biometric-logs r) [(:nutrition-day r)])))]
+                                        (:biometric-logs r)
+                                        (:activity-observations r)
+                                        [(:nutrition-day r)])))]
     (is (= (ids a) (ids b)))
     (is (apply distinct? (ids a)))
     (testing "ids are scoped to the user"
@@ -172,7 +212,8 @@
 (deftest documents-validate-test
   (let [result (docs)
         all    (concat (:foods result) (:food-logs result)
-                       (:biometric-logs result) [(:nutrition-day result)]
+                       (:biometric-logs result) (:activity-observations result)
+                       [(:nutrition-day result)]
                        (:biometric-logs (docs fx/day-without-sleep
                                               fx/diary-without-sleep)))]
     (doseq [doc all

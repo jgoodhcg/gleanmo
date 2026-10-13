@@ -430,17 +430,38 @@
                              entry))
                     (biometric-entries uid day))))
 
-(defn- exercise
+(defn- exercises
+  "The day's Exercise entries, in the three shapes a real diary carries:
+   Oura's untimed Daily Activity every day; most days a timed Oura walk, whose
+   `time` is when it began; some days an untimed Google Health Activity with
+   no minutes."
   [uid ^LocalDate day]
-  (let [r (rng uid day 3)]
-    {:type       "Exercise"
-     :day        (day-str day)
-     :exerciseId (entry-id exercise-id-base day 0)
-     :name       "Daily Activity (Oura)"
-     :calories   (- (long (between r 240 620)))
-     :minutes    (long (between r 70 190))
-     :source     "Oura"
-     :meta       {}}))
+  (let [r     (rng uid day 3)
+        entry (fn [i fields]
+                (merge {:type       "Exercise"
+                        :day        (day-str day)
+                        :exerciseId (entry-id exercise-id-base day i)
+                        :meta       {}}
+                       fields))
+        walk? (< (.nextDouble r) 0.7)
+        gh?   (< (.nextDouble r) 0.3)]
+    (cond-> [(entry 0 {:name     "Daily Activity (Oura)"
+                       :calories (- (long (between r 240 620)))
+                       :minutes  (long (between r 70 190))
+                       :source   "Oura"})]
+      walk?
+      (conj (entry 1 {:name       "walking (Oura)"
+                      :time       (clock r 660 1140)
+                      :offset     -240
+                      :calories   (- (long (between r 60 320)))
+                      :minutes    (long (between r 20 70))
+                      :source     "Oura"
+                      :externalId (str (java.util.UUID. (long uid) (epoch-day day)))}))
+      gh?
+      (conj (entry 2 {:name     "Google Health Activity"
+                      :calories (- (round-to 2 (between r 0 1)))
+                      :minutes  0
+                      :source   "Google Health"})))))
 
 ;; =============================================================================
 ;; Responses
@@ -451,13 +472,13 @@
   [uid ^LocalDate day]
   (let [r            (rng uid day 4)
         day-servings (servings uid day)
-        activity     (exercise uid day)]
+        activity     (exercises uid day)]
     {:info     {:complete (< (.nextDouble r) 0.85), :day (day-str day)}
      :summary  {:consumed (consumed uid day-servings)
-                :burned   {:total (+ 1750 (- (:calories activity)))}}
+                :burned   {:total (- 1750 (reduce + (map :calories activity)))}}
      :template {:name "Balanced (Fake)" :protein 130 :carbs 220 :fat 75}
      :fasts    []
-     :diary    (vec (concat [activity] (biometrics uid day) day-servings))}))
+     :diary    (vec (concat activity (biometrics uid day) day-servings))}))
 
 (defn foods
   "The `get_foods` response: the records for `ids` this fake knows."

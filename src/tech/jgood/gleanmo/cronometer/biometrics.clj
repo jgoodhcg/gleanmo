@@ -6,7 +6,7 @@
    ids are unique across the whole catalog, so one id -> name index serves
    both a reading's own unit and the units inside a blood pressure composite."
   (:require
-   [tech.jgood.gleanmo.schema.cronometer-schema :as cs]
+   [tech.jgood.gleanmo.schema.biometric-schema :as bios]
    [tech.jgood.gleanmo.schema.utils :as schema-utils]))
 
 (def unit-keywords
@@ -65,7 +65,7 @@
   (into {}
         (for [field (concat (vals metric-fields) (vals composite-fields))
               :let  [t (schema-utils/field-type
-                        (schema-utils/schema-field cs/biometric-log
+                        (schema-utils/schema-field bios/biometric-log
                                                    (unit-field field)))]]
           [field (set (remove map? (rest t)))])))
 

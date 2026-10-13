@@ -116,7 +116,13 @@
         sleep      (first (by-metric 764))]
     (is (boolean? (get-in diary [:info :complete])))
     (is (map? (:template diary)))
-    (is (= 1 (count (entries diary "Exercise"))))
+    (is (= "Daily Activity (Oura)" (:name (first (entries diary "Exercise")))))
+    (testing "over a week, every Exercise shape a real diary carries"
+      (let [exercises (mapcat #(entries (data/diary uid %) "Exercise") week)]
+        (is (every? #(nil? (:time %))
+                    (filter #(str/starts-with? (:name %) "Daily Activity") exercises)))
+        (is (some #(and (:time %) (pos? (:minutes %))) exercises) "a timed session")
+        (is (some #(and (nil? (:time %)) (= "Google Health" (:source %))) exercises))))
     (is (= 2 (:unitId (first (by-metric 1)))) "weight in lbs")
     (is (= 9 (:unitId (first (by-metric 6)))) "glucose in mg/dL")
     (let [bp (first (by-metric 32524))]
@@ -158,7 +164,9 @@
         (is (approx= (:fiber_g summary) (:fiber totals))))
       (testing "every document validates"
         (doseq [doc  (concat (:foods result) (:food-logs result)
-                             (:biometric-logs result) [(:nutrition-day result)])
+                             (:biometric-logs result)
+                             (:activity-observations result)
+                             [(:nutrition-day result)])
                 :let [schema (::sm/type doc)
                       stored (assoc doc ::sm/created-at synced-at)]]
           (is (m/validate schema stored main/malli-opts)
@@ -287,6 +295,19 @@
         (is (= (reduce + (map #(count (entries (data/diary uid %) "Serving")) days))
                (count (queries/cronometer-docs-for-days (xt/db node) user-id
                                                         :food-log day-strs)))))
+      (testing "Exercise entries become activity observations"
+        (let [obs     (queries/cronometer-docs-for-days (xt/db node) user-id
+                                                        :activity-observation day-strs)
+              by-scope (group-by :activity-observation/scope obs)]
+          (is (= (reduce + (map #(count (entries (data/diary uid %) "Exercise")) days))
+                 (count obs)))
+          (is (= 3 (count (:daily by-scope))))
+          (is (seq (:session by-scope)))
+          (is (every? #(and (:activity-observation/beginning %)
+                            (.isBefore ^java.time.Instant (:activity-observation/beginning %)
+                                       (:activity-observation/end %))
+                            (:activity-observation/auto-ended %))
+                      (:session by-scope)))))
       (testing "a re-sync of unchanged days writes nothing"
         (is (every? #(and (zero? (:created %)) (zero? (:updated %)) (zero? (:deleted %)))
                     (:days second-run))))

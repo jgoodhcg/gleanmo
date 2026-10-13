@@ -344,12 +344,23 @@ Stored as EDN strings because nothing reads them yet ("can't hurt to just have
 it"); promote fields when something does. `day` is a `:local-date`, the one
 entity where a day, not an instant, is the honest key.
 
-#### Activity observations — schema registered, import pending (2026-10-13)
+#### Activity observations — imported by the sync (2026-10-13)
 
 `activity-observation` is registered in `schema.clj` with its schema in
 `schema/activity_observation_schema.clj`. It represents tracker reports
-separately from exercise sessions. Current sync still preserves Exercise
-entries only in `nutrition-day/exercises`; it creates no observations yet.
+separately from exercise sessions. The sync turns every diary Exercise entry
+into one (`transform/exercise->activity-observation`); `nutrition-day/exercises`
+still keeps the day's raw entries.
+
+- Source time is the **beginning** (2026-10-13: "I'm pretty sure the time from
+  cronometer is the beginning. I feel good about assuming that"). End is
+  beginning + `minutes`, with `auto-ended` true; no positive minutes, no end.
+- Scope: timed → `:session`; untimed "Daily Activity …" (Oura) → `:daily`;
+  any other untimed entry (Google Health Activity, seen with `minutes 0`) →
+  `:unknown`.
+- Observations vanish and reappear with their diary day like food and
+  biometric logs. `exercise-session-id` is user-managed: the sync neither
+  compares nor removes it (`sync/user-managed-keys`).
 
 - `scope` distinguishes `:session`, `:daily`, and `:unknown` reports.
 - Timed activities use `beginning`/`end`, following exercise sessions and sets.
@@ -366,9 +377,13 @@ entries only in `nutrition-day/exercises`; it creates no observations yet.
   Future sync must preserve this user-managed link when updating source data.
 - Observations are not timer-enabled. Missing boundaries do not mean running.
 
-Remaining implementation: import transforms and temporal relationship
-validation, source-scoped sync/reconciliation, queries, read-only app/API
-surfaces, session linking, and tests. No CRUD routes, Quick Add links, timer
+The status page counts activities and timed sessions for the recent window,
+and the e2e test checks both against the dev fake, which emits all three
+observed shapes (Daily Activity, timed walk, untimed Google Health).
+
+Remaining implementation: read-only API exposure (an API group adds a
+checkbox on the token page, so it is a UI change), and a way to set the
+session link. No CRUD routes, Quick Add links, timer
 routes, or smoke-test routes were added for this schema-only foundation.
 Daily estimates and individual activities must not be summed until overlap
 is understood.
@@ -490,11 +505,17 @@ mergeable and validated; the first touches no network and no database.
 
 ### Slice A — schemas and pure transform (no network, no DB writes)
 
-1. **Schemas** — `src/tech/jgood/gleanmo/schema/cronometer_schema.clj` defining
-   `food`, `food-log`, `biometric-log`, `nutrition-day` exactly as the Data
+1. **Schemas** — `food`, `food-log` and `nutrition-day` in
+   `schema/nutrition_schema.clj`, `biometric-log` in `schema/biometric_schema.clj`;
+   `schema/cronometer_schema.clj` keeps only `cronometer-connection` and the
+   shared `lineage` vector. Defined exactly as the Data
    Model section, standard field ordering (`xt/id`, `::sm/type`,
    `::sm/deleted-at`, `::sm/created-at`, `user/id`, domain fields, then
-   `cronometer/*`). Register `:food/id`, `:food-log/id`, `:biometric-log/id`,
+   `cronometer/*`). Every `cronometer/*` attribute is optional, nested ones
+   included (2026-10-13: "All cronometer related attributes should be on the
+   generic schemas pretty much as they are. They should just all be optional.
+   As we add providers we will add provider specific optional attributes to
+   these generic entities."). Register `:food/id`, `:food-log/id`, `:biometric-log/id`,
    `:nutrition-day/id` (`:uuid`) and the four schemas in `schema.clj`. Do
    **not** add them to `crud-entities` or the route vector. Check that
    `schema.utils/extract-schema-fields` and `api.coerce/type->json` cope with
