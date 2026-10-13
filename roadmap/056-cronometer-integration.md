@@ -3,7 +3,7 @@ title: "Cronometer Integration"
 status: active
 description: "Pull food, recipes, biometrics and daily nutrition summaries from Cronometer into Gleanmo for the agent API — recent days over the reverse-engineered mobile API, historical backfill by CSV import"
 created: 2026-04-24
-updated: 2026-10-12
+updated: 2026-10-13
 tags: [integration, nutrition, biometrics, llm-context, external-data]
 priority: medium
 ---
@@ -343,6 +343,35 @@ only, warning logged) rather than failing the day's write.
 Stored as EDN strings because nothing reads them yet ("can't hurt to just have
 it"); promote fields when something does. `day` is a `:local-date`, the one
 entity where a day, not an instant, is the honest key.
+
+#### Activity observations — schema registered, import pending (2026-10-13)
+
+`activity-observation` is registered in `schema.clj` with its schema in
+`schema/activity_observation_schema.clj`. It represents tracker reports
+separately from exercise sessions. Current sync still preserves Exercise
+entries only in `nutrition-day/exercises`; it creates no observations yet.
+
+- `scope` distinguishes `:session`, `:daily`, and `:unknown` reports.
+- Timed activities use `beginning`/`end`, following exercise sessions and sets.
+  Interpret source day/time with the existing Cronometer `->instant` helper
+  and `user/time-zone`. Preserve the upstream offset without using it.
+- Confirm whether source time means start, end, or logging time before
+  deriving intervals. When end is derived from beginning + upstream minutes,
+  set `auto-ended` true. Calculate application duration from boundaries.
+- Daily and untimed observations retain `day` without invented boundaries.
+  This follows `nutrition-day/day`'s specific date-only precedent.
+- Original minutes, signed calories, and other upstream values remain in
+  `cronometer/raw`. Promote source-only attributes only when a reader needs them.
+- An optional `exercise-session-id` can link a report to a logged workout.
+  Future sync must preserve this user-managed link when updating source data.
+- Observations are not timer-enabled. Missing boundaries do not mean running.
+
+Remaining implementation: import transforms and temporal relationship
+validation, source-scoped sync/reconciliation, queries, read-only app/API
+surfaces, session linking, and tests. No CRUD routes, Quick Add links, timer
+routes, or smoke-test routes were added for this schema-only foundation.
+Daily estimates and individual activities must not be summed until overlap
+is understood.
 
 #### Time
 

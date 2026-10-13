@@ -1,6 +1,7 @@
 (ns tech.jgood.gleanmo.schema
   (:require [tick.core :as t]
             [tech.jgood.gleanmo.schema.api-token-schema :as ats]
+            [tech.jgood.gleanmo.schema.activity-observation-schema :as aos]
             [tech.jgood.gleanmo.schema.location-schema :as ls]
             [tech.jgood.gleanmo.schema.user-schema :as us]
             [tech.jgood.gleanmo.schema.habit-schema :as hs]
@@ -71,6 +72,7 @@
    :boulder-attempt/id  :uuid
    :task/id             :uuid
    :goal/id             :uuid
+   :activity-observation/id :uuid
    :api-token/id        :uuid
    :food/id             :uuid
    :food-log/id         :uuid
@@ -107,6 +109,7 @@
    :goal                gs/goal
    :cruddy              cs/cruddy
    :performance-report  perf/performance-report
+   :activity-observation aos/activity-observation
    :api-token           ats/api-token
    :food                crono/food
    :food-log            crono/food-log

@@ -438,6 +438,24 @@ Schema conventions
 - Boolean attributes are past-tense state words with no `?` suffix (`sent`, `archived`, `interrupted`). `reading-log/finished?` predates this rule; don't copy it.
 - Every measured value has a sibling `<field>-unit` enum, even when the enum has one member (`bp-systolic` + `bp-systolic-unit [:enum :mmhg]`). Units never go in field names, and imports store the unit they were given rather than converting. `exercise-line/weight` + `weight-unit` is the model. Known exceptions: `exercise-line/duration-seconds` predates the rule and has production data — don't copy it; nutrient maps (`food/nutrients`) take units from the nutrient table, because a unit beside each of ~95 values per row would just repeat it. Decided 2026-10-12 in `roadmap/056-cronometer-integration.md`.
 
+### Temporal fields and imported values
+
+- Before proposing new fields, inspect the closest existing schemas, readers, and import transforms.
+- Cite the existing patterns used by the proposal. Identify new conventions explicitly.
+- Use `timestamp` for point events and `beginning`/`end` for intervals.
+- Calculate application duration from interval boundaries. Do not duplicate it in generic duration fields.
+- Preserve upstream duration and other original attributes in raw lineage.
+- Promote source-only attributes into the source namespace only when a reader needs them.
+- Preserve original imported measurements and units. Perform conversions when reading.
+- Reuse the importer's existing time conversion helper and timezone policy.
+- For Cronometer, interpret wall-clock times in `user/time-zone`; preserve its offset without using it.
+- Establish whether upstream time means start, end, or logging time before deriving boundaries.
+- Mark derived boundaries using applicable existing provenance conventions, including `auto-started` and `auto-ended`.
+- Do not extend midnight or wake-time fallback behavior from another entity without an explicit domain rationale.
+- For date-only records, justify the temporal representation. `nutrition-day/day` is a specific precedent, not a universal rule.
+- Explain missing-time behavior and validate relationships between temporal fields.
+- Missing interval boundaries do not imply a running timer. Declare `running` only for timer-enabled entities.
+
 ### Changing a field that already has data — add, don't rewrite
 
 Once an entity has documents in production, changing a field's type or meaning in place is off the table. Add a new attribute alongside the old one and mark the old one deprecated with `:hide true` so forms stop writing to it. No migration, and existing documents stay valid.
@@ -486,6 +504,9 @@ Any entity that participates in an Airtable migration must carry metadata for tr
 All `airtable/*` fields are optional and must not affect entities created through the app UI. See `roadmap/archived/053-airtable-metadata-consistency.md` for known inconsistencies in already-deployed schemas.
 
 New entity checklist — when adding a new entity, complete ALL of these steps:
+
+Before implementation, review temporal fields and imported-value ownership against existing schemas (see “Temporal fields and imported values”).
+
 1. Define schema in `src/tech/jgood/gleanmo/schema/` with standard field ordering
 2. Register ID type and schema in `src/tech/jgood/gleanmo/schema.clj`
 3. Create `src/tech/jgood/gleanmo/app/<entity>.clj` with `crud-routes` (and timer/viz routes if applicable)
