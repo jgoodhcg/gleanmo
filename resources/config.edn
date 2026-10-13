@@ -43,6 +43,12 @@
  ;; the Cronometer connect form is disabled and its sync stays dormant.
  :gleanmo/credentials-key #biff/secret CREDENTIALS_KEY
 
+ ;; Dev only: the Cronometer sync targets the fake API served by
+ ;; dev/tech/jgood/gleanmo/fake_cronometer.clj on this server instead of
+ ;; mobile.cronometer.com. Hard false in prod, whatever the env says.
+ :gleanmo.cronometer/fake #profile {:prod    false
+                                    :default #boolean #biff/env FAKE_CRONOMETER}
+
  :biff.nrepl/enabled #profile {:dev true :default false}
  :biff.nrepl/port    #or [#biff/env NREPL_PORT "7888"]
  :biff.nrepl/args    ["--port" #ref [:biff.nrepl/port]

@@ -612,6 +612,53 @@ Validate: `just lint-fast`, `clj -M:dev test cronometer.transform-test`,
    Add the route to `e2e/scripts/manifest.ts`. Follow the UI rules
    (`[BP-WF-VISUAL]`, series tick before and after).
 
+### Dev fake API (added 2026-10-12)
+
+A local fake of the mobile API, served by the dev server, so the sync runs
+end to end in dev and e2e with no credentials and no traffic leaving the
+machine.
+
+- **Code** — `dev/tech/jgood/gleanmo/fake_cronometer.clj` (routes) and
+  `fake_cronometer/data.clj` (pure generator). Mounted at `/dev/cronometer`
+  among the API routes (no session, no CSRF), loaded the way `e2e-auth` is
+  (`dev-modules` in `gleanmo.clj`).
+- **Off in prod, twice over** — `dev/` is not on the uberjar classpath, and
+  every route 404s unless `:gleanmo.cronometer/fake` is true. That key is hard
+  `false` under the prod profile and set in dev by `FAKE_CRONOMETER=true` in
+  `config.env`. Tests read `config.edn` under `:prod` with the env var set and
+  assert it stays false.
+- **Base URL** — `client/connection` takes `:base-url` (default
+  `https://mobile.cronometer.com`); `connection/client-connection` passes
+  `<biff/base-url>/dev/cronometer` when the flag is on. The client still never
+  reads config. The status page shows a "Dev fake" notice while it is on.
+- **Behaviour** — any email logs in with any password except `invalid`; the
+  account id is a hash of the email. Login with a non-null `timezone` gets a
+  400, so a client regression on that hazard fails here first.
+  `POST /dev/cronometer/reject-next-session {"email": ...}` fails the
+  account's next request as an expired session, to exercise re-login.
+- **Data** — invented throughout; nothing from `cronometer_data/`. It is
+  deterministic per (account, day), and neighbouring days differ. Each day
+  has 16 stock foods with per-100 g nutrients (including the uncatalogued ids
+  -203 and 652), a custom yogurt-bowl recipe whose granola ingredient is
+  itself a recipe, and servings across four meals, one with a `nil` offset. It
+  also has a Sleep entry with `meta.wakeup_time`, Oura per-day readings with
+  no time, HRV, weight in lbs, a blood pressure composite, glucose in mg/dL,
+  body fat and mood on some days, and an Oura Exercise entry, plus
+  `summary`, `template` and `info.complete`. Meals and manual readings fall
+  after the wake time. `summary.consumed` is the servings summed by the Probe
+  Findings scaling rule, computed apart from the transform. `get_biometrics`
+  covers a range and converts lbs/kg/st and mg/dL/mmol/L. The
+  `get_nutrition_scores` response shape is invented: nothing in the sync
+  reads it.
+- **CI** — `validate.yml` writes a throwaway `CREDENTIALS_KEY` and
+  `FAKE_CRONOMETER=true` into the runner's `config.env`, so
+  `test:cronometer` connects, syncs and checks counts and macros. Locally the
+  sync step is skipped when either is missing. Under `CI` it fails instead,
+  so the coverage cannot quietly lapse.
+- **Use it** — add `FAKE_CRONOMETER=true` and a dev `CREDENTIALS_KEY` to
+  `config.env`, restart `biff dev`, connect any credentials on
+  `/app/cronometer`, press Sync now.
+
 ### Rollout (user-performed)
 
 - Generate a key (`openssl rand -base64 32`) and add it as `CREDENTIALS_KEY`
@@ -626,22 +673,23 @@ Validate: `just lint-fast`, `clj -M:dev test cronometer.transform-test`,
 
 ## Progress
 
-- Checkout: worktree `dev-1`, branch `dev-1` at `d6b9e6d`, all three slices
-  uncommitted (2026-10-12).
+- Checkout: worktree `dev-1`, branch `dev-1`. Slices A–C committed in
+  `da73924`; the dev fake API is uncommitted (2026-10-12).
 - Completed: Slices A, B and C as planned. Schemas, nutrient and metric
   tables, pure transform, client, AES-GCM credentials, sync, dev tasks,
   read-only API groups, `/app/cronometer`, daily task at 10:00 UTC, e2e test.
+- Completed (2026-10-12): the dev fake API (see Dev fake API), with unit
+  tests and e2e coverage of connect → Sync now.
 - Remaining: user-run real-data check and live sync (see Rollout); Phase 4 CSV
   backfill.
-- Validation: `just check` clean apart from two existing warnings in
-  `db/queries.clj`; `just validate` 203 tests, 0 failures; `just
-  e2e-test-all` passed; series ticks `2026-10-12T18-38-09Z` (before) and
-  `2026-10-12T18-59-33Z` (after).
-- Blockers: none. The dev instance has no `CREDENTIALS_KEY`, so it shows the
-  unconfigured state until one is added and the server restarts.
+- Validation (fake): `just check` adds no warnings; `just validate` 212 tests,
+  0 failures; `just e2e-test-all` 25/25 with the fake on (sync of 7 days:
+  64 food logs, 55 readings, 18 foods); series ticks `2026-10-12T19-12-51Z`
+  (before) and `2026-10-13T13-56-42Z` (after).
+- Blockers: none.
 - Next action: user runs the real-data check
   (`clojure -Scp "$(clojure -Spath -A:dev)" -M -i tmp/cronometer_check.clj`),
-  adds `CREDENTIALS_KEY` to `config.env`, restarts, connects on
+  then sets a real `CREDENTIALS_KEY` without `FAKE_CRONOMETER`, connects on
   `/app/cronometer`, and presses Sync now.
 
 ### Implementation decisions (2026-10-12)
@@ -692,6 +740,12 @@ Validate: `just lint-fast`, `clj -M:dev test cronometer.transform-test`,
       leaves no document history (`xt/entity-history` empty).
 - [x] New test namespaces are required in `test/tech/jgood/gleanmo/test.clj`.
 - [x] `just lint-fast`, `just check`, `just validate`, `just e2e-test-all` pass.
+- [x] Dev fake: deterministic per (account, day), days differ, summary
+      totals match summed servings through the transform, every doc
+      validates, routes 404 with the flag off and the prod profile forces it
+      off (`cronometer.fake-test`).
+- [x] Dev fake: e2e connects, survives one rejected session, syncs 7 days,
+      counts and macros fill in (`test:cronometer`, CI included).
 - [ ] Slice A step 6: transform over `cronometer_data/` matches the diary
       summaries (user-run: `tmp/cronometer_check.clj`).
 - [ ] Live sync against the real account (user-run).

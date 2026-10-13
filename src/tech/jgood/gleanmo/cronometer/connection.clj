@@ -79,10 +79,30 @@
       (:email (credentials ctx doc))
       (catch Exception _ nil))))
 
+(def fake-path
+  "Where the dev-only fake Cronometer API is mounted on this server."
+  "/dev/cronometer")
+
+(defn fake?
+  "Whether config points the sync at the dev-only fake API. The config key is
+   hard false under the prod profile."
+  [ctx]
+  (true? (:gleanmo.cronometer/fake ctx)))
+
+(defn base-url
+  "The Cronometer API base URL for this server: the fake on this server when
+   `fake?`, otherwise nil, which the client reads as Cronometer itself."
+  [{:keys [biff/base-url], :as ctx}]
+  (when (fake? ctx)
+    (str base-url fake-path)))
+
 (defn client-connection
   "A `client/connection` for the user's stored credentials, or nil when the
    user has no connection."
   [ctx user-id]
   (when-let [doc (queries/cronometer-connection-for-user (fresh-db ctx) user-id)]
     (let [{:keys [email password]} (credentials ctx doc)]
-      (client/connection {:id user-id, :email email, :password password}))))
+      (client/connection {:id       user-id
+                          :email    email
+                          :password password
+                          :base-url (base-url ctx)}))))

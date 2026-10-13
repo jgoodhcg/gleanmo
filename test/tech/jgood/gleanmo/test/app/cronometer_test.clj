@@ -63,7 +63,12 @@
     (testing "with a key and no connection: the connect form, no Sync now"
       (let [page (html (ctx node))]
         (is (str/includes? page "cronometer-connect-form"))
-        (is (not (str/includes? page "cronometer-sync-now")))))
+        (is (not (str/includes? page "cronometer-sync-now")))
+        (is (not (str/includes? page "cronometer-fake-notice")))))
+
+    (testing "with the dev fake on: a notice says so"
+      (is (str/includes? (html (assoc (ctx node) :gleanmo.cronometer/fake true))
+                         "cronometer-fake-notice")))
 
     (testing "a blank submission is refused"
       (is (str/includes? (location (cronometer/connect!

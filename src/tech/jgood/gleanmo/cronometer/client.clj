@@ -17,8 +17,9 @@
      one backend instance, see roadmap/077), or a file for short-lived CLI runs.
 
    The client never reads config. Every call takes a connection built by
-   `connection` from the user's credentials. Never log a connection, the
-   password, or the session key."
+   `connection` from the user's credentials, and the caller that reads config
+   decides the base URL (the dev-only fake, roadmap 056). Never log a
+   connection, the password, or the session key."
   (:require
    [cheshire.core :as json]
    [clj-http.client :as http]
@@ -26,7 +27,7 @@
   (:import
    [java.time LocalDate]))
 
-(def ^:private base-url "https://mobile.cronometer.com")
+(def default-base-url "https://mobile.cronometer.com")
 
 (def ^:private app-auth
   {:api 3, :os "Android", :build "2807", :flavour "free"})
@@ -58,18 +59,20 @@
 
 (defn connection
   "A connection for one user. `id` keys the default in-memory session store;
-   pass `store` (`{:load :save! :clear!}`) to keep the session elsewhere."
-  [{:keys [id email password store]}]
+   pass `store` (`{:load :save! :clear!}`) to keep the session elsewhere, and
+   `base-url` to target something other than Cronometer itself."
+  [{:keys [id email password store base-url]}]
   {:email    email
    :password password
-   :store    (or store (memory-store id))})
+   :store    (or store (memory-store id))
+   :base-url (or base-url default-base-url)})
 
 ;; =============================================================================
 ;; HTTP
 ;; =============================================================================
 
 (defn- post
-  [endpoint payload]
+  [base-url endpoint payload]
   (let [resp (http/post (str base-url endpoint)
                         {:headers            headers
                          :body               (json/generate-string payload)
@@ -85,9 +88,9 @@
 (defn login!
   "Log in, keep `{:user-id :token :timezone}` in the connection's store, and
    return it. `:timezone` is the account zone Cronometer reports."
-  [{:keys [email password store]}]
+  [{:keys [email password store base-url]}]
   (let [{:keys [status body]}
-        (post "/api/v2/login"
+        (post base-url "/api/v2/login"
               {:email         email
                :password      password
                ;; Must stay null: a non-null timezone is a write to the account.
@@ -123,9 +126,9 @@
 (defn- request
   "POST a v2 endpoint with the stored session, logging in at most once: when
    there is no session, or when Cronometer rejects it."
-  [{:keys [store], :as conn} endpoint payload]
+  [{:keys [store base-url], :as conn} endpoint payload]
   (letfn [(send [{:keys [user-id token]}]
-            (post endpoint
+            (post base-url endpoint
                   (assoc payload
                          :auth     (merge {:userId user-id, :token token} app-auth)
                          :lastSeen 0)))]

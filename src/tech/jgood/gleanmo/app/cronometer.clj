@@ -79,6 +79,12 @@
     "Set " [:code "CREDENTIALS_KEY"] " to a base64 32-byte key ("
     [:code "openssl rand -base64 32"] ") and restart the server."]))
 
+(defn- fake-notice
+  []
+  [:p.text-xs.rounded-lg.border.border-dark.px-3.py-2.text-gray-400
+   {:data-testid "cronometer-fake-notice"}
+   "Dev fake: syncs go to the fake Cronometer API on this server, which invents the data. Any email and password connect."])
+
 (defn- connect-form
   [connected?]
   (biff/form
@@ -210,6 +216,7 @@
         :subtitle "Food, recipes, biometrics and daily nutrition, pulled from Cronometer for the agent API."})
       [:div.space-y-6
        (flash params)
+       (when (connection/fake? ctx) (fake-notice))
        (if (connection/configured? ctx)
          (connection-section ctx user-id)
          (unconfigured-notice))

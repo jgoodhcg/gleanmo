@@ -19,6 +19,22 @@
    [tick.core :as t])
   (:gen-class))
 
+(def ^:private dev-modules
+  "Modules under `dev/`, which only the dev classpath has. The uberjar leaves
+   `dev/` out, so in production each require fails and the module is absent."
+  '[tech.jgood.gleanmo.e2e-auth/module
+    tech.jgood.gleanmo.fake-cronometer/module])
+
+(defn- dev-module
+  [sym]
+  (try
+    (require (symbol (namespace sym)))
+    @(resolve sym)
+    (catch java.io.FileNotFoundException _ nil)
+    (catch Exception e
+      (log/warn e "Dev module failed to load:" sym)
+      nil)))
+
 (def modules
   (let [base-modules [app/module
                       api/module
@@ -35,12 +51,7 @@
                       home/module
                       schema/module
                       worker/module]]
-    (if-let [e2e-module (try
-                          (require 'tech.jgood.gleanmo.e2e-auth)
-                          @(resolve 'tech.jgood.gleanmo.e2e-auth/module)
-                          (catch Exception _ nil))]
-      (conj base-modules e2e-module)
-      base-modules)))
+    (into base-modules (keep dev-module) dev-modules)))
 
 (def routes [["" {:middleware [mid/wrap-site-defaults]}
               (keep :routes modules)]

@@ -9,6 +9,7 @@
    [tech.jgood.gleanmo.test.app.task-test]
    [tech.jgood.gleanmo.test.app.user-test]
    [tech.jgood.gleanmo.test.app.workout-test]
+   [tech.jgood.gleanmo.test.cronometer.fake-test]
    [tech.jgood.gleanmo.test.cronometer.sync-test]
    [tech.jgood.gleanmo.test.cronometer.transform-test]
    [tech.jgood.gleanmo.test.crud.forms-test]
