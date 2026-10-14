@@ -18,78 +18,179 @@
    :biff/db (xt/db node),
    :biff/malli-opts #'main/malli-opts})
 
+(defn- create-user!
+  [ctx email]
+  (let [user-id (UUID/randomUUID)]
+    (mutations/create-entity!
+     ctx
+     {:entity-key :user,
+      :data {:user/email email
+             :user/joined-at (t/now)
+             :xt/id user-id}})
+    user-id))
+
+(defn- stored-user
+  [node user-id]
+  (queries/get-entity-by-id (xt/db node) user-id))
+
+(defn- status-of
+  [response]
+  (second (re-find #"email-status=([a-z-]+)"
+                   (get-in response [:headers "location"]))))
+
+(defn- capturing-send-email
+  "A :biff/send-email stub that records each email it is asked to send."
+  [sent]
+  (fn [_ctx opts]
+    (swap! sent conj opts)
+    true))
+
 (deftest edit!-test
   (testing "user edit! function with consolidated fields"
     (with-open [node (test-xtdb-node [])]
       (let [ctx (get-context node)
-            user-id (UUID/randomUUID)]
+            user-id (create-user! ctx "initial@example.com")
+            edit! (fn [params]
+                    (user/edit! (assoc (get-context node)
+                                       :params params
+                                       :authorized.user/id user-id)))]
 
-        ;; Create initial user
-        (mutations/create-entity!
-         ctx
-         {:entity-key :user,
-          :data {:user/email "initial@example.com"
-                 :user/joined-at (t/now)
-                 :xt/id user-id}})
-
-        (testing "should update all user fields including sensitive and archived settings"
-          (let [edit-ctx (assoc ctx
-                                :params {:email "updated@example.com"
-                                         :time-zone "America/New_York"
-                                         :show-sensitive "true"
-                                         :show-archived "on"}
-                                :authorized.user/id user-id)
-                result (user/edit! edit-ctx)
-                updated-db (xt/db node)
-                updated-user (queries/get-entity-by-id updated-db user-id)]
-
-            ;; Check response
+        (testing "an unchanged email saves the other fields directly"
+          (let [result (edit! {:email "initial@example.com"
+                               :time-zone "America/New_York"
+                               :show-sensitive "true"
+                               :show-archived "on"})
+                updated-user (stored-user node user-id)]
             (is (= 303 (:status result)))
             (is (= (str "/app/users/" user-id "/edit")
                    (get-in result [:headers "location"])))
-
-            ;; Check user was updated with all fields
-            (is (= "updated@example.com" (:user/email updated-user)))
+            (is (= "initial@example.com" (:user/email updated-user)))
             (is (= "America/New_York" (:user/time-zone updated-user)))
             (is (true? (:user/show-sensitive updated-user)))
-            (is (true? (:user/show-archived updated-user)))))
+            (is (true? (:user/show-archived updated-user)))
+            (is (not (contains? updated-user :user/pending-email)))))
+
+        (testing "case and whitespace differences count as unchanged"
+          (let [result (edit! {:email "  Initial@Example.com "
+                               :time-zone "UTC"})
+                updated-user (stored-user node user-id)]
+            (is (nil? (status-of result)))
+            (is (= "initial@example.com" (:user/email updated-user)))
+            (is (not (contains? updated-user :user/pending-email)))))
 
         (testing "should handle false values for boolean settings"
-          (let [edit-ctx (assoc ctx
-                                :params {:email "test@example.com"
-                                         :time-zone "UTC"
-                                    ;; show-sensitive and show-archived not present = false
-                                         }
-                                :authorized.user/id user-id)
-                result (user/edit! edit-ctx)
-                updated-db (xt/db node)
-                updated-user (queries/get-entity-by-id updated-db user-id)]
-
-            ;; Check response
-            (is (= 303 (:status result)))
-
-            ;; Check boolean fields are false when not provided
+          (edit! {:email "initial@example.com" :time-zone "UTC"})
+          (let [updated-user (stored-user node user-id)]
             (is (false? (:user/show-sensitive updated-user)))
-            (is (false? (:user/show-archived updated-user)))))
-
-        (testing "should handle partial updates"
-          #_{:clj-kondo/ignore [:unused-binding]}
-          (let [edit-ctx (assoc ctx
-                                :params {:email "partial@example.com"
-                                         :time-zone "Europe/London"
-                                         :show-sensitive "true"
-                                    ;; show-archived not provided
-                                         }
-                                :authorized.user/id user-id)
-                result (user/edit! edit-ctx)
-                updated-db (xt/db node)
-                updated-user (queries/get-entity-by-id updated-db user-id)]
-
-            ;; Check mixed true/false
-            (is (= "partial@example.com" (:user/email updated-user)))
-            (is (= "Europe/London" (:user/time-zone updated-user)))
-            (is (true? (:user/show-sensitive updated-user)))
             (is (false? (:user/show-archived updated-user)))))))))
+
+(deftest email-change-verification-test
+  (with-open [node (test-xtdb-node [])]
+    (let [sent    (atom [])
+          ctx     #(assoc (get-context node)
+                          :biff/send-email (capturing-send-email sent))
+          user-id (create-user! (ctx) "owner@example.com")
+          _       (create-user! (ctx) "other@example.com")
+          edit!   (fn [params]
+                    (user/edit! (assoc (ctx)
+                                       :params (merge {:time-zone "UTC"} params)
+                                       :authorized.user/id user-id)))
+          verify! (fn [code]
+                    (user/verify-email! (assoc (ctx)
+                                               :params {:code code}
+                                               :authorized.user/id user-id)))
+          last-code #(:code (peek @sent))]
+
+      (testing "a changed email is not saved before it is verified"
+        (let [result (edit! {:email "New@Example.com"
+                             :time-zone "Europe/London"})
+              stored (stored-user node user-id)]
+          (is (= "code-sent" (status-of result)))
+          (is (= "owner@example.com" (:user/email stored)))
+          (is (= "new@example.com" (:user/pending-email stored)))
+          (is (= "Europe/London" (:user/time-zone stored))
+              "other fields still save immediately")
+          (is (= {:template :email-change-code :to "new@example.com"}
+                 (select-keys (peek @sent) [:template :to]))
+              "the code goes to the new address")
+          (is (re-matches #"\d{6}" (last-code)))
+          (is (not= (last-code) (:user/pending-email-code-hash stored))
+              "the code is not stored in the clear")))
+
+      (testing "a wrong code is refused and counted"
+        (is (= "wrong-code" (status-of (verify! "not-it"))))
+        (let [stored (stored-user node user-id)]
+          (is (= "owner@example.com" (:user/email stored)))
+          (is (= 1 (:user/pending-email-failed-attempts stored)))))
+
+      (testing "the right code sets the email and clears pending state"
+        (is (= "changed" (status-of (verify! (last-code)))))
+        (let [stored (stored-user node user-id)]
+          (is (= "new@example.com" (:user/email stored)))
+          (is (empty? (select-keys stored
+                                   [:user/pending-email
+                                    :user/pending-email-code-hash
+                                    :user/pending-email-timestamp
+                                    :user/pending-email-failed-attempts])))))
+
+      (testing "a used code cannot be replayed"
+        (is (= "no-pending" (status-of (verify! (last-code))))))
+
+      (testing "three wrong codes end the attempt"
+        (edit! {:email "third@example.com"})
+        (let [code (last-code)]
+          (is (= "wrong-code" (status-of (verify! "000000x"))))
+          (is (= "wrong-code" (status-of (verify! "000000y"))))
+          (is (= "too-many-attempts" (status-of (verify! "000000z"))))
+          (is (= "no-pending" (status-of (verify! code)))
+              "the right code no longer works")
+          (is (= "new@example.com" (:user/email (stored-user node user-id))))))
+
+      (testing "an expired code is refused"
+        (edit! {:email "late@example.com"})
+        (mutations/update-user! (ctx) user-id
+                                {:user/pending-email-timestamp
+                                 (t/<< (t/now) (t/new-duration 16 :minutes))})
+        (is (= "expired" (status-of (verify! (last-code)))))
+        (let [stored (stored-user node user-id)]
+          (is (= "new@example.com" (:user/email stored)))
+          (is (not (contains? stored :user/pending-email)))))
+
+      (testing "an address another user has is refused, ignoring case"
+        (let [n (count @sent)]
+          (is (= "taken" (status-of (edit! {:email "OTHER@example.com"}))))
+          (is (= n (count @sent)) "no code is sent")
+          (is (not (contains? (stored-user node user-id)
+                              :user/pending-email)))))
+
+      (testing "an address taken after the code was sent is refused on verify"
+        (edit! {:email "race@example.com"})
+        (create-user! (ctx) "race@example.com")
+        (is (= "taken" (status-of (verify! (last-code)))))
+        (let [stored (stored-user node user-id)]
+          (is (= "new@example.com" (:user/email stored)))
+          (is (not (contains? stored :user/pending-email)))))
+
+      (testing "an invalid address is refused"
+        (is (= "invalid" (status-of (edit! {:email "not an email"})))))
+
+      (testing "canceling drops the pending change"
+        (edit! {:email "maybe@example.com"})
+        (user/cancel-email-change! (assoc (ctx) :authorized.user/id user-id))
+        (is (not (contains? (stored-user node user-id) :user/pending-email)))
+        (is (= "new@example.com" (:user/email (stored-user node user-id))))))))
+
+(deftest set-user-email!-unique-at-commit-test
+  (with-open [node (test-xtdb-node [])]
+    (let [ctx     (get-context node)
+          user-id (create-user! ctx "mine@example.com")]
+      (create-user! ctx "theirs@example.com")
+      (is (false? (mutations/set-user-email! (get-context node) user-id
+                                             "theirs@example.com" {})))
+      (is (= "mine@example.com" (:user/email (stored-user node user-id))))
+      (is (true? (mutations/set-user-email! (get-context node) user-id
+                                            "fresh@example.com" {})))
+      (is (= "fresh@example.com" (:user/email (stored-user node user-id)))))))
 
 (deftest turn-off-sensitive!-test
   (testing "turn-off-sensitive! function"

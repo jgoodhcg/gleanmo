@@ -71,11 +71,38 @@
       "This code will expire in three minutes. If you did not request this code, "
       "you can ignore this email.")}))
 
+(defn email-change-code
+  [{:keys [to code]}]
+  {:to [{:email to}],
+   :subject (str "Confirm your new " settings/app-name " email"),
+   :html
+   (rum/render-static-markup
+    [:html
+     [:body
+      [:p "We received a request to change the email on a " settings/app-name
+       " account to this address. Enter the following code to confirm it:"]
+      [:p {:style {:font-size "2rem"}} code]
+      [:p
+       "This code will expire in fifteen minutes. "
+       "If you did not request this change, you can ignore this email."]]]),
+   :text
+   (str
+    "We received a request to change the email on a "
+    settings/app-name
+    " account to this address. Enter the following code to confirm it:\n"
+    "\n"
+    code
+    "\n"
+    "\n"
+    "This code will expire in fifteen minutes. If you did not request this "
+    "change, you can ignore this email.")})
+
 (defn template
   [k opts]
   ((case k
-     :signin-link signin-link
-     :signin-code signin-code)
+     :signin-link       signin-link
+     :signin-code       signin-code
+     :email-change-code email-change-code)
    opts))
 
 (defn send-mailersend

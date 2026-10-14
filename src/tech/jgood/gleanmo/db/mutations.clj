@@ -275,6 +275,19 @@
     (biff/submit-tx ctx [tx-data])
     user-id))
 
+(defnp set-user-email!
+  "Set `user-id`'s email to `email` and apply the rest of `user-data`, unless
+   another user holds that exact address when the transaction commits.
+   Returns true when written, false when the address was taken."
+  [ctx user-id email user-data]
+  (try
+    (update-user! ctx user-id (assoc user-data :user/email [:db/unique email]))
+    true
+    (catch clojure.lang.ExceptionInfo e
+      (if (= "Transaction violated a constraint" (ex-message e))
+        false
+        (throw e)))))
+
 (defnp create-event!
   "Create a new calendar event."
   [ctx event-data]

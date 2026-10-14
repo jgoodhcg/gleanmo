@@ -1111,6 +1111,20 @@
                :in    [email]}
              email)))
 
+(defnp user-ids-by-email-ignoring-case
+  "Ids of every user whose email equals `email`, ignoring case and
+   surrounding whitespace."
+  [db email]
+  (set (map first
+            (q db
+               '{:find  [user]
+                 :where [[user :user/email stored]
+                         [(clojure.string/trim stored) trimmed]
+                         [(clojure.string/lower-case trimmed) normalized]
+                         [(= normalized email)]]
+                 :in    [email]}
+               (some-> email str/trim str/lower-case)))))
+
 (defnp entity-history-desc
   "Full entity history for a document, newest first, with docs."
   [db doc-id]

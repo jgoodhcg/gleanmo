@@ -659,6 +659,12 @@
             ["/users/:id/edit"
              {:middleware [mid/wrap-user-authz],
               :get        user/edit-form}]
+            ["/users/:id/verify-email"
+             {:middleware [mid/wrap-user-authz],
+              :post       user/verify-email!}]
+            ["/users/:id/cancel-email-change"
+             {:middleware [mid/wrap-user-authz],
+              :post       user/cancel-email-change!}]
 
             ;; Settings endpoints
             ["/users/:id/settings/turn-off-sensitive"
