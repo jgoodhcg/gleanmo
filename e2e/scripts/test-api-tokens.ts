@@ -53,6 +53,13 @@ async function main() {
     const rows = page.locator('[data-testid="api-token-row"]');
     const rowsBefore = await rows.count();
 
+    const activities = page.locator('input[name="group-activities"]');
+    check(
+      (await activities.count()) === 2 &&
+        (await page.locator('input[name="group-activities"][value="write"]').count()) === 0,
+      'synced Activities group offers none and read only',
+    );
+
     await page.fill('#label', tokenLabel);
     await page.check('input[name="group-tasks"][value="write"]');
     await page.click('#api-token-create-form button[type="submit"]');

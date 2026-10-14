@@ -348,3 +348,72 @@
           (is (= 1 (count items)))
           (is (not (contains? (first items) "cronometer/raw")))
           (is (= 8.0 (get-in (first items) ["food-log/nutrients" "protein"]))))))))
+
+(deftest activities-group-test
+  (with-open [node (test-xtdb-node [])]
+    (let [user-id  (UUID/randomUUID)
+          session  (create! node :exercise-session
+                            {:user/id                   user-id
+                             :exercise-session/label    "Private session label"
+                             :exercise-session/beginning (t/now)})
+          walk     (-> (transform/exercise->activity-observation
+                        user-id fx/zone fx/walk (t/now))
+                       (assoc :activity-observation/exercise-session-id session))
+          _        (create! node :activity-observation walk)
+          ;; A write grant, as a tampered form could store, and nothing else.
+          token    (token! node user-id :write [:activities])
+          untouched (token! node user-id :read [:biometrics])]
+      (testing "activity observations are readable, never writable"
+        (is (access/can? {:api-token/read-groups #{:activities}}
+                         :read :activity-observation))
+        (is (not (access/can? {:api-token/write-groups #{:activities}}
+                              :write :activity-observation)))
+        (is (= :activities (access/type->group :activity-observation))))
+
+      (testing "existing grants do not reach the new group"
+        (is (= 404 (:status (call node untouched api/list-handler
+                                  {:path-params {:type "activity-observation"},
+                                   :params      {}})))))
+
+      (testing "a write is rejected"
+        (let [resp (tx node token {:ops [{:op "update", :type "activity-observation",
+                                          :id (str (:xt/id walk)),
+                                          :set {:activity-observation/label "edited"}}]})]
+          (is (= 422 (:status resp)))
+          (is (= "walking (Oura)"
+                 (:activity-observation/label (stored node (:xt/id walk)))))))
+
+      (testing "types lists the group as read, with read-only fields"
+        (let [body   (:body (call node token api/types-handler {}))
+              groups (into {} (map (juxt #(get % "group") identity)) (get body "groups"))
+              group  (get groups "activities")
+              fields (mapcat #(get % "fields") (get group "types"))
+              link   (first (filter #(= "activity-observation/exercise-session-id"
+                                        (:name %))
+                                    fields))]
+          (is (= "read" (get group "access")))
+          (is (= ["activity-observation"] (map #(get % "type") (get group "types"))))
+          (is (every? #(false? (:writable %)) fields))
+          (testing "the session relation names only its target type"
+            (is (= {:name "activity-observation/exercise-session-id",
+                    :type "relation", :relation "exercise-session",
+                    :required false, :writable false}
+                   link)))
+          (is (not (contains? groups "exercise")))))
+
+      (testing "list and get return the document, raw payload dropped"
+        (let [[item :as items] (list-items node token "activity-observation" {})
+              by-id            (:body (call node token api/get-handler
+                                            {:path-params {:type "activity-observation",
+                                                           :id   (str (:xt/id walk))}}))]
+          (is (= 1 (count items)))
+          (is (= item by-id))
+          (is (= "session" (get item "activity-observation/scope")))
+          (is (true? (get item "activity-observation/auto-ended")))
+          (is (not (contains? item "cronometer/raw")))
+          (testing "without the exercise group, the link is the bare id"
+            (is (= (str session) (get item "activity-observation/exercise-session-id")))
+            (is (not-any? #(= "Private session label" %) (vals item)))
+            (is (= 404 (:status (call node token api/get-handler
+                                      {:path-params {:type "exercise-session",
+                                                     :id   (str session)}}))))))))))

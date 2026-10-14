@@ -45,7 +45,9 @@
    {:key :nutrition,  :label "Nutrition",
     :types [:food :food-log :nutrition-day], :read-only true}
    {:key :biometrics, :label "Biometrics",
-    :types [:biometric-log], :read-only true}])
+    :types [:biometric-log], :read-only true}
+   {:key :activities, :label "Activities",
+    :types [:activity-observation], :read-only true}])
 
 (def group-keys (set (map :key groups)))
 

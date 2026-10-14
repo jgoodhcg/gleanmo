@@ -381,9 +381,15 @@ The status page counts activities and timed sessions for the recent window,
 and the e2e test checks both against the dev fake, which emits all three
 observed shapes (Daily Activity, timed walk, untimed Google Health).
 
-Remaining implementation: read-only API exposure (an API group adds a
-checkbox on the token page, so it is a UI change), and a way to set the
-session link. No CRUD routes, Quick Add links, timer
+Read-only API exposure is done (2026-10-13): a separate `:activities` group
+(`api/access.clj`), off until a token is granted it, so existing tokens gain
+nothing; the token page offers none/read only; `cronometer/raw` stays out of
+API output as for every type. `activity-observation/exercise-session-id` is
+returned as the bare id, and `/types` names only its target type, so a token
+without the `:exercise` group learns no session contents (it cannot fetch the
+session by that id).
+
+Remaining implementation: a way to set the session link. No CRUD routes, Quick Add links, timer
 routes, or smoke-test routes were added for this schema-only foundation.
 Daily estimates and individual activities must not be summed until overlap
 is understood.
@@ -730,8 +736,10 @@ machine.
   read-only API groups, `/app/cronometer`, daily task at 10:00 UTC, e2e test.
 - Completed (2026-10-12): the dev fake API (see Dev fake API), with unit
   tests and e2e coverage of connect → Sync now.
+- Completed (2026-10-13): activity observations readable through the agent
+  API in a new read-only "Activities" group (branch `activity-api`).
 - Remaining: user-run real-data check and live sync (see Rollout); Phase 4 CSV
-  backfill.
+  backfill; setting the activity → exercise-session link.
 - Validation (fake): `just check` adds no warnings; `just validate` 212 tests,
   0 failures; `just e2e-test-all` 25/25 with the fake on (sync of 7 days:
   64 food logs, 55 readings, 18 foods); series ticks `2026-10-12T19-12-51Z`
