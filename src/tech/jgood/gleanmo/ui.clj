@@ -40,20 +40,22 @@
                                        [:meta {:name "apple-mobile-web-app-capable" :content "yes"}]
                                        [:meta {:name "apple-mobile-web-app-status-bar-style" :content "black-translucent"}]
                                        [:link {:rel "apple-touch-icon" :href "/img/icon-192.png"}]
-                                       [:link {:rel "stylesheet" :href "https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"}]
+                                       ;; Third-party code is vendored (resources/public/vendor/README.md),
+                                       ;; so every page runs what git holds rather than what a CDN serves.
+                                       [:link {:rel "stylesheet" :href "/vendor/choices-11.2.4/choices.min.css"}]
                                        [:link {:rel "stylesheet" :href (css-path)}]
-                                       [:link {:rel "preconnect" :href "https://fonts.googleapis.com"}]
-                                       [:link {:rel "preconnect" :href "https://fonts.gstatic.com" :crossorigin true}]
-                                       [:link {:href "https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" :rel "stylesheet"}]
+                                       [:link {:rel "stylesheet" :href "/fonts/space-mono/space-mono.css"}]
                                        [:script {:src (js-path)}]
-                                       [:script {:src "https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js" :defer true}]
-                                       [:script {:src "https://unpkg.com/htmx.org@1.9.0"}]
+                                       [:script {:src "/vendor/choices-11.2.4/choices.min.js" :defer true}]
+                                       [:script {:src "/vendor/htmx-1.9.0/htmx.min.js"}]
                                        ;; Unused as of 2026-08-29 (zero call sites) and render-blocking on every
                                        ;; page. To bring either back, gate it on a ctx key the way ::echarts and
                                        ;; ::recaptcha are gated below. See roadmap/079-htmx-navigation-consistency.md.
+                                       ;; Vendor it at htmx's own version: the unversioned ws.js URL tracks
+                                       ;; htmx 2.x, which does not match 1.9.0.
                                        ;; [:script {:src "https://unpkg.com/htmx.org/dist/ext/ws.js"}]
                                        ;; [:script {:src "https://unpkg.com/hyperscript.org@0.9.8"}]
-                                       [:script {:src "https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"}]
+                                       [:script {:src "/vendor/sortable-1.15.0/Sortable.min.js"}]
                                        [:script {:defer true :data-domain "gleanmo.com" :src "https://plausible.io/js/script.js"}]])
                               (true? recaptcha)
                               (concat
@@ -61,7 +63,7 @@
                                           :async "async" :defer "defer"}]])
                               (true? echarts)
                               (concat
-                               [[:script {:src "https://cdn.jsdelivr.net/npm/echarts@6.0.0/dist/echarts.min.js"}]])))))
+                               [[:script {:src "/vendor/echarts-6.0.0/echarts.min.js"}]])))))
    body))
 
 (defn page [ctx & body]
