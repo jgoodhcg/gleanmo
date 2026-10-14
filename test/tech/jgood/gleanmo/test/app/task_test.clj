@@ -4,8 +4,10 @@
    [clojure.test :refer [deftest is testing]]
    [com.biffweb :as biff :refer [test-xtdb-node]]
    [tech.jgood.gleanmo :as main]
+   [tech.jgood.gleanmo.app.task :as task]
    [tech.jgood.gleanmo.app.task-focus :as task-focus]
    [tech.jgood.gleanmo.db.mutations :as mutations]
+   [tech.jgood.gleanmo.ui.sortable :as sortable]
    [xtdb.api :as xt])
   (:import
    [java.time LocalDate]
@@ -229,3 +231,31 @@
               text   (focus-text node user-id params)]
           (is (str/includes? text "Snoozed Task"))
           (is (not (str/includes? text "Active Task"))))))))
+
+(deftest task-actions-ownership-test
+  (with-open [node (test-xtdb-node [])]
+    (let [owner    (UUID/randomUUID)
+          attacker (UUID/randomUUID)
+          victim   (mutations/create-entity!
+                    (get-context node)
+                    {:entity-key :task
+                     :data {:user/id owner :task/label "Owner task"
+                            :task/state :now}})
+          handler  (biff/reitit-handler {:routes [task/routes]})
+          ctx      (fn [] (assoc (get-context node) :session {:uid attacker}))
+          stored   #(xt/entity (xt/db node) victim)]
+      (testing "every per-task action refuses a task the user does not own"
+        (doseq [action ["set-state" "snooze" "clear-snooze" "focus-today"
+                        "complete-today" "defer-today" "remove-from-today"]]
+          (is (= 404 (:status (handler (assoc (ctx)
+                                              :request-method :post
+                                              :uri (str "/task/" victim "/" action)
+                                              :params {:state "done" :days "1"}))))
+              action)))
+      (testing "reorder skips ids the user does not own"
+        (sortable/reorder-entities!
+         (assoc (ctx) :params {:ids (str "[\"" victim "\"]")})
+         :task :task/focus-order))
+      (is (= :now (:task/state (stored))))
+      (is (not (contains? (stored) :task/focus-order)))
+      (is (not (contains? (stored) :task/snooze-until))))))

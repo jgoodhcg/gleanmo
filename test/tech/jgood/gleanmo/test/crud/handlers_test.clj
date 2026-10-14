@@ -413,3 +413,37 @@
       (with-redefs [shared/get-user-time-zone (constantly "UTC")]
         (is (= 303 (:status (update! {"exercise-line/duration-seconds" ""})))))
       (is (not (contains? (stored) :exercise-line/duration-seconds))))))
+
+(deftest update-entity!-ownership-test
+  (with-open [node (test-xtdb-node [])]
+    (let [owner    (random-uuid)
+          attacker (random-uuid)
+          base     {:biff.xtdb/node node :biff/malli-opts #'main/malli-opts}
+          create!  (fn [user label]
+                     (mutations/create-entity!
+                      (assoc base :biff/db (xt/db node))
+                      {:entity-key :task
+                       :data {:user/id user :task/label label :task/state :now}}))
+          victim   (create! owner "Owner task")
+          own      (create! attacker "Attacker task")
+          config   {:schema (:task schema/schema)
+                    :entity-key :task :entity-str "task"}
+          update!  (fn [id params]
+                     (with-redefs [shared/get-user-time-zone (constantly "UTC")]
+                       (handlers/update-entity!
+                        config
+                        (assoc base :biff/db (xt/db node)
+                               :session {:uid attacker}
+                               :path-params {:id (str id)}
+                               :params params))))
+          stored   #(xt/entity (xt/db node) victim)]
+      (testing "another user's record is not found and left unchanged"
+        (is (= 404 (:status (update! victim {"task/label" "Taken"
+                                             "user/id"    (str attacker)})))))
+      (testing "form-supplied ids cannot retarget an update of one's own record"
+        (update! own {"task/label" "Taken"
+                      "xt/id"      (str victim)
+                      "user/id"    (str attacker)}))
+      (is (= "Owner task" (:task/label (stored))))
+      (is (= owner (:user/id (stored))))
+      (is (= attacker (:user/id (xt/entity (xt/db node) own)))))))

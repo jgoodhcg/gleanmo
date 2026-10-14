@@ -17,6 +17,7 @@
   (:require
    [cheshire.core :as json]
    [tech.jgood.gleanmo.db.mutations :as mutations]
+   [tech.jgood.gleanmo.db.queries :as queries]
    [xtdb.api :as xt]))
 
 (defn sortable-list
@@ -53,15 +54,19 @@
    - order-field - Keyword like :task/focus-order
    - id-param - Keyword for the param containing JSON array of IDs (default :ids)
 
+   Ids that are not the signed-in user's `entity-type` are skipped.
+
    Returns the new db for chaining."
-  [{:keys [params biff.xtdb/node] :as ctx} entity-type order-field & {:keys [id-param] :or {id-param :ids}}]
+  [{:keys [params biff/db biff.xtdb/node session] :as ctx} entity-type order-field & {:keys [id-param] :or {id-param :ids}}]
   ;; Try both string and keyword keys for param lookup
   (let [ids-json (or (get params id-param)
                      (get params (name id-param)))
         ids (when ids-json
               (-> ids-json
                   (json/parse-string)
-                  (->> (map parse-uuid))))]
+                  (->> (map parse-uuid)
+                       (filter #(queries/get-entity-for-user
+                                 db % (:uid session) entity-type)))))]
     (when (seq ids)
       (mutations/update-entities! ctx
                                   (map-indexed

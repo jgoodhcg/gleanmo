@@ -17,8 +17,10 @@
         (->> (reduce (fn [acc [k v]]
                        (let [k          (keyword k)
                              field-info (schema-utils/get-field-info schema k)]
-                         ;; Skip fields that don't exist in the schema
-                         (if (nil? field-info)
+                         ;; Skip fields that don't exist in the schema, and
+                         ;; identity fields: the handler decides which
+                         ;; document is written and who owns it, never the form
+                         (if (or (nil? field-info) (contains? #{:xt/id :user/id} k))
                            acc
                            (let [optional?  (get-in field-info [:opts :optional])
                                  #_{:clj-kondo/ignore [:shadowed-var]}
@@ -166,61 +168,66 @@
         entity-id      (java.util.UUID/fromString (:id path-params))
         redirect-url   (or (get params "redirect") (get params :redirect))
         ;; Get current entity data to compare with
-        current-entity (db/get-entity-for-user db entity-id user-id entity-key)
+        current-entity (db/get-entity-for-user db entity-id user-id entity-key)]
+    ;; The edit form posts back to its own URL, so a missing or foreign id
+    ;; is treated as not found rather than written blind.
+    (if (nil? current-entity)
+      {:status 404
+       :headers {"content-type" "text/plain"}
+       :body "Not found."}
+      (let [;; Process optional boolean fields that might have been unchecked
+            updated-params (reduce (fn [acc field]
+                                     #_{:clj-kondo/ignore [:shadowed-var]}
+                                     (let [[field-key opts type] (if (map? (second field))
+                                                                   [(first field) (second field) (nth field 2)]
+                                                                   [(first field) {} (second field)])
+                                           {:keys [input-type]} (schema-utils/determine-input-type type)
+                                           field-name (schema-utils/ns-keyword->input-name field-key)
+                                           optional? (:optional opts)]
+                                       ;; For optional boolean fields that exist in current entity
+                                       ;; but are missing from params (unchecked), explicitly set them to false
+                                       (if (and (= input-type :boolean)
+                                                optional?
+                                                (contains? current-entity field-key)
+                                                (get current-entity field-key) ;; Currently true
+                                                (not (contains? params field-name)))
+                                         (assoc acc field-name "false") ;; Explicitly set to false
+                                         acc)))
+                                   params
+                                   (schema-utils/extract-schema-fields schema))
 
-        ;; Process optional boolean fields that might have been unchecked
-        updated-params (reduce (fn [acc field]
-                                 #_{:clj-kondo/ignore [:shadowed-var]}
-                                 (let [[field-key opts type] (if (map? (second field))
-                                                               [(first field) (second field) (nth field 2)]
-                                                               [(first field) {} (second field)])
-                                       {:keys [input-type]} (schema-utils/determine-input-type type)
-                                       field-name (schema-utils/ns-keyword->input-name field-key)
-                                       optional? (:optional opts)]
-                                   ;; For optional boolean fields that exist in current entity
-                                   ;; but are missing from params (unchecked), explicitly set them to false
-                                   (if (and (= input-type :boolean)
-                                            optional?
-                                            (contains? current-entity field-key)
-                                            (get current-entity field-key) ;; Currently true
-                                            (not (contains? params field-name)))
-                                     (assoc acc field-name "false") ;; Explicitly set to false
-                                     acc)))
-                               params
-                               (schema-utils/extract-schema-fields schema))
+            form-data      (-> (form->schema updated-params schema ctx)
+                               (default-label-from-field entity-key label-fallbacks)
+                               (merge (cleared-fields schema params current-entity)))
+            time-zone      (-> params
+                               (get (str entity-str "/time-zone")))
+            user-time-zone (get-user-time-zone ctx)
+            new-tz         (and time-zone (not= user-time-zone time-zone))]
 
-        form-data      (-> (form->schema updated-params schema ctx)
-                           (default-label-from-field entity-key label-fallbacks)
-                           (merge (cleared-fields schema params current-entity)))
-        time-zone      (-> params
-                           (get (str entity-str "/time-zone")))
-        user-time-zone (get-user-time-zone ctx)
-        new-tz         (and time-zone (not= user-time-zone time-zone))]
+        ;; Update the entity
+        (mutations/update-entity!
+         ctx
+         {:entity-key entity-key,
+          :entity-id  entity-id,
+          :data       form-data})
 
-    ;; Update the entity
-    (mutations/update-entity!
-     ctx
-     {:entity-key entity-key,
-      :entity-id  entity-id,
-      :data       form-data})
+        ;; Optionally update user time zone
+        (when new-tz
+          (mutations/update-entity!
+           ctx
+           {:entity-key :user,
+            :entity-id  user-id,
+            :data       {:user/time-zone time-zone}}))
 
-    ;; Optionally update user time zone
-    (when new-tz
-      (mutations/update-entity!
-       ctx
-       {:entity-key :user,
-        :entity-id  user-id,
-        :data       {:user/time-zone time-zone}}))
-
-    ;; Return redirect response
-    (let [default-redirect (str "/app/crud/form/" entity-str "/edit/" entity-id)
-          final-redirect   (or redirect-url default-redirect)
-          is-htmx?         (some? (get headers "hx-request"))]
-      (if is-htmx?
-        {:status  200
-         :headers {"HX-Redirect" final-redirect}}
-        {:status  303,
-         :headers {"location" final-redirect}}))))
+        ;; Return redirect response
+        (let [default-redirect (str "/app/crud/form/" entity-str "/edit/" entity-id)
+              final-redirect   (or redirect-url default-redirect)
+              is-htmx?         (some? (get headers "hx-request"))]
+          (if is-htmx?
+            {:status  200
+             :headers {"HX-Redirect" final-redirect}}
+            {:status  303,
+             :headers {"location" final-redirect}}))))))
 
 (defn- with-form-errors
   "Render submitted values for recognized conversion and write-validation errors."

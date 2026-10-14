@@ -159,6 +159,19 @@
   (let [new-db (sortable/reorder-entities! ctx :task :task/focus-order)]
     (task-today/today-content (assoc ctx :biff/db new-db))))
 
+(defn- wrap-owned-task
+  "Answer 404 unless the path's task belongs to the signed-in user, so the
+   per-task actions below can address their task by id alone."
+  [handler]
+  (fn [{:keys [biff/db session path-params], :as ctx}]
+    (if (some-> (:id path-params)
+                parse-uuid
+                (as-> id (queries/get-entity-for-user db id (:uid session) :task)))
+      (handler ctx)
+      {:status  404
+       :headers {"content-type" "text/plain"}
+       :body    "Not found."})))
+
 (def routes
   ["/task" {}
    ["" {:get task-focus/focus-page}]
@@ -166,10 +179,11 @@
    ["/today" {:get task-today/today-view}]
    ["/reorder-today" {:post reorder-today!}]
    ["/quick-add-today" {:post quick-add-today!}]
-   ["/:id/set-state" {:post set-state!}]
-   ["/:id/snooze" {:post snooze!}]
-   ["/:id/clear-snooze" {:post clear-snooze!}]
-   ["/:id/focus-today" {:post focus-today!}]
-   ["/:id/complete-today" {:post complete-today!}]
-   ["/:id/defer-today" {:post defer-today!}]
-   ["/:id/remove-from-today" {:post remove-from-today!}]])
+   ["/:id" {:middleware [wrap-owned-task]}
+    ["/set-state" {:post set-state!}]
+    ["/snooze" {:post snooze!}]
+    ["/clear-snooze" {:post clear-snooze!}]
+    ["/focus-today" {:post focus-today!}]
+    ["/complete-today" {:post complete-today!}]
+    ["/defer-today" {:post defer-today!}]
+    ["/remove-from-today" {:post remove-from-today!}]]])
