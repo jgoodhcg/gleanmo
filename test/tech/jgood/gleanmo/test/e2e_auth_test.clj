@@ -66,3 +66,13 @@
       (is (= 403 (status {:params {:token "secret" :email "me@example.com"}})))
       (is (= 403 (status {:params {:token "secret"
                                    :email "me@localhost.example.com"}}))))))
+
+(deftest loopback-test
+  (testing "IPv4 and every IPv6 spelling Jetty may report are loopback"
+    (doseq [addr ["127.0.0.1" "127.1.2.3" "::1" "0:0:0:0:0:0:0:1"
+                  "[0:0:0:0:0:0:0:1]" "[::1]" "0:0:0:0:0:0:0:1%0"]]
+      (is (e2e-auth/loopback? addr) addr)))
+  (testing "network addresses and non-literals are not"
+    (doseq [addr ["192.168.1.20" "100.101.102.103" "fe80::1" "localhost"
+                  "evil.example" "" nil]]
+      (is (not (e2e-auth/loopback? addr)) (str addr)))))

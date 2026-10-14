@@ -9,7 +9,8 @@
             [tech.jgood.gleanmo.schema :as schema-registry]
             [tech.jgood.gleanmo.schema.meta :as sm]
             [tick.core :as t])
-  (:import [java.security MessageDigest SecureRandom]))
+  (:import [java.net InetAddress]
+           [java.security MessageDigest SecureRandom]))
 
 (def demo-email "marketing-demo@localhost")
 
@@ -464,8 +465,17 @@
 
 (defonce ^:private login-token (ensure-token-file!))
 
-(def ^:private loopback-addrs
-  #{"127.0.0.1" "0:0:0:0:0:0:0:1" "::1"})
+(defn loopback?
+  "True when `remote-addr` is a loopback IP. Jetty may bracket IPv6
+   (`[0:0:0:0:0:0:0:1]`) or add a zone, so the literal is parsed rather than
+   matched; anything that is not an IP literal is refused without a DNS lookup."
+  [remote-addr]
+  (let [ip (some-> remote-addr (str/replace #"^\[|\]$" "") (str/replace #"%.*$" ""))]
+    (boolean
+     (and ip
+          (re-matches #"[0-9A-Fa-f:.]+" ip)
+          (try (.isLoopbackAddress (InetAddress/getByName ip))
+               (catch java.net.UnknownHostException _ false))))))
 
 (defn- token-matches?
   [expected supplied]
@@ -486,7 +496,7 @@
    (fn [{:keys [remote-addr params] :as ctx}]
      (let [email (get params :email)]
        (cond
-         (not (contains? loopback-addrs remote-addr))
+         (not (loopback? remote-addr))
          (refuse 404 "Not found.")
 
          (not (token-matches? expected-token (get params :token)))
