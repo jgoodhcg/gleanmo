@@ -120,6 +120,15 @@ function applyGleanmoChartFormat(options) {
   return options;
 }
 
+// Text from records (labels, group names) must pass through this before it is
+// concatenated into HTML. Server-rendered pages are escaped by Rum; strings
+// built here are not, and a label is anything its writer chose to store.
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[c]);
+}
+
 function renderEChartFromData(chartElementId, dataElementId) {
   const dataElement = document.getElementById(dataElementId);
   if (!dataElement) {
@@ -181,7 +190,7 @@ function renderEChartFromData(chartElementId, dataElementId) {
           // Create readable entity name (convert habit-log to habit logs)
           const readableEntityType = entityType.replace('-', ' ') + (count === 1 ? '' : 's');
           
-          let tooltip = `<div style="padding: 8px;"><strong>${dateStr}</strong><br/>${count} ${readableEntityType}`;
+          let tooltip = `<div style="padding: 8px;"><strong>${dateStr}</strong><br/>${escapeHtml(count)} ${escapeHtml(readableEntityType)}`;
           
           // Check if we have grouped relationship data (object) or old format (array)
           if (entityLabels && typeof entityLabels === 'object' && !Array.isArray(entityLabels)) {
@@ -192,8 +201,8 @@ function renderEChartFromData(chartElementId, dataElementId) {
               groupKeys.forEach(groupName => {
                 const labels = entityLabels[groupName];
                 if (labels && labels.length > 0) {
-                  tooltip += `<br/><strong>${groupName}:</strong><br/>`;
-                  tooltip += labels.map(label => `• ${label}`).join('<br/>');
+                  tooltip += `<br/><strong>${escapeHtml(groupName)}:</strong><br/>`;
+                  tooltip += labels.map(label => `• ${escapeHtml(label)}`).join('<br/>');
                 }
               });
             }
@@ -201,8 +210,8 @@ function renderEChartFromData(chartElementId, dataElementId) {
             // Backward compatibility for old flat array format
             const labelSectionName = entityType.replace('-log', '').replace('-', ' ') + 's';
             const capitalizedLabel = labelSectionName.charAt(0).toUpperCase() + labelSectionName.slice(1);
-            tooltip += `<br/><br/><strong>${capitalizedLabel}:</strong><br/>`;
-            tooltip += entityLabels.map(label => `• ${label}`).join('<br/>');
+            tooltip += `<br/><br/><strong>${escapeHtml(capitalizedLabel)}:</strong><br/>`;
+            tooltip += entityLabels.map(label => `• ${escapeHtml(label)}`).join('<br/>');
           }
           
           tooltip += '</div>';
