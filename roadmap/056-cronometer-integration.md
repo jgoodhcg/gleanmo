@@ -737,9 +737,8 @@ machine.
   64 food logs, 55 readings, 18 foods); series ticks `2026-10-12T19-12-51Z`
   (before) and `2026-10-13T13-56-42Z` (after).
 - Blockers: none.
-- Next action: user runs the real-data check
-  (`clojure -Scp "$(clojure -Spath -A:dev)" -M -i tmp/cronometer_check.clj`),
-  then sets a real `CREDENTIALS_KEY` without `FAKE_CRONOMETER`, connects on
+- Next action: rollout (see Rollout) — real-data check passed 2026-10-13;
+  user sets the prod `CREDENTIALS_KEY`, merges to `main`, connects on
   `/app/cronometer`, and presses Sync now.
 
 ### Implementation decisions (2026-10-12)
@@ -796,8 +795,12 @@ machine.
       off (`cronometer.fake-test`).
 - [x] Dev fake: e2e connects, survives one rejected session, syncs 7 days,
       counts and macros fill in (`test:cronometer`, CI included).
-- [ ] Slice A step 6: transform over `cronometer_data/` matches the diary
-      summaries (user-run: `tmp/cronometer_check.clj`).
+- [x] Slice A step 6: transform over `cronometer_data/` matches the diary
+      summaries (`tmp/cronometer_check.clj`, run 2026-10-13 at the user's
+      request: energy and macros match exactly on all three probe days, no
+      warnings, every produced doc validates). The script predates
+      activities, so real Exercise entries are first exercised by the live
+      sync.
 - [ ] Live sync against the real account (user-run).
 - [ ] Phase 4: CSV backfill imported without errors.
 
