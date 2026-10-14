@@ -3,7 +3,7 @@ title: "AI Assistance Integration"
 status: active
 description: "Restore task use through conversational backlog cleanup and daily planning, starting with scoped agent access and approved batch changes"
 created: 2026-07-11
-updated: 2026-10-12
+updated: 2026-10-13
 tags: [integration, ai, mcp, api, security, llm-context]
 priority: high
 ---
@@ -272,6 +272,47 @@ Offline capture is now part of [093-inbox-quick-capture.md](./093-inbox-quick-ca
 - [ ] Token format — `gmn_` prefix with what payload? Random bearer string with server-side permission lookup, or a self-contained signed JWT? Recommending opaque random with server-side lookup for revocability without a blacklist.
 
 ## Notes
+
+### Dogfood notes (2026-10-13)
+
+Raised during the Cronometer production rollout ([056-cronometer-integration.md](./056-cronometer-integration.md)).
+
+**Standardized agent discovery / initial prompt.**
+
+> "I think I should probably have some kind of standardized ai discovery of hte api or initial prompt."
+
+Today an agent is told how to start only by one sentence on `/app/api-tokens`
+(`app/api_tokens.clj:192`): use `Authorization: Bearer gmn_…` and "Start at
+`GET /api/v1/types`". `/types` (`api.clj` `types-handler`) already describes the
+token's grants, each readable type's fields, enums, scales and relations, and
+the nutrient table — but nothing says how to page lists, what `since` needs,
+how `/tx` ops and `dry_run`/`expect` look, or that read-only groups exist. An
+agent learns those from 400 messages.
+
+Candidates to weigh, not yet decided: an unauthenticated `GET /api/v1` (or
+`/.well-known/…`) index naming endpoints and auth; an OpenAPI document; an
+`llms.txt`-style plain-text guide; a copyable "initial prompt" on the token page
+filled in with the base URL and the token's grants. This subsumes the deferred
+"discovery endpoint" above, and an MCP layer would reuse whatever it settles on.
+
+**Agent writes to generic imported entities.**
+
+> "food logs, biometrics, and activities are meant to be generic things. Eventually I might want api to allow writes to those."
+
+Since `674cced` the `food`, `food-log`, `nutrition-day`, `biometric-log` and
+`activity-observation` schemas are provider-neutral (every `:cronometer/*`
+attribute optional). The API still marks the `:nutrition` and `:biometrics`
+groups `:read-only` as a whole (`api/access.clj` `groups`), because the next
+sync overwrites a synced row an agent edited.
+
+Interpretation: writes become safe per document rather than per group. Rows a
+sync owns (carrying provider lineage) stay read-only; rows created by the app or
+an agent are writable. User-managed fields on synced rows are the exception
+already in practice: the sync leaves `activity-observation/exercise-session-id`
+alone (`sync/user-managed-keys`), so that link could be writable even on a
+synced row. Needs a decision on how ownership is detected (lineage presence vs.
+an explicit `source`), how `/types` reports per-document writability, and how
+`can?` changes from type-level to document-level checks.
 
 ### Use case sketches (2026-07-11)
 

@@ -387,7 +387,8 @@ nothing; the token page offers none/read only; `cronometer/raw` stays out of
 API output as for every type. `activity-observation/exercise-session-id` is
 returned as the bare id, and `/types` names only its target type, so a token
 without the `:exercise` group learns no session contents (it cannot fetch the
-session by that id).
+session by that id). Agent writes to these generic entities are recorded in
+[061-ai-assistance.md](./061-ai-assistance.md#dogfood-notes-2026-10-13).
 
 Remaining implementation: a way to set the session link. No CRUD routes, Quick Add links, timer
 routes, or smoke-test routes were added for this schema-only foundation.
