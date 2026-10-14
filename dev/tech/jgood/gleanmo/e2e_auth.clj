@@ -1,12 +1,14 @@
 (ns tech.jgood.gleanmo.e2e-auth
   "Dev-only auth bypass for E2E testing. This namespace is only loaded in dev mode
    and should never be included in production builds."
-  (:require [com.biffweb :as biff]
+  (:require [clojure.string :as str]
+            [com.biffweb :as biff]
             [tech.jgood.gleanmo.db.mutations :as mutations]
             [tech.jgood.gleanmo.db.queries :as queries]
             [tech.jgood.gleanmo.schema :as schema-registry]
             [tech.jgood.gleanmo.schema.meta :as sm]
-            [tick.core :as t]))
+            [tick.core :as t])
+  (:import [java.security MessageDigest]))
 
 (def demo-email "marketing-demo@localhost")
 
@@ -437,7 +439,44 @@
      :headers {"Location" "/app"}
      :session (assoc session :uid user-id)}))
 
+(def ^:private loopback-addrs
+  #{"127.0.0.1" "0:0:0:0:0:0:0:1" "::1"})
+
+(defn- token-matches?
+  [expected supplied]
+  (and (string? expected) (not (str/blank? expected)) (string? supplied)
+       (MessageDigest/isEqual (.getBytes ^String expected "UTF-8")
+                              (.getBytes ^String supplied "UTF-8"))))
+
+(defn- refuse [status body]
+  {:status status, :headers {"content-type" "text/plain"}, :body body})
+
+(defn wrap-e2e-guard
+  "These routes sign in without email verification, and the dev server binds
+   0.0.0.0, so they answer only requests from this machine that carry the
+   configured `E2E_LOGIN_TOKEN`, and only for `@localhost` test accounts —
+   never a real address someone signed in with."
+  [handler]
+  (fn [{:keys [remote-addr params] :as ctx}]
+    (let [email (get params :email)]
+      (cond
+        (not (contains? loopback-addrs remote-addr))
+        (refuse 404 "Not found.")
+
+        (str/blank? (:gleanmo.e2e/login-token ctx))
+        (refuse 403 "Set E2E_LOGIN_TOKEN in config.env and restart the dev server.")
+
+        (not (token-matches? (:gleanmo.e2e/login-token ctx) (get params :token)))
+        (refuse 403 "Missing or wrong e2e token.")
+
+        (and (some? email) (not (str/ends-with? email "@localhost")))
+        (refuse 403 "E2E sign-in is limited to @localhost accounts.")
+
+        :else
+        (handler ctx)))))
+
 (def module
-  {:routes [["/auth/e2e-login" {:get e2e-login-handler}]
-            ["/auth/e2e-seed-timeline" {:get e2e-seed-timeline-handler}]
-            ["/auth/e2e-seed-series" {:get e2e-seed-series-handler}]]})
+  {:routes [["/auth" {:middleware [wrap-e2e-guard]}
+             ["/e2e-login" {:get e2e-login-handler}]
+             ["/e2e-seed-timeline" {:get e2e-seed-timeline-handler}]
+             ["/e2e-seed-series" {:get e2e-seed-series-handler}]]]})

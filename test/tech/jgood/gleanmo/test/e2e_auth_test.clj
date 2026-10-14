@@ -40,3 +40,31 @@
   (testing "the idempotency marker is stable for a calendar date"
     (is (= "Timeline pulse 2026-07-29"
            (#'e2e-auth/timeline-day-label (LocalDate/of 2026 7 29))))))
+
+(deftest e2e-guard-test
+  (let [handler (e2e-auth/wrap-e2e-guard (constantly {:status 303}))
+        request (fn [overrides]
+                  (merge {:remote-addr             "127.0.0.1"
+                          :gleanmo.e2e/login-token "secret"
+                          :params                  {:token "secret"
+                                                    :email "e2e-test@localhost"}}
+                         overrides))
+        status  #(:status (handler (request %)))]
+    (testing "a local request with the token and a test account passes"
+      (is (= 303 (status {})))
+      (is (= 303 (status {:remote-addr "0:0:0:0:0:0:0:1"})))
+      (is (= 303 (status {:params {:token "secret"}}))))
+    (testing "another device on the network is not found"
+      (is (= 404 (status {:remote-addr "192.168.1.20"})))
+      (is (= 404 (status {:remote-addr "100.101.102.103"}))))
+    (testing "a missing or wrong token is refused"
+      (is (= 403 (status {:params {:email "e2e-test@localhost"}})))
+      (is (= 403 (status {:params {:token "guess" :email "e2e-test@localhost"}}))))
+    (testing "no configured token disables the routes"
+      (is (= 403 (status {:gleanmo.e2e/login-token nil})))
+      (is (= 403 (status {:gleanmo.e2e/login-token ""
+                          :params {:token "" :email "e2e-test@localhost"}}))))
+    (testing "only @localhost accounts can be signed in"
+      (is (= 403 (status {:params {:token "secret" :email "me@example.com"}})))
+      (is (= 403 (status {:params {:token "secret"
+                                   :email "me@localhost.example.com"}}))))))

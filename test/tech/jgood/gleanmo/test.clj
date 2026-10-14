@@ -25,6 +25,7 @@
    [tech.jgood.gleanmo.test.crud.views.formatting-test]
    [tech.jgood.gleanmo.test.db.mutations-test]
    [tech.jgood.gleanmo.test.db.queries-test]
+   [tech.jgood.gleanmo.test.e2e-auth-test]
    [tech.jgood.gleanmo.test.goals.calc-test]
    [tech.jgood.gleanmo.test.goals.dashboard-test]
    [tech.jgood.gleanmo.test.goals.measurements-test]
