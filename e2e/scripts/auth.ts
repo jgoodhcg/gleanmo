@@ -3,18 +3,14 @@ import { Page } from '@playwright/test';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:8080';
 
-// The dev server reads E2E_LOGIN_TOKEN from config.env; read the same file so
-// there is one place to set it. An env var of the same name wins.
+// The dev server writes its e2e sign-in token here at startup
+// (dev/tech/jgood/gleanmo/e2e_auth.clj), so there is nothing to configure.
 function loginToken(): string {
-  if (process.env.E2E_LOGIN_TOKEN) return process.env.E2E_LOGIN_TOKEN;
   try {
-    const env = readFileSync(new URL('../../config.env', import.meta.url), 'utf8');
-    const match = env.match(/^E2E_LOGIN_TOKEN=["']?([^"'\s]+)["']?\s*$/m);
-    if (match) return match[1];
+    return readFileSync(new URL('../../target/e2e-login-token', import.meta.url), 'utf8').trim();
   } catch {
-    // fall through to the error below
+    throw new Error('No target/e2e-login-token: start the dev server (biff dev) in this checkout first');
   }
-  throw new Error('E2E_LOGIN_TOKEN is not set in config.env (see resources/config.template.env)');
 }
 
 async function authenticateAt(page: Page, path: string) {

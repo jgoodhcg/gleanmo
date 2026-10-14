@@ -1,14 +1,15 @@
 (ns tech.jgood.gleanmo.e2e-auth
   "Dev-only auth bypass for E2E testing. This namespace is only loaded in dev mode
    and should never be included in production builds."
-  (:require [clojure.string :as str]
+  (:require [clojure.java.io :as io]
+            [clojure.string :as str]
             [com.biffweb :as biff]
             [tech.jgood.gleanmo.db.mutations :as mutations]
             [tech.jgood.gleanmo.db.queries :as queries]
             [tech.jgood.gleanmo.schema :as schema-registry]
             [tech.jgood.gleanmo.schema.meta :as sm]
             [tick.core :as t])
-  (:import [java.security MessageDigest]))
+  (:import [java.security MessageDigest SecureRandom]))
 
 (def demo-email "marketing-demo@localhost")
 
@@ -439,6 +440,30 @@
      :headers {"Location" "/app"}
      :session (assoc session :uid user-id)}))
 
+(def token-file
+  "Where the e2e sign-in token lives, inside the git-ignored `target/`. The e2e
+   scripts read it from here, so nothing needs configuring."
+  "target/e2e-login-token")
+
+(defn- ensure-token-file!
+  "The token in `token-file`, generated on first use. An existing file is kept,
+   so a test JVM loading this namespace agrees with the running dev server;
+   deleting the file rotates the token at the next start."
+  []
+  (let [f (io/file token-file)]
+    (if (.exists f)
+      (str/trim (slurp f))
+      (let [bytes (byte-array 32)
+            token (do (.nextBytes (SecureRandom.) bytes)
+                      (apply str (map #(format "%02x" %) bytes)))]
+        (io/make-parents f)
+        (spit f token)
+        (.setReadable f false false)
+        (.setReadable f true true)
+        token))))
+
+(defonce ^:private login-token (ensure-token-file!))
+
 (def ^:private loopback-addrs
   #{"127.0.0.1" "0:0:0:0:0:0:0:1" "::1"})
 
@@ -454,26 +479,24 @@
 (defn wrap-e2e-guard
   "These routes sign in without email verification, and the dev server binds
    0.0.0.0, so they answer only requests from this machine that carry the
-   configured `E2E_LOGIN_TOKEN`, and only for `@localhost` test accounts —
-   never a real address someone signed in with."
-  [handler]
-  (fn [{:keys [remote-addr params] :as ctx}]
-    (let [email (get params :email)]
-      (cond
-        (not (contains? loopback-addrs remote-addr))
-        (refuse 404 "Not found.")
+   token in `token-file`, and only for `@localhost` test accounts — never a
+   real address someone signed in with."
+  ([handler] (wrap-e2e-guard handler login-token))
+  ([handler expected-token]
+   (fn [{:keys [remote-addr params] :as ctx}]
+     (let [email (get params :email)]
+       (cond
+         (not (contains? loopback-addrs remote-addr))
+         (refuse 404 "Not found.")
 
-        (str/blank? (:gleanmo.e2e/login-token ctx))
-        (refuse 403 "Set E2E_LOGIN_TOKEN in config.env and restart the dev server.")
+         (not (token-matches? expected-token (get params :token)))
+         (refuse 403 (str "Missing or wrong e2e token (see " token-file ")."))
 
-        (not (token-matches? (:gleanmo.e2e/login-token ctx) (get params :token)))
-        (refuse 403 "Missing or wrong e2e token.")
+         (and (some? email) (not (str/ends-with? email "@localhost")))
+         (refuse 403 "E2E sign-in is limited to @localhost accounts.")
 
-        (and (some? email) (not (str/ends-with? email "@localhost")))
-        (refuse 403 "E2E sign-in is limited to @localhost accounts.")
-
-        :else
-        (handler ctx)))))
+         :else
+         (handler ctx))))))
 
 (def module
   {:routes [["/auth" {:middleware [wrap-e2e-guard]}

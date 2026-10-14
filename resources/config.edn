@@ -49,11 +49,6 @@
  :gleanmo.cronometer/fake #profile {:prod    false
                                     :default #boolean #biff/env FAKE_CRONOMETER}
 
- ;; Dev only: the shared secret the e2e sign-in routes require
- ;; (dev/tech/jgood/gleanmo/e2e_auth.clj). Unset means those routes refuse.
- :gleanmo.e2e/login-token #profile {:dev     #biff/env E2E_LOGIN_TOKEN
-                                    :default nil}
-
  :biff.nrepl/enabled #profile {:dev true :default false}
  :biff.nrepl/port    #or [#biff/env NREPL_PORT "7888"]
  :biff.nrepl/args    ["--port" #ref [:biff.nrepl/port]

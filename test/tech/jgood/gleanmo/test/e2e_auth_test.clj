@@ -42,12 +42,12 @@
            (#'e2e-auth/timeline-day-label (LocalDate/of 2026 7 29))))))
 
 (deftest e2e-guard-test
-  (let [handler (e2e-auth/wrap-e2e-guard (constantly {:status 303}))
+  (let [guarded (fn [token] (e2e-auth/wrap-e2e-guard (constantly {:status 303}) token))
+        handler (guarded "secret")
         request (fn [overrides]
-                  (merge {:remote-addr             "127.0.0.1"
-                          :gleanmo.e2e/login-token "secret"
-                          :params                  {:token "secret"
-                                                    :email "e2e-test@localhost"}}
+                  (merge {:remote-addr "127.0.0.1"
+                          :params      {:token "secret"
+                                        :email "e2e-test@localhost"}}
                          overrides))
         status  #(:status (handler (request %)))]
     (testing "a local request with the token and a test account passes"
@@ -60,10 +60,8 @@
     (testing "a missing or wrong token is refused"
       (is (= 403 (status {:params {:email "e2e-test@localhost"}})))
       (is (= 403 (status {:params {:token "guess" :email "e2e-test@localhost"}}))))
-    (testing "no configured token disables the routes"
-      (is (= 403 (status {:gleanmo.e2e/login-token nil})))
-      (is (= 403 (status {:gleanmo.e2e/login-token ""
-                          :params {:token "" :email "e2e-test@localhost"}}))))
+    (testing "a blank expected token matches nothing"
+      (is (= 403 (:status ((guarded "") (request {:params {:token ""}}))))))
     (testing "only @localhost accounts can be signed in"
       (is (= 403 (status {:params {:token "secret" :email "me@example.com"}})))
       (is (= 403 (status {:params {:token "secret"
