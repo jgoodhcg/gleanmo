@@ -1,5 +1,6 @@
 (ns tech.jgood.gleanmo.middleware
   (:require [clojure.string :as str]
+            [clojure.tools.logging :as log]
             [com.biffweb :as biff]
             [muuntaja.middleware :as muuntaja]
             [ring.middleware.anti-forgery :as csrf]
@@ -109,6 +110,34 @@
       muuntaja/wrap-format
       (rd/wrap-defaults rd/api-defaults)))
 
+(defn loggable-path
+  "The request path and query as it is safe to write to logs. Magic sign-in
+   links carry their secret in the path, and query values include API search
+   text and tokens, so the path segment is masked and only parameter names are
+   kept: `/auth/verify-link/[redacted]`, `/api/v1/habit-log?q&limit`."
+  [uri query-string]
+  (str (str/replace (or uri "") #"^(/auth/verify-link/).+" "$1[redacted]")
+       (when-not (str/blank? query-string)
+         (str "?" (->> (str/split query-string #"&")
+                       (map #(first (str/split % #"=" 2)))
+                       (remove str/blank?)
+                       (str/join "&"))))))
+
+(defn wrap-log-requests
+  "Biff's `wrap-log-requests` with the logged URL passed through
+   `loggable-path`, so request logs never hold sign-in tokens or query values."
+  [handler]
+  (fn [ctx]
+    (let [start    (System/nanoTime)
+          resp     (handler ctx)
+          duration (quot (- (System/nanoTime) start) 1000000)]
+      (log/infof "%3sms %s %-4s %s"
+                 (str duration)
+                 (:status resp "nil")
+                 (name (:request-method ctx))
+                 (loggable-path (:uri ctx) (:query-string ctx)))
+      resp)))
+
 (defn wrap-base-defaults [handler]
   (-> handler
       ;; Innermost, so a body over the limit is refused before
@@ -118,5 +147,5 @@
       biff/wrap-resource
       biff/wrap-internal-error
       biff/wrap-ssl
-      biff/wrap-log-requests
+      wrap-log-requests
       obs/wrap-request-profiling))

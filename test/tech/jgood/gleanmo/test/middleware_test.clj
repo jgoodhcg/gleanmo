@@ -45,3 +45,19 @@
                            :headers {"hx-request" "true"}})]
         (is (= 200 (:status resp)))
         (is (= ::reached (:body resp)))))))
+
+(deftest loggable-path-test
+  (testing "magic sign-in link tokens are masked"
+    (is (= "/auth/verify-link/[redacted]"
+           (mid/loggable-path "/auth/verify-link/eyJhbGciOi.abc.def" nil)))
+    (is (= "/auth/verify-link?token"
+           (mid/loggable-path "/auth/verify-link" "token=eyJhbGciOi.abc"))))
+  (testing "query values are dropped and names kept"
+    (is (= "/api/v1/habit-log?q&limit"
+           (mid/loggable-path "/api/v1/habit-log" "q=migraine%20notes&limit=5")))
+    (is (= "/auth/e2e-login?email&token"
+           (mid/loggable-path "/auth/e2e-login" "email=a%40localhost&token=s3cret"))))
+  (testing "ordinary paths are unchanged"
+    (is (= "/app/crud/habit" (mid/loggable-path "/app/crud/habit" nil)))
+    (is (= "/app/crud/habit" (mid/loggable-path "/app/crud/habit" "")))
+    (is (= "/app?flag" (mid/loggable-path "/app" "flag")))))
