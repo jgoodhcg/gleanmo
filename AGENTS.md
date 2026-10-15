@@ -37,6 +37,10 @@ Gleanmo is a personal quantified-self web app built in Clojure 1.11.1 with Biff,
 - Version file: `deps.edn`
 - Lockfile: none; dependencies are pinned in `deps.edn`
 - Setup: `clj -P`
+- Worktrees: before asking the user to run `biff dev`, make sure
+  `config.env` sets `PORT` and `NREPL_PORT` to ports no other checkout is
+  listening on (`lsof -ti tcp:<port> -sTCP:LISTEN`). A fresh `config.env`
+  has no `PORT` and tries 8080/7888.
 
 ## Deployment
 
