@@ -66,7 +66,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 ### Active
 
 - [097-cronometer-recipe-export.md](./097-cronometer-recipe-export.md) - Standalone custom recipe JSON and ingredient CSV export; live catalog discovery requires a user-run check.
-- [097-security-audit.md](./097-security-audit.md) - Security audit walkthrough (2026-10-14): findings 1–7 decided and fixed on `security-audit` (ownership checks, e2e sign-in guard, tooltip escaping, vendored libraries, verified email change, log redaction); Low findings 8–11 remain
+- [097-security-audit.md](./097-security-audit.md) - Security audit walkthrough (2026-10-14): findings 1–7 decided and fixed on `security-audit` (ownership checks, e2e sign-in guard, tooltip escaping, vendored libraries, verified email change, log redaction); 8 roadmapped as 099; Low findings 9–11 remain
 - [056-cronometer-integration.md](./056-cronometer-integration.md) - Food, recipes, biometrics and daily summaries from Cronometer for the agent API; slices A–C built and tested 2026-10-12 (sync, encrypted per-user credentials, read-only API groups, `/app/cronometer`), plus a dev-only fake API for local and CI sync; activity observations readable via a read-only Activities API group (2026-10-13); live sync and CSV backfill pending
 - [061-ai-assistance.md](./061-ai-assistance.md) - Agent API v1 built 2026-10-08: scoped bearer tokens, permission-checked reads, one checked all-or-nothing `tx` write endpoint with dry run; agent discovery built 2026-10-20 (`/agents` guide + `/llms.txt`, Agent Skill, generated OpenAPI, api-catalog, token-page setup prompt; MCP deferred); 2026-10-13 note pending: per-document writes to generic imported entities (food logs, biometrics, activities)
   Follow-up requested 2026-10-18: edit existing API token permissions without replacing the token.
@@ -110,6 +110,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 
 ### Draft
 
+- [099-relation-ownership-checks.md](./099-relation-ownership-checks.md) - Accept a related-record id on write only when it belongs to the same user (CRUD relations, timer parent/location, bouldering problem, workout exercise)
 - [098-content-security-policy.md](./098-content-security-policy.md) - Enforced CSP as a backstop for missed escaping, after moving inline scripts and handlers into served files
 - [096-go-port-experiment.md](./096-go-port-experiment.md) - Record of a time-boxed AI port to Go + SQL (2026-10-07): impressions, and the preconditions (acceptance suite, vanilla CSS, Go vs Rust, data migration) for a real rewrite plan
 - [095-generic-entity-statistics.md](./095-generic-entity-statistics.md) - Generic cumulative and frequency charts; mean, median, mode, min, and max for meaningful measures and occurrence counts
