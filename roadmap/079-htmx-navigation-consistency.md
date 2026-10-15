@@ -3,7 +3,7 @@ title: "One navigation model: boost every form through htmx, delete the double-s
 status: ready
 description: "Route all 42 native form POSTs through htmx so pages stop fully reloading, replace the hand-rolled double-submit guard with hx-sync, and drop the two unused vendor scripts"
 created: 2026-08-29
-updated: 2026-10-04
+updated: 2026-10-14
 tags: [frontend, htmx, performance, forms, navigation]
 priority: high
 ---
@@ -301,3 +301,10 @@ goes from **two accidental** models — native or htmx, decided by history — t
 **two deliberate** ones: boosted body-swap by default, explicit fragment swap
 where a path has earned it. The second becomes an opt-in optimization instead of
 an inconsistency.
+
+2026-10-14 (found during the email-change work, roadmap 097): on the account
+page, after "Update User" (an htmx form) the page's scripts load again, so the
+double-submit guard is registered twice and blocks the next plain form submit.
+The sidebar's "turn off archived / BM logs" buttons are probably affected. The
+email verify/cancel forms were made htmx to sidestep it; moving every form to
+htmx, as this unit plans, removes the cause.
