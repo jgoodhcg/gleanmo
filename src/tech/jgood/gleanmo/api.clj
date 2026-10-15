@@ -20,6 +20,7 @@
    [malli.error :as me]
    [tech.jgood.gleanmo.api.access :as access]
    [tech.jgood.gleanmo.api.coerce :as coerce]
+   [tech.jgood.gleanmo.api.discovery :as discovery]
    [tech.jgood.gleanmo.cronometer.nutrients :as nutrients]
    [tech.jgood.gleanmo.db.mutations :as mutations]
    [tech.jgood.gleanmo.db.queries :as queries]
@@ -69,6 +70,16 @@
         (catch Exception e
           (log/warn e "Could not record API token use"))))))
 
+(defn- unauthorized
+  "A 401 that points at the setup guide, so an agent that starts from an API
+   URL instead of `/agents` can still find out how to get a token."
+  [ctx]
+  (let [docs (str (str/replace (str (:biff/base-url ctx)) #"/+$" "") "/agents")]
+    (-> (error 401 "Missing, unknown, or revoked API token.")
+        (assoc-in [:body "docs"] docs)
+        (assoc :headers {"WWW-Authenticate" "Bearer realm=\"gleanmo\""
+                         "Link"             (str "<" docs ">; rel=\"service-doc\"")}))))
+
 (defn wrap-api-token
   "Authenticate the request by bearer token and attach `:api/token` and
    `:api/user-id`. Session cookies are never consulted."
@@ -82,7 +93,7 @@
             (handler (assoc ctx
                             :api/token   token-doc
                             :api/user-id (:user/id token-doc))))
-        (error 401 "Missing, unknown, or revoked API token.")))))
+        (unauthorized ctx)))))
 
 (defn wrap-json-errors
   [handler]
@@ -582,9 +593,21 @@
 ;; Module
 ;; ---------------------------------------------------------------------------
 
+(def limits
+  "The bounds the handlers enforce, for the discovery documents to state."
+  {:default-limit default-limit
+   :max-limit     max-limit
+   :max-ops       max-ops
+   :list-params   list-params})
+
 (def module
-  {:api-routes ["/api/v1" {:middleware [wrap-json-errors wrap-api-token]}
-                ["/types" {:get types-handler}]
-                ["/entities/:type" {:get list-handler}]
-                ["/entities/:type/:id" {:get get-handler}]
-                ["/tx" {:post tx-handler}]]})
+  {:api-routes ["" {:middleware [wrap-json-errors]}
+                (discovery/routes limits)
+                ["/api/v1"
+                 ["" {:get discovery/index-handler}]
+                 ["/openapi.json" {:get (discovery/openapi-handler limits)}]
+                 ["" {:middleware [wrap-api-token]}
+                  ["/types" {:get types-handler}]
+                  ["/entities/:type" {:get list-handler}]
+                  ["/entities/:type/:id" {:get get-handler}]
+                  ["/tx" {:post tx-handler}]]]]})

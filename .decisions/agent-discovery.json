@@ -1,0 +1,156 @@
+{
+  "id": "agent-discovery",
+  "title": "How an agent goes from one memorable URL to a working Gleanmo integration",
+  "created": "2026-10-15",
+  "status": "proposed",
+  "decided": "2026-10-15",
+  "decision": "Options B + C + D together, generated from code: a public plain-markdown setup guide at `/agents` (byte-identical at `/llms.txt`), an installable Agent Skill at `/agents/SKILL.md`, a generated OpenAPI 3.1 document at `/api/v1/openapi.json` with an unauthenticated JSON index at `/api/v1`, an RFC 9727 `/.well-known/api-catalog` pointing at both, and a 401 that names the guide. The token page gains a copyable setup prompt that carries the base URL and the new token's grants but never the token. MCP (option E) is deferred. Chosen by the agent under delegation from the user; awaiting the user's approval.",
+  "context": {
+    "problem": "The agent API (`/api/v1`) works, but an agent learns how to use it from one sentence on `/app/api-tokens` and from 400 messages. The user wants to type an easy URL into any agent (Claude Code, Codex, Claude.ai, others) and have the agent read instructions, choose an integration suited to its own harness, and walk the user through the one manual step: creating a token and putting it where the agent says.",
+    "constraints": [
+      "The human always creates the token at /app/api-tokens; no automated token-minting path.",
+      "Public, unauthenticated endpoints carry no user data: only the API's shape, the fixed list of permission groups and types, and the base URL.",
+      "Machine-readable descriptions are generated from the code (`api.access/groups`, the malli schemas, the handlers' parameter lists), not hand-maintained beside it.",
+      "Prefer standards that are widely adopted in late 2026 over novel ones.",
+      "No new dependencies and no new production configuration if avoidable (base URL already comes from `DOMAIN`)."
+    ]
+  },
+  "options": [
+    {
+      "id": "A",
+      "label": "Copyable prompt on the token page only",
+      "description": "Expand the token page's one-line hint into a full prompt the user pastes into an agent. Nothing public; the instructions live in the app UI."
+    },
+    {
+      "id": "B",
+      "label": "Plain-markdown guide at a memorable URL (`/agents`, mirrored at `/llms.txt`)",
+      "description": "An unauthenticated text/markdown page written for agents: what Gleanmo is, auth, the setup procedure per harness, every endpoint and parameter, the /tx contract, and safety rules. `/llms.txt` follows the llms.txt convention that coding agents (Cursor, Claude Code, Copilot, Cline, Aider) already probe; `/agents` is the URL a human remembers."
+    },
+    {
+      "id": "C",
+      "label": "Installable Agent Skill (`SKILL.md`)",
+      "description": "Serve a ready-made Agent Skills file (agentskills.io format: YAML frontmatter `name`/`description` + markdown body) that a skills-capable harness saves locally, so later sessions know how to call Gleanmo without re-reading the guide. Reads the token from an environment variable."
+    },
+    {
+      "id": "D",
+      "label": "OpenAPI 3.1 + unauthenticated index + RFC 9727 api-catalog",
+      "description": "A generated OpenAPI document (paths, parameters, bearer security scheme, entity types as an enum), a small JSON index at `GET /api/v1`, and `/.well-known/api-catalog` (application/linkset+json) linking the OpenAPI document (`service-desc`) and the guide (`service-doc`). OpenAPI is what tool-import surfaces such as Open WebUI tool servers and custom GPT actions consume."
+    },
+    {
+      "id": "E",
+      "label": "Remote MCP server",
+      "description": "Expose the API as MCP tools over Streamable HTTP. The MCP authorization spec expects OAuth 2.1 with RFC 9728 protected-resource metadata; chat surfaces (Claude.ai connectors) generally require it. Static bearer headers work in CLI clients, which can already use the HTTP API directly."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "one-url",
+      "label": "User types one memorable URL and the agent can finish setup from it",
+      "weight": "high"
+    },
+    {
+      "id": "harness-coverage",
+      "label": "Works across CLI agents, IDE agents, and tool-import surfaces",
+      "weight": "high"
+    },
+    {
+      "id": "standards",
+      "label": "Uses conventions agents and tools already recognize",
+      "weight": "medium"
+    },
+    {
+      "id": "no-drift",
+      "label": "Generated from code; cannot silently diverge from the API",
+      "weight": "medium"
+    },
+    {
+      "id": "security",
+      "label": "No user data public; token stays out of chat and repos; human mints it",
+      "weight": "high"
+    },
+    {
+      "id": "implementation-cost",
+      "label": "Low cost to build and maintain",
+      "weight": "low"
+    }
+  ],
+  "matrix": [
+    {
+      "option": "A",
+      "criteria_scores": {
+        "one-url": 1,
+        "harness-coverage": 3,
+        "standards": 0,
+        "no-drift": 3,
+        "security": 4,
+        "implementation-cost": 5
+      },
+      "notes": "Needs the user signed in and copying text: the opposite of 'type an easy URL'. Kept as a complement, not the entry point."
+    },
+    {
+      "option": "B",
+      "criteria_scores": {
+        "one-url": 5,
+        "harness-coverage": 4,
+        "standards": 4,
+        "no-drift": 4,
+        "security": 5,
+        "implementation-cost": 5
+      },
+      "notes": "Any agent that can fetch a URL can read it. llms.txt adoption is uneven (roughly 5-10% of domains) and has no SEO value, but it is the file coding agents look for, which is the audience here."
+    },
+    {
+      "option": "C",
+      "criteria_scores": {
+        "one-url": 4,
+        "harness-coverage": 4,
+        "standards": 5,
+        "no-drift": 4,
+        "security": 5,
+        "implementation-cost": 5
+      },
+      "notes": "Agent Skills is supported by dozens of agent products (Claude Code, Codex, and others), so 'set up' has a concrete, persistent result rather than a one-session memory."
+    },
+    {
+      "option": "D",
+      "criteria_scores": {
+        "one-url": 2,
+        "harness-coverage": 4,
+        "standards": 5,
+        "no-drift": 5,
+        "security": 5,
+        "implementation-cost": 4
+      },
+      "notes": "Not a URL a person remembers, but it is the formal contract, and the guide and catalog link to it. RFC 9727 (June 2025) is new and lightly adopted; it costs one small handler."
+    },
+    {
+      "option": "E",
+      "criteria_scores": {
+        "one-url": 3,
+        "harness-coverage": 4,
+        "standards": 5,
+        "no-drift": 4,
+        "security": 3,
+        "implementation-cost": 1
+      },
+      "notes": "The only path to chat-only surfaces, but doing it properly means an OAuth authorization server (client registration, consent, token issuance), which is an automated token-minting path the user said to avoid without a separate decision. Deferred; the guide and OpenAPI are what an MCP layer would wrap."
+    }
+  ],
+  "rationale": "B is the entry point because it is the only option that satisfies 'type an easy URL' for every agent that can fetch a page. C turns the guide's 'set up' step into a durable file the harness already knows how to load, and D gives tool-import surfaces and validators a formal contract. All three are generated from `api.access/groups`, the schemas, and the handlers' parameter lists, so they share one source of truth with `/types`. B, C, and D together are a few hundred lines with no new dependency and no new prod config. E is the only option that reaches chat-only clients, but its standard auth flow means building an OAuth server that mints tokens, which the user ruled out without a separate decision.",
+  "also_decided": [
+    "Token storage: the guide tells agents to have the user put the token in a `GLEANMO_TOKEN` environment variable (shell profile, or the harness's own env/secrets setting) themselves; agents must not ask for the token in chat, echo it, or write it into a repository. `GLEANMO_URL` carries the base URL.",
+    "The token-page prompt never includes the token, so a pasted prompt cannot leak it into a chat transcript.",
+    "Public endpoints describe only fixed structure (groups, type names, endpoints, parameter rules). Per-field detail stays behind auth at `/api/v1/types`, which already reflects the token's grants.",
+    "401 responses carry `WWW-Authenticate: Bearer realm=\"gleanmo\"` and a `docs` link to the guide, so an agent that starts from an API URL instead of the guide still finds it.",
+    "Base URL comes from `:biff/base-url` (prod: `https://` + `DOMAIN`), so local dev serves localhost URLs and prod needs no new env var."
+  ],
+  "references": [
+    "https://llmstxt.org/",
+    "https://agentskills.io/",
+    "https://www.rfc-editor.org/rfc/rfc9727",
+    "https://spec.openapis.org/oas/v3.1.0",
+    "https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization",
+    "roadmap/061-ai-assistance.md",
+    ".decisions/api-token-reveal.json"
+  ]
+}

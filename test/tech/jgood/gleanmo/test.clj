@@ -2,6 +2,7 @@
   (:require
    [clojure.test :refer [deftest is]]
    [tech.jgood.gleanmo.test.api-test]
+   [tech.jgood.gleanmo.test.api.discovery-test]
    [tech.jgood.gleanmo.test.app.calendar-test]
    [tech.jgood.gleanmo.test.app.cronometer-test]
    [tech.jgood.gleanmo.test.app.deferred-test]
