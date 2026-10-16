@@ -42,10 +42,18 @@ RUN clj -M:dev uberjar && cp target/jar/app.jar . && rm -r target
 # This stage (see multi-stage builds) is a bare Java container
 # copy over the uberjar from the builder image and run the application
 FROM eclipse-temurin:25-alpine
+
+# Run as an unprivileged user. It owns /app because the app writes there at
+# startup: XTDB's local index (storage/xtdb) and generated pages
+# (target/resources/public). If a deploy fails on a permission error, revert
+# this block first.
+RUN addgroup -S -g 10001 app && adduser -S -D -H -u 10001 -G app app \
+  && mkdir -p /app && chown app:app /app
 WORKDIR /app
 
 # Take the uberjar from the base image and put it in the final image
-COPY --from=jre-build /app/app.jar /app/app.jar
+COPY --from=jre-build --chown=app:app /app/app.jar /app/app.jar
+USER app
 
 EXPOSE 8080
 
