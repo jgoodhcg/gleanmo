@@ -10,21 +10,32 @@
          danlentz/clj-uuid                   {:mvn/version "0.1.9"}
          org.clojure/data.csv                {:mvn/version "1.0.1"}
          semantic-csv/semantic-csv           {:mvn/version "0.2.1-alpha1"}
-         io.github.nextjournal/clerk         {:mvn/version "0.18.1158"}
          org.slf4j/slf4j-simple              {:mvn/version "2.0.0-alpha5"}
          metosin/potpuri                     {:mvn/version "0.5.3"}
          tick/tick                           {:mvn/version "0.7.5"}
          org.mnode.ical4j/ical4j             {:mvn/version "4.0.2"}
          clj-http/clj-http                   {:mvn/version "3.13.0"}
          cheshire/cheshire                   {:mvn/version "5.13.0"}
-         com.taoensso/tufte                  {:mvn/version "2.5.0"}}
+         com.taoensso/tufte                  {:mvn/version "2.5.0"}
+         ;; Versions Clerk used to pull in before it moved to :dev. Pinned so
+         ;; the uberjar keeps the libraries it shipped with; without these,
+         ;; prod would fall back to older transitive versions than dev/test.
+         borkdude/edamame                    {:mvn/version "1.4.28"}
+         com.nextjournal/beholder            {:mvn/version "1.0.3"}
+         com.taoensso/encore                 {:mvn/version "3.112.0"}
+         com.taoensso/truss                  {:mvn/version "1.11.0"}
+         hiccup/hiccup                       {:mvn/version "2.0.0-RC3"}
+         org.clojure/tools.reader            {:mvn/version "1.5.2"}
+         org.tukaani/xz                      {:mvn/version "1.9"}}
  :aliases
  {;; Temporary JDK 25 compatibility flags for XTDB/Agrona Unsafe/native-access behavior.
   ;; Track whether each flag is still needed in roadmap/037-biff-upgrade-v1-9.md.
   :dev  {:extra-deps  {com.biffweb/tasks {:git/url   "https://github.com/jacobobryant/biff"
                                           :git/tag   "v1.8.10", :git/sha "146f2b1"
                                           :deps/root "libs/tasks"}
-                       tortue/spy        {:mvn/version "2.15.0"}}
+                       tortue/spy        {:mvn/version "2.15.0"}
+                       ;; Notebooks only (`biff notebook`); kept out of the uberjar
+                       io.github.nextjournal/clerk {:mvn/version "0.18.1158"}}
          :extra-paths ["dev" "notebook_data" "test"]
          :jvm-opts    ["-XX:-OmitStackTraceInFastThrow"
                        "-XX:+CrashOnOutOfMemoryError"
