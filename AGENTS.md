@@ -178,7 +178,7 @@ sudo install /tmp/kondo/clj-kondo /usr/local/bin/clj-kondo
 clj-kondo --version
 ```
 
-**Bump rule:** when upgrading, change `CLJ_KONDO_VERSION` in the workflow AND reinstall locally in the same change. Homebrew lags GitHub releases, so `brew upgrade` is not a reliable way to match the pinned version.
+**Bump rule:** when upgrading, change `CLJ_KONDO_VERSION` and `CLJ_KONDO_SHA256` in the workflow, the version and hashes in `script/setup-cloud-lint.sh`, AND reinstall locally in the same change. CI and the script refuse a download whose hash doesn't match. Homebrew lags GitHub releases, so `brew upgrade` is not a reliable way to match the pinned version.
 
 ### Cloud Environment Setup
 

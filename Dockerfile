@@ -19,10 +19,15 @@
 FROM clojure:temurin-25-tools-deps-alpine AS jre-build
 
 ENV TAILWIND_VERSION=v3.2.4
+# SHA-256 of the v3.2.4 tailwindcss-linux-x64 release binary. That release
+# publishes no checksum file; this is the hash taken on 2026-10-16. Change it
+# together with TAILWIND_VERSION.
+ENV TAILWIND_SHA256=cd52e757cb0bd15238f0207a215198d924811234028d056b7be39fde70491296
 
 # Install the missing packages and applications in a single layer
-RUN apk add curl rlwrap && curl -L -o /usr/local/bin/tailwindcss \
+RUN apk add curl rlwrap && curl -fL -o /usr/local/bin/tailwindcss \
   https://github.com/tailwindlabs/tailwindcss/releases/download/$TAILWIND_VERSION/tailwindcss-linux-x64 \
+  && echo "$TAILWIND_SHA256  /usr/local/bin/tailwindcss" | sha256sum -c - \
   && chmod +x /usr/local/bin/tailwindcss
 
 WORKDIR /app

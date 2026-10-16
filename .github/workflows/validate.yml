@@ -26,9 +26,12 @@ jobs:
       - name: Install clj-kondo (pinned)
         env:
           CLJ_KONDO_VERSION: v2026.07.24
+          # sha256 of clj-kondo-<version>-linux-static-amd64.zip (the release's .sha256 file)
+          CLJ_KONDO_SHA256: 759f5483d224c42e2444fb88adb3718682182a266de0e180a79df451bb243e9c
         run: |
           v="${CLJ_KONDO_VERSION#v}"
-          curl -sL "https://github.com/clj-kondo/clj-kondo/releases/download/${CLJ_KONDO_VERSION}/clj-kondo-${v}-linux-static-amd64.zip" -o kondo.zip
+          curl -fsSL "https://github.com/clj-kondo/clj-kondo/releases/download/${CLJ_KONDO_VERSION}/clj-kondo-${v}-linux-static-amd64.zip" -o kondo.zip
+          echo "${CLJ_KONDO_SHA256}  kondo.zip" | sha256sum -c -
           unzip -o kondo.zip
           sudo install clj-kondo /usr/local/bin/clj-kondo
           clj-kondo --version
@@ -140,10 +143,13 @@ jobs:
         # Pre-place a v3 binary so Biff uses it instead of downloading v4.
         env:
           TAILWIND_VERSION: v3.4.17
+          # sha256 of tailwindcss-linux-x64 (the release's sha256sums.txt)
+          TAILWIND_SHA256: 7d24f7fa191d2193b78cd5f5a42a6093e14409521908529f42d80b11fde1f1d4
         run: |
           mkdir -p bin
-          curl -L -o bin/tailwindcss \
+          curl -fL -o bin/tailwindcss \
             "https://github.com/tailwindlabs/tailwindcss/releases/download/${TAILWIND_VERSION}/tailwindcss-linux-x64"
+          echo "${TAILWIND_SHA256}  bin/tailwindcss" | sha256sum -c -
           chmod +x bin/tailwindcss
           bin/tailwindcss --help | head -2
 
