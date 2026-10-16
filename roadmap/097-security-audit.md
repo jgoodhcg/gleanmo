@@ -1,7 +1,7 @@
 ---
 title: "Security audit (2026-10)"
 status: active
-description: "Walk through a static security audit finding by finding, fixing or deciding each; 1–10 decided and the fixes committed on security-audit, 11 (Low) remains"
+description: "Walk through a static security audit finding by finding, fixing or deciding each; all 11 decided; fixes committed on security-audit, awaiting user review and merge"
 created: 2026-10-14
 updated: 2026-10-16
 tags: [security]
@@ -33,7 +33,7 @@ Decisions so far (branch `security-audit`, based on `dev` at `11ce2a6`):
 | 8 | Relation fields (CRUD, timer parent/location, bouldering problem, workout exercise) are not ownership-checked | Low | Roadmapped as 099 | — |
 | 9 | `redirect` parameter on CRUD create/update and the settings `turn-off-*` routes is not restricted to local paths (timer routes already are) | Low | Fixed: one `local-path` check in `app/shared.clj` for CRUD create/update, the CRUD form's hidden field and Cancel link, the settings routes and timer routes | `26d0c09` |
 | 10 | Config-dependent fallbacks: captcha, email delivery and API-token lifetime | Low | Fixed: prod refuses to start without the reCAPTCHA and MailerSend keys (user confirmed they are set); token expiry noted in 061 | `d9428f6` |
-| 11 | Supply-chain and hosting hygiene: unchecked tool downloads, CI `permissions:`, container user, dev-only deps in prod, outdated libraries | Low | **Pending** | |
+| 11 | Supply-chain and hosting hygiene: unchecked tool downloads, CI `permissions:`, container user, dev-only deps in prod, outdated libraries | Low | Fixed, one commit each so any can be reverted alone: checksums, read-only CI token, non-root container, Clerk to `:dev`, slf4j-simple 2.0.12. Biff and ring-defaults upgrades deferred to 037 | `6584eb9`, `22d2298`, `e21d4ab`, `f7e55f4`, `bdb7bef` |
 
 Checked and found sound by the audit: API token generation and hashing, API
 group / sensitive / archived scoping and `/tx` checks, credential encryption,
@@ -45,7 +45,7 @@ was re-checked during finding 1 and scopes the record it writes to the user.
 
 - [x] Each fix has unit tests against a real XTDB node, written failing first where it was a bug
 - [x] `just validate` and `just e2e-test-all` green after each batch (last: 2026-10-14)
-- [ ] Findings 8–11 each have a decision
+- [x] Findings 8–11 each have a decision
 - [ ] User reviews the branch, merges `security-audit` → `dev`, then ships
 
 ## Scope
@@ -63,12 +63,12 @@ the merge to `main` are the user's. No history rewrite for finding 2.
 
 ## Progress
 
-- Checkout: `~/projects/gleanmo.worktrees/security-audit`, branch `security-audit`, clean, 15 commits ahead of `dev` (`11ce2a6`), not pushed
-- Completed: findings 1–10 decided (8 roadmapped as 099, 9 and 10 fixed); 1, 3, 4, 5, 6, 7 fixed and verified (unit + e2e, live checks against `biff dev` for 3 and 5)
-- Remaining: finding 11 (Low), then the follow-ups below
-- Validation: `just validate` 226 tests / 0 failures (2026-10-16); `just e2e-test-all` all 26 pass after finding 9
+- Checkout: `~/projects/gleanmo.worktrees/security-audit`, branch `security-audit`, clean, 20 commits ahead of `dev` (`11ce2a6`), not pushed
+- Completed: all 11 findings decided (8 roadmapped as 099; 9, 10, 11 fixed); 1, 3, 4, 5, 6, 7 fixed and verified (unit + e2e, live checks against `biff dev` for 3 and 5)
+- Remaining: user review; first deploy confirms the non-root container (`e21d4ab`, revert alone if it fails), then the follow-ups below
+- Validation: `just validate` 226 tests / 0 failures after finding 11 (2026-10-16); `just e2e-test-all` all 26 pass after finding 9; Docker image not built locally
 - Blockers: none
-- Next action: walk the user through finding 11, one finding per message
+- Next action: user decides on the follow-ups below and whether 097 moves to done
 
 ## Notes
 

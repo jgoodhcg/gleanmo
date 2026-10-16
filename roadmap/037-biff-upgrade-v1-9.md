@@ -5,7 +5,7 @@ description: "Upgrade Biff and task libs to at least v1.9.0, then validate XTDB/
 tags: [area/dependencies, type/maintenance, tech/biff, tech/xtdb]
 priority: medium
 created: 2026-02-09
-updated: 2026-02-09
+updated: 2026-10-16
 ---
 
 # Upgrade Biff to v1.9.0+
@@ -57,3 +57,7 @@ Current dependency tree includes `com.xtdb/xtdb-core 1.23.1` and `org.agrona/agr
 ## Notes
 
 - Created from production build failure triage and Java 25 migration work.
+- 2026-10-16, security audit ([097](./097-security-audit.md) finding 11): still
+  on Biff v1.8.27 (tasks v1.8.10). Upgrade `ring/ring-defaults` (0.3.4) in the
+  same pass, since Biff's middleware sits on it. The user deferred both; no
+  known vulnerability drives it, only staying current.
