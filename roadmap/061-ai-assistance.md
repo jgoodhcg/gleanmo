@@ -309,6 +309,15 @@ Keep the same bearer token so clients do not need a replacement credential or co
 Saved permission changes must apply to subsequent API requests, including removal of previously granted access.
 This is a requested follow-up, not an implemented capability.
 
+### Token expiry (2026-10-16)
+
+From the security audit ([097-security-audit.md](./097-security-audit.md),
+finding 10): API tokens last until revoked; `api-token` has `revoked-at` but no
+end date. Add an optional `expires-at` chosen at creation (e.g. 30 / 90 days /
+never), shown on `/app/api-tokens`, and refuse expired tokens in the API's
+token lookup. Low priority — revocation already works and `last-used-at` shows
+stale tokens.
+
 ### Dogfood notes (2026-10-13)
 
 Raised during the Cronometer production rollout ([056-cronometer-integration.md](./056-cronometer-integration.md)).

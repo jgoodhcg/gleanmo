@@ -1,7 +1,7 @@
 ---
 title: "Security audit (2026-10)"
 status: active
-description: "Walk through a static security audit finding by finding, fixing or deciding each; 1–9 decided and the fixes committed on security-audit, 10–11 (all Low) remain"
+description: "Walk through a static security audit finding by finding, fixing or deciding each; 1–10 decided and the fixes committed on security-audit, 11 (Low) remains"
 created: 2026-10-14
 updated: 2026-10-16
 tags: [security]
@@ -32,7 +32,7 @@ Decisions so far (branch `security-audit`, based on `dev` at `11ce2a6`):
 | 7 | Request logs held magic-link tokens and query values | Low–Med | Fixed: logger masks tokens, keeps parameter names only | `61e212f` |
 | 8 | Relation fields (CRUD, timer parent/location, bouldering problem, workout exercise) are not ownership-checked | Low | Roadmapped as 099 | — |
 | 9 | `redirect` parameter on CRUD create/update and the settings `turn-off-*` routes is not restricted to local paths (timer routes already are) | Low | Fixed: one `local-path` check in `app/shared.clj` for CRUD create/update, the CRUD form's hidden field and Cancel link, the settings routes and timer routes | `26d0c09` |
-| 10 | Config-dependent fallbacks: captcha, email delivery and API-token lifetime | Low | **Pending** | |
+| 10 | Config-dependent fallbacks: captcha, email delivery and API-token lifetime | Low | Fixed: prod refuses to start without the reCAPTCHA and MailerSend keys (user confirmed they are set); token expiry noted in 061 | `d9428f6` |
 | 11 | Supply-chain and hosting hygiene: unchecked tool downloads, CI `permissions:`, container user, dev-only deps in prod, outdated libraries | Low | **Pending** | |
 
 Checked and found sound by the audit: API token generation and hashing, API
@@ -63,12 +63,12 @@ the merge to `main` are the user's. No history rewrite for finding 2.
 
 ## Progress
 
-- Checkout: `~/projects/gleanmo.worktrees/security-audit`, branch `security-audit`, clean, 11 commits ahead of `dev` (`11ce2a6`), not pushed
-- Completed: findings 1–9 decided (8 roadmapped as 099, 9 fixed); 1, 3, 4, 5, 6, 7 fixed and verified (unit + e2e, live checks against `biff dev` for 3 and 5)
-- Remaining: findings 10–11 (all Low), then the follow-ups below
-- Validation: `just validate` 224 tests / 0 failures; `just e2e-test-all` all 26 pass (2026-10-16)
+- Checkout: `~/projects/gleanmo.worktrees/security-audit`, branch `security-audit`, clean, 15 commits ahead of `dev` (`11ce2a6`), not pushed
+- Completed: findings 1–10 decided (8 roadmapped as 099, 9 and 10 fixed); 1, 3, 4, 5, 6, 7 fixed and verified (unit + e2e, live checks against `biff dev` for 3 and 5)
+- Remaining: finding 11 (Low), then the follow-ups below
+- Validation: `just validate` 226 tests / 0 failures (2026-10-16); `just e2e-test-all` all 26 pass after finding 9
 - Blockers: none
-- Next action: walk the user through finding 10, one finding per message
+- Next action: walk the user through finding 11, one finding per message
 
 ## Notes
 
