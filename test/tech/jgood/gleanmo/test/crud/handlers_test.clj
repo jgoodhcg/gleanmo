@@ -155,7 +155,19 @@
             ;; Verify redirect response
             (is (= 303 (:status result)))
             (is (= "/app/crud/form/habit/new"
-                   (get-in result [:headers "location"])))))))))
+                   (get-in result [:headers "location"])))))
+
+        (testing "follows a same-site redirect and ignores an off-site one"
+          (is (= "/app/exercise/session"
+                 (get-in (handlers/create-entity!
+                          entity-args
+                          (assoc ctx :params (assoc params "redirect" "/app/exercise/session")))
+                         [:headers "location"])))
+          (is (= "/app/crud/form/habit/new"
+                 (get-in (handlers/create-entity!
+                          entity-args
+                          (assoc ctx :params (assoc params "redirect" "https://example.com")))
+                         [:headers "location"]))))))))
 
 (deftest update-entity!-test
   (testing "update-entity! function"
@@ -220,6 +232,13 @@
             (is (= 303 (:status result)))
             (is (= (str "/app/crud/form/habit/edit/" entity-id)
                    (get-in result [:headers "location"])))))
+
+        (testing "ignores an off-site redirect"
+          (is (= (str "/app/crud/form/habit/edit/" entity-id)
+                 (get-in (handlers/update-entity!
+                          entity-args
+                          (assoc ctx :params (assoc params "redirect" "//example.com")))
+                         [:headers "location"]))))
 
         (testing "handles optional boolean fields that were unchecked"
           (reset! entity-update-calls [])

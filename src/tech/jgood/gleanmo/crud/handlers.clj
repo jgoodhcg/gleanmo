@@ -1,6 +1,6 @@
 (ns tech.jgood.gleanmo.crud.handlers
   (:require [clojure.string :as str]
-            [tech.jgood.gleanmo.app.shared :refer [get-user-time-zone]]
+            [tech.jgood.gleanmo.app.shared :refer [get-user-time-zone local-path]]
             [tech.jgood.gleanmo.crud.forms.converters :refer [convert-field-value]]
             [tech.jgood.gleanmo.crud.forms :as forms]
             [tech.jgood.gleanmo.schema.utils :as schema-utils]
@@ -120,7 +120,7 @@
 
     ;; Return redirect response (use custom redirect if provided)
     (let [default-redirect (str "/app/crud/form/" entity-str "/new")
-          final-redirect (or redirect-url default-redirect)
+          final-redirect (local-path redirect-url default-redirect)
           is-htmx?       (some? (get headers "hx-request"))]
       (if is-htmx?
         {:status  200
@@ -221,7 +221,7 @@
 
         ;; Return redirect response
         (let [default-redirect (str "/app/crud/form/" entity-str "/edit/" entity-id)
-              final-redirect   (or redirect-url default-redirect)
+              final-redirect   (local-path redirect-url default-redirect)
               is-htmx?         (some? (get headers "hx-request"))]
           (if is-htmx?
             {:status  200

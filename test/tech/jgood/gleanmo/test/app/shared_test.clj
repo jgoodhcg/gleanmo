@@ -134,3 +134,20 @@
     (is (false? (shared/param-true? "off")))
     (is (false? (shared/param-true? nil)))
     (is (false? (shared/param-true? "")))))
+
+(deftest local-path-test
+  (testing "same-site paths pass through"
+    (is (= "/app" (shared/local-path "/app" "/fallback")))
+    (is (= "/app/crud/habit?view=list"
+           (shared/local-path "/app/crud/habit?view=list" "/fallback"))))
+  (testing "anything that could leave the site falls back"
+    (doseq [target ["https://example.com/app"
+                    "//example.com/app"
+                    "/\\example.com/app"
+                    "/\t/example.com"
+                    "javascript:alert(1)"
+                    "app/crud/habit"
+                    ""
+                    nil]]
+      (is (= "/fallback" (shared/local-path target "/fallback"))
+          (pr-str target)))))

@@ -52,7 +52,8 @@
     (testing "anything else falls back"
       (is (= "/fallback" (sanitize "/app/crud/project" "/fallback")))
       (is (= "/fallback" (sanitize "https://example.com/app/timers" "/fallback")))
-      (is (= "/fallback" (sanitize nil "/fallback"))))))
+      (is (= "/fallback" (sanitize nil "/fallback")))
+      (is (= "/fallback" (sanitize "/app/timer\\..\\x" "/fallback"))))))
 
 (deftest fill-required-fields-test
   (let [fill #'timer-routes/fill-required-fields

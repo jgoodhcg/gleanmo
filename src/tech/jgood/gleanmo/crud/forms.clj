@@ -4,6 +4,7 @@
    [clojure.walk :as walk]
    [com.biffweb :as biff]
    [tech.jgood.gleanmo.app.layout :as layout]
+   [tech.jgood.gleanmo.app.shared :refer [local-path]]
    [tech.jgood.gleanmo.crud.forms.inputs :as inputs]
    [tech.jgood.gleanmo.db.queries :as db]
    [tech.jgood.gleanmo.schema.utils :as schema-utils]
@@ -113,7 +114,7 @@
                                       :pre-populated-values pre-populated-values)
                                schema-map))
              ;; Hidden field for redirect if provided
-          (when-let [redirect (:redirect params)]
+          (when-let [redirect (local-path (:redirect params) nil)]
             [:input {:type "hidden", :name "redirect", :value redirect}])
           ;; tabindex 0 opts the button into Safari's default Tab order
           [:button.form-button-primary {:type "submit", :tabindex "0"}
@@ -160,13 +161,14 @@
             [:div.grid.grid-cols-1.gap-y-6
              (doall
               (schema->form-with-values schema entity ctx schema-map))
-             (when-let [redirect (:redirect params)]
+             (when-let [redirect (local-path (:redirect params) nil)]
                [:input
                 {:type "hidden", :name "redirect", :value redirect}])
              [:div.flex.justify-between.mt-4
               ;; tabindex 0 opts these into Safari's default Tab order
               [:a.form-button-secondary
-               {:href     (or (:redirect params) (str "/app/crud/" entity-str)),
+               {:href     (local-path (:redirect params)
+                                      (str "/app/crud/" entity-str)),
                 :tabindex "0"}
                "Cancel"]
               [:button.form-button-primary {:type "submit", :tabindex "0"}

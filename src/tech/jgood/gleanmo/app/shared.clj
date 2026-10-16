@@ -367,6 +367,18 @@
   [v]
   (or (= v "on") (= v "true")))
 
+(defn local-path
+  "Return `target` when it is a path on this site, else `fallback`. Used for
+   user-supplied `redirect` values so they can't send the browser off-site
+   (`//host`, `/\\host`, `https:`) or run script (`javascript:`). Control
+   characters and spaces are refused too: browsers strip some of them, which
+   can turn an innocent-looking path into `//host`."
+  [target fallback]
+  (if (and (string? target)
+           (re-matches #"/(?![/\\])[^\\\x00-\x20\x7f]*" target))
+    target
+    fallback))
+
 (defn search-str-xform
   [s]
   (some-> s

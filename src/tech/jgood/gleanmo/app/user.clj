@@ -3,7 +3,7 @@
    [clojure.string :as str]
    [com.biffweb :as    biff]
    [tech.jgood.gleanmo.app.layout :as layout]
-   [tech.jgood.gleanmo.app.shared :refer [param-true?
+   [tech.jgood.gleanmo.app.shared :refer [local-path param-true?
                                           time-zone-select zoned-date-time-fmt]]
    [tech.jgood.gleanmo.db.mutations :as mutations]
    [tech.jgood.gleanmo.db.queries :as queries]
@@ -18,21 +18,21 @@
   [{:keys [authorized.user/id], :as ctx}]
   (mutations/update-user! ctx id {:user/show-sensitive false})
   {:status  303,
-   :headers {"location" (or (get-in ctx [:params :redirect]) "/app")}})
+   :headers {"location" (local-path (get-in ctx [:params :redirect]) "/app")}})
 
 (defn turn-off-archived!
   "Turn off archived item display by updating user to false"
   [{:keys [authorized.user/id], :as ctx}]
   (mutations/update-user! ctx id {:user/show-archived false})
   {:status  303,
-   :headers {"location" (or (get-in ctx [:params :redirect]) "/app")}})
+   :headers {"location" (local-path (get-in ctx [:params :redirect]) "/app")}})
 
 (defn turn-off-bm-logs!
   "Turn off BM log display in the overview/sidebar/dashboards by updating user to false"
   [{:keys [authorized.user/id], :as ctx}]
   (mutations/update-user! ctx id {:user/show-bm-logs false})
   {:status  303,
-   :headers {"location" (or (get-in ctx [:params :redirect]) "/app")}})
+   :headers {"location" (local-path (get-in ctx [:params :redirect]) "/app")}})
 
 (defn view
   [{:keys [biff/db authorized.user/id], :as ctx}]

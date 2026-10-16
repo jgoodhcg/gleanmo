@@ -233,6 +233,13 @@
             (is (= 303 (:status result)))
             (is (= "/custom/redirect" (get-in result [:headers "location"])))))
 
+        (testing "should ignore an off-site redirect parameter"
+          (let [result (user/turn-off-sensitive!
+                        (assoc ctx
+                               :authorized.user/id user-id
+                               :params {:redirect "https://example.com"}))]
+            (is (= "/app" (get-in result [:headers "location"])))))
+
         (testing "should work when sensitive is already false"
           ;; First turn it off
           (user/turn-off-sensitive! (assoc ctx :authorized.user/id user-id))

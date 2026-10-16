@@ -2,7 +2,7 @@
   (:require
    [clojure.string :as str]
    [com.biffweb :as biff]
-   [tech.jgood.gleanmo.app.shared :refer [side-bar get-user-time-zone]]
+   [tech.jgood.gleanmo.app.shared :refer [side-bar get-user-time-zone local-path]]
    [tech.jgood.gleanmo.db.queries :as queries]
    [tech.jgood.gleanmo.db.mutations :as mutations]
    [tech.jgood.gleanmo.schema :refer [schema]]
@@ -447,7 +447,7 @@
 (defn- sanitize-redirect
   "Allow only /app/timer-prefixed redirect targets (covers /app/timers too)."
   [target fallback]
-  (if (and (string? target) (str/starts-with? target "/app/timer"))
+  (if (and (local-path target nil) (str/starts-with? target "/app/timer"))
     target
     fallback))
 
