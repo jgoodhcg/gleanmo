@@ -11,6 +11,11 @@ concurrency:
   group: validate-${{ github.ref }}
   cancel-in-progress: true
 
+# Read-only token: no job pushes, comments or releases. Caches and artifacts
+# use their own runtime token, not this one.
+permissions:
+  contents: read
+
 jobs:
   lint-fast:
     name: Lint (clj-kondo)
