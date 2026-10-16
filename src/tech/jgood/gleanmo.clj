@@ -1,5 +1,6 @@
 (ns tech.jgood.gleanmo
   (:require
+   [clojure.string :as str]
    [clojure.tools.logging :as log]
    [clojure.tools.namespace.repl :as tn-repl]
    [com.biffweb :as biff]
@@ -93,8 +94,32 @@
 
 (defonce system (atom {}))
 
+(def ^:private sign-in-keys
+  "Config keys whose absence silently weakens sign-in rather than breaking it:
+   Biff skips the captcha without the secret, and email falls back to printing
+   sign-in links to the console without the MailerSend key."
+  {:recaptcha/secret-key :secret
+   :recaptcha/site-key   :env
+   :mailersend/api-key   :secret})
+
+(defn use-required-config
+  "When `:gleanmo/require-sign-in-keys` is set (the prod profile), throw at
+   startup if any sign-in key is missing, so a misconfigured deploy fails
+   instead of running without a captcha or real email."
+  [{:keys [biff/secret gleanmo/require-sign-in-keys] :as ctx}]
+  (when require-sign-in-keys
+    (let [missing (for [[k kind] sign-in-keys
+                        :let     [v (if (= kind :secret) (secret k) (get ctx k))]
+                        :when    (or (nil? v) (and (string? v) (str/blank? v)))]
+                    k)]
+      (when (seq missing)
+        (throw (ex-info (str "Missing required config: " (str/join ", " missing))
+                        {:missing (vec missing)})))))
+  ctx)
+
 (def components
   [biff/use-aero-config
+   use-required-config
    biff/use-xtdb
    biff/use-queues
    biff/use-xtdb-tx-listener

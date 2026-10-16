@@ -38,6 +38,10 @@
  :recaptcha/secret-key #biff/secret RECAPTCHA_SECRET_KEY
  :recaptcha/site-key   #biff/env RECAPTCHA_SITE_KEY
 
+ ;; In prod, refuse to start without the keys that keep sign-in safe: without
+ ;; them Biff skips the captcha and sign-in links are printed to the log.
+ :gleanmo/require-sign-in-keys #profile {:prod true :default false}
+
  ;; Base64 32-byte AES key for credentials stored in XTDB (Cronometer). Each
  ;; environment has its own; generate with `openssl rand -base64 32`. Absent,
  ;; the Cronometer connect form is disabled and its sync stays dormant.

@@ -33,6 +33,7 @@
    [tech.jgood.gleanmo.test.goals.validation-test]
    [tech.jgood.gleanmo.test.middleware-test]
    [tech.jgood.gleanmo.test.observability-test]
+   [tech.jgood.gleanmo.test.startup-test]
    [tech.jgood.gleanmo.test.tasks.task-entities-test]
    [tech.jgood.gleanmo.test.tasks.cronometer-recipes-test]
    [tech.jgood.gleanmo.test.timer.routes-test]
