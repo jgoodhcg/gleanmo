@@ -76,21 +76,15 @@ async function main() {
     await assertSidebar(page, 'home');
     await assertTabBar(page, 'home');
 
-    // Wait for the HTMX lazy-loaded overview section to hydrate
+    // The shell's loaders fill every skeleton region from /app?full=1.
     await expect(page.locator('#overview-recent')).toBeVisible({ timeout: 15000 });
-    await page.waitForFunction(
-      (sel) => {
-        const el = document.querySelector(sel);
-        return el && !el.textContent?.includes('Loading');
-      },
-      '#overview-recent',
-      { timeout: 15000 }
-    );
-    console.log('  + HTMX fragments loaded');
-    // Loaded by #overview-recent; empty for a user with no pinned goals.
-    const pinnedGoals = await page.request.get(`${BASE_URL}/app/goals/pinned`);
-    expect(pinnedGoals.status()).toBe(200);
-    console.log('  + Pinned goals fragment: 200');
+    await expect(page.locator('[data-deferred-pending]')).toHaveCount(0, { timeout: 15000 });
+    console.log('  + Deferred regions loaded');
+    // The full page stands alone, pinned goals and all.
+    const homeFull = await page.request.get(`${BASE_URL}/app?full=1`);
+    expect(homeFull.status()).toBe(200);
+    expect(await homeFull.text()).toContain('id="home-pinned-goals"');
+    console.log('  + Full home page: 200');
     // A goal page for a goal the user does not have falls back to the list.
     const missingGoal = await page.request.get(`${BASE_URL}/app/goal/${crypto.randomUUID()}`,
                                                { maxRedirects: 0 });

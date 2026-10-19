@@ -3,6 +3,8 @@
    [clojure.string :as str]
    [clojure.tools.logging :as log]
    [com.biffweb :as biff]
+   [tech.jgood.gleanmo.app.deferred :as deferred]
+   [tech.jgood.gleanmo.app.goals :as goals]
    [tech.jgood.gleanmo.app.shared :as shared]
    [tech.jgood.gleanmo.app.timers :as timers-app]
    [tech.jgood.gleanmo.crud.views :as crud-views]
@@ -912,9 +914,10 @@
   [:div#overview-events
    (render-upcoming-events ctx)])
 
-(defn recent-activity-section
-  "Fetch overview data once and render timers, timeline, and stats from it."
-  [{:keys [params] :as ctx}]
+(defn- recent-activity-section
+  "Fetch overview data once and render timers, timeline, and stats from it.
+   `goals-region` sits between the timers and the timeline."
+  [{:keys [params] :as ctx} goals-region]
   (let [limit (try
                 (some-> (:limit params) Integer/parseInt)
                 (catch Exception _ nil))
@@ -929,12 +932,7 @@
     [:div#overview-recent
      [:div.space-y-5
       (render-active-timers ctx timers)
-      ;; Pinned goal cards load after this fragment rather than beside it, so
-      ;; goal computation never overlaps the timeline's queries and an empty
-      ;; response removes the placeholder (roadmap/091-pinned-goals.md).
-      [:div {:hx-get     "/app/goals/pinned"
-             :hx-trigger "load"
-             :hx-swap    "outerHTML"}]
+      goals-region
       (render-activity-feed ctx timeline-items)
       [:div.opacity-70
        (stats-strip stats)]]]))
@@ -974,19 +972,45 @@
        [:div.h-3.rounded.bg-dark-light.animate-pulse.opacity-60
         {:style delay :class "w-1/3"}]]])])
 
+(defn- pinned-goals-region
+  "Pinned goal cards when this render computes the goals tier, their
+   label-only skeleton otherwise."
+  [ctx]
+  (if (deferred/wants? ctx :goals)
+    [:div {:id "home-pinned-goals"}
+     (goals/pinned-goal-cards (goals/pinned-goal-entries ctx))]
+    [:div (deferred/skeleton-attrs "home-pinned-goals")
+     (goals/pinned-goals-skeleton ctx)]))
+
+(defn- recent-skeleton
+  []
+  [:div (deferred/skeleton-attrs "overview-recent")
+   (timeline-skeleton)])
+
 (defn overview-shell
-  "Top-level layout for the home overview page; sections hydrate via HTMX."
-  [_ctx]
+  "Home before its data: the timeline skeleton and two loaders. The timeline
+   tier (timers, timeline, stats) fills first; pinned goals follow it rather
+   than run beside it, so goal computation never overlaps the timeline's
+   queries (roadmap/091-pinned-goals.md, roadmap/098-perceived-performance.md)."
+  [ctx]
   [:div.flex.flex-col.space-y-5
    ;; Visually hidden: home leads with Running Now and the timeline, and a
    ;; visible title would spend vertical space on the most-used page to say
    ;; nothing. Screen readers and the page-heading invariant still need one.
    [:h1.sr-only "Home"]
-   [:div {:id "overview-recent"
-          :hx-get "/app/overview/recent"
-          :hx-trigger "load"
-          :hx-swap "outerHTML"}
-    (timeline-skeleton)]])
+   (recent-skeleton)
+   (deferred/loader ctx {:tier :timeline :region-ids ["overview-recent"]})
+   (deferred/loader ctx {:tier :goals :after :timeline
+                         :region-ids ["home-pinned-goals"]})])
+
+(defn overview-full
+  "Home with every region computed, or only the tier a loader asked for."
+  [ctx]
+  [:div.flex.flex-col.space-y-5
+   [:h1.sr-only "Home"]
+   (if (deferred/wants? ctx :timeline)
+     (recent-activity-section ctx (pinned-goals-region ctx))
+     [:<> (recent-skeleton) (pinned-goals-region ctx)])])
 
 (defn stats-fragment
   [ctx]
@@ -999,9 +1023,3 @@
   {:status  200
    :headers {"content-type" "text/html"}
    :body    (ui/fragment ctx (upcoming-events-section ctx))})
-
-(defn recent-activity-fragment
-  [ctx]
-  {:status  200
-   :headers {"content-type" "text/html"}
-   :body    (ui/fragment ctx (recent-activity-section ctx))})

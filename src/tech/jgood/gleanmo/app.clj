@@ -13,6 +13,7 @@
    [tech.jgood.gleanmo.app.calendar-event :as calendar-event]
    [tech.jgood.gleanmo.app.cruddy :as cruddy]
    [tech.jgood.gleanmo.app.dashboards :as dashboards]
+   [tech.jgood.gleanmo.app.deferred :as deferred]
    [tech.jgood.gleanmo.app.exercise :as exercise]
    [tech.jgood.gleanmo.app.exercise-line :as exercise-line]
    [tech.jgood.gleanmo.app.exercise-session :as exercise-session]
@@ -227,14 +228,21 @@
      :aria-label "Dismiss"}
     (icons/x)]])
 
-(defn root
-  [ctx]
+(defn- home-page
+  [ctx body]
   (ui/page
    ctx
    (layout/page-shell
     ctx {:width :normal}
     (pwa-install-banner)
-    (overview/overview-shell ctx))))
+    body)))
+
+(def root
+  "GET /app — the home shell, or with `?full=1` the computed page (see
+   `app/deferred.clj`)."
+  (deferred/handler
+   {:shell #(home-page % (overview/overview-shell %))
+    :full  #(home-page % (overview/overview-full %))}))
 
 (defn log-hub
   "The 'log something' primary surface (see shared/primary-surfaces).
@@ -627,7 +635,6 @@
             ;; Main app and DB visualization
             ["/overview/stats" {:get overview/stats-fragment}]
             ["/overview/events" {:get overview/upcoming-events-fragment}]
-            ["/overview/recent" {:get overview/recent-activity-fragment}]
             ["" {:get root}]
             ["/log" {:get log-hub}]
 
