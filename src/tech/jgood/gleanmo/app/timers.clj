@@ -353,10 +353,10 @@
        [:div.flex.items-center.justify-between.gap-2.bg-dark-surface.rounded.px-3.py-2.border.border-dark
         {:key i}
         [:div.flex.items-center.gap-2
-         [:div.h-4.w-4.rounded.bg-dark-light.animate-pulse {:style delay}]
-         [:div.h-4.rounded.bg-dark-light.animate-pulse
+         [:div.h-4.w-4.rounded.bg-dark-border.animate-pulse {:style delay}]
+         [:div.h-4.rounded.bg-dark-border.animate-pulse
           {:style delay :class (if (even? i) "w-40" "w-28")}]]
-        [:div.h-6.w-12.rounded.bg-dark-light.animate-pulse.opacity-60 {:style delay}]])]]])
+        [:div.h-6.w-12.rounded.bg-dark-border.animate-pulse.opacity-60 {:style delay}]])]]])
 
 (defn- recent-logs-skeleton
   []
@@ -367,9 +367,9 @@
       [:div.bg-dark-surface.rounded.p-3.border.border-dark.flex.items-center.justify-between
        {:key i}
        [:div.flex.items-center.gap-2
-        [:div.h-4.w-4.rounded.bg-dark-light.animate-pulse {:style delay}]
-        [:div.h-4.w-48.rounded.bg-dark-light.animate-pulse {:style delay}]]
-       [:div.h-4.w-12.rounded.bg-dark-light.animate-pulse.opacity-60 {:style delay}]])]])
+        [:div.h-4.w-4.rounded.bg-dark-border.animate-pulse {:style delay}]
+        [:div.h-4.w-48.rounded.bg-dark-border.animate-pulse {:style delay}]]
+       [:div.h-4.w-12.rounded.bg-dark-border.animate-pulse.opacity-60 {:style delay}]])]])
 
 (defn- workspace
   "Unified timer workspace: every running timer across types, search-to-start

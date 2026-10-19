@@ -943,7 +943,7 @@
 
 (defn- skeleton-bar
   [width i]
-  [:span {:class (str "block h-3 rounded bg-dark-light animate-pulse " width)
+  [:span {:class (str "block h-3 rounded bg-dark-border animate-pulse " width)
           :style (deferred/pulse-delay i)}])
 
 (defn- visible-pinned-goals

@@ -901,9 +901,9 @@
           :let [delay (deferred/pulse-delay i)]]
       [:div {:key i :class "rounded-lg border border-dark bg-dark-surface p-3 space-y-2"}
        [:div.flex.items-center.justify-between.gap-3
-        [:div.h-4.w-40.rounded.bg-dark-light.animate-pulse {:style delay}]
-        [:div.h-3.w-16.rounded.bg-dark-light.animate-pulse.opacity-60 {:style delay}]]
-       [:div.h-3.w-32.rounded.bg-dark-light.animate-pulse.opacity-60 {:style delay}]])]])
+        [:div.h-4.w-40.rounded.bg-dark-border.animate-pulse {:style delay}]
+        [:div.h-3.w-16.rounded.bg-dark-border.animate-pulse.opacity-60 {:style delay}]]
+       [:div.h-3.w-32.rounded.bg-dark-border.animate-pulse.opacity-60 {:style delay}]])]])
 
 (defn- idle-view
   "Start-a-session form. `full?` includes the recent sessions; the shell

@@ -957,7 +957,7 @@
          :let [delay {:animation-delay (str (* i 140) "ms")}]]
      [:div.flex.items-stretch {:key i}
       [:div.w-20.shrink-0.py-3.pr-3.flex.justify-end
-       [:div.h-3.w-10.rounded.bg-dark-light.animate-pulse {:style delay}]]
+       [:div.h-3.w-10.rounded.bg-dark-border.animate-pulse {:style delay}]]
       [:div.w-14.shrink-0.relative
        [:div.absolute.top-0.bottom-0.left-0.right-0.mx-auto.w-px.bg-dark-border]
        [:div.relative.z-10.flex.justify-center
@@ -967,9 +967,9 @@
                                :opacity 0.75})}
          (icons/entity-icon etype {:class "w-4 h-4"})]]]
       [:div.flex-1.min-w-0.py-3.pr-4.space-y-2
-       [:div.h-3.rounded.bg-dark-light.animate-pulse
+       [:div.h-3.rounded.bg-dark-border.animate-pulse
         {:style delay :class "w-1/2"}]
-       [:div.h-3.rounded.bg-dark-light.animate-pulse.opacity-60
+       [:div.h-3.rounded.bg-dark-border.animate-pulse.opacity-60
         {:style delay :class "w-1/3"}]]])])
 
 (defn- pinned-goals-region

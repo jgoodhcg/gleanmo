@@ -264,16 +264,16 @@
     [:div.mb-4
      [:div.text-sm.text-gray-400.mb-1 "Today's Progress"]
      [:div.flex.items-center.gap-3
-      [:div.h-6.w-10.rounded.bg-dark-light.animate-pulse]
+      [:div.h-6.w-10.rounded.bg-dark-border.animate-pulse]
       [:div.flex-1.h-3.bg-dark.rounded-full]
-      [:div.h-4.w-8.rounded.bg-dark-light.animate-pulse]]]
+      [:div.h-4.w-8.rounded.bg-dark-border.animate-pulse]]]
     [:div.grid.grid-cols-2.gap-4.text-sm
      [:div.flex.items-center.gap-2
       [:span.text-gray-400 "All time: "]
-      [:span.h-4.w-24.rounded.bg-dark-light.animate-pulse {:style (deferred/pulse-delay 1)}]]
+      [:span.h-4.w-24.rounded.bg-dark-border.animate-pulse {:style (deferred/pulse-delay 1)}]]
      [:div.flex.items-center.gap-2
       [:span.text-gray-400 "This week: "]
-      [:span.h-4.w-24.rounded.bg-dark-light.animate-pulse {:style (deferred/pulse-delay 2)}]]]]])
+      [:span.h-4.w-24.rounded.bg-dark-border.animate-pulse {:style (deferred/pulse-delay 2)}]]]]])
 
 (defn- tasks-skeleton
   "Collapsed task rows before the list loads."
@@ -284,11 +284,11 @@
           :let [delay (deferred/pulse-delay i)]]
       [:div.bg-dark-surface.rounded-lg.border.border-dark {:key i}
        [:div.flex.items-center.gap-3.p-3
-        [:div.h-6.w-6.shrink-0.rounded-full.bg-dark-light.animate-pulse {:style delay}]
+        [:div.h-6.w-6.shrink-0.rounded-full.bg-dark-border.animate-pulse {:style delay}]
         [:div.flex-1.min-w-0.space-y-2
-         [:div.h-4.rounded.bg-dark-light.animate-pulse
+         [:div.h-4.rounded.bg-dark-border.animate-pulse
           {:style delay :class (if (even? i) "w-2/3" "w-1/2")}]
-         [:div.h-3.w-24.rounded.bg-dark-light.animate-pulse.opacity-60 {:style delay}]]]])]])
+         [:div.h-3.w-24.rounded.bg-dark-border.animate-pulse.opacity-60 {:style delay}]]]])]])
 
 (defn- today-shell
   [ctx]

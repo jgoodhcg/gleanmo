@@ -640,14 +640,14 @@
          :let [delay (deferred/pulse-delay i)]]
      [:div.flex.flex-col.gap-3.p-4.bg-dark-surface.rounded-lg.border.border-dark {:key i}
       [:div.flex.items-center.gap-2
-       [:div.h-4.rounded.bg-dark-light.animate-pulse
+       [:div.h-4.rounded.bg-dark-border.animate-pulse
         {:style delay :class (if (even? i) "w-1/2" "w-1/3")}]
-       [:div.h-4.w-12.rounded-full.bg-dark-light.animate-pulse.opacity-60 {:style delay}]]
-      [:div.h-3.w-24.rounded.bg-dark-light.animate-pulse.opacity-60 {:style delay}]
+       [:div.h-4.w-12.rounded-full.bg-dark-border.animate-pulse.opacity-60 {:style delay}]]
+      [:div.h-3.w-24.rounded.bg-dark-border.animate-pulse.opacity-60 {:style delay}]
       [:div.flex.items-center.gap-2
-       [:div.h-7.w-28.rounded.bg-dark-light.animate-pulse {:style delay}]
-       [:div.h-7.w-16.rounded.bg-dark-light.animate-pulse.opacity-60 {:style delay}]
-       [:div.h-7.w-16.rounded.bg-dark-light.animate-pulse.opacity-60 {:style delay}]]])])
+       [:div.h-7.w-28.rounded.bg-dark-border.animate-pulse {:style delay}]
+       [:div.h-7.w-16.rounded.bg-dark-border.animate-pulse.opacity-60 {:style delay}]
+       [:div.h-7.w-16.rounded.bg-dark-border.animate-pulse.opacity-60 {:style delay}]]])])
 
 (defn- focus-shell
   [{:keys [biff/db session], :as ctx}]
