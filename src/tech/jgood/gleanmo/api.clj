@@ -468,9 +468,11 @@
 
 (defn- batch-errors
   "Cross-op problems: one entity touched twice, two creates claiming an id,
-   and relation values pointing at records the user does not own (or that no
-   create in this batch makes)."
-  [db user-id resolved]
+   and relation values pointing at records the token cannot see (or that no
+   create in this batch makes). Visible, not merely owned: pointing a record
+   at a sensitive or archived parent hides it, the same move `flag-errors`
+   refuses when made with the record's own flag."
+  [db token-doc resolved]
   (let [ids      (keep :id resolved)
         dupes    (set (keep (fn [[x n]] (when (< 1 n) x)) (frequencies ids)))
         created  (into {} (keep #(when (and (= :create (:op %)) (empty? (:errors %)))
@@ -481,7 +483,10 @@
                              (remove #(= :delete (:op %)) resolved)))
         owned    (into #{}
                        (mapcat (fn [[target ids]]
-                                 (into (queries/owned-entity-ids db user-id target ids)
+                                 (into (queries/visible-entity-ids
+                                        db (:user/id token-doc) target ids
+                                        :show-sensitive (access/sensitive-granted? token-doc)
+                                        :show-archived  (access/archived-granted? token-doc))
                                        (filter #(= target (created %)) ids))))
                        refs)]
     (mapv (fn [{:keys [entity-type data id] :as r}]
@@ -500,7 +505,7 @@
 (defn resolve-ops
   "Check every op. Returns the resolved ops in input order."
   [{:keys [db token] :as env} ops]
-  (batch-errors db (:user/id token) (mapv #(resolve-op env %) ops)))
+  (batch-errors db token (mapv #(resolve-op env %) ops)))
 
 (defn- op->json
   "`dry-run?` hides an id the server generated: the commit generates a new one,

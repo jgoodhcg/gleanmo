@@ -370,3 +370,51 @@
                                     :path-params {:id (str (:xt/id doc))}}))
         (is (some? (:api-token/revoked-at (stored node (:xt/id doc)))))
         (is (= 401 (:status (call node plain api/types-handler {}))))))))
+
+(deftest hidden-relation-target-test
+  (with-open [node (test-xtdb-node [])]
+    (let [user-id  (UUID/randomUUID)
+          private  (create! node :habit {:user/id user-id, :habit/label "Private",
+                                         :habit/sensitive true})
+          open     (create! node :habit {:user/id user-id, :habit/label "Open"})
+          shelved  (create! node :project {:user/id user-id, :project/label "Shelved",
+                                           :project/archived true})
+          log      (create! node :habit-log {:user/id             user-id
+                                             :habit-log/timestamp (t/now)
+                                             :habit-log/time-zone "UTC"
+                                             :habit-log/habit-ids #{open}})
+          task     (create! node :task {:user/id user-id, :task/label "Visible",
+                                        :task/state :now})
+          plain    (token! node user-id :write [:habits :tasks])
+          granted  (token! node user-id :write [:habits :tasks]
+                           :sensitive true :archived true)
+          refused? (fn [resp]
+                     (and (= 422 (:status resp))
+                          (some #(re-find #"unknown related ids" %) (op-errors resp))))]
+      (testing "a token cannot move a record it sees under a parent it cannot see"
+        (is (refused? (tx node plain {:ops [{:op "update", :type "habit-log"
+                                             :id (str log)
+                                             :set {:habit-log/habit-ids [(str private)]}}]})))
+        (is (refused? (tx node plain {:ops [{:op "update", :type "task", :id (str task)
+                                             :set {:task/project-id (str shelved)}}]})))
+        (is (= #{open} (:habit-log/habit-ids (stored node log))))
+        (is (nil? (:task/project-id (stored node task)))))
+      (testing "nor create one there"
+        (is (refused? (tx node plain {:ops [{:op "create", :type "habit-log"
+                                             :set {:habit-log/timestamp "2026-01-01T00:00:00Z"
+                                                   :habit-log/time-zone "UTC"
+                                                   :habit-log/habit-ids [(str private)]}}]}))))
+      (testing "a visible parent is still fine"
+        (is (= 200 (:status (tx node plain {:dry_run true
+                                            :ops [{:op "update", :type "habit-log"
+                                                   :id (str log)
+                                                   :set {:habit-log/habit-ids
+                                                         [(str open)]}}]})))))
+      (testing "with the grants, the hidden parents are reachable"
+        (is (true? (get-in (tx node granted
+                               {:dry_run true
+                                :ops [{:op "update", :type "habit-log", :id (str log)
+                                       :set {:habit-log/habit-ids [(str private)]}}
+                                      {:op "update", :type "task", :id (str task)
+                                       :set {:task/project-id (str shelved)}}]})
+                           [:body "valid"])))))))

@@ -421,6 +421,24 @@
       (into #{} (remove deleted) found))
     #{}))
 
+(defnp visible-entity-ids
+  "The subset of `ids` that `visible-entity-for-user` would return with the
+   same flags: owned, live, and not hidden by their own or a parent's
+   sensitive/archived flag. Bound to the given ids, like `owned-entity-ids`."
+  [db user-id entity-type ids & {:keys [show-sensitive show-archived]}]
+  (let [settings {:show-sensitive (boolean show-sensitive)
+                  :show-archived  (boolean show-archived)}
+        owned    (owned-entity-ids db user-id entity-type ids)]
+    (if (seq owned)
+      (let [keep?     (keep-doc-fn entity-type settings)
+            exclusion (build-exclusion-map db user-id entity-type settings)]
+        (into #{}
+              (comp (filter keep?)
+                    (remove #(relationship-excluded? exclusion %))
+                    (map :xt/id))
+              (fetch-entities-by-ids db owned)))
+      #{})))
+
 (defn- temporal-sort-field
   "Return the timestamp/beginning field used by heatmap visualizations."
   [entity-type entity-schema]
