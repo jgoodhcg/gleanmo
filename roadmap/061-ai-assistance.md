@@ -169,6 +169,10 @@ it can answer "what got slower since the last deploy?". This is a read-only
 group, like Cronometer data in
 [056-cronometer-integration.md](./056-cronometer-integration.md), restricted to
 super users as the dashboard is today.
+Add Performance monitoring to the `/app/api-tokens` permission controls.
+Only super users can grant it, and an ungranted token cannot read monitoring data.
+Expose the granted permission through token discovery alongside the existing groups.
+Verify that issuing and editing a token preserve the read-only and super-user restrictions.
 
 2. **Instrument the API.** `/api/v1` requests are profiled like app routes, so
 agent traffic appears on the performance dashboard. `obs/wrap-request-profiling` sits in

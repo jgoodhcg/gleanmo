@@ -68,10 +68,11 @@ PWA notification scaffolding does not establish working reminder delivery.
 - [056-cronometer-integration.md](./056-cronometer-integration.md) - Food, recipes, biometrics and daily summaries from Cronometer for the agent API; slices A–C built and tested 2026-10-12 (sync, encrypted per-user credentials, read-only API groups, `/app/cronometer`), plus a dev-only fake API for local and CI sync; activity observations readable via a read-only Activities API group (2026-10-13); live sync and CSV backfill pending
 - [061-ai-assistance.md](./061-ai-assistance.md) - Agent API v1 built 2026-10-08: scoped bearer tokens, permission-checked reads, one checked all-or-nothing `tx` write endpoint with dry run; 2026-10-13 notes: standardized agent discovery / initial prompt, and per-document writes to generic imported entities (food logs, biometrics, activities)
   Follow-up requested 2026-10-18: edit existing API token permissions without replacing the token.
+  Add a super-user-only, read-only Performance monitoring permission to API tokens.
 - [017-infrastructure.md](./017-infrastructure.md) - Database migration from Neon to DigitalOcean
 - [014-data-migration-status.md](./014-data-migration-status.md) - Tracker for Airtable backfills and remaining imports
-- [015-exercise.md](./015-exercise.md) - Exercise tracking with superset support and Airtable backfill; notes on sets and lines in the workout view re-requested 2026-10-04
-- [021-performance.md](./021-performance.md) - Performance monitoring and profiling dashboard
+- [015-exercise.md](./015-exercise.md) - Exercise tracking with superset support; notes on sets and lines re-requested 2026-10-04; browse definitions by body part, isometric work, loading, and equipment alongside label search
+- [021-performance.md](./021-performance.md) - Performance monitoring dashboard; quick copy of the visible report
 - [013-dashboard-performance.md](./013-dashboard-performance.md) - Home page dashboard performance improvements
 - [012-daily-focus.md](./012-daily-focus.md) - Existing daily task workflow; further changes depend on the AI-assisted adoption check
 - [010-calendar.md](./010-calendar.md) - Year-at-a-glance calendar with event interactions and external sync
