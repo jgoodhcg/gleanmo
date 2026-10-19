@@ -59,6 +59,9 @@
   [ctx {:keys [tier after region-ids]}]
   [:div {:id            (loader-id tier)
          :hidden        true
+         ;; main.js re-fires htmx's swap and settle events on each region
+         ;; this fills; htmx 1.9 fires them on the last one only.
+         :data-deferred-loader true
          :hx-get        (full-url ctx tier)
          :hx-trigger    (if after
                           (str "htmx:afterRequest from:#" (loader-id after))

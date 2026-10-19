@@ -237,6 +237,25 @@ document.addEventListener('htmx:afterSwap', function(event) {
   initializeECharts(event.detail.elt);
 });
 
+// Deferred pages (app/deferred.clj): a loader fills regions with
+// hx-select-oob and hx-swap none. htmx 1.9 then fires afterSwap/afterSettle
+// on the last region only, so re-fire both on every region once the
+// loader's request has swapped them in, and every initializer (charts,
+// Choices, filters, sortable lists) sees the new content. The initializers
+// are idempotent, so the last region's second pass is harmless.
+document.addEventListener('htmx:afterRequest', function(event) {
+  var loader = event.target;
+  if (!loader || !loader.hasAttribute || !loader.hasAttribute('data-deferred-loader')) return;
+  if (!event.detail || !event.detail.successful) return;
+  (loader.getAttribute('hx-select-oob') || '').split(',').forEach(function(sel) {
+    var region = document.querySelector(sel.trim());
+    if (!region) return;
+    ['htmx:afterSwap', 'htmx:afterSettle'].forEach(function(name) {
+      region.dispatchEvent(new CustomEvent(name, {bubbles: true, detail: {elt: region}}));
+    });
+  });
+});
+
 function copyToClipboard(text) {
   if (navigator.clipboard) {
     navigator.clipboard.writeText(text)
