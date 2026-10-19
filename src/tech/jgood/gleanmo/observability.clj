@@ -41,6 +41,15 @@
 
 (defonce ^:private accumulated-pstats (atom {}))
 
+(def max-route-keys
+  "How many distinct request route keys one snapshot window may hold. Keys
+   come from the request path, which the client chooses, so without a cap any
+   stream of made-up paths — no sign-in needed — grows the profiler's maps
+   until a snapshot is persisted. Past the cap, new keys count as `:other`."
+  1000)
+
+(defonce ^:private window-route-keys (atom #{}))
+
 (defn- id->string
   [id]
   (cond
@@ -161,7 +170,8 @@
                       {}
                       aggregate)}]
          (when reset?
-           (reset! accumulated-pstats {}))
+           (reset! accumulated-pstats {})
+           (reset! window-route-keys #{}))
          report)))))
 
 (defn current-metrics
@@ -189,6 +199,18 @@
                   :dynamic? true}
                  (tufte/p :handler (f))))
 
+(defn- bounded-route-key
+  "`route-key` normalized as reports name it, or `:other` once the window
+   already holds `max-route-keys` other keys."
+  [route-key]
+  (let [k    (group-id->keyword route-key)
+        seen (swap! window-route-keys
+                    (fn [ks]
+                      (if (or (contains? ks k) (<= max-route-keys (count ks)))
+                        ks
+                        (conj ks k))))]
+    (if (contains? seen k) k :other)))
+
 (defn wrap-request-profiling
   "Ring middleware that profiles each incoming request."
   [handler]
@@ -212,7 +234,7 @@
                                      (str/replace #"^-+" "")
                                      (str/replace #"-+$" ""))]
                         (keyword (if (str/blank? slug) "request" slug))))]
-      (profile-request route-key #(handler req)))))
+      (profile-request (bounded-route-key route-key) #(handler req)))))
 
 #_{:clj-kondo/ignore [:shadowed-var]}
 (defmacro profile-block
