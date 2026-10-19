@@ -7,6 +7,7 @@
    [malli.registry :as malr]
    [nrepl.cmdline :as nrepl-cmd]
    [tech.jgood.gleanmo.api :as api]
+   [tech.jgood.gleanmo.api.middleware :as api-mid]
    [tech.jgood.gleanmo.app :as app]
    [tech.jgood.gleanmo.email :as email]
    [tech.jgood.gleanmo.home :as home]
@@ -55,7 +56,8 @@
 
 (def routes [["" {:middleware [mid/wrap-site-defaults]}
               (keep :routes modules)]
-             ["" {:middleware [mid/wrap-api-defaults]}
+             ["" {:middleware [api-mid/wrap-body-limit
+                               mid/wrap-api-defaults]}
               (keep :api-routes modules)]])
 
 (def handler (-> (biff/reitit-handler {:routes routes})
