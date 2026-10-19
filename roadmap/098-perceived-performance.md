@@ -70,7 +70,34 @@ from the metrics (Timers).
 | `/app/task/focus` | header, full filter form (projects) | `#task-list` |
 | `/app/exercise/session` | the whole active-session view, or the idle start form | active: `#wk-memory` (exercise memory); idle: `#wk-recent-sessions` |
 | `/app/task/today` | header, date, quick add, backlog link | `#today-stats`, `#today-tasks` |
-| `/app/timers` | see Progress | see Progress |
+| `/app/timers` | header, running timers (with their 30s poll), per-type links | `#start-timer-section` (location picker, filter, start list), `#recent-logs-section` |
+
+Per-page decisions made while building (2026-10-19):
+
+- **Goals.** The shell reads `goals-for-user` plus one visibility fetch, so a
+  goal hidden by the sensitive/archived settings never shows even as a label.
+  Rows group by family from the goal alone (a book goal carries a placeholder
+  `:book-progress` so it groups as it will). Pin stars in the shell work.
+- **Home.** `/app/overview/recent` and `/app/goals/pinned` are gone; the
+  timeline tier renders the pinned-goal cards' label-only skeleton in place,
+  and the goals tier replaces it. With nothing pinned the region is empty.
+- **Task focus.** `focus-view` stays the full render, because the task
+  mutations (`set-state`, `snooze`, …) render it and `hx-select` `#task-list`
+  from it. The route uses `focus-page`, the deferred handler.
+- **Workout.** The shell prefills the log form from the current session's
+  lines (already read for the view, so free): after a save, the exercise just
+  logged and its values are exactly right. The full memory (other exercises'
+  last values for recall-on-select) arrives as a hidden `#wk-memory` data
+  element, and the form script reads memory at select time instead of once
+  at init. When the session has no lines yet, the default exercise depends on
+  the full memory, so the shell reads it itself (~0.7s); a fresh session has
+  few or no sets, so `lines-for-sets` costs little then.
+- **Today.** The loader sits outside `#today-content`, because quick add and
+  every row action replace that block.
+- **Timers.** The start list is deferred with the recent logs, not rendered
+  early: its order (recently timed first) and the location default come from
+  the recent logs, so an early list would reshuffle under the cursor.
+- **Not converted:** `/app/monitoring/performance` (~660ms; super-user only).
 
 ## Estimates (to compare with prod after deploy)
 
@@ -105,6 +132,11 @@ plus the shell. Network round trips are not included.
 - `all-entities-for-user` for tasks ~613ms on Task focus.
 - `recent-completed-timer-logs` up to 567ms on Timers.
 - `recent-lines-for-user` ~0.7s for Workout's exercise memory.
+- Task focus with `state=any` or `state=not-done` calls `tasks-by-state` once
+  per state (6 or 4 times), and each call loads every task through
+  `tasks-for-user` before filtering. One `tasks-for-user` call filtered in the
+  app — or a state-bound query — would cut those filters by 4–6x. Call-site
+  change, not made here.
 
 ## Validation
 
@@ -141,6 +173,11 @@ plus the shell. Network round trips are not included.
 - **Failed loader.** If the full request errors, the skeletons stay. The old
   home fragment had the same behavior. Worth an `htmx:responseError` handler
   that swaps in a "couldn't load — reload" line?
+- **A save during the load.** A row action on Today or Task focus, taken
+  before the loader returns, renders fresh content — then the loader's
+  response, computed from a snapshot that may predate the save, swaps its
+  regions over it. The window is the full request's duration. Tolerable, or
+  should a mutation cancel the in-flight loader (`hx-sync`)?
 - **Double cost of cheap data.** The full request recomputes what the shell
   already showed. Negligible for labels; revisit if a shell grows.
 
