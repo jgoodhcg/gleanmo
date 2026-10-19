@@ -65,12 +65,14 @@
    [cheshire.core :as cheshire]
    [clojure.string :as str]
    [com.biffweb :as biff]
+   [tech.jgood.gleanmo.app.deferred :as deferred]
    [tech.jgood.gleanmo.app.layout :as layout]
    [tech.jgood.gleanmo.app.shared :as shared]
    [tech.jgood.gleanmo.crud.forms.inputs :as inputs]
    [tech.jgood.gleanmo.db.mutations :as mutations]
    [tech.jgood.gleanmo.db.queries :as queries]
    [tech.jgood.gleanmo.schema.exercise-schema :as exercise-schema]
+   [tech.jgood.gleanmo.schema.meta :as sm]
    [tech.jgood.gleanmo.ui :as ui]
    [tick.core :as t]))
 
@@ -112,6 +114,24 @@
    keeps this page's cost flat — see `queries/recent-lines-for-user`."
   120)
 
+(defn- memory-from-lines
+  "Exercise memory (see `exercise-memory`) from lines ordered newest first."
+  [lines]
+  {:by-exercise (reduce (fn [acc line]
+                          (let [ex-id (:exercise-line/exercise-id line)]
+                            (if (contains? acc ex-id)
+                              acc
+                              (assoc acc ex-id
+                                     {:reps          (:exercise-line/reps line)
+                                      :weight        (:exercise-line/weight line)
+                                      :unit          (some-> (:exercise-line/weight-unit line) name)
+                                      :distance      (:exercise-line/distance line)
+                                      :distance-unit (some-> (:exercise-line/distance-unit line) name)
+                                      :duration      (:exercise-line/duration-seconds line)}))))
+                        {}
+                        lines)
+   :last        (:exercise-line/exercise-id (first lines))})
+
 (defn- exercise-memory
   "The user's most recently logged reps/weight/distance per exercise, so the
    entry form can prefill what they did last time instead of a fixed default.
@@ -126,25 +146,11 @@
    once rather than showing a blank form."
   [{:keys [biff/db session]}]
   (let [uid   (:uid session)
-        since (t/<< (t/now) (t/new-duration memory-window-days :days))
-        lines (or (not-empty (queries/recent-lines-for-user
-                              db uid memory-line-sample :since since))
-                  (queries/recent-lines-for-user db uid memory-line-sample))
-        by-ex (reduce (fn [acc line]
-                        (let [ex-id (:exercise-line/exercise-id line)]
-                          (if (contains? acc ex-id)
-                            acc
-                            (assoc acc ex-id
-                                   {:reps          (:exercise-line/reps line)
-                                    :weight        (:exercise-line/weight line)
-                                    :unit          (some-> (:exercise-line/weight-unit line) name)
-                                    :distance      (:exercise-line/distance line)
-                                    :distance-unit (some-> (:exercise-line/distance-unit line) name)
-                                    :duration      (:exercise-line/duration-seconds line)}))))
-                      {}
-                      lines)]
-    {:by-exercise by-ex
-     :last (:exercise-line/exercise-id (first lines))}))
+        since (t/<< (t/now) (t/new-duration memory-window-days :days))]
+    (memory-from-lines
+     (or (not-empty (queries/recent-lines-for-user
+                     db uid memory-line-sample :since since))
+         (queries/recent-lines-for-user db uid memory-line-sample)))))
 
 (defn- parse-int* [s] (when-not (str/blank? s) (parse-long s)))
 (defn- parse-num* [s] (when-not (str/blank? s) (parse-double s)))
@@ -238,7 +244,7 @@
      function initLineForm(form){
        if(form.dataset.lineFormInit==='true') return;
        form.dataset.lineFormInit='true';
-       var mem=form.dataset.memory?JSON.parse(form.dataset.memory):null;
+       function memOf(){ return form.dataset.memory?JSON.parse(form.dataset.memory):null; }
        var dReps=Number(form.dataset.defaultReps||0), dWeight=Number(form.dataset.defaultWeight||0);
        var dDistance=Number(form.dataset.defaultDistance||0);
        var sel=form.querySelector('select[name$=exercise-id]');
@@ -259,6 +265,7 @@
        function syncPrimary(){ if(!primary) return;
          primary.textContent='Log '+exLabel()+' \\u00d7 '+(parseInt(reps.value,10)||0); }
        if(sel){ sel.addEventListener('change',function(){
+         var mem=memOf();
          if(mem){ var m=mem[sel.value]||{};
            if(reps) reps.value=(m.reps!=null?m.reps:dReps);
            if(weight) weight.value=(m.weight!=null?m.weight:dWeight);
@@ -290,6 +297,16 @@
      }
      initLineForms(document);
      document.addEventListener('htmx:afterSettle',function(e){ initLineForms(e.target); });
+     // The full exercise memory arrives after the shell (roadmap/098); hand
+     // it to every form that recalls on select.
+     function applyMemory(){
+       var src=document.getElementById('wk-memory');
+       if(!src||!src.dataset.memory) return;
+       document.querySelectorAll('[data-line-form][data-memory]').forEach(function(f){
+         f.dataset.memory=src.dataset.memory; });
+     }
+     document.addEventListener('htmx:afterSettle',function(e){
+       if(e.target&&e.target.id==='wk-memory') applyMemory(); });
      // One inline editor open at a time. The exercise picker is the shared
      // CRUD component, which ids its container by field name, so two open
      // fragments would collide on that id and inline-create would swap into
@@ -703,8 +720,29 @@
     [:div {:class "rounded-lg border border-red-400/30 px-4 py-3 text-xs text-red-400"}
      "Pick an exercise before logging. Nothing was saved, and the set was left exactly as it was."]))
 
+(defn- session-memory
+  "Exercise memory from this session's lines alone: free, since the view
+   already read them, and exact for the repeat sets that follow a save."
+  [lines]
+  (memory-from-lines (->> (vals lines)
+                          (apply concat)
+                          (sort-by ::sm/created-at #(compare %2 %1)))))
+
+(defn- memory-region
+  "The full exercise memory as data for the recall-on-select script, or the
+   placeholder the shell leaves for it."
+  [memory]
+  (if memory
+    [:div {:id "wk-memory" :hidden true
+           :data-memory (memory-json (:by-exercise memory))}]
+    [:div (assoc (deferred/skeleton-attrs "wk-memory") :hidden true)]))
+
 (defn- active-session-view
-  [ctx session]
+  "The live session. `full?` computes the exercise memory from recent
+   history. The shell instead prefills from this session's lines and leaves
+   the memory to `?full=1` — unless the session has no lines yet, when the
+   form's default exercise depends on it and the shell reads it itself."
+  [ctx session full?]
   (let [session-id (:xt/id session)
         sets       (session-sets ctx session-id)
         set-n-of   (into {} (map-indexed (fn [i s] [(:xt/id s) (inc i)]) sets))
@@ -728,7 +766,8 @@
                      stopped (remove #(= (:xt/id %) (:xt/id stopped))))
         exercises  (exercises-for-user ctx)
         ex-by-id   (into {} (map (juxt :xt/id identity)) exercises)
-        memory     (exercise-memory ctx)
+        defer?     (and (not full?) (seq (mapcat val lines)))
+        memory     (if defer? (session-memory lines) (exercise-memory ctx))
         n-sets     (count sets)]
     [:div.space-y-5
      (error-banner ctx)
@@ -799,6 +838,9 @@
       [:a.link.text-xs {:href (str "/app/crud/form/exercise-session/edit/" session-id
                                    "?redirect=" (redirect-param))}
        "edit session"]]
+     (memory-region (when-not defer? memory))
+     (when defer?
+       (deferred/loader ctx {:region-ids ["wk-memory"]}))
      [:script (biff/unsafe (str tick-script "\n" form-script))]]))
 
 (defn- recent-session-card
@@ -831,17 +873,44 @@
           [:span "·"]
           [:span duration]])]]]))
 
-(defn- idle-view
+(defn- recent-sessions
+  "The idle screen's recent session cards, read from the last five sessions."
   [{:keys [biff/db session] :as ctx}]
-  (let [user-id       (:uid session)
-        recent        (queries/recent-sessions-for-user db user-id 5)
-        session-ids   (map :xt/id recent)
-        recent-sets   (queries/sets-for-sessions db user-id session-ids)
-        sets-by-sess  (group-by :exercise-set/session-id recent-sets)
-        recent-lines  (queries/lines-for-sets db user-id (set (map :xt/id recent-sets)))
-        lines-by-set  (group-by :exercise-line/set-id recent-lines)
-        locations     (queries/distinct-field-values
-                       db user-id :exercise-session :exercise-session/location)]
+  (let [user-id      (:uid session)
+        recent       (queries/recent-sessions-for-user db user-id 5)
+        recent-sets  (queries/sets-for-sessions db user-id (map :xt/id recent))
+        sets-by-sess (group-by :exercise-set/session-id recent-sets)
+        lines-by-set (group-by :exercise-line/set-id
+                               (queries/lines-for-sets db user-id
+                                                       (set (map :xt/id recent-sets))))]
+    [:div {:id "wk-recent-sessions"}
+     (when (seq recent)
+       [:div.space-y-2
+        [:h2 {:class "text-[11px] font-bold tracking-widest text-gray-400"} "RECENT SESSIONS"]
+        (for [s recent]
+          ^{:key (:xt/id s)}
+          (recent-session-card ctx s (get sets-by-sess (:xt/id s)) lines-by-set))])]))
+
+(defn- recent-sessions-skeleton
+  "Recent session cards in outline while their totals load."
+  []
+  [:div (deferred/skeleton-attrs "wk-recent-sessions")
+   [:div.space-y-2
+    [:h2 {:class "text-[11px] font-bold tracking-widest text-gray-400"} "RECENT SESSIONS"]
+    (for [i (range 3)
+          :let [delay (deferred/pulse-delay i)]]
+      [:div {:key i :class "rounded-lg border border-dark bg-dark-surface p-3 space-y-2"}
+       [:div.flex.items-center.justify-between.gap-3
+        [:div.h-4.w-40.rounded.bg-dark-light.animate-pulse {:style delay}]
+        [:div.h-3.w-16.rounded.bg-dark-light.animate-pulse.opacity-60 {:style delay}]]
+       [:div.h-3.w-32.rounded.bg-dark-light.animate-pulse.opacity-60 {:style delay}]])]])
+
+(defn- idle-view
+  "Start-a-session form. `full?` includes the recent sessions; the shell
+   leaves them to `?full=1`."
+  [{:keys [biff/db session] :as ctx} full?]
+  (let [locations (queries/distinct-field-values
+                   db (:uid session) :exercise-session :exercise-session/location)]
     [:div.space-y-6
      [:h1.text-2xl.font-bold.text-white "Workout"]
      (biff/form {:action "/app/exercise/session/start", :method "post"}
@@ -858,12 +927,11 @@
                 [:button {:type "submit"
                           :class "w-full py-4 rounded-xl text-base font-bold bg-neon-cyan text-black"}
                  "Start session"])
-     (when (seq recent)
-       [:div.space-y-2
-        [:h2 {:class "text-[11px] font-bold tracking-widest text-gray-400"} "RECENT SESSIONS"]
-        (for [s recent]
-          ^{:key (:xt/id s)}
-          (recent-session-card ctx s (get sets-by-sess (:xt/id s)) lines-by-set))])]))
+     (if full?
+       (recent-sessions ctx)
+       [:<>
+        (recent-sessions-skeleton)
+        (deferred/loader ctx {:region-ids ["wk-recent-sessions"]})])]))
 
 (defn- stat-tile
   [label value]
@@ -948,16 +1016,22 @@
         [:div
          [:p.text-gray-400 "Session not found."]])))))
 
-(defn workout-page
-  [ctx]
+(defn- workout-screen
+  [ctx full?]
   (let [session (open-session ctx)]
     (ui/page
      ctx
      (layout/page-shell
       ctx {:width :narrow}
       (if session
-        (active-session-view ctx session)
-        (idle-view ctx))))))
+        (active-session-view ctx session full?)
+        (idle-view ctx full?))))))
+
+(def workout-page
+  "GET /app/exercise/session — the live session or the start form at once;
+   exercise memory or recent sessions from `?full=1` (see `deferred`)."
+  (deferred/handler {:shell #(workout-screen % false)
+                     :full  #(workout-screen % true)}))
 
 (defn- redirect-home
   []
