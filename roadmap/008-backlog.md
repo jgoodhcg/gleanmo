@@ -5,7 +5,7 @@ description: "Minor improvements without full work-unit docs"
 tags: []
 priority: medium
 created: 2026-02-02
-updated: 2026-10-08
+updated: 2026-10-18
 ---
 
 # Backlog
@@ -19,6 +19,17 @@ Minor improvements and enhancements that don't warrant separate requirement docu
 - Open questions: Which items are big enough to graduate into their own roadmap files?
 
 _Completed items are moved to `roadmap/archived/`; see `roadmap/archived/backlog-2025-03-09.md` for the latest archive entry._
+
+## Task Planning Ideas (2026-10-18)
+
+- **Task estimates:** Explore optional estimates to help choose and plan work.
+  The estimate type and units remain open.
+- **Additional task views:** Explore Kanban and calendar views alongside the existing CRUD, Focus, and Today views.
+  These would present the same tasks through different visualizations.
+  Kanban grouping and the dates used by a calendar view remain open.
+
+These are ideas for later clarification, after the adoption check in the [task product sequence](./index.md#task-product-sequence-2026-09-07).
+Related work: [Today as a Daily Plan](./094-today-plan.md), [Task Activity Logs](./032-task-activity-logs.md), and [Calendar](./010-calendar.md).
 
 ## CRUD System Redesign
 

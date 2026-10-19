@@ -3,7 +3,7 @@ title: "AI Assistance Integration"
 status: active
 description: "Restore task use through conversational backlog cleanup and daily planning, starting with scoped agent access and approved batch changes"
 created: 2026-07-11
-updated: 2026-10-13
+updated: 2026-10-18
 tags: [integration, ai, mcp, api, security, llm-context]
 priority: high
 ---
@@ -205,7 +205,7 @@ Offline capture is now part of [093-inbox-quick-capture.md](./093-inbox-quick-ca
 
 - Token-based auth for API/MCP clients, scoped to a single user, revocable.
 - Tokens stored as hashed values (never plaintext) — only the prefix/suffix shown to the user for recognition (like `gmn_xxxx...yyyy`).
-- Each token carries **granular permissions**, configurable at creation time:
+- Each token carries **granular permissions**, configurable at creation time and editable afterward:
   - Per entity type (tasks, exercise, habits, mood, etc.)
   - Read vs. write per entity type
   - Sensitivity override: `default-exclude` (treat as sensitive), `include` (allow sensitive entities), `require-escalation` (ask on each request)
@@ -219,6 +219,8 @@ Offline capture is now part of [093-inbox-quick-capture.md](./093-inbox-quick-ca
 - [ ] Sensitive entities are excluded by default; verified with a fixture containing both sensitive and non-sensitive docs
 - [ ] Write tools reject fields outside the allow-list and validate against malli schemas
 - [ ] Auth rejects unauthenticated requests and authorizes only the token's user
+- [ ] Editing an existing token's permissions changes access on subsequent API requests while keeping the same bearer token.
+- [ ] Permission edits support granting and removing access; another user's tokens cannot be edited.
 - [ ] E2E flow: an MCP/CLI client can list today's tasks and mark one complete
 - [ ] An agent can read the actionable backlog, discuss its organization, preview a batch update, and apply the approved changes
 - [ ] An unapproved proposal leaves task data unchanged; an approved batch preserves unrelated fields and rejects stale changes
@@ -232,7 +234,7 @@ Offline capture is now part of [093-inbox-quick-capture.md](./093-inbox-quick-ca
 - A read/write integration surface (MCP and/or API) for a curated set of entity types
 - Sensitivity-aware read filtering using existing `sensitive` flags and `resolve-user-settings`
 - Token auth for external clients with granular entity-type-level permissions (read/write per type, sensitivity visibility, archive visibility)
-- In-app token management UI (create, list, revoke)
+- In-app token management UI (create, list, edit permissions, revoke)
 - Companion CLI utility in TypeScript wrapping the HTTP API
 - Discovery endpoint at `/.well-known/agent-cli` serving CLI download/install instructions
 - Task state mutations (the day-planning use case)
@@ -272,6 +274,14 @@ Offline capture is now part of [093-inbox-quick-capture.md](./093-inbox-quick-ca
 - [ ] Token format — `gmn_` prefix with what payload? Random bearer string with server-side permission lookup, or a self-contained signed JWT? Recommending opaque random with server-side lookup for revocability without a blacklist.
 
 ## Notes
+
+### Token permission editing (2026-10-18)
+
+Add the ability to change an existing API token's permissions from `/app/api-tokens`.
+Reuse the existing permission controls: none/read/write per entity group, plus sensitive and archived access grants.
+Keep the same bearer token so clients do not need a replacement credential or configuration change.
+Saved permission changes must apply to subsequent API requests, including removal of previously granted access.
+This is a requested follow-up, not an implemented capability.
 
 ### Dogfood notes (2026-10-13)
 

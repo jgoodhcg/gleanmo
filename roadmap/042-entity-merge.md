@@ -3,7 +3,7 @@ title: "Entity Merge"
 status: draft
 description: "Combine duplicate entities by repointing every schema-declared reference to one target, goal filters included"
 created: 2026-02-21
-updated: 2026-09-14
+updated: 2026-10-18
 tags: [data, crud, utilities, goals]
 priority: medium
 ---
@@ -18,6 +18,16 @@ Duplicates appear by accident: two "Gratitude Journaling" projects, or the exerc
 
 Goals ([081](./081-goals-dashboard.md)) make duplicates more visible.
 A goal can select both duplicates as a workaround, but the fix is one entity.
+
+### Typo exercise example (2026-10-18)
+
+The user has an exercise labeled "pullp" that should be "pullup", alongside an existing "pullup" exercise.
+The related workout entries are unknown to the user.
+Merge "pullp" into "pullup", discovering all references automatically and preserving every workout entry.
+The user must not need to find or relink those entries manually.
+After merging, exercise lists and selectors show one active "pullup" entity.
+
+[Entity search](./029-search-filter.md) helps find existing exercises before creating duplicates and locate merge candidates.
 
 ## Generic approach
 
@@ -84,6 +94,8 @@ Add these reads to `db/queries.clj`.
   - another user's records untouched.
 - E2E test: create "Pullup" and "Pullups" with exercise lines and a goal that selects both.
   Merge them, and verify the line counts, the goal's filter, and the goal's total.
+- Cover the typo case: merge "pullp" into "pullup" with workout entries referencing each exercise.
+  Discover references without user-supplied workout ids, preserve all entries, and show one active exercise in lists and selectors.
 - Manual test with real data, after a local backup.
 
 ## Context
@@ -91,6 +103,7 @@ Add these reads to `db/queries.clj`.
 - 2026-02-21: two projects for the same activity (gratitude journaling).
 - 2026-09-14: "Pullup" and "Pullups" found while creating the first real workout goal.
   The goal's multi-exercise filter is the workaround until this merge exists.
+- 2026-10-18: renewed request for entity management, including exercise search and merging typo duplicates with unknown workout references.
 
 ## Open Questions
 

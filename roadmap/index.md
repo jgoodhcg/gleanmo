@@ -67,6 +67,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 
 - [056-cronometer-integration.md](./056-cronometer-integration.md) - Food, recipes, biometrics and daily summaries from Cronometer for the agent API; slices A–C built and tested 2026-10-12 (sync, encrypted per-user credentials, read-only API groups, `/app/cronometer`), plus a dev-only fake API for local and CI sync; activity observations readable via a read-only Activities API group (2026-10-13); live sync and CSV backfill pending
 - [061-ai-assistance.md](./061-ai-assistance.md) - Agent API v1 built 2026-10-08: scoped bearer tokens, permission-checked reads, one checked all-or-nothing `tx` write endpoint with dry run; 2026-10-13 notes: standardized agent discovery / initial prompt, and per-document writes to generic imported entities (food logs, biometrics, activities)
+  Follow-up requested 2026-10-18: edit existing API token permissions without replacing the token.
 - [017-infrastructure.md](./017-infrastructure.md) - Database migration from Neon to DigitalOcean
 - [014-data-migration-status.md](./014-data-migration-status.md) - Tracker for Airtable backfills and remaining imports
 - [015-exercise.md](./015-exercise.md) - Exercise tracking with superset support and Airtable backfill; notes on sets and lines in the workout view re-requested 2026-10-04
@@ -122,12 +123,12 @@ PWA notification scaffolding does not establish working reminder delivery.
 - [009-bouldering.md](./009-bouldering.md) - Climbing sessions and problem attempts; screen is built — gym-use feedback 2026-10-04: stop/resume and discard a running attempt, visual identity distinct from workout
 - [039-local-dev-db-locking.md](./039-local-dev-db-locking.md) - RocksDB file lock prevents running REPL and CLI migrations concurrently
 - [049-schema-consistency.md](./049-schema-consistency.md) - Audit and standardize all Malli schemas for naming, field ordering, and conventions
-- [042-entity-merge.md](./042-entity-merge.md) - Combine duplicate entities by repointing every schema-declared reference, goal filters included (first need: Pullup/Pullups)
+- [042-entity-merge.md](./042-entity-merge.md) - Merge duplicates such as pullp into pullup; discover and repoint all workout and goal references automatically
 - [072-exercise-session-location-relation.md](./072-exercise-session-location-relation.md) - Replace the free-text location string on exercise-session with a proper location relation, matching every other log entity
 - [037-biff-upgrade-v1-9.md](./037-biff-upgrade-v1-9.md) - Upgrade Biff and task libs to at least v1.9.0, then validate XTDB/Agrona changes and Java 25 compatibility
 - [031-dynamic-server-port.md](./031-dynamic-server-port.md) - Make the server dynamically choose a port to run on to support git worktree and multiple project development
 - [016-generic-viz.md](./016-generic-viz.md) - Generic visualizations for timestamp/interval entities
-- [029-search-filter.md](./029-search-filter.md) - Text search tool for CRUD and timer view pages
+- [029-search-filter.md](./029-search-filter.md) - Search entity labels across full lists, so existing exercises can be found before creating duplicates
 - [036-timer-overlap-metrics.md](./036-timer-overlap-metrics.md) - Show overlap-aware daily and per-project timer metrics with clear unique vs. raw totals
 - [052-activity-timeline.md](./052-activity-timeline.md) - Chronological timeline view with day separation and quick edit access
 - [073-home-timeline-interval-times.md](./073-home-timeline-interval-times.md) - Render an interval's stop time alongside its start time in the home activity timeline, so a row shows its full span
@@ -184,4 +185,5 @@ PWA notification scaffolding does not establish working reminder delivery.
 
 ## Quick Ideas
 
+- [Task planning ideas](./008-backlog.md#task-planning-ideas-2026-10-18): optional task estimates and additional task views, including Kanban and calendar.
 - See [008-backlog.md](./008-backlog.md) for minor improvements not promoted to standalone work units yet
