@@ -33,7 +33,9 @@ The hard constraint is **sensitivity**. Gleanmo holds medical, mood, and other p
 
 ### Companion CLI Utility
 
-A lightweight TypeScript CLI (`gleanmo-agent`) distributed alongside the API — discoverable via a `GET /.well-known/agent-cli` endpoint that returns installation instructions or a download URL (raw script from the repo). The CLI wraps the authenticated API for curl/script-friendly use:
+A companion CLI (`gleanmo-agent`) distributed alongside the API, with its installation instructions and download URL exposed through agent discovery.
+The original proposal was a lightweight TypeScript script; a downloadable Rust binary is now a serious candidate (see the 2026-10-18 proposal below).
+The CLI wraps the authenticated API with explicit commands:
 
 ```sh
 # After generating a token in the web app:
@@ -273,7 +275,7 @@ Offline capture is now part of [093-inbox-quick-capture.md](./093-inbox-quick-ca
 - [ ] Rate limiting / abuse protection — needed for a personal app, or defer?
 - [ ] Should agent writes be auditable (a log of what an agent changed)?
 - [ ] How should an approved batch reject stale tasks: expected values, entity versions, or another optimistic-locking contract?
-- [ ] Companion CLI — standalone npm package? In-repo script? Distributed via the discovery endpoint as a single-file download?
+- [ ] Companion CLI — evaluate an in-repo Rust binary alongside the original TypeScript option. Choose release platforms, GitHub Releases vs. DigitalOcean Spaces distribution, token configuration, and JSON command / MCP mode contracts.
 - [ ] Token permission UI — what does the permission matrix look like in the form? A checkbox grid (entity types × read/write) with sensitivity/archive toggles?
 - [ ] Token format — `gmn_` prefix with what payload? Random bearer string with server-side permission lookup, or a self-contained signed JWT? Recommending opaque random with server-side lookup for revocability without a blacklist.
 
@@ -308,6 +310,32 @@ Candidates to weigh, not yet decided: an unauthenticated `GET /api/v1` (or
 `llms.txt`-style plain-text guide; a copyable "initial prompt" on the token page
 filled in with the base URL and the token's grants. This subsumes the deferred
 "discovery endpoint" above, and an MCP layer would reuse whatever it settles on.
+
+### Downloadable Rust CLI candidate (2026-10-18)
+
+Extend the standardized discovery proposal above with a serious evaluation of a Rust CLI built and maintained in this repository.
+Current API use requires agents to assemble arcane shell commands and ad hoc Python scripts.
+Provide a documented set of functional calls so API use is easier to discover, review, and audit later.
+This is a proposed implementation option, not a language or hosting decision.
+
+- Publish prebuilt binaries for the selected platforms through GitHub Releases, DigitalOcean Spaces, or another download host.
+  Discovery must identify the supported version, platform download, integrity checksum, and installation instructions.
+- Accept an existing scoped API bearer token through documented configuration, environment, or stdin input.
+  Keep tokens out of command output, audit records, and examples containing real credentials.
+  Reuse server permissions and validation; the binary must not access the database directly.
+- Provide explicit named commands for API discovery, type/schema inspection, entity reads, transaction preview, and approved transaction application.
+  Return machine-readable JSON with documented errors and exit codes, and keep diagnostic output separate.
+- Offer an MCP server mode over the same API operations for clients that use MCP.
+  JSON command mode and MCP tools must share operation names and semantics where possible.
+- Make calls reviewable: expose the operation, target, filters, and proposed changes without hiding extra writes behind a command.
+  Carry forward `dry_run` and `expect` checks, and define how an invocation maps to a later server audit record without logging tokens or private payloads by default.
+- Keep discovery, command help, JSON examples, and MCP tool descriptions aligned with the API contract.
+  Evaluate whether an agent can install the binary, inspect its grants, read a bounded page, preview a batch, and apply an approved batch without writing shell or Python glue.
+
+Compare Rust packaging and maintenance costs with the original TypeScript proposal.
+Settle supported platforms, download hosting, update/version compatibility, and the audit contract before implementation.
+
+### Generic imported entity writes (2026-10-13)
 
 **Agent writes to generic imported entities.**
 
