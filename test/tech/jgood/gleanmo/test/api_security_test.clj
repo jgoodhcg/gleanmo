@@ -180,6 +180,13 @@
           (is (re-find #"text/plain" (get-in resp [:headers "Content-Type"] "")))
           (is (< @read (* 8 1024 1024)))))
 
+      (testing "malformed JSON on a site route is a 400, not an internal error"
+        (let [resp (request node {:method  :post, :uri "/app/api-tokens"
+                                  :headers {"content-type" "application/json"}
+                                  :body    "{\"label\": [nope"})]
+          (is (= 400 (:status resp)))
+          (is (re-find #"text/plain" (get-in resp [:headers "Content-Type"] "")))))
+
       (testing "an ordinary form still reaches the route"
         (let [resp (request node {:method  :post, :uri "/app/api-tokens"
                                   :headers form

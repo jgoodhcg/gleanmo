@@ -78,6 +78,16 @@
       (def response* response)
       response)))
 
+(defn- refuse
+  "An error response in the format the route speaks: JSON under `/api/`,
+   plain text elsewhere."
+  [{:keys [uri] :as req} status message]
+  (if (str/starts-with? (str uri) "/api/")
+    (api-mid/refuse req status message)
+    {:status  status
+     :headers {"Content-Type" "text/plain; charset=utf-8"}
+     :body    message}))
+
 (defn wrap-site-defaults [handler]
   (-> handler
       biff/wrap-render-rum
@@ -86,6 +96,7 @@
       biff/wrap-session
       muuntaja/wrap-params
       muuntaja/wrap-format
+      (body/wrap-malformed refuse)
       (rd/wrap-defaults (-> rd/site-defaults
                             (assoc-in [:security :anti-forgery] false)
                             (assoc-in [:responses :absolute-redirects] true)
@@ -97,16 +108,6 @@
       muuntaja/wrap-params
       muuntaja/wrap-format
       (rd/wrap-defaults rd/api-defaults)))
-
-(defn- refuse
-  "An error response in the format the route speaks: JSON under `/api/`,
-   plain text elsewhere."
-  [{:keys [uri] :as req} status message]
-  (if (str/starts-with? (str uri) "/api/")
-    (api-mid/refuse req status message)
-    {:status  status
-     :headers {"Content-Type" "text/plain; charset=utf-8"}
-     :body    message}))
 
 (defn wrap-base-defaults [handler]
   (-> handler
