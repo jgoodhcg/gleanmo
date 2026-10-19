@@ -323,12 +323,12 @@
       (testing "a sensitive record is not found by a token without the grant"
         (is (= ["not found"]
                (op-errors (tx node token {:ops [{:op "update", :type "task"
-                                                  :id (str secret)
-                                                  :set {:task/label "x"}}]})))))
+                                                 :id (str secret)
+                                                 :set {:task/label "x"}}]})))))
       (testing "archiving needs the archived grant"
         (is (= 422 (:status (tx node token {:ops [{:op "update", :type "task"
-                                                    :id (str plain)
-                                                    :set {:task/archived true}}]})))))
+                                                   :id (str plain)
+                                                   :set {:task/archived true}}]})))))
       (is (= "Secret" (:task/label (stored node secret))))
       (is (nil? (:task/archived (stored node plain)))))))
 
