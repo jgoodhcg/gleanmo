@@ -4,6 +4,7 @@
    [tech.jgood.gleanmo.test.api-test]
    [tech.jgood.gleanmo.test.app.calendar-test]
    [tech.jgood.gleanmo.test.app.cronometer-test]
+   [tech.jgood.gleanmo.test.app.deferred-test]
    [tech.jgood.gleanmo.test.app.overview-test]
    [tech.jgood.gleanmo.test.app.shared-test]
    [tech.jgood.gleanmo.test.app.task-test]

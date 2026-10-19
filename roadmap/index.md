@@ -78,6 +78,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 - [015-exercise.md](./015-exercise.md) - Exercise tracking with superset support; notes on sets and lines re-requested 2026-10-04; browse definitions by body part, isometric work, loading, and equipment alongside label search; fix stale `#wk-log-primary` button label after inline exercise creation (2026-10-22)
 - [021-performance.md](./021-performance.md) - Performance monitoring dashboard; quick copy of the visible report
 - [013-dashboard-performance.md](./013-dashboard-performance.md) - Home page dashboard performance improvements
+- [098-perceived-performance.md](./098-perceived-performance.md) - Slow pages render a fast shell with shaped skeletons, then fill from the same URL's `?full=1` page in one or a few htmx requests; per-page estimates to check against prod
 - [012-daily-focus.md](./012-daily-focus.md) - Existing daily task workflow; further changes depend on the AI-assisted adoption check
 - [010-calendar.md](./010-calendar.md) - Year-at-a-glance calendar with event interactions and external sync
 - [008-backlog.md](./008-backlog.md) - Minor improvements without full work-unit docs
