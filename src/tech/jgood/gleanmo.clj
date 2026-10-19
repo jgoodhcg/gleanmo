@@ -56,7 +56,8 @@
 
 (def routes [["" {:middleware [mid/wrap-site-defaults]}
               (keep :routes modules)]
-             ["" {:middleware [api-mid/wrap-body-limit
+             ["" {:middleware [api-mid/wrap-no-store
+                               api-mid/wrap-body-limit
                                api-mid/wrap-malformed-body
                                mid/wrap-api-defaults]}
               (keep :api-routes modules)]])

@@ -126,3 +126,13 @@
         (is (= 400 (:status resp)))
         (is (re-find #"(?i)json" (get-in resp [:headers "Content-Type"] "")))
         (is (string? (get (json-body resp) "error")))))))
+
+(deftest no-store-test
+  (with-open [node (test-xtdb-node [])]
+    (let [token (token! node (UUID/randomUUID) :write [:tasks])]
+      (testing "API responses are never stored by a cache"
+        (doseq [resp [(request node {:uri "/api/v1/types", :token token})
+                      (request node {:uri "/api/v1/entities/task", :token token})
+                      (request node {:uri "/api/v1/types"})]]
+          (is (= "no-store" (get-in resp [:headers "Cache-Control"]))
+              (pr-str (:status resp))))))))

@@ -81,3 +81,13 @@
         (if (and (malformed? e) (not (too-large? e)))
           (json-response 400 "Malformed request body.")
           (throw e))))))
+
+(defn wrap-no-store
+  "Mark every API response `Cache-Control: no-store`. Responses carry health
+   records; a request with an `Authorization` header is already kept out of
+   shared caches by default, but nothing stopped a browser, proxy or client
+   library from keeping a private copy."
+  [handler]
+  (fn [req]
+    (some-> (handler req)
+            (assoc-in [:headers "Cache-Control"] "no-store"))))
