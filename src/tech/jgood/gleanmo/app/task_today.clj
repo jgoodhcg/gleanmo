@@ -2,6 +2,7 @@
   "Daily focus page for task execution."
   (:require
    [ring.middleware.anti-forgery :as csrf]
+   [tech.jgood.gleanmo.app.deferred :as deferred]
    [tech.jgood.gleanmo.app.layout :as layout]
    [tech.jgood.gleanmo.app.shared :refer [user-local-date]]
    [tech.jgood.gleanmo.db.queries :as queries]
@@ -211,8 +212,26 @@
    [:span "+"]
    [:span "Add from backlog"]])
 
+(defn- today-frame
+  "The today content block around its two slow regions, `stats` and `tasks`."
+  [ctx stats tasks]
+  [:div#today-content
+   ;; Header
+   [:div.flex.items-center.justify-between.mb-6
+    [:h1.text-2xl.font-bold "Today"]
+    [:span.text-gray-400
+     (.format (user-local-date ctx)
+              (java.time.format.DateTimeFormatter/ofPattern "EEE, MMM d"))]]
+   stats
+   (quick-add-form)
+   tasks
+   ;; Add from backlog
+   [:div.mt-6.pt-4.border-t.border-dark
+    (backlog-picker-button)]])
+
 (defn today-content
-  "The main content block (for HTMX partial updates)."
+  "The main content block, fully computed (for HTMX partial updates and the
+   full page)."
   [{:keys [biff/db session], :as ctx}]
   (let [user-id (:uid session)
         user-settings (queries/resolve-user-settings ctx)
@@ -231,27 +250,66 @@
         ;; Projects for display
         projects (queries/projects-for-user db user-id :user-settings user-settings)
         project-by-id (into {} (map (juxt :xt/id :project/label) projects))]
-    [:div#today-content
-     ;; Header
-     [:div.flex.items-center.justify-between.mb-6
-      [:h1.text-2xl.font-bold "Today"]
-      [:span.text-gray-400
-       (.format today (java.time.format.DateTimeFormatter/ofPattern "EEE, MMM d"))]]
-     ;; Stats
-     (stats-block done-today total-today all-time this-week last-week)
-     ;; Quick add
-     (quick-add-form)
-     ;; Task list
-     (task-list focused-tasks project-by-id today)
-     ;; Add from backlog
-     [:div.mt-6.pt-4.border-t.border-dark
-      (backlog-picker-button)]]))
+    (today-frame
+     ctx
+     [:div {:id "today-stats"}
+      (stats-block done-today total-today all-time this-week last-week)]
+     [:div {:id "today-tasks"}
+      (task-list focused-tasks project-by-id today)])))
 
-(defn today-view
-  "Full page view for /app/task/today"
+(defn- stats-skeleton
+  []
+  [:div (deferred/skeleton-attrs "today-stats")
+   [:div.bg-dark-surface.border.border-dark.rounded-lg.p-4.mb-6
+    [:div.mb-4
+     [:div.text-sm.text-gray-400.mb-1 "Today's Progress"]
+     [:div.flex.items-center.gap-3
+      [:div.h-6.w-10.rounded.bg-dark-light.animate-pulse]
+      [:div.flex-1.h-3.bg-dark.rounded-full]
+      [:div.h-4.w-8.rounded.bg-dark-light.animate-pulse]]]
+    [:div.grid.grid-cols-2.gap-4.text-sm
+     [:div.flex.items-center.gap-2
+      [:span.text-gray-400 "All time: "]
+      [:span.h-4.w-24.rounded.bg-dark-light.animate-pulse {:style (deferred/pulse-delay 1)}]]
+     [:div.flex.items-center.gap-2
+      [:span.text-gray-400 "This week: "]
+      [:span.h-4.w-24.rounded.bg-dark-light.animate-pulse {:style (deferred/pulse-delay 2)}]]]]])
+
+(defn- tasks-skeleton
+  "Collapsed task rows before the list loads."
+  []
+  [:div (deferred/skeleton-attrs "today-tasks")
+   [:div.space-y-2
+    (for [i (range 4)
+          :let [delay (deferred/pulse-delay i)]]
+      [:div.bg-dark-surface.rounded-lg.border.border-dark {:key i}
+       [:div.flex.items-center.gap-3.p-3
+        [:div.h-6.w-6.shrink-0.rounded-full.bg-dark-light.animate-pulse {:style delay}]
+        [:div.flex-1.min-w-0.space-y-2
+         [:div.h-4.rounded.bg-dark-light.animate-pulse
+          {:style delay :class (if (even? i) "w-2/3" "w-1/2")}]
+         [:div.h-3.w-24.rounded.bg-dark-light.animate-pulse.opacity-60 {:style delay}]]]])]])
+
+(defn- today-shell
+  [ctx]
+  (ui/page
+   ctx
+   (layout/page-shell
+    ctx {:width :narrow}
+    (today-frame ctx (stats-skeleton) (tasks-skeleton))
+    ;; Outside #today-content: quick add replaces that block, and the loader
+    ;; must survive it.
+    (deferred/loader ctx {:region-ids ["today-stats" "today-tasks"]}))))
+
+(defn- today-full
   [ctx]
   (ui/page
    ctx
    (layout/page-shell
     ctx {:width :narrow}
     (today-content ctx))))
+
+(def today-view
+  "GET /app/task/today — header and quick add at once, stats and tasks from
+   `?full=1` (see `deferred`)."
+  (deferred/handler {:shell today-shell :full today-full}))
