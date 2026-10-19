@@ -2,6 +2,7 @@
   (:require
    [clojure.string :as str]
    [com.biffweb :as biff]
+   [tech.jgood.gleanmo.app.deferred :as deferred]
    [tech.jgood.gleanmo.app.layout :as layout]
    [tech.jgood.gleanmo.app.shared :refer [get-user-time-zone]]
    [tech.jgood.gleanmo.db.mutations :as mutations]
@@ -340,14 +341,47 @@
       (icons/entity-icon entity-key)
       [:span (str display-name " stats →")]])])
 
-(defn timer-workspace
+(defn- start-list-skeleton
+  "The start list in outline: the filter box and a few dense rows."
+  []
+  [:div (deferred/skeleton-attrs "start-timer-section")
+   [:div.space-y-3
+    [:div.h-10.w-full.rounded.bg-dark-surface.border.border-dark]
+    [:div.space-y-1
+     (for [i (range start-row-preview-count)
+           :let [delay (deferred/pulse-delay i)]]
+       [:div.flex.items-center.justify-between.gap-2.bg-dark-surface.rounded.px-3.py-2.border.border-dark
+        {:key i}
+        [:div.flex.items-center.gap-2
+         [:div.h-4.w-4.rounded.bg-dark-light.animate-pulse {:style delay}]
+         [:div.h-4.rounded.bg-dark-light.animate-pulse
+          {:style delay :class (if (even? i) "w-40" "w-28")}]]
+        [:div.h-6.w-12.rounded.bg-dark-light.animate-pulse.opacity-60 {:style delay}]])]]])
+
+(defn- recent-logs-skeleton
+  []
+  [:div (deferred/skeleton-attrs "recent-logs-section")
+   [:div.space-y-2
+    (for [i (range 3)
+          :let [delay (deferred/pulse-delay i)]]
+      [:div.bg-dark-surface.rounded.p-3.border.border-dark.flex.items-center.justify-between
+       {:key i}
+       [:div.flex.items-center.gap-2
+        [:div.h-4.w-4.rounded.bg-dark-light.animate-pulse {:style delay}]
+        [:div.h-4.w-48.rounded.bg-dark-light.animate-pulse {:style delay}]]
+       [:div.h-4.w-12.rounded.bg-dark-light.animate-pulse.opacity-60 {:style delay}]])]])
+
+(defn- workspace
   "Unified timer workspace: every running timer across types, search-to-start
-   for any parent entity, and combined recent logs."
-  [ctx]
-  (let [sections         (mapv #(fetch-section ctx % :include-recent true)
-                               @timer-entity-configs)
-        locations        (timer-routes/fetch-locations ctx)
-        current-location (timer-routes/current-location-id ctx)]
+   for any parent entity, and combined recent logs.
+
+   The shell (`full?` false) shows the running timers at once. The start list
+   waits for `?full=1` with the recent logs, because its order comes from them
+   — rendering it early would reshuffle it under the user's cursor."
+  [ctx full?]
+  (let [sections  (mapv #(fetch-section ctx % :include-recent full?)
+                        @timer-entity-configs)
+        locations (timer-routes/fetch-locations ctx)]
     (ui/page
      ctx
      (layout/page-shell
@@ -362,15 +396,30 @@
 
       [:div.space-y-3
        (layout/section-header "START TIMER")
-       (search-to-start-section sections locations current-location)]
+       (if full?
+         [:div#start-timer-section
+          (search-to-start-section sections locations
+                                   (timer-routes/current-location-id ctx))]
+         (start-list-skeleton))]
 
       [:div.space-y-3
        (layout/section-header "RECENT LOGS")
        ;; Id is a stable anchor for tests: these edit links look identical to
        ;; the active cards' edit links without a scope to distinguish them.
-       [:div#recent-logs-section (combined-recent-logs ctx sections)]]
+       (if full?
+         [:div#recent-logs-section (combined-recent-logs ctx sections)]
+         (recent-logs-skeleton))]
 
-      (per-type-links sections)))))
+      (per-type-links sections)
+      (when-not full?
+        (deferred/loader ctx {:region-ids ["start-timer-section"
+                                           "recent-logs-section"]}))))))
+
+(def timer-workspace
+  "GET /app/timers — running timers at once, the start list and recent logs
+   from `?full=1` (see `deferred`)."
+  (deferred/handler {:shell #(workspace % false)
+                     :full  #(workspace % true)}))
 
 (defn active-timers-fragment
   "HTMX fragment refreshing all running timers across types."
