@@ -183,9 +183,28 @@ plus the shell. Network round trips are not included.
 
 ## Progress
 
-- Checkout: branch `perceived-perf` (from `dev` at 7aa7e06)
-- Completed: `defnp` conversion of the remaining public db functions
-- Remaining: see Pages
-- Validation: —
+- Checkout: branch `perceived-perf` (from `dev` at 7aa7e06), not merged
+- Completed (2026-10-19): `defnp` conversion; `app/deferred.clj`; Goals,
+  Home (two tiers), Task focus, Workout, Today, and Timers converted.
+  `/app/overview/recent` and `/app/goals/pinned` removed.
+- Fixes found on the way:
+  - htmx 1.9.0 with `hx-swap="none"` + `hx-select-oob` fires
+    `afterSwap`/`afterSettle` only on the *last* out-of-band region, never on
+    the loader. `main.js` re-fires both on every region once the loader's
+    `htmx:afterRequest` succeeds, so per-region initializers (start-list
+    filter, Choices, sortable, charts) run. Found by `test-timers-workspace`.
+  - `bg-dark-light` is not a defined color (no Tailwind theme entry, no CSS
+    class), so every skeleton bar — including the old home timeline
+    skeleton — was transparent. Skeletons now use `bg-dark-border`. 14 other
+    uses (mostly `hover:bg-dark-light`) remain and do nothing; worth a
+    backlog sweep.
+- Validation: `just validate` green; `just e2e-test-all` green (25 suites);
+  before/after pairs for smoke, goals, workout, timers-workspace,
+  home-running-timer, today-mobile all pair; series ticks
+  `2026-10-19T15-35-00Z` (before) and `2026-10-19T15-50-51Z` (after). Shell
+  states checked by screenshot with `?full=1` held back, desktop and mobile.
+  Local timings are not meaningful (near-empty DB); compare prod against the
+  estimates above.
 - Blockers: none
-- Next action: convert Goals
+- Next action: user review, merge to `dev`, deploy, then compare
+  `/app/monitoring/performance` with the estimates
