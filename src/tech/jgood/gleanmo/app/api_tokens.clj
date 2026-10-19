@@ -16,6 +16,16 @@
 
 (def ^:private base-path "/app/api-tokens")
 
+(def ^:private expiry-options
+  "Lifetimes offered at creation: submitted value, label, days (nil never
+   expires). Anything else submitted creates no token."
+  [["30" "30 days" 30]
+   ["90" "90 days" 90]
+   ["365" "1 year" 365]
+   ["never" "Never" nil]])
+
+(def ^:private default-expiry "90")
+
 (defn- fmt-instant
   [inst]
   (if inst
@@ -170,10 +180,23 @@
         :data-original-value "false"}]
       [:label.text-sm.text-secondary {:for "archived-granted"}
        "Allow archived records (each list request must still ask for them)"]]]
+    [:div
+     [:label.form-label {:for "expires-in-days"} "Expires after"]
+     [:div.mt-2
+      [:select.form-select
+       {:id                  "expires-in-days"
+        :name                "expires-in-days"
+        :data-original-value default-expiry}
+       (for [[value label] expiry-options]
+         [:option {:key value, :value value, :selected (= value default-expiry)}
+          label])]]
+     [:p.text-xs.text-gray-500.mt-2
+      "An agent can read its token's expiry from " [:code "GET /api/v1/types"] "."]]
     [:button.form-button-primary.w-full {:type "submit"} "Create token"]]))
 
 (defn- token-row
-  [{:keys [xt/id] :api-token/keys [label prefix last-used-at revoked-at] :as token-doc}]
+  [{:keys [xt/id] :api-token/keys [label prefix last-used-at revoked-at expires-at]
+    :as   token-doc}]
   [:li.py-3.border-t.border-dark {:key (str id) :data-testid "api-token-row"}
    [:div.flex.items-start.justify-between.gap-3
     [:div.min-w-0
@@ -183,6 +206,11 @@
      [:div.text-xs.text-gray-500.mt-1
       (str "created " (fmt-instant (::sm/created-at token-doc))
            " · last used " (fmt-instant last-used-at))]
+     [:div.text-xs.text-gray-500.mt-1 {:data-testid "api-token-expiry"}
+      (cond
+        (nil? expires-at)                    "never expires"
+        (access/expired? token-doc (t/now)) (str "expired " (fmt-instant expires-at))
+        :else                                (str "expires " (fmt-instant expires-at)))]
      (when revoked-at
        [:div.text-xs.text-gray-500.mt-1
         (str "revoked " (fmt-instant revoked-at))])]
@@ -258,20 +286,34 @@
    form and token list come back out-of-band; the snapshot is refreshed first
    so the list includes the new token. See `.decisions/api-token-reveal.json`."
   [{:keys [params session biff.xtdb/node], :as ctx}]
-  (let [label (str/trim (str (:label params)))]
-    (if (str/blank? label)
+  (let [label  (str/trim (str (:label params)))
+        expiry (some (fn [[value _ days]]
+                       (when (= value (str (:expires-in-days params)))
+                         {:days days}))
+                     expiry-options)]
+    (cond
+      (str/blank? label)
       (fragment-response (create-error "A label is required."))
+
+      (nil? expiry)
+      (fragment-response (create-error "Pick when the token expires."))
+
+      :else
       (let [token (access/generate-token)
-            data  {:user/id                     (:uid session)
-                   :api-token/label             label
-                   :api-token/token-hash        (access/hash-token token)
-                   :api-token/prefix            (access/display-prefix token)
-                   :api-token/read-groups       (submitted-groups params "read")
-                   :api-token/write-groups      (submitted-groups params "write")
-                   :api-token/sensitive-granted (param-true?
-                                                 (:sensitive-granted params))
-                   :api-token/archived-granted  (param-true?
-                                                 (:archived-granted params))}]
+            data  (cond->
+                   {:user/id                     (:uid session)
+                    :api-token/label             label
+                    :api-token/token-hash        (access/hash-token token)
+                    :api-token/prefix            (access/display-prefix token)
+                    :api-token/read-groups       (submitted-groups params "read")
+                    :api-token/write-groups      (submitted-groups params "write")
+                    :api-token/sensitive-granted (param-true?
+                                                  (:sensitive-granted params))
+                    :api-token/archived-granted  (param-true?
+                                                  (:archived-granted params))}
+                    (:days expiry)
+                    (assoc :api-token/expires-at
+                           (t/>> (t/now) (t/new-duration (:days expiry) :days))))]
         (mutations/create-entity! ctx {:entity-key :api-token, :data data})
         (let [tokens (queries/api-tokens-for-user (xt/db node) (:uid session))]
           (fragment-response

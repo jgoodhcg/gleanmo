@@ -32,7 +32,7 @@
   (mutations/create-entity! (ctx node) {:entity-key entity-key, :data data}))
 
 (defn- token!
-  [node user-id & {:keys [read write sensitive archived deleted]}]
+  [node user-id & {:keys [read write sensitive archived deleted expires-at]}]
   (let [token (access/generate-token)]
     (create! node :api-token
              (cond-> {:user/id                     user-id
@@ -43,7 +43,8 @@
                       :api-token/write-groups      (set write)
                       :api-token/sensitive-granted (boolean sensitive)
                       :api-token/archived-granted  (boolean archived)}
-               deleted (assoc ::sm/deleted-at (t/now))))
+               deleted (assoc ::sm/deleted-at (t/now))
+               expires-at (assoc :api-token/expires-at expires-at)))
     token))
 
 (defn- call
@@ -375,9 +376,10 @@
           other-id (UUID/randomUUID)
           resp     (api-tokens/create! (merge (ctx node)
                                               {:session {:uid user-id}
-                                               :params  {:label        "agent"
-                                                         :group-tasks  "write"
-                                                         :group-habits "read"}}))
+                                               :params  {:label           "agent"
+                                                         :group-tasks     "write"
+                                                         :group-habits    "read"
+                                                         :expires-in-days "never"}}))
           body     (str (:body resp))
           plain    (re-find #"gmn_[A-Za-z0-9_-]{43}" body)
           docs     (fn [uid] (->> (xt/q (xt/db node)
@@ -455,3 +457,52 @@
                                       {:op "update", :type "task", :id (str task)
                                        :set {:task/project-id (str shelved)}}]})
                            [:body "valid"])))))))
+
+(deftest token-expiry-test
+  (with-open [node (test-xtdb-node [])]
+    (let [user-id (UUID/randomUUID)
+          now     (t/now)
+          expired (token! node user-id :read [:tasks]
+                          :expires-at (t/<< now (t/new-duration 1 :minutes)))
+          current (token! node user-id :read [:tasks]
+                          :expires-at (t/>> now (t/new-duration 1 :days)))
+          forever (token! node user-id :read [:tasks])]
+      (testing "a token past its expiry is refused like a revoked one"
+        (is (= 401 (:status (call node expired api/types-handler {})))))
+      (testing "a token before its expiry, or with none, still works"
+        (is (= 200 (:status (call node current api/types-handler {}))))
+        (is (= 200 (:status (call node forever api/types-handler {})))))
+      (testing "an agent can see when its token expires"
+        (is (string? (get-in (call node current api/types-handler {})
+                             [:body "token" "expires_at"])))
+        (is (nil? (get-in (call node forever api/types-handler {})
+                          [:body "token" "expires_at"])))))
+
+    (let [user-id (UUID/randomUUID)
+          create  (fn [expires]
+                    (api-tokens/create! (merge (ctx node)
+                                               {:session {:uid user-id}
+                                                :params  {:label              expires
+                                                          :group-tasks        "read"
+                                                          :expires-in-days    expires}})))
+          doc     (fn [label]
+                    (->> (xt/q (xt/db node)
+                               '{:find  [(pull ?e [*])]
+                                 :where [[?e :user/id u] [?e :api-token/label l]]
+                                 :in    [u l]}
+                               user-id label)
+                         ffirst))]
+      (testing "the expiry picked at creation is stored"
+        (create "30")
+        (let [expires-at (:api-token/expires-at (doc "30"))
+              days       (t/days (t/between (t/now) expires-at))]
+          (is (some? expires-at))
+          (is (<= 29 days 30))))
+      (testing "never stores no expiry"
+        (create "never")
+        (is (some? (doc "never")))
+        (is (nil? (:api-token/expires-at (doc "never")))))
+      (testing "an expiry not on offer creates no token"
+        (let [resp (create "36500")]
+          (is (re-find #"new-api-token-error" (str (:body resp))))
+          (is (nil? (doc "36500"))))))))

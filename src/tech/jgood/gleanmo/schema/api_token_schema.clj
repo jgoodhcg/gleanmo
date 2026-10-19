@@ -11,7 +11,8 @@
 ;; so a token granted `:tasks` keeps covering tasks if the group later gains a
 ;; type. Write implies read. The two `-granted` flags decide whether the token
 ;; may ask for sensitive or archived records at all; each request still has to
-;; ask for them explicitly.
+;; ask for them explicitly. `expires-at` is optional: tokens made before it
+;; existed, and tokens created with no expiry, never expire.
 (def api-token
   [:map {:closed true}
    [:xt/id :api-token/id]
@@ -26,5 +27,6 @@
    [:api-token/write-groups [:set :keyword]]
    [:api-token/sensitive-granted {:optional true} :boolean]
    [:api-token/archived-granted {:optional true} :boolean]
+   [:api-token/expires-at {:optional true} :instant]
    [:api-token/last-used-at {:optional true} :instant]
    [:api-token/revoked-at {:optional true} :instant]])

@@ -75,7 +75,7 @@
    URL instead of `/agents` can still find out how to get a token."
   [ctx]
   (let [docs (str (str/replace (str (:biff/base-url ctx)) #"/+$" "") "/agents")]
-    (-> (error 401 "Missing, unknown, or revoked API token.")
+    (-> (error 401 "Missing, unknown, revoked, or expired API token.")
         (assoc-in [:body "docs"] docs)
         (assoc :headers {"WWW-Authenticate" "Bearer realm=\"gleanmo\""
                          "Link"             (str "<" docs ">; rel=\"service-doc\"")}))))
@@ -88,7 +88,7 @@
     (let [token     (access/bearer-token (get headers "authorization"))
           token-doc (when token
                       (queries/api-token-by-hash db (access/hash-token token)))]
-      (if (access/usable? token-doc)
+      (if (access/usable? token-doc (t/now))
         (do (touch-last-used! ctx token-doc)
             (handler (assoc ctx
                             :api/token   token-doc
@@ -126,6 +126,7 @@
   (json 200
         {"token"  {"label"       (:api-token/label token)
                    "prefix"      (:api-token/prefix token)
+                   "expires_at"  (some-> (:api-token/expires-at token) str)
                    "permissions" (access/permissions-summary token)}
          "groups" (vec
                    (for [{:keys [key label types read-only]} access/groups

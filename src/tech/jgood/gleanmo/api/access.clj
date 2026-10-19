@@ -93,11 +93,19 @@
   (when-let [[_ token] (some->> header (re-matches #"(?i)Bearer\s+(\S+)\s*"))]
     token))
 
+(defn expired?
+  "Whether the token has an expiry and `now` is at or past it."
+  [token-doc ^java.time.Instant now]
+  (if-let [^java.time.Instant expires-at (:api-token/expires-at token-doc)]
+    (not (.isBefore now expires-at))
+    false))
+
 (defn usable?
-  "Whether a stored token document may authenticate a request."
-  [token-doc]
+  "Whether a stored token document may authenticate a request at `now`."
+  [token-doc now]
   (and (some? token-doc)
        (nil? (:api-token/revoked-at token-doc))
+       (not (expired? token-doc now))
        (nil? (:tech.jgood.gleanmo.schema.meta/deleted-at token-doc))))
 
 ;; ---------------------------------------------------------------------------

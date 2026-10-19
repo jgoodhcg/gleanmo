@@ -68,6 +68,11 @@ async function main() {
     );
 
     await page.fill('#label', tokenLabel);
+    check(
+      (await page.inputValue('#expires-in-days')) === '90',
+      'new tokens default to a 90-day expiry',
+    );
+    await page.selectOption('#expires-in-days', '30');
     await page.check('input[name="group-tasks"][value="write"]');
     await page.click('#api-token-create-form button[type="submit"]');
 
@@ -82,6 +87,9 @@ async function main() {
     await expect(rows).toHaveCount(rowsBefore + 1, { timeout: 10000 });
     check(true, 'token list updates in place with the new token');
     check((await page.inputValue('#label')) === '', 'create form comes back empty');
+    const newRow = rows.filter({ hasText: tokenLabel });
+    await expect(newRow.locator('[data-testid="api-token-expiry"]')).toContainText('expires ');
+    check(true, 'the token list shows when the new token expires');
     await captureScreenshot(page, '02-created');
 
     await page.click('#new-api-token-reveal');
@@ -136,6 +144,9 @@ async function main() {
       groups.length === 1 && groups[0] === 'tasks:write',
       `token reaches only tasks (got ${groups.join(', ')})`,
     );
+    const expiresAt = Date.parse(typesBody.token.expires_at);
+    const days = (expiresAt - Date.now()) / 86_400_000;
+    check(days > 29 && days <= 30, `GET /types reports the 30-day expiry (got ${typesBody.token.expires_at})`);
 
     const op = {
       op: 'create',
