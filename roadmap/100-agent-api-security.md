@@ -141,11 +141,11 @@ Findings describe each problem and its fix, not how to exploit it.
 
 ## Notes
 
-- Merging with `security-audit` conflicts only in `test/tech/jgood/gleanmo/test.clj`
-  (both branches add requires; keep both).
+- Merging with `security-audit` conflicts in `test/tech/jgood/gleanmo/test.clj`
+  and `src/tech/jgood/gleanmo/middleware.clj`; keep both sides of each.
+  In `middleware.clj` both add requires (`clojure.string` twice),
+  and `wrap-base-defaults` needs this branch's `body/wrap-limit` line
+  plus that branch's own `wrap-log-requests`.
   The conflict in `roadmap/061-ai-assistance.md` exists between `dev` and `security-audit` already.
-  `security-audit` replaces Biff's `wrap-log-requests` in `wrap-base-defaults`;
-  this branch only adds route middleware for the API,
-  so the two don't overlap.
 - The profiler cap (finding 4) also affects site routes,
   because the profiler wraps the whole handler.
