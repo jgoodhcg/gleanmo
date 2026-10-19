@@ -1,9 +1,12 @@
 (ns tech.jgood.gleanmo.middleware
-  (:require [com.biffweb :as biff]
+  (:require [clojure.string :as str]
+            [com.biffweb :as biff]
             [muuntaja.middleware :as muuntaja]
             [ring.middleware.anti-forgery :as csrf]
             [ring.middleware.defaults :as rd]
+            [tech.jgood.gleanmo.api.middleware :as api-mid]
             [tech.jgood.gleanmo.db.queries :as queries]
+            [tech.jgood.gleanmo.middleware.body :as body]
             [tech.jgood.gleanmo.observability :as obs])
   (:import [java.util UUID]))
 
@@ -95,8 +98,21 @@
       muuntaja/wrap-format
       (rd/wrap-defaults rd/api-defaults)))
 
+(defn- refuse
+  "An error response in the format the route speaks: JSON under `/api/`,
+   plain text elsewhere."
+  [{:keys [uri] :as req} status message]
+  (if (str/starts-with? (str uri) "/api/")
+    (api-mid/refuse req status message)
+    {:status  status
+     :headers {"Content-Type" "text/plain; charset=utf-8"}
+     :body    message}))
+
 (defn wrap-base-defaults [handler]
   (-> handler
+      ;; Innermost, so a body over the limit is refused before
+      ;; `wrap-internal-error` can turn it into a 500.
+      (body/wrap-limit refuse)
       biff/wrap-https-scheme
       biff/wrap-resource
       biff/wrap-internal-error

@@ -8,6 +8,7 @@
    [cheshire.core :as json]
    [clojure.test :refer [deftest is testing]]
    [com.biffweb :refer [test-xtdb-node]]
+   [ring.middleware.session.memory :as session-memory]
    [tech.jgood.gleanmo :as main]
    [tech.jgood.gleanmo.api :as api]
    [tech.jgood.gleanmo.api.access :as access]
@@ -88,6 +89,7 @@
   [node {:keys [method uri token body headers]}]
   (main/handler
    (merge (ctx node)
+          {:biff.middleware/session-store (session-memory/memory-store)}
           {:request-method (or method :get)
            :uri            uri
            :scheme         :https
@@ -114,6 +116,7 @@
                                             "content-length" (str (* 64 1024 1024))}
                                   :body    (counting-stream read)})]
           (is (= 413 (:status resp)))
+          (is (= "no-store" (get-in resp [:headers "Cache-Control"])))
           (is (zero? @read))))
 
       (testing "an undeclared (chunked) body is cut off at the limit, token or not"
@@ -155,6 +158,33 @@
         (is (= 400 (:status resp)))
         (is (re-find #"(?i)json" (get-in resp [:headers "Content-Type"] "")))
         (is (string? (get (json-body resp) "error")))))))
+
+(deftest site-body-limit-test
+  (with-open [node (test-xtdb-node [])]
+    (let [form {"content-type" "application/x-www-form-urlencoded"}]
+      (testing "a declared oversized form is refused before anything reads it"
+        (let [read (atom 0)
+              resp (request node {:method  :post, :uri "/app/api-tokens"
+                                  :headers (assoc form "content-length"
+                                                  (str (* 64 1024 1024)))
+                                  :body    (counting-stream read)})]
+          (is (= 413 (:status resp)))
+          (is (zero? @read))))
+
+      (testing "an undeclared form body is cut off at the limit, signed in or not"
+        (let [read (atom 0)
+              resp (request node {:method  :post, :uri "/app/api-tokens"
+                                  :headers form
+                                  :body    (counting-stream read)})]
+          (is (= 413 (:status resp)))
+          (is (re-find #"text/plain" (get-in resp [:headers "Content-Type"] "")))
+          (is (< @read (* 8 1024 1024)))))
+
+      (testing "an ordinary form still reaches the route"
+        (let [resp (request node {:method  :post, :uri "/app/api-tokens"
+                                  :headers form
+                                  :body    "label=agent"})]
+          (is (not (#{400 413 500} (:status resp)))))))))
 
 (deftest no-store-test
   (with-open [node (test-xtdb-node [])]

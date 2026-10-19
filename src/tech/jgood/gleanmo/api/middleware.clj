@@ -4,83 +4,24 @@
    `wrap-api-defaults` decodes JSON and form bodies before any route
    middleware runs, so `api/wrap-api-token` sees a request only after its body
    has been read. Anything that has to hold for unauthenticated requests
-   belongs here, ahead of that. See roadmap/100-agent-api-security.md."
-  (:import
-   [java.io FilterInputStream InputStream]))
+   belongs here, ahead of that. The body size limit covers every route, so it
+   lives in `wrap-base-defaults`. See roadmap/100-agent-api-security.md."
+  (:require
+   [tech.jgood.gleanmo.middleware.body :as body]))
 
-(def max-body-bytes
-  "The largest request body the API reads. A full 200-op batch of task edits
-   with long notes is well under this; nothing legitimate comes close."
-  (* 1024 1024))
-
-(defn- json-response
-  "A JSON response built by hand: these guards run outside muuntaja, so a map
-   body would not be encoded."
-  [status message]
+(defn refuse
+  "A JSON error response built by hand: these guards run outside muuntaja, so
+   a map body would not be encoded."
+  [_req status message]
   {:status  status
-   :headers {"Content-Type" "application/json; charset=utf-8"}
+   :headers {"Content-Type"  "application/json; charset=utf-8"
+             "Cache-Control" "no-store"}
    :body    (str "{\"error\":\"" message "\"}")})
 
-(defn- too-large
-  []
-  (ex-info "Request body too large" {:type ::body-too-large}))
-
-(defn- too-large?
-  [e]
-  (some #(= ::body-too-large (:type (ex-data %)))
-        (take-while some? (iterate ex-cause e))))
-
-(defn- bounded-stream
-  "`in`, throwing once more than `limit` bytes have been read from it. Covers
-   bodies that declare no length (chunked) or declare a false one."
-  ^InputStream [^InputStream in limit]
-  (let [n (volatile! 0)
-        count! (fn [k]
-                 (when (pos? k)
-                   (when (< limit (vswap! n + k))
-                     (throw (too-large))))
-                 k)]
-    (proxy [FilterInputStream] [in]
-      (read
-        ([] (let [b (.read in)]
-              (when (<= 0 b) (count! 1))
-              b))
-        ([^bytes b] (count! (.read in b)))
-        ([^bytes b off len] (count! (.read in b (int off) (int len))))))))
-
-(defn wrap-body-limit
-  "Refuse bodies over `max-body-bytes` with 413: up front when the declared
-   length is too large, else as soon as the parser reads past the limit."
-  [handler]
-  (fn [{:keys [headers body] :as req}]
-    (let [declared (some-> (get headers "content-length") parse-long)]
-      (if (and declared (< max-body-bytes declared))
-        (json-response 413 "Request body too large.")
-        (try
-          (handler (cond-> req
-                     (instance? InputStream body)
-                     (assoc :body (bounded-stream body max-body-bytes))))
-          (catch Exception e
-            (if (too-large? e)
-              (json-response 413 "Request body too large.")
-              (throw e))))))))
-
-(defn- malformed?
-  [e]
-  (= :muuntaja/decode (:type (ex-data e))))
-
 (defn wrap-malformed-body
-  "Answer a body muuntaja cannot decode with a JSON 400. Left alone, the decode
-   error escapes as a 500 HTML page and an error-level stack trace, which any
-   client can trigger without a token."
+  "Answer a body muuntaja cannot decode with a JSON 400."
   [handler]
-  (fn [req]
-    (try
-      (handler req)
-      (catch Exception e
-        (if (and (malformed? e) (not (too-large? e)))
-          (json-response 400 "Malformed request body.")
-          (throw e))))))
+  (body/wrap-malformed handler refuse))
 
 (defn wrap-no-store
   "Mark every API response `Cache-Control: no-store`. Responses carry health
