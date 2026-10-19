@@ -11,6 +11,7 @@
    [cheshire.core :as json]
    [clojure.string :as str]
    [com.biffweb :as biff]
+   [tech.jgood.gleanmo.app.deferred :as deferred]
    [tech.jgood.gleanmo.app.goal-editor :as editor]
    [tech.jgood.gleanmo.app.layout :as layout]
    [tech.jgood.gleanmo.app.shared :as shared]
@@ -940,24 +941,58 @@
      [:div.grid.grid-cols-1.md:grid-cols-3.gap-3
       (map pinned-goal-card entries)]]))
 
-(defn pinned-goals-fragment
-  "GET /app/goals/pinned — lazy home-screen fragment. Computes only the
-   pinned, unarchived goals; with none pinned it costs one sparse-flag lookup
-   and renders nothing."
+(defn- skeleton-bar
+  [width i]
+  [:span {:class (str "block h-3 rounded bg-dark-light animate-pulse " width)
+          :style (deferred/pulse-delay i)}])
+
+(defn- visible-pinned-goals
   [{:keys [session biff/db] :as ctx}]
-  (let [user-id (:uid session)
-        pinned  (remove #(true? (:goal/archived %))
-                        (queries/pinned-goals-for-user db user-id))
-        entries (when (seq pinned)
-                  (->> (dashboard/dashboard db user-id
-                                            {:now           (Instant/now)
-                                             :user-settings (queries/resolve-user-settings ctx)
-                                             :goals         pinned})
-                       :active
-                       (sort-by (comp str/lower-case :goal/label :goal))))]
-    {:status  200
-     :headers {"content-type" "text/html"}
-     :body    (ui/fragment ctx (pinned-goal-cards entries))}))
+  (let [user-id (:uid session)]
+    (dashboard/visible-goals db user-id
+                             (remove #(true? (:goal/archived %))
+                                     (queries/pinned-goals-for-user db user-id))
+                             (queries/resolve-user-settings ctx))))
+
+(defn pinned-goal-entries
+  "The home screen's pinned, unarchived goals, computed. With none pinned it
+   costs one sparse-flag lookup."
+  [{:keys [session biff/db] :as ctx}]
+  (let [pinned (visible-pinned-goals ctx)]
+    (when (seq pinned)
+      (->> (dashboard/dashboard db (:uid session)
+                                {:now           (Instant/now)
+                                 :user-settings (queries/resolve-user-settings ctx)
+                                 :goals         pinned})
+           :active
+           (sort-by (comp str/lower-case :goal/label :goal))))))
+
+(defn pinned-goals-skeleton
+  "The home Goals section before its goals are computed: each pinned goal's
+   card with its real label and a pulsing bar for the figures. Nothing when
+   no goal is pinned."
+  [ctx]
+  (when-let [pinned (seq (sort-by (comp str/lower-case :goal/label)
+                                  (visible-pinned-goals ctx)))]
+    [:section.space-y-3 {:aria-label "Pinned goals"}
+     [:div.flex.items-center.gap-3
+      [:div.text-xs.font-semibold.uppercase.tracking-wide.text-gray-300 "Goals"]
+      [:div.h-px.flex-1.bg-dark-border]
+      [:a.text-xs.text-gray-500.no-underline.hover:text-neon-cyan {:href "/app/goals"}
+       "All goals"]]
+     [:div.grid.grid-cols-1.md:grid-cols-3.gap-3
+      (map-indexed
+       (fn [i goal]
+         [:a {:key   (str (:xt/id goal))
+              :href  (goal-href goal)
+              :class "block rounded-lg bg-dark-surface px-4 py-3 no-underline transition-colors hover:bg-dark-light"
+              :style {:border "1px solid #1e2430"}}
+          [:div.flex.items-baseline.justify-between.gap-3
+           [:div.min-w-0.truncate.text-sm.font-semibold.text-white (:goal/label goal)]
+           (skeleton-bar "w-20 shrink-0" i)]
+          [:div {:class "mt-2 h-1.5 w-full rounded-full bg-dark"}]
+          [:div.mt-2 (skeleton-bar "w-32" i)]])
+       pinned)]]))
 
 ;; ---------------------------------------------------------------------------
 ;; Goals list (roadmap/091-pinned-goals.md, 2026-10-06)
@@ -1057,19 +1092,59 @@
    [:other "No deadline, best, and books" other-row]])
 
 (defn- goals-list
-  [entries]
-  (let [by-group (group-by #(cond (cumulative? %) :cumulative
-                                  (periodic? %)   :periodic
-                                  :else           :other)
-                           entries)]
-    [:div {:data-goals-list true}
-     (for [[k title row] groups
-           :let [rows (get by-group k)]
-           :when (seq rows)]
-       [:section {:key (name k) :data-goal-group (name k) :aria-label title
-                  :class "mt-8 first:mt-0"}
-        [:h2 {:class "mb-1 text-xs uppercase tracking-wider text-gray-400"} title]
-        (map row rows)])]))
+  "Entries grouped by family. `render` draws one row from its group key, the
+   group's row fn, the entry, and its index in the group; by default it calls
+   the row fn."
+  ([entries]
+   (goals-list entries (fn [_ row entry _] (row entry))))
+  ([entries render]
+   (let [by-group (group-by #(cond (cumulative? %) :cumulative
+                                   (periodic? %)   :periodic
+                                   :else           :other)
+                            entries)]
+     [:div {:data-goals-list true}
+      (for [[k title row] groups
+            :let [rows (get by-group k)]
+            :when (seq rows)]
+        [:section {:key (name k) :data-goal-group (name k) :aria-label title
+                   :class "mt-8 first:mt-0"}
+         [:h2 {:class "mb-1 text-xs uppercase tracking-wider text-gray-400"} title]
+         (map-indexed #(render k row %2 %1) rows)])])))
+
+;; ---------------------------------------------------------------------------
+;; Goals list shell (roadmap/098-perceived-performance.md)
+;;
+;; Labels, families, and pins come from the goal documents alone, which cost
+;; milliseconds; progress needs every goal's source records, which cost
+;; seconds. The shell draws each row from the former with skeleton bars where
+;; the latter will go.
+;; ---------------------------------------------------------------------------
+
+(defn- pending-entries
+  "Visible active goals as list entries without progress, in list order. A
+   book goal carries a placeholder `:book-progress` so it groups as it will
+   once computed."
+  [{:keys [session biff/db] :as ctx}]
+  (let [user-id (:uid session)
+        goals   (dashboard/visible-goals db user-id
+                                         (queries/goals-for-user db user-id)
+                                         (queries/resolve-user-settings ctx))]
+    (->> goals
+         (remove #(true? (:goal/archived %)))
+         (keep (fn [g]
+                 (when-let [m (registry/measurement g)]
+                   (cond-> {:goal g :measurement m}
+                     (= :completion (:aggregation m)) (assoc :book-progress ::pending)))))
+         (sort-by (juxt (comp not pinned? :goal)
+                        (comp str/lower-case :goal/label :goal))))))
+
+(defn- skeleton-row
+  "A list row with its real pin and label, and pulsing bars for the rest."
+  [group-key _ entry i]
+  (list-row entry (name group-key)
+            [:span.mt-1.block (skeleton-bar "w-48" i)]
+            [:<> (skeleton-bar "w-24" i) (list-bar nil "")]
+            [(skeleton-bar "w-40" i)]))
 
 ;; ---------------------------------------------------------------------------
 ;; Goal page · cumulative dated goals (roadmap/090, design direction 2026-10-06)
@@ -1230,32 +1305,68 @@
      [:p.text-xs.text-gray-500
       (str hidden-count " goal(s) hidden by your sensitive/archived settings.")])])
 
+(def ^:private goals-regions
+  "The goals page regions the full page fills in the shell."
+  ["goals-list" "goals-notes"])
+
+(defn- empty-goals
+  []
+  (layout/empty-state
+   {:message "No goals yet. A goal counts what you already log — time, sessions, reps, or finishing a book."
+    :action  [:a.form-button-primary {:href "/app/goals/new"} "Create your first goal"]}))
+
+(defn- goals-layout
+  [ctx & content]
+  (ui/page
+   ctx
+   (apply layout/page-shell
+          ctx {:width :wide}
+          (layout/page-header
+           {:title    "Goals"
+            :subtitle "A little closer, every time."
+            :actions  [:a.form-button-primary {:href "/app/goals/new"} "+ New goal"]})
+          content)))
+
+(defn- goals-shell
+  [ctx]
+  (let [entries (pending-entries ctx)]
+    (goals-layout
+     ctx
+     [:div (deferred/skeleton-attrs "goals-list")
+      (if (empty? entries)
+        (empty-goals)
+        (goals-list entries skeleton-row))]
+     [:div {:id "goals-notes"}]
+     (deferred/loader ctx {:region-ids goals-regions}))))
+
+(defn- goals-full
+  [{:keys [session biff/db] :as ctx}]
+  (let [data    (dashboard/dashboard db (:uid session)
+                                     {:now           (Instant/now)
+                                      :user-settings (queries/resolve-user-settings ctx)})
+        entries (sort-by (juxt (comp not pinned? :goal)
+                               (comp str/lower-case :goal/label :goal))
+                         (:active data))]
+    (goals-layout
+     ctx
+     [:div {:id "goals-list"}
+      (if (empty? entries)
+        (empty-goals)
+        (goals-list entries))]
+     [:div {:id "goals-notes"} (page-notes data)])))
+
+(def ^:private goals-page*
+  (deferred/handler {:shell goals-shell :full goals-full}))
+
 (defn goals-page
-  "GET /app/goals — every goal, grouped by family. `?goal=<id>`, the old
-   selected-goal URL, redirects to that goal's page."
-  [{:keys [session biff/db params] :as ctx}]
+  "GET /app/goals — every goal, grouped by family. The shell lists each goal
+   by label with skeleton progress, and `?full=1` fills it in (see
+   `deferred`). `?goal=<id>`, the old selected-goal URL, redirects to that
+   goal's page."
+  [{:keys [params] :as ctx}]
   (if-let [id (some-> (:goal params) parse-uuid)]
     {:status 303 :headers {"location" (str "/app/goal/" id)}}
-    (let [data    (dashboard/dashboard db (:uid session)
-                                       {:now           (Instant/now)
-                                        :user-settings (queries/resolve-user-settings ctx)})
-          entries (sort-by (juxt (comp not pinned? :goal)
-                                 (comp str/lower-case :goal/label :goal))
-                           (:active data))]
-      (ui/page
-       ctx
-       (layout/page-shell
-        ctx {:width :wide}
-        (layout/page-header
-         {:title    "Goals"
-          :subtitle "A little closer, every time."
-          :actions  [:a.form-button-primary {:href "/app/goals/new"} "+ New goal"]})
-        (if (empty? entries)
-          (layout/empty-state
-           {:message "No goals yet. A goal counts what you already log — time, sessions, reps, or finishing a book."
-            :action  [:a.form-button-primary {:href "/app/goals/new"} "Create your first goal"]})
-          (goals-list entries))
-        (page-notes data))))))
+    (goals-page* ctx)))
 
 (defn- owned-goal
   [{:keys [biff/db session path-params]}]
@@ -1339,8 +1450,7 @@
     ["" {:get goals-page, :post editor/create!}]
     ["/new" {:get editor/new-page}]
     ["/editor" {:get editor/refresh}]
-    ["/suggestion" {:get editor/suggestion-fragment}]
-    ["/pinned" {:get pinned-goals-fragment}]]
+    ["/suggestion" {:get editor/suggestion-fragment}]]
    ["/goal/:id" {}
     ["" {:get goal-page, :post editor/update!}]
     ["/edit" {:get editor/edit-page}]
