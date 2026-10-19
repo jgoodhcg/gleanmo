@@ -41,7 +41,7 @@
             (catch Exception _
               nil))))
 
-(defn get-user-settings
+(defnp get-user-settings
   "Get all user settings in a single query. Returns a map with email and boolean settings."
   [db user-id]
   (when user-id
@@ -62,7 +62,7 @@
        :show-archived  false,
        :show-bm-logs   true})))
 
-(defn resolve-user-settings
+(defnp resolve-user-settings
   "Read user settings from request context if available, otherwise query DB.
    Prefer ctx-based lookup (O(0) DB calls) over get-user-settings (1 DB call)."
   ([ctx]
@@ -80,7 +80,7 @@
       (some (fn [[k & _]] (= k field-key))
             (schema-utils/extract-schema-fields entity-schema)))))
 
-(defn direct-sensitivity-clauses
+(defnp direct-sensitivity-clauses
   "Generate Datalog :where clauses for direct sensitivity/archived fields only.
    Does NOT include relationship joins — use for lightweight count/filter queries."
   [entity-type user-settings]
@@ -95,7 +95,7 @@
            (schema-has-field? entity-type "archived"))
       (conj (list 'not ['?e (keyword entity-type-str "archived") true])))))
 
-(defn ^:deprecated relationship-sensitivity-clauses
+(defnp ^:deprecated relationship-sensitivity-clauses
   "DEPRECATED: Causes O(N×M) nested-loop evaluation in XTDB 1.x.
    Use two-phase exclusion via build-exclusion-map + apply-relationship-exclusions instead.
    Kept for rollback safety."
@@ -127,7 +127,7 @@
                                  [rel-var arch-key true]]))))))
            vec))))
 
-(defn sensitivity-clauses
+(defnp sensitivity-clauses
   "Generate all sensitivity/archived where clauses — both direct and relationship.
    Suitable for pushing into XTDB queries that need full filtering."
   [entity-type user-settings]
@@ -573,7 +573,7 @@
             {:xt/id eid, temporal-key sort-value})
           rows))))
 
-(defn build-count-query
+(defnp build-count-query
   "Build a lightweight count query — returns entity IDs only, no pull [*].
    Accepts extra-where clauses for sensitivity/state filtering."
   [entity-type & {:keys [extra-where]}]
@@ -782,7 +782,7 @@
          (take limit)
          vec)))
 
-(defn scan-diagnostics
+(defnp scan-diagnostics
   "Time sequential, uncontended index-only scans per entity type for a user.
    Returns [{:type ... :rows n :ms x}] — for the monitoring dashboard."
   [db user-id entity-types order-keys]
@@ -797,7 +797,7 @@
         :rows rows
         :ms   (/ (- t1 t0) 1e6)}))))
 
-(defn tasks-for-user
+(defnp tasks-for-user
   "Get all tasks for a user, respecting the user's sensitive setting."
   [db user-id & {:keys [user-settings]}]
   (let [{:keys [show-sensitive show-archived]}
@@ -809,13 +809,13 @@
      :filter-sensitive show-sensitive
      :filter-archived  show-archived)))
 
-(defn tasks-by-state
+(defnp tasks-by-state
   "Get tasks for a user in a specific state, respecting sensitive settings."
   [db user-id state & {:keys [user-settings]}]
   (->> (tasks-for-user db user-id :user-settings user-settings)
        (filter #(= (:task/state %) state))))
 
-(defn count-tasks-by-state
+(defnp count-tasks-by-state
   "Count tasks in a specific state for a user, pushing state predicate into XTDB."
   [db user-id state & {:keys [user-settings]}]
   (let [settings     (or user-settings (get-user-settings db user-id))
@@ -830,7 +830,7 @@
                       :in    '[user-id task-state]}]
     (count (q db query user-id state))))
 
-(defn projects-for-user
+(defnp projects-for-user
   "Get all projects for a user, respecting the user's sensitive setting."
   [db user-id & {:keys [user-settings]}]
   (let [{:keys [show-sensitive show-archived]}
@@ -904,7 +904,7 @@
      :order-key           order-key
      :order-direction     order-direction)))
 
-(defn bounded-pmap
+(defnp bounded-pmap
   "Map f over coll with at most n tasks in flight, preserving order and
    conveying dynamic bindings (so tufte spans record on worker threads).
    Unlike pmap, the bound doesn't depend on the JVM's core count, which
@@ -1062,7 +1062,7 @@
          (take limit)
          (map #(dissoc % ::order)))))
 
-(defn get-user-authz
+(defnp get-user-authz
   "Get user authorization info (super-user status) for a user ID."
   [db user-id]
   (when user-id
@@ -1075,7 +1075,7 @@
   [db query type filter-email]
   (q db query [type filter-email]))
 
-(defn count-users
+(defnp count-users
   "Count all user documents."
   [db]
   (nth (q db
@@ -1084,7 +1084,7 @@
        0
        0))
 
-(defn user-id-by-email
+(defnp user-id-by-email
   "The id of the user with `email`, or nil."
   [db email]
   (ffirst (q db
@@ -1093,19 +1093,19 @@
                :in    [email]}
              email)))
 
-(defn entity-history-desc
+(defnp entity-history-desc
   "Full entity history for a document, newest first, with docs."
   [db doc-id]
   (xt/entity-history db doc-id :desc {:with-docs? true}))
 
-(defn get-last-tx-time
+(defnp get-last-tx-time
   [{:keys [biff/db xt/id]}]
   (let [history (xt/entity-history db id :desc)]
     (-> history
         first
         :xtdb.api/tx-time)))
 
-(defn tasks-for-today
+(defnp tasks-for-today
   "Get tasks focused for today (focus-date <= today, not terminal).
    Pushes date and state predicates into XTDB, then sorts in Clojure."
   [db user-id today & {:keys [user-settings]}]
@@ -1128,7 +1128,7 @@
          (sort-by (juxt (fn [t] (or (:task/focus-order t) Integer/MAX_VALUE))
                         :task/focus-date)))))
 
-(defn next-focus-order-for-date
+(defnp next-focus-order-for-date
   "Return the next focus-order value for tasks with focus-date equal to date.
    Pushes focus-date equality into XTDB, only pulls focus-order."
   [db user-id date & {:keys [user-settings]}]
@@ -1146,7 +1146,7 @@
         results      (q db query user-id date)]
     (inc (reduce max 0 (map first results)))))
 
-(defn tasks-completed-today
+(defnp tasks-completed-today
   "Get tasks completed today — pushes state and focus-date into XTDB."
   [db user-id today & {:keys [user-settings]}]
   (let [settings     (or user-settings (get-user-settings db user-id))
@@ -1163,7 +1163,7 @@
         results      (q db query user-id today)]
     (map first results)))
 
-(defn count-tasks-completed-all-time
+(defnp count-tasks-completed-all-time
   "Count all completed tasks for a user — pushes state into XTDB count query."
   [db user-id & {:keys [user-settings]}]
   (let [settings     (or user-settings (get-user-settings db user-id))
@@ -1178,7 +1178,7 @@
                       :in    '[user-id]}]
     (count (q db query user-id))))
 
-(defn count-tasks-completed-in-range
+(defnp count-tasks-completed-in-range
   "Count tasks completed within a date range — pushes done-at range into XTDB."
   [db user-id start-instant end-instant & {:keys [user-settings]}]
   (let [settings     (or user-settings (get-user-settings db user-id))
@@ -1620,7 +1620,7 @@
                        ;; If no dtstart, include it (events without dates)
                        true)))))))
 
-(defn api-token-by-hash
+(defnp api-token-by-hash
   "The API token whose stored hash is `token-hash`, or nil. Revocation is the
    caller's check, so a revoked token can be told apart from an unknown one."
   [db token-hash]
@@ -1630,7 +1630,7 @@
                :in    [token-hash]}
              token-hash)))
 
-(defn api-tokens-for-user
+(defnp api-tokens-for-user
   "Every API token the user has created, revoked ones included, newest first."
   [db user-id]
   (->> (q db
@@ -1718,7 +1718,7 @@
                :in    [user-id]}
              user-id)))
 
-(defn cronometer-connection-for-user
+(defnp cronometer-connection-for-user
   "The user's live `cronometer-connection` document, or nil."
   [db user-id]
   (->> (q db
@@ -1732,7 +1732,7 @@
        (sort-by ::sm/created-at #(compare %2 %1))
        first))
 
-(defn users-with-cronometer-connection
+(defnp users-with-cronometer-connection
   "Every user document with a live `cronometer-connection`."
   [db]
   (let [user-ids (->> (q db

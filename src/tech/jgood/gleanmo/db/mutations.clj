@@ -9,6 +9,7 @@
    [tech.jgood.gleanmo.schema.rules :as rules]
    [tech.jgood.gleanmo.schema.utils :as schema-utils]
    [tick.core :as t]
+   [taoensso.tufte :refer [defnp]]
    [xtdb.api :as xt]))
 
 ;; ---------------------------------------------------------------------------
@@ -81,7 +82,7 @@
       data)
     data))
 
-(defn entity-doc
+(defnp entity-doc
   "Shape `data` into the document `create-entity!` would submit, without
    submitting it. Callers that need to validate before writing (e.g. inline
    create, which re-renders a form on failure instead of throwing) build the
@@ -111,7 +112,7 @@
 ;; `invalid-write?` and show `:errors` beside the fields.
 ;; ---------------------------------------------------------------------------
 
-(defn invalid-write?
+(defnp invalid-write?
   "True for the exception a rule violation throws."
   [e]
   (= ::invalid-write (:type (ex-data e))))
@@ -153,7 +154,7 @@
 (def ^:private biff-create-collision
   "Attempted to create over an existing doc.")
 
-(defn id-in-use?
+(defnp id-in-use?
   "True for the exception a create over an existing id throws."
   [e]
   (= ::id-in-use (:type (ex-data e))))
@@ -170,7 +171,7 @@
                         e))
         (throw e)))))
 
-(defn create-entity!
+(defnp create-entity!
   "Create a new entity in the database. Throws `id-in-use?` if its id already
    exists."
   [ctx {:keys [entity-key data]}]
@@ -201,7 +202,7 @@
                    doc))
           docs)))
 
-(defn create-entities!
+(defnp create-entities!
   "Create multiple entities in one transaction and return their IDs in input order."
   [ctx entity-specs]
   (let [tx-docs (create-tx-ops ctx entity-specs)]
@@ -222,7 +223,7 @@
           :xt/id       entity-id}
          (with-derived-running ctx entity-key entity-id data)))
 
-(defn update-entity!
+(defnp update-entity!
   "Update an existing entity in the database.
 
    `data` is merged into the stored document. For timer entities the derived
@@ -232,7 +233,7 @@
   (biff/submit-tx ctx [(update-tx-op ctx spec)])
   entity-id)
 
-(defn update-entities!
+(defnp update-entities!
   "Update multiple existing entities in one transaction. Each spec takes the
    same shape as `update-entity!`. Returns the entity IDs in input order."
   [ctx entity-specs]
@@ -241,7 +242,7 @@
       (biff/submit-tx ctx tx-ops))
     (mapv :entity-id entity-specs)))
 
-(defn write-entities!
+(defnp write-entities!
   "Create and update entities in one transaction, so a batch lands whole or
    not at all. `creates` take the `create-entities!` spec shape and `updates`
    the `update-entities!` one. Creates may preset `:xt/id` in `data`, which lets
@@ -254,7 +255,7 @@
     {:created (mapv :xt/id create-docs)
      :updated (mapv :entity-id updates)}))
 
-(defn soft-delete-entity!
+(defnp soft-delete-entity!
   "Soft-delete an entity by setting its deleted-at timestamp."
   [ctx {:keys [entity-key entity-id]}]
   (let [tx-op {:db/op          :update,
@@ -264,7 +265,7 @@
     (biff/submit-tx ctx [tx-op])
     entity-id))
 
-(defn update-user!
+(defnp update-user!
   "Update user entity with provided data."
   [ctx user-id user-data]
   (let [tx-data (merge {:db/op       :update
@@ -274,13 +275,13 @@
     (biff/submit-tx ctx [tx-data])
     user-id))
 
-(defn create-event!
+(defnp create-event!
   "Create a new calendar event."
   [ctx event-data]
   (create-entity! ctx {:entity-key :event
                        :data event-data}))
 
-(defn put-performance-report!
+(defnp put-performance-report!
   "Replace the performance report document for one process instance.
    `report` carries the `:performance-report/*` fields; the document id is
    derived from the instance id so each instance keeps a single history."
@@ -292,7 +293,7 @@
     (biff/submit-tx ctx [(assoc doc :db/doc-type :performance-report)])
     doc))
 
-(defn evict-entity!
+(defnp evict-entity!
   "Remove every version of a document from XTDB history.
 
    A soft delete or an overwrite keeps old versions readable through
