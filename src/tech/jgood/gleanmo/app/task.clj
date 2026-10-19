@@ -161,8 +161,8 @@
 
 (def routes
   ["/task" {}
-   ["" {:get task-focus/focus-view}]
-   ["/focus" {:get task-focus/focus-view}]
+   ["" {:get task-focus/focus-page}]
+   ["/focus" {:get task-focus/focus-page}]
    ["/today" {:get task-today/today-view}]
    ["/reorder-today" {:post reorder-today!}]
    ["/quick-add-today" {:post quick-add-today!}]

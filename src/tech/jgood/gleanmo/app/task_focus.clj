@@ -2,6 +2,7 @@
   (:require
    [clojure.string :as str]
    [ring.middleware.anti-forgery :as csrf]
+   [tech.jgood.gleanmo.app.deferred :as deferred]
    [tech.jgood.gleanmo.app.layout :as layout]
    [tech.jgood.gleanmo.app.shared :refer [user-local-date]]
    [tech.jgood.gleanmo.db.queries :as queries]
@@ -522,28 +523,72 @@
          "navigator.clipboard.writeText(window.location.href).then(function(){var btn=document.getElementById('copy-link-btn');btn.textContent='Copied!';setTimeout(function(){btn.textContent='Copy link'},1500)})"}
         "Copy link"]]]]))
 
+(defn- focus-filters
+  "The filter selections a request asks for, parsed once for both the shell
+   and the full page."
+  [{:keys [params]}]
+  (let [state-param        (normalize-param (:state params))
+        today-filter-param (or (normalize-param (:today-filter params))
+                               (when (normalize-param (:for-today params)) "exclude"))
+        state-filter       (cond
+                             (= state-param "any") nil
+                             (= state-param "not-done") nil
+                             state-param (keyword state-param)
+                             :else :now)]
+    {:search          (normalize-param (:search params))
+     :state-param     state-param
+     :state-filter    state-filter
+     :state-any?      (= state-param "any")
+     :state-not-done? (= state-param "not-done")
+     :domain-param    (normalize-param (:domain params))
+     :project-param   (normalize-param (:project params))
+     :due-param       (normalize-param (:due-on params))
+     :due-status      (or (normalize-param (:due-status params)) "any")
+     :today-filter    (or today-filter-param "any")
+     :snoozed-filter  (or (normalize-param (:snoozed params)) "any")
+     :sort-key        (or (normalize-param (:sort params)) "created-desc")}))
+
+(defn- filter-form-for
+  [projects {:keys [search state-param state-filter domain-param project-param
+                    due-param due-status today-filter snoozed-filter sort-key]}]
+  (task-filter-form
+   {:projects            projects,
+    :search              search,
+    :project-selected    (or project-param ""),
+    :state-selected      (or state-param
+                             (when (nil? state-filter) "any")
+                             (name state-filter)),
+    :domain-selected     (or domain-param ""),
+    :due-selected        due-param,
+    :due-status-selected due-status,
+    :today-filter        today-filter,
+    :snoozed-filter      snoozed-filter,
+    :sort-selected       sort-key}))
+
+(defn- focus-layout
+  [ctx filter-form task-list-region & extra]
+  (ui/page
+   ctx
+   (apply layout/page-shell
+          ctx {:width :wide}
+          (layout/page-header {:title "Task Focus"})
+          filter-form
+          task-list-region
+          [:div.mt-8.pt-4.border-t.border-dark
+           [:a.text-sm.text-gray-400.hover:text-white {:href "/app/crud/task"}
+            "View all tasks →"]]
+          extra)))
+
 (defn focus-view
-  "Actionable task list with filters."
-  [{:keys [biff/db session params], :as ctx}]
+  "Actionable task list with filters, fully computed. The task mutations
+   render this directly (and select `#task-list` from it), so they never
+   return the shell."
+  [{:keys [biff/db session], :as ctx}]
   (let [user-id             (:uid session)
-        search              (normalize-param (:search params))
-        state-param         (normalize-param (:state params))
-        domain-param        (normalize-param (:domain params))
-        project-param       (normalize-param (:project params))
-        due-param           (normalize-param (:due-on params))
-        today-filter-param  (or (normalize-param (:today-filter params))
-                                (when (normalize-param (:for-today params)) "exclude"))
-        due-status          (or (normalize-param (:due-status params)) "any")
-        today-filter        (or today-filter-param "any")
-        snoozed-filter      (or (normalize-param (:snoozed params)) "any")
-        sort-key            (or (normalize-param (:sort params)) "created-desc")
-        state-any?          (= state-param "any")
-        state-not-done?     (= state-param "not-done")
-        state-filter        (cond
-                              (= state-param "any") nil
-                              (= state-param "not-done") nil
-                              state-param (keyword state-param)
-                              :else :now)
+        {:keys [search state-filter state-any? state-not-done? domain-param
+                project-param due-param due-status today-filter snoozed-filter
+                sort-key]
+         :as filters}       (focus-filters ctx)
         domain-filter       (parse-keyword-param domain-param)
         due-filter          (parse-local-date-param due-param)
         now                 (java.time.Instant/now)
@@ -578,38 +623,41 @@
                              (filter #(snoozed-filter-match? %
                                                              snoozed-filter
                                                              today)))
-        tasks               (sort-focus-tasks filtered-tasks sort-key now)
-        task-count          (count tasks)
-        state-selected      (or state-param
-                                (when (nil? state-filter) "any")
-                                (name state-filter))
-        domain-selected     (or domain-param "")
-        project-selected    (or project-param "")
-        due-selected        due-param
-        due-status-selected due-status
-        today-filter        today-filter
-        sort-selected       sort-key]
+        tasks               (sort-focus-tasks filtered-tasks sort-key now)]
+    (focus-layout ctx
+                  (filter-form-for projects filters)
+                  (task-list tasks project-by-id (count tasks) today now))))
 
-    (ui/page
-     ctx
-     (layout/page-shell
-      ctx {:width :wide}
-      (layout/page-header {:title "Task Focus"})
+(defn- task-list-skeleton
+  "Task cards before the tasks load: the list header and pulsing cards in the
+   shape of `task-row`."
+  []
+  [:div (deferred/skeleton-attrs "task-list")
+   [:div.flex.items-center.justify-between.mb-3
+    [:h2.text-lg.font-semibold.text-neon-cyan "Tasks"]
+    [:span.text-sm.text-gray-500 "loading…"]]
+   (for [i (range 5)
+         :let [delay (deferred/pulse-delay i)]]
+     [:div.flex.flex-col.gap-3.p-4.bg-dark-surface.rounded-lg.border.border-dark {:key i}
+      [:div.flex.items-center.gap-2
+       [:div.h-4.rounded.bg-dark-light.animate-pulse
+        {:style delay :class (if (even? i) "w-1/2" "w-1/3")}]
+       [:div.h-4.w-12.rounded-full.bg-dark-light.animate-pulse.opacity-60 {:style delay}]]
+      [:div.h-3.w-24.rounded.bg-dark-light.animate-pulse.opacity-60 {:style delay}]
+      [:div.flex.items-center.gap-2
+       [:div.h-7.w-28.rounded.bg-dark-light.animate-pulse {:style delay}]
+       [:div.h-7.w-16.rounded.bg-dark-light.animate-pulse.opacity-60 {:style delay}]
+       [:div.h-7.w-16.rounded.bg-dark-light.animate-pulse.opacity-60 {:style delay}]]])])
 
-      (task-filter-form
-       {:projects            projects,
-        :search              search,
-        :project-selected    project-selected,
-        :state-selected      state-selected,
-        :domain-selected     domain-selected,
-        :due-selected        due-selected,
-        :due-status-selected due-status-selected,
-        :today-filter        today-filter,
-        :snoozed-filter      snoozed-filter,
-        :sort-selected       sort-selected})
+(defn- focus-shell
+  [{:keys [biff/db session], :as ctx}]
+  (focus-layout ctx
+                (filter-form-for (queries/projects-for-user db (:uid session))
+                                 (focus-filters ctx))
+                (task-list-skeleton)
+                (deferred/loader ctx {:region-ids ["task-list"]})))
 
-      (task-list tasks project-by-id task-count today now)
-
-      [:div.mt-8.pt-4.border-t.border-dark
-       [:a.text-sm.text-gray-400.hover:text-white {:href "/app/crud/task"}
-        "View all tasks →"]]))))
+(def focus-page
+  "GET /app/task/focus — the filter form at once, the task list from
+   `?full=1` (see `deferred`)."
+  (deferred/handler {:shell focus-shell :full focus-view}))
