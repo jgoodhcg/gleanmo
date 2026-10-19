@@ -64,3 +64,20 @@
             (if (too-large? e)
               (json-response 413 "Request body too large.")
               (throw e))))))))
+
+(defn- malformed?
+  [e]
+  (= :muuntaja/decode (:type (ex-data e))))
+
+(defn wrap-malformed-body
+  "Answer a body muuntaja cannot decode with a JSON 400. Left alone, the decode
+   error escapes as a 500 HTML page and an error-level stack trace, which any
+   client can trigger without a token."
+  [handler]
+  (fn [req]
+    (try
+      (handler req)
+      (catch Exception e
+        (if (and (malformed? e) (not (too-large? e)))
+          (json-response 400 "Malformed request body.")
+          (throw e))))))

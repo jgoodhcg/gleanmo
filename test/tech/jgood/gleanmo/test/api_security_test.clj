@@ -115,3 +115,14 @@
                                                               "task/state" "now"}}]})})]
           (is (= 200 (:status resp)))
           (is (true? (get (json-body resp) "valid"))))))))
+
+(deftest malformed-body-test
+  (with-open [node (test-xtdb-node [])]
+    (let [token (token! node (UUID/randomUUID) :write [:tasks])
+          resp  (request node {:method  :post, :uri "/api/v1/tx", :token token
+                               :headers {"content-type" "application/json"}
+                               :body    "{\"ops\": [nope"})]
+      (testing "malformed JSON is the client's error, answered in JSON"
+        (is (= 400 (:status resp)))
+        (is (re-find #"(?i)json" (get-in resp [:headers "Content-Type"] "")))
+        (is (string? (get (json-body resp) "error")))))))
