@@ -1,4 +1,7 @@
 (ns tech.jgood.gleanmo.db.queries
+  "Every database read in the app. Define public functions with `defnp` so
+   each one gets its own span inside the request's `:handler` span on the
+   performance dashboard; a plain `defn` query is invisible there."
   (:require
    [clojure.string :as str]
    [clojure.tools.logging :as log]

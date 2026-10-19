@@ -1,4 +1,7 @@
 (ns tech.jgood.gleanmo.db.mutations
+  "Every database write in the app. Define public functions with Tufte's
+   `defnp` so each one gets its own span inside the request's `:handler` span
+   on the performance dashboard; a plain `defn` write is invisible there."
   (:require
    [com.biffweb :as biff]
    [tech.jgood.gleanmo.db.queries :as queries]

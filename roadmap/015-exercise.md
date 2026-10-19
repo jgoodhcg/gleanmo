@@ -5,7 +5,7 @@ description: "Exercise tracking with superset support and Airtable backfill"
 tags: []
 priority: high
 created: 2026-02-02
-updated: 2026-10-04
+updated: 2026-10-18
 ---
 
 # Exercise Tracking Requirements
@@ -315,3 +315,19 @@ Start attempt / Start session too.
 Confirms [082-exercise-effort.md](./082-exercise-effort.md) and nudges it
 toward a simple **check** on the line rather than a numeric scale. Recorded
 there.
+
+### Browse exercises by attributes (2026-10-18)
+
+Add a way to browse and manage exercise definitions by body part, isometric work,
+external weight, bodyweight, and equipment.
+This complements label search in [029-search-filter.md](./029-search-filter.md):
+users can discover an exercise when they do not know its name, then open or edit
+the existing definition instead of creating a duplicate.
+Allow more than one filter at a time, and keep label search available within the filtered results.
+
+The current `exercise` schema has a label, source, and notes but no structured
+fields for these attributes (`src/tech/jgood/gleanmo/schema/exercise_schema.clj`).
+Add optional fields to existing exercise documents after deciding which attributes
+can have multiple values and whether external weight and bodyweight can both apply.
+Define controlled values for body parts and equipment before filling in existing exercises.
+Keep unlabeled attributes visible in an "Uncategorized" result so older exercises remain findable.
