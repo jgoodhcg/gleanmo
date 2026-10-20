@@ -1,7 +1,7 @@
 ---
 title: "Agent API security review (2026-10)"
 status: active
-description: "End-to-end review of the agent API and its tokens; eight fixes on agent-api-security, every area given a verdict with a test; awaiting e2e run and review"
+description: "End-to-end review of the agent API and its tokens; eight fixes on agent-api-security, every area given a verdict with a test; awaiting review"
 created: 2026-10-18
 updated: 2026-10-19
 tags: [security, api, ai]
@@ -23,10 +23,7 @@ None open. Answered 2026-10-19:
    It is `middleware.body/max-bytes`.
 4. **HTTPS at the edge**: checked against prod, see finding 15.
 
-Still needed from the user:
-a dev server on this branch for `just e2e-test api-tokens`.
-The server running on 2026-10-19 belonged to the `security-audit` worktree,
-whose e2e login answered 403.
+Nothing else is needed from the user except review.
 
 ## Intent
 
@@ -106,8 +103,8 @@ and the body tests go through `main/handler`, the handler Jetty calls.
 - [x] Each fix has a test against a real XTDB node, written failing first, plus its own commit
 - [x] Each "sound" verdict is backed by a named test or code reference
 - [x] `just validate`: 229 tests / 0 failures (2026-10-19, `6c05d27`)
-- [ ] `just e2e-test api-tokens` with before/after screenshots
-  (the token form gained an expiry select; needs `biff dev` on this branch)
+- [x] `just e2e-test api-tokens`: passes against `biff dev` on this branch (2026-10-19, port 8081).
+  After screenshots only: no before set, since the only old-code server refused the e2e login
 - [x] User answered the questions above (2026-10-19)
 - [ ] User reviews the branch, then merges it into `dev`
 
@@ -134,10 +131,10 @@ Findings describe each problem and its fix, not how to exploit it.
 
 - Checkout: `~/projects/gleanmo.worktrees/agent-api-security`, branch `agent-api-security`, not pushed
 - Completed: findings 1–6, 8 and 14 fixed; 9–13 and 15 accepted; every area has a verdict
-- Remaining: e2e run; review and merge
+- Remaining: review and merge
 - Validation: see above
-- Blockers: a dev server on this branch
-- Next action: user starts `biff dev` here so the e2e token test can run
+- Blockers: none
+- Next action: user reviews the branch and merges it into `dev`
 
 ## Notes
 

@@ -73,7 +73,7 @@ PWA notification scaffolding does not establish working reminder delivery.
   Evaluate an in-repo Rust CLI with downloadable binaries, token-authenticated JSON commands, MCP mode, and auditable calls as part of standardized agent discovery.
   Add a super-user-only, read-only Performance monitoring permission to API tokens.
   Investigate reported same-batch project/goal reference rejection after a successful dry run; align validation and document the two-batch workaround (2026-10-18).
-- [100-agent-api-security.md](./100-agent-api-security.md) - Agent API security review (2026-10-18): every area given a verdict with a test; fixed pre-auth body size, malformed-body 500s, response caching, profiler key growth, and relations to hidden parents on `agent-api-security`, plus token expiry and a site-wide body cap; awaiting an e2e run and review
+- [100-agent-api-security.md](./100-agent-api-security.md) - Agent API security review (2026-10-18): every area given a verdict with a test; fixed pre-auth body size, malformed-body 500s, response caching, profiler key growth, and relations to hidden parents on `agent-api-security`, plus token expiry and a site-wide body cap; awaiting review
 - [017-infrastructure.md](./017-infrastructure.md) - Database migration from Neon to DigitalOcean
 - [014-data-migration-status.md](./014-data-migration-status.md) - Tracker for Airtable backfills and remaining imports
 - [015-exercise.md](./015-exercise.md) - Exercise tracking with superset support; notes on sets and lines re-requested 2026-10-04; browse definitions by body part, isometric work, loading, and equipment alongside label search; fix stale `#wk-log-primary` button label after inline exercise creation (2026-10-22)
