@@ -3,7 +3,7 @@ title: "Perceived Performance: Shell Then Full Page"
 status: active
 description: "Slow pages answer with a fast shell of real cheap data and shaped skeletons, then fill the slow regions from the same URL's full page in one or a few htmx requests"
 created: 2026-10-19
-updated: 2026-10-19
+updated: 2026-10-20
 tags: [performance, htmx, ux]
 priority: high
 ---
@@ -140,11 +140,12 @@ plus the shell. Network round trips are not included.
 
 ## Validation
 
-- [ ] `just validate` green (read the output; it can exit 0 on failures)
+- [x] `just validate` green (read the output; it can exit 0 on failures)
 - [ ] Unit tests for `deferred` (URL building, tier selection) and that each
       converted page's shell and full render carry the same region ids
-- [ ] e2e: existing suites pass against shells (they wait for deferred regions)
-- [ ] Series tick before and after; before/after pairs for the converted pages
+      (`deferred` covered; per-page region-id tests not written)
+- [x] e2e: existing suites pass against shells (they wait for deferred regions)
+- [x] Series tick before and after; before/after pairs for the converted pages
 - [ ] After deploy: compare shell and full handler times on
       `/app/monitoring/performance` with the estimates above
 
