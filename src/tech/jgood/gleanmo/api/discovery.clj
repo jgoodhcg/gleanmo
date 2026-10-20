@@ -203,7 +203,10 @@ and wait for their approval. Then walk them through it.
    Otherwise, add one line to your persistent instructions: \"Gleanmo API: see
    {base}/agents; token in ${token-env}\". Harnesses that import OpenAPI tools can
    use {base}/api/v1/openapi.json instead.
-4. **Verify.** Once the user says the token is in place, call
+4. **Verify.** A variable added to a shell profile reaches only shells
+   started afterwards, so you may need the user to restart you (or open a new
+   session) first; tell them if so. Check the token is set without printing
+   it (`test -n \"$GLEANMO_TOKEN\" && echo set`), then call
    `GET {base}/api/v1/types` and tell them, in a sentence, which groups you can
    read and write. A 401 means the token is missing, mistyped, or revoked.
 

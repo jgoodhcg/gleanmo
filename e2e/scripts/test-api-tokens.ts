@@ -9,8 +9,9 @@
 //    a text search, and an ungranted type
 // 3. Verifies requests without the token are refused
 // 4. Revokes the token and verifies it stops working
+// 5. Reads the public agent guide, skill, index, OpenAPI, and api-catalog
 
-import { chromium, Page, expect } from '@playwright/test';
+import { chromium, Page, expect, request } from '@playwright/test';
 import { authenticateForDev } from './auth.js';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:8080';
@@ -49,6 +50,12 @@ async function main() {
     await page.goto(`${BASE_URL}/app/api-tokens`);
     await page.waitForLoadState('networkidle');
     await captureScreenshot(page, '01-desktop');
+    check(
+      ((await page.locator('[data-testid="agent-setup-hint"]').textContent()) || '').includes(
+        `${BASE_URL}/agents`,
+      ),
+      'the page tells the user which URL to give an agent',
+    );
 
     const rows = page.locator('[data-testid="api-token-row"]');
     const rowsBefore = await rows.count();
@@ -92,6 +99,19 @@ async function main() {
     await expect(page.locator('#new-api-token-copy')).toHaveText('Copied ✓');
     const copied = await page.evaluate(() => navigator.clipboard.readText());
     check(copied === token, 'Copy puts the full token on the clipboard while masked');
+
+    const prompt = await page.inputValue('#new-api-token-prompt');
+    check(
+      prompt.includes(`${BASE_URL}/agents`) && prompt.includes('write: tasks'),
+      'the setup prompt names the guide and the grants',
+    );
+    check(!prompt.includes(token) && !prompt.includes('gmn_'), 'the setup prompt never carries the token');
+    await page.click('#new-api-token-prompt-copy');
+    await expect(page.locator('#new-api-token-prompt-copy')).toHaveText('Copied ✓');
+    check(
+      (await page.evaluate(() => navigator.clipboard.readText())) === prompt,
+      'Copy puts the setup prompt on the clipboard',
+    );
 
     await page.reload();
     await page.waitForLoadState('networkidle');
@@ -163,6 +183,10 @@ async function main() {
     console.log('\n3. Requests without a token...');
     const anon = await api.get(`${BASE_URL}/api/v1/types`);
     check(anon.status() === 401, 'no token is refused even with a session cookie');
+    check(
+      (await anon.json()).docs === `${BASE_URL}/agents`,
+      'the 401 points at the agent guide',
+    );
 
     console.log('\n4. Revoking...');
     const row = page.locator('[data-testid="api-token-row"]', { hasText: tokenLabel });
@@ -178,6 +202,38 @@ async function main() {
     await page.goto(`${BASE_URL}/app/api-tokens`);
     await page.waitForLoadState('networkidle');
     await captureScreenshot(page, '04-mobile');
+
+    console.log('\n5. Public agent discovery...');
+    const pub = await request.newContext();
+    const guide = await pub.get(`${BASE_URL}/agents`);
+    const guideText = await guide.text();
+    check(
+      guide.status() === 200 && guideText.includes(`${BASE_URL}/app/api-tokens`),
+      '/agents serves the setup guide without signing in',
+    );
+    check(
+      (await (await pub.get(`${BASE_URL}/llms.txt`)).text()) === guideText,
+      '/llms.txt mirrors /agents',
+    );
+    check(
+      (await (await pub.get(`${BASE_URL}/agents/SKILL.md`)).text()).startsWith('---\nname: gleanmo\n'),
+      '/agents/SKILL.md is an Agent Skill',
+    );
+    check(
+      (await (await pub.get(`${BASE_URL}/api/v1`)).json()).docs === `${BASE_URL}/agents`,
+      'GET /api/v1 indexes the API without a token',
+    );
+    check(
+      (await (await pub.get(`${BASE_URL}/api/v1/openapi.json`)).json()).openapi === '3.1.0',
+      'the OpenAPI document is public',
+    );
+    const catalog = await pub.get(`${BASE_URL}/.well-known/api-catalog`);
+    check(
+      catalog.status() === 200 &&
+        (catalog.headers()['content-type'] || '').startsWith('application/linkset+json'),
+      '/.well-known/api-catalog is a linkset',
+    );
+    await pub.dispose();
 
     console.log('\n=== API tokens test passed ===\n');
   } catch (error) {

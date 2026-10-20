@@ -4,6 +4,7 @@
    [clojure.string :as str]
    [com.biffweb :as biff]
    [tech.jgood.gleanmo.api.access :as access]
+   [tech.jgood.gleanmo.api.discovery :as discovery]
    [tech.jgood.gleanmo.app.layout :as layout]
    [tech.jgood.gleanmo.app.shared :refer [param-true?]]
    [tech.jgood.gleanmo.db.mutations :as mutations]
@@ -34,10 +35,30 @@
                 sensitive       (conj "sensitive")
                 archived        (conj "archived")))))
 
+(defn- base-url
+  [ctx]
+  (str/replace (str (:biff/base-url ctx)) #"/+$" ""))
+
+(defn- copy-onclick
+  "Copy the value of element `id`, flashing the button's label."
+  [id]
+  (str "var b=this;navigator.clipboard.writeText(document.getElementById('" id "').value).then(function(){b.textContent='Copied ✓'},function(){b.textContent='Copy failed'}).then(function(){setTimeout(function(){b.textContent='Copy'},1500)})"))
+
+(defn- agent-hint
+  "The one thing to tell an agent. It reads the guide and walks the user
+   through grants and token storage, so this comes before the form."
+  [ctx]
+  (let [url (str (base-url ctx) "/agents")]
+    [:p.text-sm.text-gray-300 {:data-testid "agent-setup-hint"}
+     "Setting up an agent? Tell it " [:code.text-neon-cyan (str "set up Gleanmo, see " url)]
+     ". It will suggest what to grant here and where to keep the token."]))
+
 (defn- new-token-callout
-  "The plaintext of a token just created. It is masked like a password until
-   revealed, and Copy reads the input's value, so copying never needs a reveal."
-  [token]
+  "The plaintext of a token just created, then a prompt to paste into an
+   agent. The token is masked like a password until revealed, and Copy reads
+   the input's value, so copying never needs a reveal. The prompt names the
+   token's grants but never the token, so pasting it into a chat leaks nothing."
+  [token prompt]
   (layout/card
    {:class "border-neon-cyan" :data-testid "new-api-token"}
    [:p.text-sm.text-gray-300.mb-2
@@ -59,8 +80,22 @@
     [:button.form-button-secondary.shrink-0
      {:type    "button"
       :id      "new-api-token-copy"
-      :onclick "var b=this;navigator.clipboard.writeText(document.getElementById('new-api-token-value').value).then(function(){b.textContent='Copied ✓'},function(){b.textContent='Copy failed'}).then(function(){setTimeout(function(){b.textContent='Copy'},1500)})"}
-     "Copy"]]))
+      :onclick (copy-onclick "new-api-token-value")}
+     "Copy"]]
+   [:div.mt-4
+    [:label.text-sm.text-gray-300 {:for "new-api-token-prompt"}
+     "Then paste this into your agent. It doesn't contain the token; the agent will tell you where to put that."]
+    [:textarea.form-input.w-full.mt-2.text-sm
+     {:id       "new-api-token-prompt"
+      :rows     5
+      :readonly true}
+     prompt]
+    [:div.flex.justify-end.mt-2
+     [:button.form-button-secondary
+      {:type    "button"
+       :id      "new-api-token-prompt-copy"
+       :onclick (copy-onclick "new-api-token-prompt")}
+      "Copy"]]]))
 
 (defn- create-error
   [message]
@@ -185,12 +220,13 @@
        {:title    "API tokens"
         :subtitle "Bearer tokens for agents and scripts. Each sees only what you grant it."})
       [:div.space-y-6
+       (agent-hint ctx)
        [:div#new-api-token-slot]
        (create-section)
        (token-list tokens)
        [:p.text-xs.text-gray-500
-        "Use a token as " [:code "Authorization: Bearer gmn_…"]
-        ". Start at " [:code "GET /api/v1/types"] " to see what it can reach."]]))))
+        "Agents send a token as " [:code "Authorization: Bearer gmn_…"]
+        ". API reference: " [:code "/agents"] "."]]))))
 
 (defn- submitted-level
   "The level submitted for a group. A write submitted for a read-only group
@@ -225,11 +261,8 @@
   (let [label (str/trim (str (:label params)))]
     (if (str/blank? label)
       (fragment-response (create-error "A label is required."))
-      (let [token (access/generate-token)]
-        (mutations/create-entity!
-         ctx
-         {:entity-key :api-token
-          :data       {:user/id                     (:uid session)
+      (let [token (access/generate-token)
+            data  {:user/id                     (:uid session)
                        :api-token/label             label
                        :api-token/token-hash        (access/hash-token token)
                        :api-token/prefix            (access/display-prefix token)
@@ -238,10 +271,11 @@
                        :api-token/sensitive-granted (param-true?
                                                      (:sensitive-granted params))
                        :api-token/archived-granted  (param-true?
-                                                     (:archived-granted params))}})
+                                                     (:archived-granted params))}]
+        (mutations/create-entity! ctx {:entity-key :api-token, :data data})
         (let [tokens (queries/api-tokens-for-user (xt/db node) (:uid session))]
           (fragment-response
-           (new-token-callout token)
+           (new-token-callout token (discovery/setup-prompt (base-url ctx) data))
            (create-section {:hx-swap-oob "true"})
            (token-list tokens {:hx-swap-oob "true"})))))))
 
