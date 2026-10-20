@@ -3,7 +3,7 @@ title: "AI Assistance Integration"
 status: active
 description: "Restore task use through conversational backlog cleanup and daily planning, starting with scoped agent access and approved batch changes"
 created: 2026-07-11
-updated: 2026-10-18
+updated: 2026-10-20
 tags: [integration, ai, mcp, api, security, llm-context]
 priority: high
 ---
@@ -153,6 +153,24 @@ Decisions made on starting the build, answering several open questions below:
 - A dry run reports `id: null` for a create whose id the server will generate.
 
 Deferred: MCP, companion CLI and discovery endpoint, aggregate reads (today bundle, exercise composite), an audit log of agent writes, token expiry, rate limiting, escalation-mode sensitivity.
+
+### Agent discovery (2026-10-20)
+
+Answers the 2026-10-13 dogfood note below. Decision record: `.decisions/agent-discovery.json`, chosen by the agent under delegation and awaiting the user's approval.
+
+> "I want to type in an easy-to-remember url, have the agent read instructions, then walk me through setup. If there are standards for this, let's use them." (user, 2026-10-15)
+
+Built on branch `agent-discovery`. All of it is generated from `api.access/groups` and the handlers' limits (`api/limits`), with no user data on any public URL:
+
+- `/agents`, mirrored at `/llms.txt` (llms.txt convention), is a plain-text setup guide and API reference. An agent sends the user to `/app/api-tokens`, has them store the token in `GLEANMO_TOKEN` themselves, saves the skill, and verifies with `/types`.
+- `/agents/SKILL.md` is an Agent Skills file for harnesses that load skills.
+- `GET /api/v1` is an unauthenticated index. `/api/v1/openapi.json` is generated OpenAPI 3.1, which Open WebUI tool servers and similar importers can use. `/.well-known/api-catalog` (RFC 9727) links both.
+- A 401 now carries `WWW-Authenticate: Bearer` and a `docs` link to `/agents`.
+- The token page opens with "tell your agent: set up Gleanmo, see `<base>/agents`". A new token's callout carries a copyable prompt naming the grants, never the token.
+
+Deferred:
+- MCP. Remote MCP auth means OAuth with an authorization server that mints tokens, which needs its own decision. It is the only route to chat-only surfaces such as Claude.ai connectors.
+- The companion CLI (see "Downloadable Rust CLI candidate" below). If it is built, `/agents` should offer it as a setup option. Its planned `/.well-known/agent-cli` endpoint is no longer needed, since `/agents` is the discovery entry point.
 
 ### Performance monitoring (added 2026-10-12)
 
@@ -307,7 +325,7 @@ the nutrient table — but nothing says how to page lists, what `since` needs,
 how `/tx` ops and `dry_run`/`expect` look, or that read-only groups exist. An
 agent learns those from 400 messages.
 
-Candidates to weigh, not yet decided: an unauthenticated `GET /api/v1` (or
+Decided and built 2026-10-20; see "Agent discovery" above. Original candidates: an unauthenticated `GET /api/v1` (or
 `/.well-known/…`) index naming endpoints and auth; an OpenAPI document; an
 `llms.txt`-style plain-text guide; a copyable "initial prompt" on the token page
 filled in with the base URL and the token's grants. This subsumes the deferred

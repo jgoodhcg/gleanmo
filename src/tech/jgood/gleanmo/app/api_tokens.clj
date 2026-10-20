@@ -263,15 +263,15 @@
       (fragment-response (create-error "A label is required."))
       (let [token (access/generate-token)
             data  {:user/id                     (:uid session)
-                       :api-token/label             label
-                       :api-token/token-hash        (access/hash-token token)
-                       :api-token/prefix            (access/display-prefix token)
-                       :api-token/read-groups       (submitted-groups params "read")
-                       :api-token/write-groups      (submitted-groups params "write")
-                       :api-token/sensitive-granted (param-true?
-                                                     (:sensitive-granted params))
-                       :api-token/archived-granted  (param-true?
-                                                     (:archived-granted params))}]
+                   :api-token/label             label
+                   :api-token/token-hash        (access/hash-token token)
+                   :api-token/prefix            (access/display-prefix token)
+                   :api-token/read-groups       (submitted-groups params "read")
+                   :api-token/write-groups      (submitted-groups params "write")
+                   :api-token/sensitive-granted (param-true?
+                                                 (:sensitive-granted params))
+                   :api-token/archived-granted  (param-true?
+                                                 (:archived-granted params))}]
         (mutations/create-entity! ctx {:entity-key :api-token, :data data})
         (let [tokens (queries/api-tokens-for-user (xt/db node) (:uid session))]
           (fragment-response
