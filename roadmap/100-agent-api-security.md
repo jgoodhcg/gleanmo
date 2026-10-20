@@ -3,7 +3,7 @@ title: "Agent API security review (2026-10)"
 status: active
 description: "End-to-end review of the agent API and its tokens; eight fixes on agent-api-security, every area given a verdict with a test; awaiting review"
 created: 2026-10-18
-updated: 2026-10-19
+updated: 2026-10-20
 tags: [security, api, ai]
 priority: high
 ---
@@ -15,9 +15,9 @@ priority: high
 None open. Answered 2026-10-19:
 
 1. **Token expiry** (finding 6): add it.
-   Done in `6c05d27`: picked at creation, 90 days by default.
+   Done in `a6b519e`: picked at creation, 90 days by default.
 2. **Body limit on site routes** (finding 8): cap every route.
-   Done in `5d16fbf`.
+   Done in `e4b6dce`.
    No site route takes uploads or JSON, so 1 MiB is ample.
 3. **The 1 MiB cap** (finding 1): keep it for now.
    It is `middleware.body/max-bytes`.
@@ -38,25 +38,25 @@ and covers the Cronometer and Activities groups added after that audit.
 
 ## Specification
 
-Branch `agent-api-security`, based on `dev` at `d757ea4`.
+Branch `agent-api-security`, based on `dev` at `7aa7e06`.
 One commit per finding, so each can be reverted alone.
 
 | # | Finding | Severity | Decision | Commit |
 |---|---------|----------|----------|--------|
-| 1 | API routes decoded JSON and form bodies before the token check, with no size limit, so an unauthenticated client could make the server buffer and parse an arbitrarily large body | Medium | Fixed: bodies over 1 MiB get 413 (immediately when the declared length is too large, otherwise once the parser reads past the limit) | `6510877` |
-| 2 | Malformed JSON escaped the API's JSON error handler (which sits inside the parser), so it came back as a 500 HTML page and logged an error-level stack trace. That log carried the decode error's ex-data, which holds the whole request, `Authorization` header included. No token was needed to cause this | Low–Medium | Fixed: JSON 400 | `cad824a` |
-| 3 | API responses carried no `Cache-Control` | Low | Fixed: `no-store` on every API response, 401s included | `256c1a1` |
-| 4 | Request profiling keyed each request by its path, and only ids were normalized. The stats are cleared only when a super user persists a snapshot, so made-up paths (signed in or not, `/api` included) grew memory without bound | Low–Medium | Fixed: at most 1000 distinct keys per snapshot window; later new keys count as `:other` | `e9b3718` |
-| 5 | `tx` checked only that relation targets were owned by the user, not that the token could see them. A token without the sensitive/archived grant could move a record it sees under a sensitive or archived parent, which hides that record from the token. `flag-errors` refuses exactly this move when it's made with the record's own flag | Low | Fixed: targets must be visible to the token (`queries/visible-entity-ids`) | `d78663a` |
-| 6 | Tokens never expire | Low | Fixed: optional `api-token/expires-at` picked at creation (30 days, 90 days by default, 1 year, never); expired tokens get the revoked 401; `GET /types` reports `expires_at`. Additive: existing tokens have no expiry and keep working | `6c05d27` |
+| 1 | API routes decoded JSON and form bodies before the token check, with no size limit, so an unauthenticated client could make the server buffer and parse an arbitrarily large body | Medium | Fixed: bodies over 1 MiB get 413 (immediately when the declared length is too large, otherwise once the parser reads past the limit) | `a890060` |
+| 2 | Malformed JSON escaped the API's JSON error handler (which sits inside the parser), so it came back as a 500 HTML page and logged an error-level stack trace. That log carried the decode error's ex-data, which holds the whole request, `Authorization` header included. No token was needed to cause this | Low–Medium | Fixed: JSON 400 | `afb1dd1` |
+| 3 | API responses carried no `Cache-Control` | Low | Fixed: `no-store` on every API response, 401s included | `016b7e7` |
+| 4 | Request profiling keyed each request by its path, and only ids were normalized. The stats are cleared only when a super user persists a snapshot, so made-up paths (signed in or not, `/api` included) grew memory without bound | Low–Medium | Fixed: at most 1000 distinct keys per snapshot window; later new keys count as `:other` | `d9ad1d0` |
+| 5 | `tx` checked only that relation targets were owned by the user, not that the token could see them. A token without the sensitive/archived grant could move a record it sees under a sensitive or archived parent, which hides that record from the token. `flag-errors` refuses exactly this move when it's made with the record's own flag | Low | Fixed: targets must be visible to the token (`queries/visible-entity-ids`) | `81be26f` |
+| 6 | Tokens never expire | Low | Fixed: optional `api-token/expires-at` picked at creation (30 days, 90 days by default, 1 year, never); expired tokens get the revoked 401; `GET /types` reports `expires_at`. Additive: existing tokens have no expiry and keep working | `a6b519e` |
 | 7 | Request logs include the values of query parameters such as `q` and the equality filters (health search text) | Low | Already fixed on `security-audit` (`61e212f`, which keeps parameter names only), so not re-implemented here. `dev` logs those values until that branch merges | — |
-| 8 | Site routes have the same unbounded body parsing as finding 1, before CSRF and sign-in checks | Low–Medium | Fixed: the cap moved into `wrap-base-defaults`, so it covers every route; site refusals are plain text, API refusals stay JSON | `5d16fbf` |
+| 8 | Site routes have the same unbounded body parsing as finding 1, before CSRF and sign-in checks | Low–Medium | Fixed: the cap moved into `wrap-base-defaults`, so it covers every route; site refusals are plain text, API refusals stay JSON | `e4b6dce` |
 | 9 | A create that names its own id returns "id is already in use" for an id held by any document in the database, whoever owns it | Info | Accepted: ids are random v4 UUIDs, so this check can't be used to find records; the check is what stops a create from overwriting someone's document | — |
 | 10 | No rate limit on token authentication | Info | Accepted: tokens carry 256 random bits, so guessing is hopeless. An unauthenticated request costs one indexed lookup and, after finding 1, at most 1 MiB of body | — |
 | 11 | `q` text search and large offsets read every document of a type for the token's user | Info | Accepted: needs a token, only touches the token owner's own data, and `limit` is capped at 500 | — |
 | 12 | A relation may point at a visible record in a group the token can't read (e.g. a habits-only token setting a location id) | Info | Accepted: the record belongs to the same user, and reads already expose related ids as bare values by design (see `activities-group-test`) | — |
 | 13 | After a token is created, browser Back can restore the revealed callout from the back/forward cache | Info | Accepted: this only happens on the user's own device. The page's HTML never contains the plaintext; only the `no-store` HTMX fragment does | — |
-| 14 | Site routes had finding 2 too: malformed JSON on any site route was a 500, and the error log carried the request's headers, `Cookie` included. No sign-in was needed | Low–Medium | Fixed: plain-text 400 | `51e5961` |
+| 14 | Site routes had finding 2 too: malformed JSON on any site route was a 500, and the error log carried the request's headers, `Cookie` included. No sign-in was needed | Low–Medium | Fixed: plain-text 400 | `a280876` |
 | 15 | Biff's `ssl-redirect` is off, so plain HTTP depends on the edge | Info | Verified on prod 2026-10-19: `http://` answers 301 to `https://` at Cloudflare, and HTTPS responses carry HSTS. A client set up with `http://` still sends its first request, header included, in cleartext before the redirect; only configuring `https://` avoids that | — |
 
 ### Verdicts by area
@@ -102,7 +102,7 @@ and the body tests go through `main/handler`, the handler Jetty calls.
 
 - [x] Each fix has a test against a real XTDB node, written failing first, plus its own commit
 - [x] Each "sound" verdict is backed by a named test or code reference
-- [x] `just validate`: 229 tests / 0 failures (2026-10-19, `6c05d27`)
+- [x] `just validate`: 229 tests / 0 failures (2026-10-20, after rebasing onto `dev` at `7aa7e06`)
 - [x] `just e2e-test api-tokens`: passes against `biff dev` on this branch (2026-10-19, port 8081).
   After screenshots only: no before set, since the only old-code server refused the e2e login
 - [x] User answered the questions above (2026-10-19)
