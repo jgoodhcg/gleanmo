@@ -3,7 +3,7 @@ title: "Security audit (2026-10)"
 status: active
 description: "Walk through a static security audit finding by finding, fixing or deciding each; all 11 decided; fixes committed on security-audit, awaiting user review and merge"
 created: 2026-10-14
-updated: 2026-10-16
+updated: 2026-10-20
 tags: [security]
 priority: high
 ---
@@ -19,21 +19,21 @@ changes ship only when the user merges to `main`.
 
 ## Specification
 
-Decisions so far (branch `security-audit`, based on `dev` at `11ce2a6`):
+Decisions so far (branch `security-audit`, rebased onto local `dev` at `7aa7e06` on 2026-10-20):
 
 | # | Finding | Severity | Decision | Commit |
 |---|---------|----------|----------|--------|
-| 1 | CRUD update, task actions and drag-to-reorder did not check record ownership; forms could set `xt/id` / `user/id` | High | Fixed | `9dbe875` |
+| 1 | CRUD update, task actions and drag-to-reorder did not check record ownership; forms could set `xt/id` / `user/id` | High | Fixed | `399731a` |
 | 2 | A sample `COOKIE_SECRET` value exists in git history (deleted CI doc) | — | Accepted: not the production value (user's judgement; a direct compare was offered) | — |
-| 3 | Dev-only e2e sign-in routes reachable from the network while `biff dev` runs | High (dev) | Fixed: loopback-only, server-generated token, `@localhost` accounts only | `dc50083`, `775697e`, `e4a9aba` |
-| 4 | Heatmap tooltip built HTML from record labels without escaping | Medium | Fixed | `b30cb83` |
-| 5 | Front-end libraries loaded from CDNs, two unversioned, no integrity check | Medium | Fixed: vendored with fonts; CSP roadmapped as 098 | `abbd1e6` |
-| 6 | Account email could be changed without verification or a uniqueness check | Medium | Fixed: code sent to the new address, uniqueness enforced | `10ddc6d` |
-| 7 | Request logs held magic-link tokens and query values | Low–Med | Fixed: logger masks tokens, keeps parameter names only | `61e212f` |
+| 3 | Dev-only e2e sign-in routes reachable from the network while `biff dev` runs | High (dev) | Fixed: loopback-only, server-generated token, `@localhost` accounts only | `5c1d74b`, `86fe0ef`, `2a12c37` |
+| 4 | Heatmap tooltip built HTML from record labels without escaping | Medium | Fixed | `e012534` |
+| 5 | Front-end libraries loaded from CDNs, two unversioned, no integrity check | Medium | Fixed: vendored with fonts; CSP roadmapped as 098 | `f37c34b` |
+| 6 | Account email could be changed without verification or a uniqueness check | Medium | Fixed: code sent to the new address, uniqueness enforced | `cd9e385` |
+| 7 | Request logs held magic-link tokens and query values | Low–Med | Fixed: logger masks tokens, keeps parameter names only | `8be102c` |
 | 8 | Relation fields (CRUD, timer parent/location, bouldering problem, workout exercise) are not ownership-checked | Low | Roadmapped as 099 | — |
-| 9 | `redirect` parameter on CRUD create/update and the settings `turn-off-*` routes is not restricted to local paths (timer routes already are) | Low | Fixed: one `local-path` check in `app/shared.clj` for CRUD create/update, the CRUD form's hidden field and Cancel link, the settings routes and timer routes | `26d0c09` |
-| 10 | Config-dependent fallbacks: captcha, email delivery and API-token lifetime | Low | Fixed: prod refuses to start without the reCAPTCHA and MailerSend keys (user confirmed they are set); token expiry noted in 061 | `d9428f6` |
-| 11 | Supply-chain and hosting hygiene: unchecked tool downloads, CI `permissions:`, container user, dev-only deps in prod, outdated libraries | Low | Fixed, one commit each so any can be reverted alone: checksums, read-only CI token, non-root container, Clerk to `:dev`, slf4j-simple 2.0.12. Biff and ring-defaults upgrades deferred to 037 | `6584eb9`, `22d2298`, `e21d4ab`, `f7e55f4`, `bdb7bef` |
+| 9 | `redirect` parameter on CRUD create/update and the settings `turn-off-*` routes is not restricted to local paths (timer routes already are) | Low | Fixed: one `local-path` check in `app/shared.clj` for CRUD create/update, the CRUD form's hidden field and Cancel link, the settings routes and timer routes | `afd627d` |
+| 10 | Config-dependent fallbacks: captcha, email delivery and API-token lifetime | Low | Fixed: prod refuses to start without the reCAPTCHA and MailerSend keys (user confirmed they are set); token expiry noted in 061 | `d91468a` |
+| 11 | Supply-chain and hosting hygiene: unchecked tool downloads, CI `permissions:`, container user, dev-only deps in prod, outdated libraries | Low | Fixed, one commit each so any can be reverted alone: checksums, read-only CI token, non-root container, Clerk to `:dev`, slf4j-simple 2.0.12. Biff and ring-defaults upgrades deferred to 037 | `c5176fb`, `04eb8dd`, `4ef1cfa`, `a06b628`, `b39daea` |
 
 Checked and found sound by the audit: API token generation and hashing, API
 group / sensitive / archived scoping and `/tx` checks, credential encryption,
@@ -63,9 +63,9 @@ the merge to `main` are the user's. No history rewrite for finding 2.
 
 ## Progress
 
-- Checkout: `~/projects/gleanmo.worktrees/security-audit`, branch `security-audit`, clean, 20 commits ahead of `dev` (`11ce2a6`), not pushed
+- Checkout: `~/projects/gleanmo.worktrees/security-audit`, branch `security-audit`, clean, 22 commits ahead of local `dev` (`7aa7e06`, itself 4 commits ahead of origin), not pushed
 - Completed: all 11 findings decided (8 roadmapped as 099; 9, 10, 11 fixed); 1, 3, 4, 5, 6, 7 fixed and verified (unit + e2e, live checks against `biff dev` for 3 and 5)
-- Remaining: user review; first deploy confirms the non-root container (`e21d4ab`, revert alone if it fails), then the follow-ups below
+- Remaining: user review; first deploy confirms the non-root container (`4ef1cfa`, revert alone if it fails), then the follow-ups below
 - Validation: `just validate` 226 tests / 0 failures after finding 11 (2026-10-16); `just e2e-test-all` all 26 pass after finding 9; Docker image not built locally
 - Blockers: none
 - Next action: user decides on the follow-ups below and whether 097 moves to done
@@ -83,4 +83,4 @@ Follow-ups found along the way (not yet decided):
   page, and saving stores it.
 - Optional: refuse to load dev-only modules outside the dev profile, rather
   than relying on `dev/` being absent from the uberjar.
-- `e2e-auth-test` had never run in CI (not registered in `test.clj`); fixed in `dc50083`.
+- `e2e-auth-test` had never run in CI (not registered in `test.clj`); fixed in `5c1d74b`.
