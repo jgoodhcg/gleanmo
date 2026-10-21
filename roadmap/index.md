@@ -70,6 +70,7 @@ PWA notification scaffolding does not establish working reminder delivery.
   Follow-up requested 2026-10-18: edit existing API token permissions without replacing the token.
   Evaluate an in-repo Rust CLI with downloadable binaries, token-authenticated JSON commands, MCP mode, and auditable calls as part of standardized agent discovery.
   Add a super-user-only, read-only Performance monitoring permission to API tokens.
+  Investigate reported same-batch project/goal reference rejection after a successful dry run; align validation and document the two-batch workaround (2026-10-18).
 - [017-infrastructure.md](./017-infrastructure.md) - Database migration from Neon to DigitalOcean
 - [014-data-migration-status.md](./014-data-migration-status.md) - Tracker for Airtable backfills and remaining imports
 - [015-exercise.md](./015-exercise.md) - Exercise tracking with superset support; notes on sets and lines re-requested 2026-10-04; browse definitions by body part, isometric work, loading, and equipment alongside label search

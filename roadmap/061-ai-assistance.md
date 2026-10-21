@@ -221,6 +221,8 @@ Offline capture is now part of [093-inbox-quick-capture.md](./093-inbox-quick-ca
 
 ## Validation
 
+- [ ] A batch creating projects and goals referencing those projects passes both dry-run and commit validation.
+- [ ] Same-batch relation checks preserve ownership, type, and permission restrictions; rejected batches write nothing.
 - [ ] Read tools return only allow-listed entity types
 - [ ] Sensitive entities are excluded by default; verified with a fixture containing both sensitive and non-sensitive docs
 - [ ] Write tools reject fields outside the allow-list and validate against malli schemas
@@ -355,6 +357,24 @@ alone (`sync/user-managed-keys`), so that link could be writable even on a
 synced row. Needs a decision on how ownership is detected (lineage presence vs.
 an explicit `source`), how `/types` reports per-document writability, and how
 `can?` changes from type-level to document-level checks.
+
+### Same-batch references rejected after successful dry run (2026-10-18)
+
+An agent reported that a batch created projects and goals referencing those projects.
+The dry run passed, but the server rejected the write; nothing was written.
+Splitting the work into two batches succeeded: create the referenced records first, then create the goals.
+The agent reported adding this workaround to its skill.
+This report has not been independently reproduced.
+
+The API already documents client-supplied create IDs for references within the same batch (`api.clj`, `tx-handler`).
+Treat the reported rejection as a validation defect against that contract.
+Investigate the difference between API preflight checks and commit-time write rules, including goal-to-project validation.
+Dry-run and commit validation must agree on same-batch references when database state and permissions remain unchanged.
+Preserve ownership, type, permission, and all-or-nothing write guarantees.
+
+Add regression coverage for a project and a referencing goal created together, plus invalid and unauthorized relation targets.
+Document the two-batch workaround in agent discovery and future CLI/MCP guidance until the defect is fixed.
+The workaround uses two transactions; it does not preserve atomicity across both batches.
 
 ### Use case sketches (2026-07-11)
 
