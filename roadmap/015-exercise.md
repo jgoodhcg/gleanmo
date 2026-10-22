@@ -5,7 +5,7 @@ description: "Exercise tracking with superset support and Airtable backfill"
 tags: []
 priority: high
 created: 2026-02-02
-updated: 2026-10-18
+updated: 2026-10-22
 ---
 
 # Exercise Tracking Requirements
@@ -331,3 +331,19 @@ Add optional fields to existing exercise documents after deciding which attribut
 can have multiple values and whether external weight and bodyweight can both apply.
 Define controlled values for body parts and equipment before filling in existing exercises.
 Keep unlabeled attributes visible in an "Uncategorized" result so older exercises remain findable.
+
+### Log button label stays stale after inline exercise creation (2026-10-22)
+
+When a user creates an inline exercise on `/app/exercise/session`, `#wk-log-primary` keeps the previous exercise label.
+The `POST /app/crud/inline/exercise` response swaps the `innerHTML` of `#rel-field-exercise-id` (`src/tech/jgood/gleanmo/crud/inline.clj:251-258`).
+That swap replaces `select[name$=exercise-id]` with a new `<select>` element that selects the new exercise.
+In `src/tech/jgood/gleanmo/app/workout.clj:238-292`, `initLineForm` caches the original `sel` node and binds `change` directly to it.
+After the swap, `exLabel` still reads `sel.options[sel.selectedIndex]` from the detached `<select>` (`src/tech/jgood/gleanmo/app/workout.clj:257-258`).
+In addition, `htmx:afterSettle` runs `initLineForms(e.target)` on `#rel-field-exercise-id`, which is inside `[data-line-form]` (`src/tech/jgood/gleanmo/app/workout.clj:288-292`).
+Because `form.dataset.lineFormInit` is already `"true"`, `initLineForm` does not rebind the new `<select>` or call `syncPrimary()`.
+
+To fix this defect:
+- Query `form.querySelector('select[name$=exercise-id]')` dynamically inside `exLabel` and the `change` handler.
+- Delegate the `change` listener on `form` for `select[name$=exercise-id]`.
+- When `htmx:afterSettle` fires inside `[data-line-form]`, sync the line defaults and call `syncPrimary()`.
+- In `e2e/scripts/test-inline-create.ts:243-276`, submit an inline exercise on the workout screen and assert `#wk-log-primary` shows the new exercise label.

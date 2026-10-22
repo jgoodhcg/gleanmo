@@ -3,7 +3,7 @@ title: "Inline Related Entity Creation"
 status: active
 description: "Create related entities mid-form via HTMX inline expansion — no bounce, no form-state loss, auto-select on return; bridges search-empty state to creation"
 created: 2026-03-15
-updated: 2026-07-28
+updated: 2026-10-22
 tags: [ux, forms, crud, relationships, htmx, timers, search]
 priority: high
 ---
@@ -407,6 +407,8 @@ or `inputs/inline-create-trigger` (empty states) since their pickers are not
 generated CRUD relationship fields.
 
 Covered by `e2e/scripts/test-inline-create.ts`.
+Follow-up defect recorded 2026-10-22: after inline exercise creation on `/app/exercise/session`, `#wk-log-primary` keeps the previous exercise label because `initLineForm` holds the detached `<select>` reference (`src/tech/jgood/gleanmo/app/workout.clj:238-292`).
+See [015-exercise.md](./015-exercise.md#log-button-label-stays-stale-after-inline-exercise-creation-2026-10-22).
 
 ## Phasing
 
