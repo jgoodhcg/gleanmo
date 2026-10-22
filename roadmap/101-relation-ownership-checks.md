@@ -3,7 +3,7 @@ title: "Ownership checks on relation fields"
 status: draft
 description: "Accept a related-record id on write only when that record belongs to the same user, in CRUD forms and the custom timer, bouldering and workout handlers"
 created: 2026-10-15
-updated: 2026-10-15
+updated: 2026-10-22
 tags: [security, crud]
 priority: low
 ---
@@ -12,7 +12,7 @@ priority: low
 
 ## Intent
 
-Finding 8 of the 2026-10 security audit ([097](./097-security-audit.md)).
+Finding 8 of the 2026-10 security audit ([099](./099-security-audit.md)).
 Finding 1 made every write check that the record being written belongs to
 the user. The ids *inside* that record — a habit log's habits, a timer's
 parent and location, an attempt's problem, a workout line's exercise — are
@@ -52,7 +52,7 @@ rewritten.
 
 ## Context
 
-- Audit record: [097-security-audit.md](./097-security-audit.md)
+- Audit record: [099-security-audit.md](./099-security-audit.md)
 - Record-ownership checks from finding 1: `git log dev..security-audit`
 
 ## Open Questions (draft only)

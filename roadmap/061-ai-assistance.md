@@ -311,7 +311,7 @@ This is a requested follow-up, not an implemented capability.
 
 ### Token expiry (2026-10-16)
 
-From the security audit ([097-security-audit.md](./097-security-audit.md),
+From the security audit ([099-security-audit.md](./099-security-audit.md),
 finding 10): API tokens last until revoked; `api-token` has `revoked-at` but no
 end date. Add an optional `expires-at` chosen at creation (e.g. 30 / 90 days /
 never), shown on `/app/api-tokens`, and refuse expired tokens in the API's

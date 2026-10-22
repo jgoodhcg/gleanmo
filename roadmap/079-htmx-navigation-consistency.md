@@ -302,7 +302,7 @@ goes from **two accidental** models — native or htmx, decided by history — t
 where a path has earned it. The second becomes an opt-in optimization instead of
 an inconsistency.
 
-2026-10-14 (found during the email-change work, roadmap 097): on the account
+2026-10-14 (found during the email-change work, roadmap 099): on the account
 page, after "Update User" (an htmx form) the page's scripts load again, so the
 double-submit guard is registered twice and blocks the next plain form submit.
 The sidebar's "turn off archived / BM logs" buttons are probably affected. The

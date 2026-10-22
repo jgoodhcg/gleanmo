@@ -3,7 +3,7 @@ title: "Content Security Policy"
 status: draft
 description: "Send an enforced CSP so the browser refuses script the app did not ship, after moving inline code into served files"
 created: 2026-10-14
-updated: 2026-10-14
+updated: 2026-10-22
 tags: [security, frontend]
 priority: medium
 ---
