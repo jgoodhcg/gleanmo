@@ -376,6 +376,18 @@ Add regression coverage for a project and a referencing goal created together, p
 Document the two-batch workaround in agent discovery and future CLI/MCP guidance until the defect is fixed.
 The workaround uses two transactions; it does not preserve atomicity across both batches.
 
+### Dogfood notes (2026-10-17)
+
+**BM logs on the token form.**
+
+> "Bm logs show when toggles off in api token creation"
+
+Captured from the user's task inbox; the exact meaning is not yet confirmed.
+Likely reading: on `/app/api-tokens` the "BM logs" group row (`api/access.clj`
+`groups`, `:bm`) still shows when a toggle is off, probably the sensitive
+toggle, since BM data is personal health data. Confirm with the user which
+toggle, and whether the row should be hidden, disabled, or flagged.
+
 ### Use case sketches (2026-07-11)
 
 **Day planning.** The user asks, "What is worth doing today?"
