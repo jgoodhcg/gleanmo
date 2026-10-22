@@ -44,7 +44,7 @@ was re-checked during finding 1 and scopes the record it writes to the user.
 ## Validation
 
 - [x] Each fix has unit tests against a real XTDB node, written failing first where it was a bug
-- [x] `just validate` and `just e2e-test-all` green after each batch (last: 2026-10-14)
+- [x] `just validate` and `just e2e-test-all` green after each batch (last: 2026-10-22, after the rebase onto `5fb2ad6`)
 - [x] Findings 8–11 each have a decision
 - [ ] User reviews the branch, merges `security-audit` → `dev`, then ships
 
@@ -63,10 +63,10 @@ the merge to `main` are the user's. No history rewrite for finding 2.
 
 ## Progress
 
-- Checkout: `~/projects/gleanmo.worktrees/security-audit`, branch `security-audit`, 22 commits ahead of local `dev` (`5fb2ad6`), not pushed. Renumbered 097→099 (and its follow-ups 098→102, 099→103) on 2026-10-22 because dev took 097, 098 and 100; the email-change `defnp` commit was dropped as dev had already converted the db layer
+- Checkout: `~/projects/gleanmo.worktrees/security-audit`, branch `security-audit`, 24 commits ahead of local `dev` (`5fb2ad6`), not pushed. Renumbered 097→099 (and its follow-ups 098→102, 099→103) on 2026-10-22 because dev took 097, 098 and 100; the email-change `defnp` commit was dropped as dev had already converted the db layer
 - Completed: all 11 findings decided (8 roadmapped as 103; 9, 10, 11 fixed); 1, 3, 4, 5, 6, 7 fixed and verified (unit + e2e, live checks against `biff dev` for 3 and 5)
 - Remaining: user review; first deploy confirms the non-root container (`b5260dc`, revert alone if it fails), then the follow-ups below
-- Validation: `just validate` 242 tests / 0 failures after the rebase onto `fafe84e` (2026-10-22), rerun pending on `5fb2ad6`; `just e2e-test-all` all 26 pass after finding 9, rerun pending; Docker image not built locally
+- Validation: `just validate` and `just e2e-test-all` all 26 pass after the rebase onto `5fb2ad6` (2026-10-22, 257 tests / 0 failures); Docker image not built locally
 - Blockers: none
 - Next action: user decides on the follow-ups below and whether 099 moves to done
 
