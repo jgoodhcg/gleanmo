@@ -2,9 +2,9 @@
   "id": "agent-discovery",
   "title": "How an agent goes from one memorable URL to a working Gleanmo integration",
   "created": "2026-10-15",
-  "status": "proposed",
-  "decided": "2026-10-15",
-  "decision": "Options B + C + D together, generated from code: a public plain-markdown setup guide at `/agents` (byte-identical at `/llms.txt`), an installable Agent Skill at `/agents/SKILL.md`, a generated OpenAPI 3.1 document at `/api/v1/openapi.json` with an unauthenticated JSON index at `/api/v1`, an RFC 9727 `/.well-known/api-catalog` pointing at both, and a 401 that names the guide. The token page gains a copyable setup prompt that carries the base URL and the new token's grants but never the token. MCP (option E) is deferred. Chosen by the agent under delegation from the user; awaiting the user's approval.",
+  "status": "accepted",
+  "decided": "2026-10-22",
+  "decision": "Options B + C + D together, generated from code: a public plain-markdown setup guide at `/agents` (byte-identical at `/llms.txt`), an installable Agent Skill at `/agents/SKILL.md`, a generated OpenAPI 3.1 document at `/api/v1/openapi.json` with an unauthenticated JSON index at `/api/v1`, an RFC 9727 `/.well-known/api-catalog` pointing at both, and a 401 that names the guide. The token page gains a copyable setup prompt that carries the base URL and the new token's grants but never the token. MCP (option E) is deferred. Chosen by the agent under delegation from the user; approved by the user 2026-10-22.",
   "context": {
     "problem": "The agent API (`/api/v1`) works, but an agent learns how to use it from one sentence on `/app/api-tokens` and from 400 messages. The user wants to type an easy URL into any agent (Claude Code, Codex, Claude.ai, others) and have the agent read instructions, choose an integration suited to its own harness, and walk the user through the one manual step: creating a token and putting it where the agent says.",
     "constraints": [

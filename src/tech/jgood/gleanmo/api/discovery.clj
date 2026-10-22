@@ -130,7 +130,10 @@ One record. 404 when it does not exist or the token cannot see it.
 - `expect` (optional) names values you read; if any changed since, the op is
   rejected as stale instead of overwriting.
 - A create may supply its own `id` (a uuid) so later ops in the same batch can
-  relate to it. Deletes are soft.
+  relate to it. Known issue: a commit can reject such a reference even after
+  its dry run passed. If that happens, create the referenced records in one
+  batch, then the records that point at them in a second (the two batches are
+  not atomic together). Deletes are soft.
 - `dry_run: true` writes nothing and returns each op's `changes`
   (`{field: {from, to}}`) and `errors`. Without it, a valid batch returns
   `committed: true`; an invalid one returns 422 with per-op errors and writes

@@ -3,7 +3,7 @@ title: "AI Assistance Integration"
 status: active
 description: "Restore task use through conversational backlog cleanup and daily planning, starting with scoped agent access and approved batch changes"
 created: 2026-07-11
-updated: 2026-10-20
+updated: 2026-10-22
 tags: [integration, ai, mcp, api, security, llm-context]
 priority: high
 ---
@@ -156,7 +156,7 @@ Deferred: MCP, companion CLI and discovery endpoint, aggregate reads (today bund
 
 ### Agent discovery (2026-10-20)
 
-Answers the 2026-10-13 dogfood note below. Decision record: `.decisions/agent-discovery.json`, chosen by the agent under delegation and awaiting the user's approval.
+Answers the 2026-10-13 dogfood note below. Decision record: `.decisions/agent-discovery.json`, chosen by the agent under delegation and approved by the user 2026-10-22. The guide documents the two-batch workaround for the same-batch reference defect below.
 
 > "I want to type in an easy-to-remember url, have the agent read instructions, then walk me through setup. If there are standards for this, let's use them." (user, 2026-10-15)
 
