@@ -19,21 +19,21 @@ changes ship only when the user merges to `main`.
 
 ## Specification
 
-Decisions so far (branch `security-audit`, rebased onto local `dev` at `fafe84e` on 2026-10-22):
+Decisions so far (branch `security-audit`, rebased onto local `dev` at `5fb2ad6` on 2026-10-22):
 
 | # | Finding | Severity | Decision | Commit |
 |---|---------|----------|----------|--------|
-| 1 | CRUD update, task actions and drag-to-reorder did not check record ownership; forms could set `xt/id` / `user/id` | High | Fixed | `e84ef8c` |
+| 1 | CRUD update, task actions and drag-to-reorder did not check record ownership; forms could set `xt/id` / `user/id` | High | Fixed | `86ca962` |
 | 2 | A sample `COOKIE_SECRET` value exists in git history (deleted CI doc) | — | Accepted: not the production value (user's judgement; a direct compare was offered) | — |
-| 3 | Dev-only e2e sign-in routes reachable from the network while `biff dev` runs | High (dev) | Fixed: loopback-only, server-generated token, `@localhost` accounts only | `3e974d2`, `1094c44`, `3549931` |
-| 4 | Heatmap tooltip built HTML from record labels without escaping | Medium | Fixed | `d3f2a61` |
-| 5 | Front-end libraries loaded from CDNs, two unversioned, no integrity check | Medium | Fixed: vendored with fonts; CSP roadmapped as 100 | `cac72c4` |
-| 6 | Account email could be changed without verification or a uniqueness check | Medium | Fixed: code sent to the new address, uniqueness enforced | `ccd3eaf` |
-| 7 | Request logs held magic-link tokens and query values | Low–Med | Fixed: logger masks tokens, keeps parameter names only | `1400320` |
-| 8 | Relation fields (CRUD, timer parent/location, bouldering problem, workout exercise) are not ownership-checked | Low | Roadmapped as 101 | — |
-| 9 | `redirect` parameter on CRUD create/update and the settings `turn-off-*` routes is not restricted to local paths (timer routes already are) | Low | Fixed: one `local-path` check in `app/shared.clj` for CRUD create/update, the CRUD form's hidden field and Cancel link, the settings routes and timer routes | `b8d6f5b` |
-| 10 | Config-dependent fallbacks: captcha, email delivery and API-token lifetime | Low | Fixed: prod refuses to start without the reCAPTCHA and MailerSend keys (user confirmed they are set); token expiry noted in 061 | `d369416` |
-| 11 | Supply-chain and hosting hygiene: unchecked tool downloads, CI `permissions:`, container user, dev-only deps in prod, outdated libraries | Low | Fixed, one commit each so any can be reverted alone: checksums, read-only CI token, non-root container, Clerk to `:dev`, slf4j-simple 2.0.12. Biff and ring-defaults upgrades deferred to 037 | `ebdb44e`, `88cc294`, `a132183`, `8e548b4`, `f07b6fd` |
+| 3 | Dev-only e2e sign-in routes reachable from the network while `biff dev` runs | High (dev) | Fixed: loopback-only, server-generated token, `@localhost` accounts only | `8347312`, `00d239b`, `17e168b` |
+| 4 | Heatmap tooltip built HTML from record labels without escaping | Medium | Fixed | `34f772b` |
+| 5 | Front-end libraries loaded from CDNs, two unversioned, no integrity check | Medium | Fixed: vendored with fonts; CSP roadmapped as 102 | `9dcda5d` |
+| 6 | Account email could be changed without verification or a uniqueness check | Medium | Fixed: code sent to the new address, uniqueness enforced | `c3aa3ec` |
+| 7 | Request logs held magic-link tokens and query values | Low–Med | Fixed: logger masks tokens, keeps parameter names only | `1ef72cb` |
+| 8 | Relation fields (CRUD, timer parent/location, bouldering problem, workout exercise) are not ownership-checked | Low | Roadmapped as 103 | — |
+| 9 | `redirect` parameter on CRUD create/update and the settings `turn-off-*` routes is not restricted to local paths (timer routes already are) | Low | Fixed: one `local-path` check in `app/shared.clj` for CRUD create/update, the CRUD form's hidden field and Cancel link, the settings routes and timer routes | `2e58e86` |
+| 10 | Config-dependent fallbacks: captcha, email delivery and API-token lifetime | Low | Fixed: prod refuses to start without the reCAPTCHA and MailerSend keys (user confirmed they are set); token expiry since built in [100](./100-agent-api-security.md) (`9eb3b51`) | `fbb9d93` |
+| 11 | Supply-chain and hosting hygiene: unchecked tool downloads, CI `permissions:`, container user, dev-only deps in prod, outdated libraries | Low | Fixed, one commit each so any can be reverted alone: checksums, read-only CI token, non-root container, Clerk to `:dev`, slf4j-simple 2.0.12. Biff and ring-defaults upgrades deferred to 037 | `9d886de`, `a318c5e`, `b5260dc`, `b29300e`, `2f2529f` |
 
 Checked and found sound by the audit: API token generation and hashing, API
 group / sensitive / archived scoping and `/tx` checks, credential encryption,
@@ -56,17 +56,17 @@ the merge to `main` are the user's. No history rewrite for finding 2.
 ## Context
 
 - Fix commits: `git log dev..security-audit`
-- CSP follow-up: [100-content-security-policy.md](./100-content-security-policy.md)
-- Relation ownership follow-up: [101-relation-ownership-checks.md](./101-relation-ownership-checks.md)
+- CSP follow-up: [102-content-security-policy.md](./102-content-security-policy.md)
+- Relation ownership follow-up: [103-relation-ownership-checks.md](./103-relation-ownership-checks.md)
 - Vendored libraries: `resources/public/vendor/README.md`
 - E2e sign-in guard: `dev/tech/jgood/gleanmo/e2e_auth.clj` (token in `target/e2e-login-token`)
 
 ## Progress
 
-- Checkout: `~/projects/gleanmo.worktrees/security-audit`, branch `security-audit`, 22 commits ahead of local `dev` (`fafe84e`, level with origin), not pushed. Renumbered 097→099 (and its follow-ups 098→100, 099→101) on 2026-10-22 because dev took 097 and 098; the email-change `defnp` commit was dropped as dev had already converted the db layer
-- Completed: all 11 findings decided (8 roadmapped as 101; 9, 10, 11 fixed); 1, 3, 4, 5, 6, 7 fixed and verified (unit + e2e, live checks against `biff dev` for 3 and 5)
-- Remaining: user review; first deploy confirms the non-root container (`a132183`, revert alone if it fails), then the follow-ups below
-- Validation: `just validate` 242 tests / 0 failures after the rebase onto `fafe84e` (2026-10-22); `just e2e-test-all` all 26 pass after finding 9; Docker image not built locally
+- Checkout: `~/projects/gleanmo.worktrees/security-audit`, branch `security-audit`, 22 commits ahead of local `dev` (`5fb2ad6`), not pushed. Renumbered 097→099 (and its follow-ups 098→102, 099→103) on 2026-10-22 because dev took 097, 098 and 100; the email-change `defnp` commit was dropped as dev had already converted the db layer
+- Completed: all 11 findings decided (8 roadmapped as 103; 9, 10, 11 fixed); 1, 3, 4, 5, 6, 7 fixed and verified (unit + e2e, live checks against `biff dev` for 3 and 5)
+- Remaining: user review; first deploy confirms the non-root container (`b5260dc`, revert alone if it fails), then the follow-ups below
+- Validation: `just validate` 242 tests / 0 failures after the rebase onto `fafe84e` (2026-10-22), rerun pending on `5fb2ad6`; `just e2e-test-all` all 26 pass after finding 9, rerun pending; Docker image not built locally
 - Blockers: none
 - Next action: user decides on the follow-ups below and whether 099 moves to done
 
@@ -83,4 +83,4 @@ Follow-ups found along the way (not yet decided):
   page, and saving stores it.
 - Optional: refuse to load dev-only modules outside the dev profile, rather
   than relying on `dev/` being absent from the uberjar.
-- `e2e-auth-test` had never run in CI (not registered in `test.clj`); fixed in `3e974d2`.
+- `e2e-auth-test` had never run in CI (not registered in `test.clj`); fixed in `8347312`.

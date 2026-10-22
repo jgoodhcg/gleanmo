@@ -318,6 +318,9 @@ never), shown on `/app/api-tokens`, and refuse expired tokens in the API's
 token lookup. Low priority — revocation already works and `last-used-at` shows
 stale tokens.
 
+Built 2026-10-19 in [100-agent-api-security.md](./100-agent-api-security.md)
+(`9eb3b51`): new tokens default to 90 days or never; existing tokens keep no expiry.
+
 ### Dogfood notes (2026-10-13)
 
 Raised during the Cronometer production rollout ([056-cronometer-integration.md](./056-cronometer-integration.md)).
