@@ -79,6 +79,7 @@
   {"hello"              #'hello
    "download-airtable"  #'airtable/download-all-records
    "cronometer-probe"   #'cronometer/probe
+   "cronometer-export-recipes" #'cronometer/export-recipes
    "cronometer-connect" #'cronometer/connect
    "cronometer-sync"    #'cronometer/sync-recent
    "migrate"            #'migrate/run

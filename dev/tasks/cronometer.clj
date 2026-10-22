@@ -35,6 +35,7 @@
    [clojure.string :as str]
    [clojure.tools.cli :refer [parse-opts]]
    [com.biffweb :as biff]
+   [tasks.cronometer-recipes :as recipes]
    [tasks.migrate :as migrate]
    [tasks.util :as u]
    [tech.jgood.gleanmo.cronometer.client :as client]
@@ -177,6 +178,40 @@
 
       :else
       (println "Usage: clj -M:dev cronometer-probe login | dump [--day YYYY-MM-DD] [--days N]"))))
+
+;; =============================================================================
+;; Recipe export (files only)
+;; =============================================================================
+
+(defn export-recipes
+  "Export custom recipes and recursive ingredient foods to JSON and CSV.
+   Uses the probe's credentials and cached session; never opens XTDB.
+   Custom-tab discovery needs a live check. Compare with the app's count.
+
+   Usage: biff cronometer-export-recipes [--expected-count N]"
+  [& args]
+  (let [{:keys [options arguments errors summary]}
+        (parse-opts args [[nil "--expected-count N" "Recipe count shown in the app"
+                           :parse-fn parse-long
+                           :validate [#(and (integer? %) (<= 0 %)) "Must be a nonnegative integer"]]
+                          ["-h" "--help" "Show usage without contacting Cronometer"]])]
+    (cond
+      (:help options)
+      (do (println "Usage: biff cronometer-export-recipes [--expected-count N]")
+          (println summary))
+
+      (or (seq errors) (seq arguments))
+      (throw (ex-info "Invalid recipe export arguments"
+                      {:errors errors, :arguments arguments}))
+
+      :else
+      (do
+        (println "Custom-tab discovery is unverified; compare the exported count with the app.")
+        (let [bundle (recipes/collect (conn) (:expected-count options))
+              path (recipes/write-export! bundle)]
+          (println "Exported" (count (:recipes bundle)) "recipes and"
+                   (count (:foods bundle)) "food records to" path)
+          (println "Files: recipes.json, ingredients.csv"))))))
 
 ;; =============================================================================
 ;; Connect and sync (write to XTDB)

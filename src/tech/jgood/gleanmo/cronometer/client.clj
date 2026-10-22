@@ -173,6 +173,20 @@
                      {:ids (vec food-ids), :config {:call_version 1}}))
     []))
 
+(defn find-custom-foods
+  "Search the Custom tab with an empty query, returning food summaries.
+   This variant of the reference client's find_food request is unverified
+   against the live API. Search results alone do not prove catalog coverage."
+  [conn]
+  (let [body (request conn "/api/v2/find_food"
+                      {:query "", :tab "CUSTOM", :sources ["All"]
+                       :config {:newSearch true, :newSpellcheck true,
+                                :call_version 1}})]
+    (when-not (and (map? body) (sequential? (:foods body))
+                   (every? #(and (map? %) (integer? (:id %))) (:foods body)))
+      (throw (ex-info "Cronometer custom search returned an unexpected response" {})))
+    (:foods body)))
+
 (defn get-metrics
   "The biometric catalog: metrics with their units."
   [conn]

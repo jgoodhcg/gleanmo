@@ -65,6 +65,8 @@ PWA notification scaffolding does not establish working reminder delivery.
 
 ### Active
 
+- [097-cronometer-recipe-export.md](./097-cronometer-recipe-export.md) - Standalone custom recipe JSON and ingredient CSV export; live catalog discovery requires a user-run check.
+
 - [056-cronometer-integration.md](./056-cronometer-integration.md) - Food, recipes, biometrics and daily summaries from Cronometer for the agent API; slices A–C built and tested 2026-10-12 (sync, encrypted per-user credentials, read-only API groups, `/app/cronometer`), plus a dev-only fake API for local and CI sync; activity observations readable via a read-only Activities API group (2026-10-13); live sync and CSV backfill pending
 - [061-ai-assistance.md](./061-ai-assistance.md) - Agent API v1 built 2026-10-08: scoped bearer tokens, permission-checked reads, one checked all-or-nothing `tx` write endpoint with dry run; 2026-10-13 notes: standardized agent discovery / initial prompt, and per-document writes to generic imported entities (food logs, biometrics, activities)
   Follow-up requested 2026-10-18: edit existing API token permissions without replacing the token.
