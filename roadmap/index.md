@@ -110,6 +110,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 
 ### Draft
 
+- [104-recorded-time-zone.md](./104-recorded-time-zone.md) - Every entity with a timestamp or interval stores the zone it was recorded in (12 lack it), defaulted from the user setting and used to both parse and render its instants; m008 backfill, converter fix, and an enforcing registry test
 - [103-relation-ownership-checks.md](./103-relation-ownership-checks.md) - Accept a related-record id on write only when it belongs to the same user (CRUD relations, timer parent/location, bouldering problem, workout exercise)
 - [102-content-security-policy.md](./102-content-security-policy.md) - Enforced CSP as a backstop for missed escaping, after moving inline scripts and handlers into served files
 - [096-go-port-experiment.md](./096-go-port-experiment.md) - Record of a time-boxed AI port to Go + SQL (2026-10-07): impressions, and the preconditions (acceptance suite, vanilla CSS, Go vs Rust, data migration) for a real rewrite plan
