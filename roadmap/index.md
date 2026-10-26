@@ -40,6 +40,7 @@ unfinished QOL batch items 3-5 are no longer competing with a migration.
 - [061-ai-assistance.md](./061-ai-assistance.md) - First task priority: conversational backlog cleanup and approved updates, followed by a one-week adoption check
 - [021-performance.md](./021-performance.md) - Performance monitoring and profiling dashboard
 - [013-dashboard-performance.md](./013-dashboard-performance.md) - Home page dashboard performance improvements
+- [105-slow-content-after-shell.md](./105-slow-content-after-shell.md) - The regions behind the fast shells still take 1–5s; attribute, rank, and fix them
 - [012-daily-focus.md](./012-daily-focus.md) - Existing daily task workflow; evaluate a manageable chosen list after conversational cleanup
 - [083-lucide-icon-consolidation.md](./083-lucide-icon-consolidation.md) - All three phases implemented on `dev` 2026-09-16; mark done and archive once shipped
 - [010-calendar.md](./010-calendar.md) - Year-at-a-glance calendar with event interactions and external sync
@@ -79,7 +80,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 - [015-exercise.md](./015-exercise.md) - Exercise tracking with superset support; notes on sets and lines re-requested 2026-10-04; browse definitions by body part, isometric work, loading, and equipment alongside label search; fix stale `#wk-log-primary` button label after inline exercise creation (2026-10-22)
 - [021-performance.md](./021-performance.md) - Performance monitoring dashboard; quick copy of the visible report
 - [013-dashboard-performance.md](./013-dashboard-performance.md) - Home page dashboard performance improvements
-- [098-perceived-performance.md](./098-perceived-performance.md) - Slow pages render a fast shell with shaped skeletons, then fill from the same URL's `?full=1` page in one or a few htmx requests; per-page estimates to check against prod
+- [098-perceived-performance.md](./098-perceived-performance.md) - Slow pages render a fast shell with shaped skeletons, then fill from the same URL's `?full=1` page in one or a few htmx requests; deployed, shells confirmed fast in prod 2026-10-25; open questions and region-id tests left
 - [012-daily-focus.md](./012-daily-focus.md) - Existing daily task workflow; further changes depend on the AI-assisted adoption check
 - [010-calendar.md](./010-calendar.md) - Year-at-a-glance calendar with event interactions and external sync
 - [008-backlog.md](./008-backlog.md) - Minor improvements without full work-unit docs
@@ -99,6 +100,7 @@ PWA notification scaffolding does not establish working reminder delivery.
 
 ### Ready
 
+- [105-slow-content-after-shell.md](./105-slow-content-after-shell.md) - The shells paint fast but the regions you act on still take 1–5s in prod; step 0 attributes cost per tier and goal source, then workout sets/lines, goal progress, the task timeline scan, timer spikes in that order
 - [075-exercise-export.md](./075-exercise-export.md) - The exercise composite export (session → set → line as nested Markdown or JSON, denormalized to CSV); depends on 078-data-export.md
 - [074-query-shape-audit.md](./074-query-shape-audit.md) - Find clauses that cost without narrowing, and ranges that never prune, across db/queries.clj
 - [063-qol-quick-actions.md](./063-qol-quick-actions.md) - Navigation & logging QOL: sidebar reorder, stop-in-place timers, boulder problem discoverability, home quick actions

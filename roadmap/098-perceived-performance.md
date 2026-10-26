@@ -3,7 +3,7 @@ title: "Perceived Performance: Shell Then Full Page"
 status: active
 description: "Slow pages answer with a fast shell of real cheap data and shaped skeletons, then fill the slow regions from the same URL's full page in one or a few htmx requests"
 created: 2026-10-19
-updated: 2026-10-20
+updated: 2026-10-25
 tags: [performance, htmx, ux]
 priority: high
 ---
@@ -118,25 +118,28 @@ plus the shell. Network round trips are not included.
 
 ## Slow queries found (future work, not changed here)
 
-- `lines-for-sets` ~1.4s in prod despite being parent-scoped (equality on set
-  ids). It now gates the Workout shell, so it is the main thing between the
-  active session and a fast first paint. Check its join order per
-  [074-query-shape-audit.md](./074-query-shape-audit.md).
-- `goal-source-records` ×6 per `/app/goals` request at 0.6–2.4s each — one per
-  source request window; the goals page total is dominated by it.
-- `recent-activity-across-types` ~1.2s, 26 `windowed-scan` calls and 258
-  `get-entity-by-id` calls per `/app/overview/recent`.
-- `active-timers-for-user` up to 841ms on home — should be a sparse-flag
-  lookup since [071-timer-running-flag.md](./071-timer-running-flag.md); check
-  that every timer entity declares `running` and that prod was backfilled.
-- `all-entities-for-user` for tasks ~613ms on Task focus.
-- `recent-completed-timer-logs` up to 567ms on Timers.
-- `recent-lines-for-user` ~0.7s for Workout's exercise memory.
-- Task focus with `state=any` or `state=not-done` calls `tasks-by-state` once
-  per state (6 or 4 times), and each call loads every task through
-  `tasks-for-user` before filtering. One `tasks-for-user` call filtered in the
-  app — or a state-bound query — would cut those filters by 4–6x. Call-site
-  change, not made here.
+Moved to [105-slow-content-after-shell.md](./105-slow-content-after-shell.md)
+on 2026-10-25, which ranks them against the first post-deploy prod snapshot.
+
+## Prod result (2026-10-25, SHA 5236231c)
+
+The shells meet the goal. First content is fast on every converted page, and
+complete times are about the same as before, which is what the estimates
+predicted. Handler spans mix shell and `?full=1` requests, so the split below
+is inferred from min/max (105 step 0 makes it measurable). Raw dump in
+[105](./105-slow-content-after-shell.md#raw-snapshot-2026-10-25).
+
+| Page | Shell (min handler) | Full (approx.) | vs. estimate |
+|------|--------------------|----------------|--------------|
+| Goals | 26ms | ~5s (max 6.14s) | shell as estimated; full worse than ~3.0s |
+| Home | 7.8ms | timeline ~1.2s | as estimated |
+| Workout (idle) | 13ms | recent sessions ~2.4s | first measurement |
+| Today | 7.2ms | ≤0.68s | as estimated |
+| Timers | 29ms | ~0.37–0.77s | as estimated |
+
+> "I think the page shells do load relatively quickly so it seemed to
+> accomplish it's goal but a lot of actionable information still takes a long
+> time to load" — 2026-10-25
 
 ## Validation
 
@@ -146,8 +149,9 @@ plus the shell. Network round trips are not included.
       (`deferred` covered; per-page region-id tests not written)
 - [x] e2e: existing suites pass against shells (they wait for deferred regions)
 - [x] Series tick before and after; before/after pairs for the converted pages
-- [ ] After deploy: compare shell and full handler times on
-      `/app/monitoring/performance` with the estimates above
+- [x] After deploy: compare shell and full handler times on
+      `/app/monitoring/performance` with the estimates above (2026-10-25,
+      see Prod result)
 
 ## Scope
 
@@ -184,7 +188,7 @@ plus the shell. Network round trips are not included.
 
 ## Progress
 
-- Checkout: branch `perceived-perf` (from `dev` at 7aa7e06), not merged
+- Checkout: merged to `dev` and deployed (prod at 5236231c on 2026-10-25)
 - Completed (2026-10-19): `defnp` conversion; `app/deferred.clj`; Goals,
   Home (two tiers), Task focus, Workout, Today, and Timers converted.
   `/app/overview/recent` and `/app/goals/pinned` removed.
@@ -207,5 +211,8 @@ plus the shell. Network round trips are not included.
   Local timings are not meaningful (near-empty DB); compare prod against the
   estimates above.
 - Blockers: none
-- Next action: user review, merge to `dev`, deploy, then compare
-  `/app/monitoring/performance` with the estimates
+- Prod compared with the estimates (2026-10-25): shells as estimated; the
+  slow regions move to [105](./105-slow-content-after-shell.md)
+- Remaining: per-page region-id tests; the Open Questions above
+- Next action: decide the open questions, or close this unit with them
+  carried forward
