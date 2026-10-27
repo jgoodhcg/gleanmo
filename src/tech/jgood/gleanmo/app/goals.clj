@@ -178,11 +178,6 @@
     (let [s (qty m (Math/abs (double v)) 0)]
       (if (re-matches #"[0,]+" s) "0" (str (if (neg? v) "−" "+") s)))))
 
-(defn- pace-needed-whole
-  "The pace needed rounded up to an amount that can be logged."
-  [m required]
-  (format "%,d" (long (Math/ceil (- (/ (double required) (ruler-factor m)) 1e-9)))))
-
 (def ^:private log-entity
   "Sources logged through their parent's screen."
   {:exercise-line :exercise-session, :boulder-attempt :boulder-session})
@@ -1043,22 +1038,36 @@
   (str (if (duration-total? m) (amount m (or logged 0)) (fmt-num (or logged 0)))
        " / " (amount m target)))
 
+(defn- needed-today
+  "What is left to log today to reach the ruler mark of `kind` (`:keep`, hold
+   steady, or `:even`, back on even pace), in whole ruler units; 0 once met.
+   Nil without a ruler. Reads the ruler's marks so the list and the goal
+   page always agree."
+  [m r kind]
+  (some #(when (= kind (:kind %)) (qty m (max 0.0 (:distance %)) 0)) (:marks r)))
+
+(defn- need-figure
+  "A list figure for `needed-today`: the amount left, or a lime ✓ once met."
+  [label v k]
+  [:span {(keyword (str "data-need-" (name k))) v}
+   (if (re-matches #"[0,]+" v)
+     [:span.text-gray-400 label " " [:b.font-semibold.text-neon-lime "✓"]]
+     (figure label v))])
+
 (defn- cumulative-row
   [{:keys [goal measurement progress] :as entry}]
   (let [m measurement
-        {:keys [logged target today-amount required gap-at-day-start window]} progress
+        {:keys [logged target required window]} progress
+        r (calc/ruler progress m)
         [_ _ status status-class] (card-figures entry)]
     (list-row entry "cumulative"
               (str (source-line entry) " · ends " (fmt-date (:goal/ends-on goal) "MMM d, yyyy"))
               [:<>
                [:div.text-xs.text-gray-400.tabular-nums (logged-of m logged target)]
                (list-bar (:progress progress) "bg-neon-cyan")]
-              (if required
-                [[:span (data-attrs "data-" {:today today-amount :required required})
-                  (figure "today" (str (qty m today-amount 0) "/"
-                                       (pace-needed-whole m required)))]
-                 [:span {:data-gap (str gap-at-day-start)}
-                  (figure "gap" (signed-qty m gap-at-day-start))]
+              (if (and required r)
+                [(need-figure "hold steady" (needed-today m r :keep) :keep)
+                 (need-figure "even pace" (needed-today m r :even) :even)
                  [:span.text-gray-400 (str (:remaining-days window) " days left")]]
                 [[:span {:class status-class} status]]))))
 
@@ -1267,9 +1276,8 @@
        (key-row "average" "avg (elapsed days)" (qty m average 1))
        (key-row "required" "pace needed (from today)" (qty m required 1) "text-neon-amber")
        (key-row "gap" "gap at day start" (signed-qty m gap-at-day-start))
-       (key-row "to-even" "needed today to reach even pace"
-                (some #(when (= :even (:kind %)) (qty m (max 0.0 (:distance %)) 0))
-                      (:marks r)))]
+       (key-row "to-keep" "needed today to hold steady" (needed-today m r :keep))
+       (key-row "to-even" "needed today to reach even pace" (needed-today m r :even))]
       [:dl {:class "goal-extra tabular-nums"}
        (quiet-row "period" (date-span (:start window) (:end window)))
        (quiet-row "days left" (str (or (:remaining-days window) 0)))

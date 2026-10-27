@@ -247,6 +247,8 @@ async function main() {
     // Even pace is 600 min over 38 days; tonight's even line is 8 days of it,
     // 126.3 rounded up to 127, so 37 more than the 90 logged.
     await expect(key('to-even')).toHaveText('37');
+    // Holding steady is a day of the pace needed: 90 + 16.5 rounds up to 107.
+    await expect(key('to-keep')).toHaveText('17');
     for (const kind of ['you', 'keep', 'even']) {
       await expect(cumulative.locator(`[data-ruler-mark="${kind}"]`)).toHaveCount(1);
     }
@@ -306,7 +308,9 @@ async function main() {
     await expect(page.locator('[data-goal-group="other"] [data-goal-row]')).toContainText('Finish The Odyssey');
     await expect(page.locator('[data-goal-group="periodic"]')).toHaveCount(0);
     const readingRow = rows.filter({ hasText: 'Reading time' });
-    await expect(readingRow).toContainText('today 0/17');
+    // The row repeats the goal page's two needs for today.
+    await expect(readingRow).toContainText('hold steady 17');
+    await expect(readingRow).toContainText('even pace 37');
     await expect(readingRow).toContainText('31 days left');
     // Columns line up across groups.
     const nameX = await page.locator('[data-goal-row] a[data-goal-link]').evaluateAll((nodes) =>

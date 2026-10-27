@@ -423,10 +423,17 @@
     (testing "one group per family, in order"
       (is (= ["cumulative" "periodic" "other"]
              (map second (re-seq #"data-goal-group=\"(\w+)\"" html)))))
-    (testing "cumulative rows show today against the pace needed, and the gap"
-      (is (str/includes? html "0/14"))
-      (is (str/includes? html "−15"))
+    (testing "cumulative rows show what today needs to hold steady and to reach even pace"
+      ;; 245 + 13.7 rounds up to 259; even pace tonight 273.2 rounds up to 274.
+      (is (str/includes? html "data-need-keep=\"14\""))
+      (is (str/includes? html "data-need-even=\"29\""))
       (is (str/includes? html "347 days left")))
+    (testing "a need met today reads as a check"
+      (let [html (rum/render-static-markup
+                  (#'goals-page/goals-list [(reps-entry :dated 30)]))]
+        (is (str/includes? html "data-need-keep=\"0\""))
+        (is (str/includes? html "data-need-even=\"0\""))
+        (is (str/includes? html "✓"))))
     (testing "rows link to goal pages"
       (is (str/includes? html "href=\"/app/goal/")))))
 
